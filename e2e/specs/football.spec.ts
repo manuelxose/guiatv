@@ -92,8 +92,11 @@ test.describe('Football Home', () => {
     const globalSearch = page.locator('#unified-search-input');
     await expect(globalSearch).toBeVisible();
     await expect(globalSearch).toHaveAttribute('placeholder', /fútbol/);
-    await globalSearch.fill('LaLiga');
+    // Exercise keyboard input; an instantaneous fill can race SSR form hydration.
+    await globalSearch.click();
+    await globalSearch.pressSequentially('LaLiga', { delay: 100 });
     await expect(page.getByRole('group', { name: 'Fútbol' })).toBeVisible({ timeout: 20_000 });
+    await expect(globalSearch).toHaveValue('LaLiga');
     const accessibility = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
     expect(accessibility.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact || ''))).toEqual([]);
   });

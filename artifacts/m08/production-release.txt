@@ -1,0 +1,20 @@
+/var/www/guiatv/releases/20261026095229
+{
+  "app": "guiatv",
+  "releaseId": "20261026095229",
+  "releasedAt": "2026-10-26T08:52:34.737Z",
+  "gitSha": "13aeaa8de4c1b8c2ea691cde9beab5738ea2a3bc",
+  "backendFingerprint": "abd5df2f0540482acbf9581cc7a4f8b0dc85d6fa7b5d24008609bad62fb9c6d2",
+  "frontendFingerprint": "a0cdf8ddb493d77fbf53457865b10b568ee8a4c0a0498bd6d6388fe0182a2e6d",
+  "carriedBrowserAssetCount": 2692
+}
+NRestarts=0
+ActiveState=active
+
+NRestarts=0
+ActiveState=active
+20261022182542
+20261023005058
+20261023010043
+20261023142416
+20261026095229

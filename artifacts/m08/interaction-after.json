@@ -1,0 +1,22 @@
+{
+  "origin": "https://guiaprogramaciontv.com",
+  "at": "2026-10-26T08:54:19.036Z",
+  "query": "Madrid",
+  "samples": [
+    {
+      "openMs": 264,
+      "suggestionsMs": 844,
+      "options": 5
+    },
+    {
+      "openMs": 23,
+      "suggestionsMs": 324,
+      "options": 5
+    },
+    {
+      "openMs": 74,
+      "suggestionsMs": 339,
+      "options": 5
+    }
+  ]
+}
