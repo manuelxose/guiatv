@@ -101,6 +101,28 @@ describe('tv-normalizers', () => {
     expect(normalizeToCard(program).detailPath).toBe('/canales/la-1');
   });
 
+  it('prefers the API-verified work page over the noindex airing page (M10)', () => {
+    const airing = { ...makeTvItem({ editorialCategory: 'Cine', title: 'Heat' }), detailPath: '/contenido/program:airing-1' };
+    expect(normalizeToCard(airing).detailPath).toBe('/contenido/program:airing-1');
+    expect(normalizeToCard({ ...airing, program: { ...airing.program, workPath: '/peliculas/heat' } }).detailPath).toBe('/peliculas/heat');
+    const program: CatalogItem = { catalogId: 'program:1', source: 'program', contentType: 'movie', title: 'Heat', genres: [], primaryPlatforms: [], detailPath: '/contenido/program:1' };
+    expect(normalizeToCard({ ...program, workPath: '/peliculas/heat' }).detailPath).toBe('/peliculas/heat');
+  });
+
+  it('links channels by their canonical slug, not the internal id (M10: /canales/dmax -> /canales/discovery)', () => {
+    const item = makeTvItem();
+    const dmax = { ...item, channel: { ...item.channel, id: 'dmax', normalizedName: 'discovery' } };
+    expect(normalizeToCard(dmax).channelPath).toBe('/canales/discovery');
+    expect(normalizeToCard(dmax).detailPath).toBe('/canales/discovery');
+    expect(normalizeToCard(item).channelPath).toBe('/canales/la-1');
+  });
+
+  it('never links /sin-titulo for a title with no slug characters (M10)', () => {
+    const hindi: CatalogItem = { catalogId: 'tmdb:tv:1', source: 'tmdb', contentType: 'series', title: 'चार यार', genres: [], primaryPlatforms: [] };
+    expect(normalizeToCard(hindi).detailPath).toBe('');
+    expect(normalizeToCard({ ...hindi, title: "Ocean's Eleven", contentType: 'movie' }).detailPath).toBe('/peliculas/oceans-eleven');
+  });
+
   it('normalizes editorial labels consistently', () => {
     expect(normalizeCategory('película romántica')).toBe('Cine');
     expect(normalizeCategory('serie de suspense')).toBe('Series');

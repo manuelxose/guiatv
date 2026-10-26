@@ -45,6 +45,6 @@
 
   <footer class="channel-card__footer">
     <span>{{ entry().counts.total }} emisiones hoy</span>
-    <a [routerLink]="channelPath(entry().channel.id)">Ver programación<span class="sr-only"> de {{ entry().channel.name }}</span></a>
+    <a [routerLink]="channelCanonicalPath(entry().channel, entry().channel.id)">Ver programación<span class="sr-only"> de {{ entry().channel.name }}</span></a>
   </footer>
 </article>

@@ -4,7 +4,7 @@ import { RouterModule } from '@angular/router';
 import { TvReadChannelSummaryDTO } from '../../api/models';
 import { formatMadridHM } from '../../utils/madrid-time';
 import { computeProgress } from '../../utils/tv-normalizers';
-import { channelPath } from '../../config/route-map';
+import { channelCanonicalPath } from '../../config/route-map';
 
 @Component({
   selector: 'app-channel-card',
@@ -15,7 +15,7 @@ import { channelPath } from '../../config/route-map';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChannelCardComponent {
-  protected readonly channelPath = channelPath;
+  protected readonly channelCanonicalPath = channelCanonicalPath;
   readonly entry = input.required<TvReadChannelSummaryDTO>();
   readonly headingLevel = input<2 | 3>(2);
 

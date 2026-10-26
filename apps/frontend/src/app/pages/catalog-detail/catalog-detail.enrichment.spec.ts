@@ -186,6 +186,40 @@ describe('CatalogDetailComponent: Phase 3E legacy enrichment', () => {
     fixture.destroy();
   });
 
+  it('M10: links verified programme <-> work pages with descriptive anchors and nothing when unverified', () => {
+    const programme = render(legacy({ source: 'program', contentType: 'movie', workPath: '/peliculas/la-cura-del-bienestar', channel: { id: 'dmax', name: 'DMAX', normalizedName: 'discovery' } }));
+    expect(programme.nativeElement.querySelector('[data-testid="work-link"]')?.getAttribute('href')).toBe('/peliculas/la-cura-del-bienestar');
+    expect(programme.nativeElement.querySelector('[data-testid="work-link"]')?.textContent.trim()).toBe('Ficha completa de la película');
+    programme.destroy();
+    TestBed.resetTestingModule();
+
+    const work = render(legacy({ programmePath: '/programas/la-cura-del-bienestar' }));
+    const link = work.nativeElement.querySelector('[data-testid="programme-link"]');
+    expect(link?.getAttribute('href')).toBe('/programas/la-cura-del-bienestar');
+    expect(link?.textContent.trim()).toBe('Horarios de La cura del bienestar en televisión');
+    // The canonical and robots of the work page are not touched by the link.
+    expect(robots()).toContain('index, follow');
+    work.destroy();
+    TestBed.resetTestingModule();
+
+    const unverified = render(legacy({ source: 'program', contentType: 'movie' }));
+    expect(unverified.nativeElement.querySelector('[data-testid="work-link"]')).toBeNull();
+    expect(unverified.nativeElement.querySelector('[data-testid="programme-link"]')).toBeNull();
+    unverified.destroy();
+  });
+
+  it('M10: other programmes on the channel link their verified work page and the canonical channel', () => {
+    const fixture = render(legacy({
+      source: 'program', contentType: 'program', channel: { id: 'dmax', name: 'DMAX', normalizedName: 'discovery' },
+      channelAirings: [{ ...legacyAiring('dmax', 32, 'Otra obra'), detailPath: '/contenido/program:2', workPath: '/peliculas/otra-obra' }],
+    }));
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('[aria-labelledby="channel-programmes-heading"] a')?.getAttribute('href')).toBe('/peliculas/otra-obra');
+    expect(el.querySelector('a[href="/canales/discovery"]')?.textContent).toContain('Ver programación de DMAX');
+    expect(el.querySelector('a[href="/canales/dmax"]')).toBeNull();
+    fixture.destroy();
+  });
+
   it('derives programme state from its verified slot and links back to the channel', () => {
     const fixture = render(legacy({ contentType: 'program', source: 'program', start: iso(-3), end: iso(-1), liveNow: true, channel: { id: 'la1', name: 'La 1' } }));
     const text = fixture.nativeElement.textContent as string;

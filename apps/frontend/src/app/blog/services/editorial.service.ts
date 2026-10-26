@@ -427,7 +427,8 @@ export class EditorialService {
       slug,
       description: this.ensureString(rawCategory?.description),
       count: Number(rawCategory?.count || 0),
-      canonicalPath: `/guias/categoria/${slug}`,
+      // Same rule as ssr-server.mjs `categoryPath`: the rankings category lives at /guias/rankings (the other URL 301s).
+      canonicalPath: slug === 'rankings' ? '/guias/rankings' : `/guias/categoria/${slug}`,
       isRankingCategory: this.isRankingCategory(rawCategory),
     };
   }

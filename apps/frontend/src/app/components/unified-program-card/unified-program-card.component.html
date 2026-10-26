@@ -9,7 +9,7 @@
   [attr.data-vertical]="variant === 'epg-row' ? null : card.vertical"
 >
   <a
-    [routerLink]="card.detailPath"
+    [routerLink]="card.detailPath || null"
     [appPrefetchDetail]="card"
     class="program-card__tap"
     [attr.aria-label]="actionLabel + ': ' + card.title"

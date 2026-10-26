@@ -6,7 +6,7 @@
  */
 import type { CatalogItem } from '../services/catalog.service';
 import { EntityBroadcast, EntityBroadcasts, GUIDE_TIME_ZONE } from '../pages/entity-detail/entity-detail.model';
-import { channelPath } from '../config/route-map';
+import { channelCanonicalPath } from '../config/route-map';
 
 type Airing = NonNullable<CatalogItem['airings']>[number];
 
@@ -35,7 +35,7 @@ export function airingAsBroadcast(airing: Airing): EntityBroadcast {
   const start = new Date(airing.start);
   return {
     airingId: slot(airing.channelId, airing.start),
-    channel: { id: airing.channelId, name: airing.channelName, icon: airing.channelIcon, path: channelPath(airing.channelId) },
+    channel: { id: airing.channelId, name: airing.channelName, icon: airing.channelIcon, path: channelCanonicalPath({ normalizedName: airing.channelNormalizedName }, airing.channelId) },
     programmeTitle: airing.title,
     start: airing.start,
     end: airing.end,

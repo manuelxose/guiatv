@@ -67,6 +67,10 @@ export interface CatalogItem {
   title: string;
   slug?: string;
   detailPath?: string;
+  /** M10, programme-sourced items: verified work page of this airing (absent unless proven by the API). */
+  workPath?: string;
+  /** M10, TMDB work detail: `/programas/:slug` broadcast page of this same work (absent unless proven by the API). */
+  programmePath?: string;
   subtitle?: string;
   synopsis?: string;
   image?: string;
@@ -93,9 +97,12 @@ export interface CatalogItem {
     id: string;
     name: string;
     icon?: string;
+    normalizedName?: string;
   };
   airings?: Array<{
     channelId: string;
+    /** M10: canonical channel slug source (see `channelCanonicalPath`). */
+    channelNormalizedName?: string;
     channelName: string;
     channelIcon?: string;
     start: string;
@@ -104,6 +111,8 @@ export interface CatalogItem {
     title: string;
     catalogId: string;
     detailPath: string;
+    /** M10: verified work page of this airing's programme. */
+    workPath?: string;
     liveNow?: boolean;
     /** Program poster/still, when the EPG source has one. */
     image?: string;

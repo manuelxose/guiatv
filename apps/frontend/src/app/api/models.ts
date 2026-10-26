@@ -81,6 +81,8 @@ export interface TvReadProgramDTO {
   subgenre?: string;
   sportFacet?: 'Fútbol' | 'Baloncesto' | 'F1' | 'Tenis' | 'MotoGP' | 'Más';
   tmdbId?: number;
+  /** M10: verified `/peliculas|/series` work page; absent unless the API proved the identity. */
+  workPath?: string;
   description?: string;
   titleResolutionState?:
     | 'specific_source_title'
@@ -136,7 +138,7 @@ export interface TvReadItemDTO {
     suppressionReason?: string;
     reasons: string[];
   };
-  /** The detail page the API resolves for this programme (episode titles link to their series). */
+  /** This airing's own page (`/contenido/program:<id>`, noindex); cards prefer `program.workPath` when present. */
   detailPath?: string;
 }
 

@@ -25,7 +25,7 @@ import { broadcastPublication, broadcastTiming, GUIDE_TIME_ZONE } from '../entit
 import { generateTVSeriesSchema, generateMovieSchema, generateBreadcrumbSchema, serializeJsonLd } from '../../utils/utils';
 import { UnifiedSkeletonBlockComponent } from '../../components/unified-skeleton-block/unified-skeleton-block.component';
 import { UnifiedAsyncStateComponent } from '../../components/unified-async-state/unified-async-state.component';
-import { channelPath } from '../../config/route-map';
+import { channelCanonicalPath } from '../../config/route-map';
 
 type LegacyCatalogMode = 'program' | 'movie' | 'series';
 
@@ -151,8 +151,15 @@ type LegacyCatalogMode = 'program' | 'movie' | 'series';
                 {{ timing.text }} · Horario peninsular (Madrid).
                 <span *ngIf="content.end">Fin: {{ formatTime(content.end!) }}</span>
               </p>
-              <a *ngIf="content.contentType === 'program' && content.channel?.id" [routerLink]="channelPath(content.channel!.id)" class="inline-block text-sm font-semibold text-[var(--hero-text)] underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+              <a *ngIf="content.contentType === 'program' && content.channel?.id" [routerLink]="channelCanonicalPath(content.channel, content.channel!.id)" class="inline-block text-sm font-semibold text-[var(--hero-text)] underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
                 Ver programación de {{ content.channel?.name || 'este canal' }}
+              </a>
+              <!-- M10: API-verified relationships only (same TMDB work and kind); absent fields render nothing. -->
+              <a *ngIf="content.source === 'program' && content.workPath" [routerLink]="content.workPath" data-testid="work-link" class="inline-block text-sm font-semibold text-[var(--hero-text)] underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+                Ficha completa de {{ content.contentType === 'series' ? 'la serie' : 'la película' }}
+              </a>
+              <a *ngIf="content.source === 'tmdb' && content.programmePath" [routerLink]="content.programmePath" data-testid="programme-link" class="inline-block text-sm font-semibold text-[var(--hero-text)] underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+                Horarios de {{ content.title }} en televisión
               </a>
 
               <p class="max-w-3xl text-base leading-7 text-[var(--hero-text-muted)]">
@@ -253,7 +260,7 @@ type LegacyCatalogMode = 'program' | 'movie' | 'series';
           <!-- Other programmes on the source channel have their own navigation cards. -->
           <ng-template #airingCard let-airing>
             <a
-              [routerLink]="airing.detailPath || channelPath(airing.channelId)"
+              [routerLink]="airing.workPath || airing.detailPath || channelCanonicalPath({ normalizedName: airing.channelNormalizedName }, airing.channelId)"
               class="tnum flex gap-3 rounded-[var(--radius-md)] border border-[var(--portal-border)] bg-[var(--portal-surface)] p-3 transition-colors hover:border-[var(--portal-border-strong)]"
             >
               <span class="h-16 w-12 flex-shrink-0 overflow-hidden rounded-[var(--radius-sm)] bg-[var(--portal-surface-strong)]">
@@ -381,7 +388,7 @@ type LegacyCatalogMode = 'program' | 'movie' | 'series';
   `,
 })
 export class CatalogDetailComponent implements OnInit, OnDestroy {
-  protected readonly channelPath = channelPath;
+  protected readonly channelCanonicalPath = channelCanonicalPath;
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly catalogService = inject(CatalogService);

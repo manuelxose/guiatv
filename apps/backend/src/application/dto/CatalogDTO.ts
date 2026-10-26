@@ -71,6 +71,8 @@ export interface CatalogChannelDTO {
 
 export interface CatalogAiringDTO {
   channelId: string;
+  /** M10: the channel's canonical slug source (`/canales/discovery`, not the `dmax` id). */
+  channelNormalizedName?: string;
   channelName: string;
   channelIcon?: string;
   start: string;
