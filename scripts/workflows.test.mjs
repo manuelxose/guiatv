@@ -70,6 +70,17 @@ test('M01-B1: the proposed main ruleset blocks force-push/deletion and requires 
   assert.match(read('.github/workflows/performance.yml'), /on:\s*\n\s+pull_request:\s*\n\s+push:/, 'verify must run on every PR (no path filter)');
 });
 
+test('M10: ssr-resilience also runs on pushes to main with the PR path filter; the live crawl stays manual and nothing deploys', () => {
+  const yml = read('.github/workflows/seo-regression.yml');
+  const paths = (trigger) => yml.match(new RegExp(`\\n  ${trigger}:\\n[\\s\\S]*?paths:[^\\n]*\\n((?:\\s+- .+\\n)+)`))?.[1];
+  assert.match(yml, /\n  push:\n    branches: \[main\]\n/);
+  assert.ok(paths('pull_request'), 'pull_request has a path filter');
+  assert.equal(paths('push'), paths('pull_request'), 'push and pull_request watch the same paths');
+  assert.match(yml, /live-crawl:[\s\S]*?if: github\.event_name == 'workflow_dispatch'/);
+  assert.doesNotMatch(yml, /^\s+schedule:/m, 'no scheduled live crawl without owner approval');
+  assert.doesNotMatch(yml, /DEPLOY_SSH|deploy-ssh|gh workflow run/);
+});
+
 test('M02-B: the artifact deploy uses an explicit exit-status step, not ssh-action (which ignores script_stop), and keeps SHA check + lock', () => {
   const yml = read('.github/workflows/deploy-artifact.yml');
   assert.doesNotMatch(yml, /appleboy\/ssh-action|script_stop/);

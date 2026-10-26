@@ -2,10 +2,24 @@ name: SEO regression
 
 on:
   pull_request:
+    paths: # keep identical to push.paths (asserted in scripts/workflows.test.mjs)
+      - 'apps/frontend/**'
+      - 'apps/backend/src/**'
+      - 'scripts/seo-*.mjs'
+      - 'e2e/entity/**'
+      - 'playwright.entity.config.ts'
+      - '.github/workflows/seo-regression.yml'
+  # M10: also on main, so a regression that only appears after merge (e.g. dated fixtures) is visible there.
+  # Never deploys; live-crawl stays manual through its `if`.
+  push:
+    branches: [main]
     paths:
       - 'apps/frontend/**'
       - 'apps/backend/src/**'
       - 'scripts/seo-*.mjs'
+      - 'e2e/entity/**'
+      - 'playwright.entity.config.ts'
+      - '.github/workflows/seo-regression.yml'
   workflow_dispatch:
   # Weekly live crawl is intentionally NOT scheduled until the owner approves it:
   # schedule:
@@ -23,6 +37,7 @@ jobs:
           cache: npm
       - run: npm ci --legacy-peer-deps
       - run: node --test apps/frontend/scripts/ssr-cache.test.mjs apps/frontend/scripts/ssr-canonical.test.mjs apps/frontend/scripts/entity-canary-verify.test.mjs
+      - run: node scripts/seo-crawl.mjs --self-check && node scripts/seo-link-graph.mjs --self-check
       - run: npm run build:frontend
       - run: node --test apps/frontend/scripts/entity-read-ssr.test.mjs apps/frontend/scripts/legacy-enrichment-ssr.test.mjs
       - run: npm run seo:ssr-resilience
