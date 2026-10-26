@@ -5,19 +5,13 @@
 // Bounded: up to 3 GETs per sitemap URL, paced at ~230 requests/minute. No writes, no crawling beyond the sitemap.
 import { writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import { classify } from './seo-ownership-classify.mjs';
 
 const args = process.argv.slice(2);
 const base = (args.find((a) => /^https?:/.test(a)) ?? 'https://guiaprogramaciontv.com').replace(/\/$/, '');
 const opt = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
 const limit = Number(opt('--limit') ?? Infinity);
 
-/** One row per sitemap slug -> its ownership class. `prog`/`movie`/`series` are the slim API answers (null = 404). */
-export function classify({ prog, movie, series }) {
-  if (!prog) return 'unresolvable';
-  const twin = [movie, series].find((r) => r && r.tmdbId && r.tmdbId === prog.tmdbId);
-  if (!twin) return prog.tmdbId ? 'tmdb-work-single-url' : 'programme-only';
-  return twin.airings > 0 ? 'duplicate-indexable-twin' : 'twin-noindex';
-}
 if (args.includes('--self-check')) {
   assert.equal(classify({ prog: null }), 'unresolvable');
   assert.equal(classify({ prog: { tmdbId: 1 }, movie: { tmdbId: 1, airings: 2 } }), 'duplicate-indexable-twin');

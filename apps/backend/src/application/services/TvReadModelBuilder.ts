@@ -1,3 +1,4 @@
+import { cleanEpgDescription } from '../../shared/utils/epgDescription';
 import { runContentIdentity } from './ContentIdentityIngestion';
 import { ICacheRepository } from '@/domain/repositories/ICacheRepository';
 import { IProgramRepository } from '@/domain/repositories/IProgramRepository';
@@ -169,7 +170,7 @@ export class TvReadModelBuilder {
         genre: program.genre,
         subgenre: program.subgenre,
         title: program.title,
-        description: program.description,
+        description: cleanEpgDescription(program.description),
         channelName: channelDoc?.name || resolvedChannelId,
       });
       const editorialCategory =
@@ -269,7 +270,7 @@ export class TvReadModelBuilder {
           sportFacet,
           tmdbId: program.tmdbId,
           mediaId: program.mediaId,
-          description: program.description,
+          description: cleanEpgDescription(program.description),
           titleResolutionState: titleResolution.state,
           isResolvedTitle: titleResolution.isResolvedTitle,
         },
@@ -476,7 +477,7 @@ export class TvReadModelBuilder {
         subtitle: preferred.program.subtitle || fallback.program.subtitle,
         tmdbId: preferred.program.tmdbId || fallback.program.tmdbId,
         mediaId: preferred.program.mediaId || fallback.program.mediaId,
-        description: preferred.program.description || fallback.program.description,
+        description: cleanEpgDescription(preferred.program.description) || cleanEpgDescription(fallback.program.description),
         titleAliases: Array.from(
           new Set([...(preferred.program.titleAliases || []), ...(fallback.program.titleAliases || [])])
         ),

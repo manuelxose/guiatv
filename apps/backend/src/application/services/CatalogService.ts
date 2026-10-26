@@ -1,3 +1,4 @@
+import { cleanEpgDescription } from '../../shared/utils/epgDescription';
 import { LegacyEnrichmentService } from './LegacyEnrichmentService';
 import { IChannelRepository } from '@/domain/repositories/IChannelRepository';
 import { ICacheRepository } from '@/domain/repositories/ICacheRepository';
@@ -823,7 +824,7 @@ export class CatalogService {
       detailPath: programDetailPath(item.id),
       workPath: item.program.workPath,
       subtitle: item.program.subtitle,
-      synopsis: item.program.description,
+      synopsis: cleanEpgDescription(item.program.description),
       image,
       backdrop,
       assets: item.assets,

@@ -1,0 +1,13 @@
+posts: 10 | blocking findings: 9 | with warnings: 9
+    9  short for non-human origin (N)
+    7  internal link answers N: /editorial/precios-plataformas-streaming-espana
+    6  internal link answers N: /editorial/netflix-hbo-max-disney-prime-video-que-plan-elegir
+    5  near-duplicate (N-gram Jaccard >= N) 
+    2  internal link answers N: /editorial/donde-ver-laliga-N-N-espana
+    2  internal link answers N: /deportes/futbol/en-directo
+    1  internal link answers N: /programacion-tv/guia-canales
+dup: mejores-series-y-peliculas-movistar-plus-espana ~ mejores-series-y-peliculas-hbo-max-espana(0.48), mejores-series-y-peliculas-disney-plus-espana(0.37), mejores-series-y-peliculas-prime-video-espana(0.4), mejores-series-y-peliculas-netflix-espana(0.39)
+dup: mejores-series-y-peliculas-hbo-max-espana ~ mejores-series-y-peliculas-movistar-plus-espana(0.48), mejores-series-y-peliculas-disney-plus-espana(0.43), mejores-series-y-peliculas-prime-video-espana(0.4), mejores-series-y-peliculas-netflix-espana(0.36)
+dup: mejores-series-y-peliculas-disney-plus-espana ~ mejores-series-y-peliculas-movistar-plus-espana(0.37), mejores-series-y-peliculas-hbo-max-espana(0.43), mejores-series-y-peliculas-prime-video-espana(0.36), mejores-series-y-peliculas-netflix-espana(0.39)
+dup: mejores-series-y-peliculas-prime-video-espana ~ mejores-series-y-peliculas-movistar-plus-espana(0.4), mejores-series-y-peliculas-hbo-max-espana(0.4), mejores-series-y-peliculas-disney-plus-espana(0.36), mejores-series-y-peliculas-netflix-espana(0.38)
+dup: mejores-series-y-peliculas-netflix-espana ~ mejores-series-y-peliculas-movistar-plus-espana(0.39), mejores-series-y-peliculas-hbo-max-espana(0.36), mejores-series-y-peliculas-disney-plus-espana(0.39), mejores-series-y-peliculas-prime-video-espana(0.38)

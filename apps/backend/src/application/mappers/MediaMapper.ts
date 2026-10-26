@@ -1,3 +1,4 @@
+import { cleanEpgDescription } from '../../shared/utils/epgDescription';
 import { Program } from '@/domain/entities/Program';
 import { Channel } from '@/domain/entities/Channel';
 import {
@@ -131,7 +132,7 @@ export class MediaMapper {
     const dedupedWhereToWatch = this.dedupeProviders(whereToWatch);
     return {
       ...base,
-      synopsis: program.description,
+      synopsis: cleanEpgDescription(program.description),
       whereToWatch: dedupedWhereToWatch.length ? dedupedWhereToWatch : undefined,
       socialSummary: {
         friendsRating:
