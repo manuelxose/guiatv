@@ -48,6 +48,18 @@ describe('AffiliateCTAComponent', () => {
     expect(link.nativeElement.textContent).toContain('Patrocinado');
   });
 
+  it('names the merchant once in the accessible name (was "Ir a Max de Max")', () => {
+    const accessibleName = (offer: AffiliateResolvedOffer) => {
+      const fixture = create();
+      fixture.componentRef.setInput('offer', offer);
+      fixture.detectChanges();
+      return fixture.debugElement.query(By.css('a')).nativeElement.textContent.replace(/\s+/g, ' ').trim();
+    };
+    const max = { ...DIRECT_OFFER, merchant: { id: 'm2', slug: 'max', name: 'Max' }, cta: { label: 'Ir a Max', sponsored: false } };
+    expect(accessibleName(max)).toBe('Ir a Max abre una pestaña nueva');
+    expect(accessibleName(DIRECT_OFFER)).toBe('Ir al proveedor de Netflix; abre una pestaña nueva');
+  });
+
   it('omits the sponsored badge for a direct (non-affiliate) offer but keeps its tracking redirect nofollow', () => {
     const fixture = create();
     fixture.componentRef.setInput('offer', DIRECT_OFFER);

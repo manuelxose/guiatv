@@ -61,4 +61,4 @@ Compara precios, calidad y pantallas de Prime Video con las demás plataformas e
 - TMDB (The Movie Database), listados de series y películas por proveedor en España, consultados el 20 oct 2026: https://www.themoviedb.org/
 - Precios: página oficial de Prime Video en España (ver [guía de precios](/guias/precios-plataformas-streaming-espana)).
 
-Este producto usa la API de TMDB, pero no está respaldado ni certificado por TMDB.
+Datos de disponibilidad por plataforma: JustWatch (vía TMDB). Este producto usa la API de TMDB, pero no está respaldado ni certificado por TMDB.

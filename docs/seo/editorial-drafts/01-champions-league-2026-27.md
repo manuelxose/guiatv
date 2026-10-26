@@ -9,11 +9,11 @@ checked: 2026-10-19
 
 # Dónde ver la Champions League 2026-27 en España
 
-**Respuesta corta:** en España la Champions League 2026-27 se emite en **Movistar Plus+** (Telefónica). UEFA lista a Telefónica como único emisor de España y no indica ningún canal en abierto para la competición regular. La final sí se ve en abierto en **RTVE**.
+**Respuesta corta:** en España la Champions League 2026-27 se emite en **Movistar Plus+** (Telefónica). UEFA lista a Telefónica como único emisor de España y no indica ningún canal en abierto para la competición regular. La final sí se ve en abierto en **RTVE**. Según la página de planes de Movistar Plus+ (consultada el 26 de octubre de 2026), el Plan Libre Cine, Series y Deportes (9,99 € al mes) incluye el mejor partido de cada jornada de la Champions.
 
 ## Quién tiene los derechos
 
-- **Liga y eliminatorias:** la página oficial de UEFA «Dónde ver la UEFA Champions League» (actualizada el 14 de octubre de 2026) enumera a Telefónica como emisor para España. La contratación se hace a través de Movistar Plus+.
+- **Liga y eliminatorias:** la página oficial de UEFA «Dónde ver la UEFA Champions League» (consultada el 26 de octubre de 2026) enumera a Telefónica como emisor para España. La contratación se hace a través de Movistar Plus+.
 - **Otros operadores:** según Qué! (21 de julio de 2026), Orange TV también ofrecerá la Champions otra temporada. Es una fuente de prensa; confirma la oferta en la web de tu operador.
 - **Final en abierto:** RTVE adquirió los derechos de las finales de 2025, 2026 y 2027 (FormulaTV, 15 de diciembre de 2024: 2,5 millones por final). La final de 2027 se juega el **sábado 5 de junio de 2027** en el Estadio Metropolitano de Madrid, según UEFA.
 

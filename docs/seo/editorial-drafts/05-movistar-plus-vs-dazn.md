@@ -21,7 +21,7 @@ Datos comprobados el 20 de octubre de 2026 en las páginas oficiales de LaLiga, 
 | Partidos de LaLiga EA Sports | 5 por jornada y 3 jornadas completas de 10 partidos por temporada, hasta 2026/27 | 5 por jornada en 35 de las 38 jornadas |
 | Plan de 9,99 €/mes | Un partido de LaLiga EA Sports por jornada | No aplica |
 | LaLiga Hypermotion | Todos los partidos (plan de 9,99 €) | Todos, incluidos playoffs y final por el ascenso (Plan Fútbol) |
-| Otras ligas | Tenis, Euroliga, pádel, golf, rugby y atletismo | Premier League, Bundesliga y Serie A (Plan Fútbol) |
+| Otras ligas | Mejor partido de cada jornada de Champions y Premier League; tenis, Euroliga, pádel, golf, rugby y atletismo | Premier League, Bundesliga y Serie A (Plan Fútbol) |
 | Permanencia | Ninguna en los planes Libre | Consúltala en dazn.com |
 
 Para ver todos los partidos de una jornada hace falta combinar ambos servicios o un paquete de operador que los reúna. A partir de 2027/28 cada uno emitirá cinco partidos por jornada hasta 2032, según LaLiga y DAZN.
