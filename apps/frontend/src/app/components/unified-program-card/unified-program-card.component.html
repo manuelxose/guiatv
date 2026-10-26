@@ -9,10 +9,10 @@
   [attr.data-vertical]="variant === 'epg-row' ? null : card.vertical"
 >
   <a
-    [routerLink]="card.detailPath"
+    [routerLink]="card.detailPath || null"
     [appPrefetchDetail]="card"
     class="program-card__tap"
-    [attr.aria-label]="actionLabel + ': ' + card.title"
+    [attr.aria-label]="card.detailPath ? actionLabel + ': ' + card.title : null"
   >
     <div class="program-card__media" [class.program-card__media--empty]="!hasVisual">
       <img

@@ -22,6 +22,11 @@ export const createSwaggerRoutes = (): Router => {
     },
   };
 
+  // M10: nginx strips trailing slashes (/v2/docs/ -> /v2/docs) and serve-static adds one back, a redirect loop.
+  // Serve the page itself without the slash; <base> keeps its relative assets under /v2/docs/.
+  const html = swaggerUi.generateHTML(spec, uiOptions).replace('<head>', '<head><base href="/v2/docs/">');
+  router.get('/', (req, res, next) => (req.originalUrl.split('?')[0].endsWith('/') ? next() : res.type('html').send(html)));
+
   // Swagger UI
   router.use('/', swaggerUi.serve);
   router.get('/', swaggerUi.setup(spec, uiOptions));

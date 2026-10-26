@@ -122,6 +122,8 @@ test('M07 channel and programme responsive WCAG AA matrix', async ({ page }, inf
         await expect(page.locator('h1')).toBeVisible();
         await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+        // The theme is applied after hydration and backgrounds transition: axe must read the settled colours.
+        await page.waitForFunction(() => document.getAnimations().every(a => !(a instanceof CSSTransition) || a.playState !== 'running'));
         const axe = await new AxeBuilder({ page }).include(scope).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
         expect(axe.violations.map(v => `${v.id}: ${v.nodes.map(n => `${n.target}: ${n.failureSummary}`).join(', ')}`)).toEqual([]);
         await page.screenshot({ path: info.outputPath(`m07-${path.split('/')[1]}-${width}-${theme}.png`), fullPage: true });

@@ -2013,6 +2013,7 @@ export class CatalogService {
   private mapTvReadItemToAiring(item: TvReadItemDTO): CatalogAiringDTO {
     return {
       channelId: item.channel.id,
+      channelNormalizedName: item.channel.normalizedName,
       channelName: item.channel.name,
       channelIcon: item.channel.icon,
       start: item.airing.start,

@@ -1,7 +1,7 @@
 import { CatalogItem } from '../services/catalog.service';
 import { TvReadItemDTO } from '../api/models';
 import { buildDetailPath, CatalogContentType, slugifyTitle } from './catalog';
-import { APP_PATHS, channelPath } from '../config/route-map';
+import { APP_PATHS, channelCanonicalPath } from '../config/route-map';
 import { formatMadridHM } from './madrid-time';
 
 // The five verticals the design system's accent tokens key off
@@ -78,7 +78,7 @@ export function normalizeToCard(item: TvReadItemDTO | CatalogItem): UnifiedCardD
       image: resolveTvImage(item),
       channelName: String(item.channel.name || '').trim(),
       channelId: String(item.channel.id || '').trim(),
-      channelPath: item.channel.id ? channelPath(item.channel.id) : '',
+      channelPath: item.channel.id ? channelCanonicalPath(item.channel, item.channel.id) : '',
       channelIcon: String(item.assets.channelLogo?.url || item.channel.icon || '').trim(),
       startTime: item.airing.start,
       endTime: item.airing.end,
@@ -86,8 +86,8 @@ export function normalizeToCard(item: TvReadItemDTO | CatalogItem): UnifiedCardD
       category,
       platforms,
       sport,
-      // Older cached responses lack a resolved target: the channel is still a valid destination.
-      detailPath: item.detailPath || (item.channel.id ? channelPath(item.channel.id) : APP_PATHS.guide),
+      // M10: the API-verified work page first; then the airing's own page; older cached responses fall back to the channel.
+      detailPath: item.program.workPath || item.detailPath || (item.channel.id ? channelCanonicalPath(item.channel, item.channel.id) : APP_PATHS.guide),
       badges: buildTvBadges(item, category),
       progressPercent: computeProgress(item.airing.start, item.airing.end),
       contentType,
@@ -107,7 +107,7 @@ export function normalizeToCard(item: TvReadItemDTO | CatalogItem): UnifiedCardD
     image: String(item.backdrop || item.image || '').trim(),
     channelName: String(item.channel?.name || '').trim(),
     channelId: String(item.channel?.id || '').trim(),
-    channelPath: item.channel?.id ? channelPath(item.channel.id) : '',
+    channelPath: item.channel?.id ? channelCanonicalPath(item.channel, item.channel.id) : '',
     channelIcon: String(item.channel?.icon || '').trim(),
     startTime: String(item.start || '').trim(),
     endTime: String(item.end || '').trim(),
@@ -120,13 +120,22 @@ export function normalizeToCard(item: TvReadItemDTO | CatalogItem): UnifiedCardD
     // programme-sourced films/series keep the API's known airing destination.
     detailPath:
       contentType === 'program' || item.source === 'program'
-        ? item.detailPath || (item.channel?.id ? channelPath(item.channel.id) : APP_PATHS.guide)
-        : buildDetailPath(contentType, item.title, slugifyTitle),
+        ? item.workPath || item.detailPath || (item.channel?.id ? channelCanonicalPath(item.channel, item.channel.id) : APP_PATHS.guide)
+        : resolvableWorkPath(contentType, item.title),
     badges: buildCatalogBadges(item),
     progressPercent: computeProgress(item.start, item.end),
     contentType,
     vertical: resolveVertical({ liveNow, category, platforms }),
   };
+}
+
+/**
+ * M10: a title with no Latin letters or digits ("चार यार") has an empty slug and used to link `/series/sin-titulo`,
+ * a 404 shared by every such title. No link then (`''` renders the card without an href). Other titles keep the
+ * existing slug: the page also resolves punctuation variants through its TMDB search, which the client cannot predict.
+ */
+export function resolvableWorkPath(contentType: CatalogContentType, title: string): string {
+  return slugifyTitle(title) ? buildDetailPath(contentType, title, slugifyTitle) : '';
 }
 
 export function normalizeCategory(value: unknown): string {
