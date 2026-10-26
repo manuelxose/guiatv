@@ -21,8 +21,8 @@ import { APP_PATHS } from '../../../config/route-map';
       <ng-template #lockupOnly><ng-container *ngTemplateOutlet="lockup"></ng-container></ng-template>
       <ng-template #lockup>
         <a [routerLink]="appPaths.blog" class="editorial-masthead__lockup">
-          <span class="editorial-masthead__word">Guías</span>
-          <span *ngIf="!compact" class="editorial-masthead__kicker">de streaming, fútbol y TV</span>
+          <!-- &ngsp; keeps a real space for the heading's text ("Guías de…"); inline-flex does not render it. -->
+          <span class="editorial-masthead__word">Guías</span>&ngsp;<span *ngIf="!compact" class="editorial-masthead__kicker">de streaming, fútbol y TV</span>
         </a>
       </ng-template>
       <p *ngIf="!compact" class="editorial-masthead__tagline">Dónde ver cada competición, cuánto cuesta cada plataforma y qué merece la pena, con fuentes oficiales y fecha de comprobación.</p>
