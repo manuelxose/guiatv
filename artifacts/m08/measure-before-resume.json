@@ -1,0 +1,126 @@
+{
+  "origin": "https://guiaprogramaciontv.com",
+  "at": "2026-10-26T08:51:26.607Z",
+  "initialBytes": 719543,
+  "assets": [
+    {
+      "path": "styles-G5ORFOY6.css",
+      "bytes": 233957
+    },
+    {
+      "path": "chunk-ZENOBSXC.js",
+      "bytes": 11948
+    },
+    {
+      "path": "chunk-5U3USNOU.js",
+      "bytes": 720
+    },
+    {
+      "path": "chunk-52DC5BBU.js",
+      "bytes": 732
+    },
+    {
+      "path": "chunk-MNWE4USZ.js",
+      "bytes": 7790
+    },
+    {
+      "path": "chunk-P43C6O6B.js",
+      "bytes": 3662
+    },
+    {
+      "path": "chunk-WDX4NGE5.js",
+      "bytes": 5689
+    },
+    {
+      "path": "chunk-AVX5VL4U.js",
+      "bytes": 14276
+    },
+    {
+      "path": "chunk-RI4NHBAM.js",
+      "bytes": 660
+    },
+    {
+      "path": "chunk-GICADVPD.js",
+      "bytes": 10059
+    },
+    {
+      "path": "chunk-H6VWPFMP.js",
+      "bytes": 88937
+    },
+    {
+      "path": "polyfills-YMBILSHJ.js",
+      "bytes": 34585
+    },
+    {
+      "path": "main-D3GC6NSN.js",
+      "bytes": 189523
+    },
+    {
+      "path": "chunk-73UIOAY3.js",
+      "bytes": 36432
+    },
+    {
+      "path": "chunk-Y2QEHZAE.js",
+      "bytes": 15211
+    },
+    {
+      "path": "chunk-AZC2Y7PS.js",
+      "bytes": 21982
+    },
+    {
+      "path": "chunk-RNBXXEPI.js",
+      "bytes": 3891
+    },
+    {
+      "path": "chunk-HDOBB5WI.js",
+      "bytes": 10200
+    },
+    {
+      "path": "chunk-YXTZR6OP.js",
+      "bytes": 6417
+    },
+    {
+      "path": "chunk-XFSXIAJR.js",
+      "bytes": 1608
+    },
+    {
+      "path": "chunk-2IXB6FX2.js",
+      "bytes": 3540
+    },
+    {
+      "path": "chunk-75BCDAWP.js",
+      "bytes": 7051
+    },
+    {
+      "path": "chunk-PTSKPSUX.js",
+      "bytes": 10673
+    }
+  ],
+  "checks": [
+    {
+      "path": "/v2/health",
+      "status": 200,
+      "location": null,
+      "robots": null
+    },
+    {
+      "path": "/robots.txt",
+      "status": 200,
+      "location": null,
+      "robots": null,
+      "body": "# As a condition of accessing this website, you agree to abide by the following\n# content signals:\n\n# (a)  If a Content-Signal = yes, you may collect content for the corresponding\n#      use.\n# (b)  If a Content-Signal = no, you may not collect content for the\n#      corresponding use.\n# (c)  If the website operator does not include a Content-Signal for a\n#      corresponding use, the website operator neither grants nor restricts\n#      permission via Content-Signal with respect to the corresponding use.\n\n# The content signals and their meanings are:\n\n# search:   building a search index and providing search results (e.g., returning\n#           hyperlinks and short excerpts from your website's contents). Search does not\n#           include providing AI-generated search summaries.\n# ai-input: inputting content into one or more AI models (e.g., retrieval\n#           augmented generation, grounding, or other real-time taking of content for\n#           generative AI search answers).\n# ai-train: training or fine-tuning AI models.\n# use:      how AI systems may consume the content (immediate, reference, or full).\n\n# ANY RESTRICTIONS EXPRESSED VIA CONTENT SIGNALS ARE EXPRESS RESERVATIONS OF\n# RIGHTS UNDER ARTICLE 4 OF THE EUROPEAN UNION DIRECTIVE 2019/790 ON COPYRIGHT\n# AND RELATED RIGHTS IN THE DIGITAL SINGLE MARKET.\n\n# BEGIN Cloudflare Managed content\n\n\nUser-agent: *\nContent-Signal: search=yes,ai-train=no,use=reference\nAllow: /\n\n# Training crawlers\nUser-agent: Amazonbot\nDisallow: /\n\nUser-agent: Applebot-Extended\nDisallow: /\n\nUser-agent: Bytespider\nDisallow: /\n\nUser-agent: CCBot\nDisallow: /\n\nUser-agent: ClaudeBot\nDisallow: /\n\nUser-agent: Diffbot\nDisallow: /\n\nUser-agent: Google-Extended\nDisallow: /\n\nUser-agent: GPTBot\nDisallow: /\n\nUser-agent: omgili\nDisallow: /\n\nUser-agent: anthropic-ai\nDisallow: /\n\nUser-agent: Claude-Web\nDisallow: /\n\nUser-agent: cohere-ai\nDisallow: /\n\nUser-agent: MistralAI-Training\nDisallow: /\n\nUser-agent: meta-externalagent\nDisallow: /\n\nUser-agent: GoogleOther\nDisallow: /\n\nUser-agent: Baiduspider\nDisallow: /\n\nUser-agent: PetalBot\nDisallow: /\n\nUser-agent: AwarioSmartBot\nUser-agent: AwarioRssBot\nDisallow: /\n\nUser-agent: Google-CloudVertexBot\nDisallow: /\n\nUser-agent: QualifiedBot\nDisallow: /\n\nUser-agent: Cotoyogi\nDisallow: /\n\nUser-agent: ICC-Crawler\nDisallow: /\n\nUser-agent: atlassian-bot\nDisallow: /\n\nUser-agent: FishBot\nDisallow: /\n\nUser-agent: BorderxBot\nDisallow: /\n\nUser-agent: NavuBot\nDisallow: /\n\nUser-agent: SemrushBot-SWA\nDisallow: /\n\nUser-agent: WARDBot\nDisallow: /\n\nUser-agent: magpie-crawler\nDisallow: /\n\nUser-agent: KimiBot\nDisallow: /\n\nUser-agent: CitibotSiteCrawler\nDisallow: /\n\n# END Cloudflare Managed Content\n\nUser-agent: *\nAllow: /\n\n# Non-indexable user/admin pages\nDisallow: /mi-cuenta\nDisallow: /admin\nDisallow: /iniciar-sesion\nDisallow: /registro\nDisallow: /comunidad\n\n# Outbound click-tracking redirects (affiliate and plan links): not pages, and crawler hits would count as clicks.\nDisallow: /v2/affiliate/go/\nDisallow: /v2/monetization/go/\n\n# Legacy routes remain crawlable so redirects consolidate into canonical URLs.\n\nSitemap: https://guiaprogramaciontv.com/sitemap.xml\n"
+    },
+    {
+      "path": "/sitemap.xml",
+      "status": 200,
+      "location": null,
+      "robots": null
+    },
+    {
+      "path": "/deportes/futbol/en-directo",
+      "status": 301,
+      "location": "/deportes/futbol/partidos-hoy?filter=live",
+      "robots": null
+    }
+  ]
+}

@@ -12,7 +12,7 @@ const paths = (process.env.M08_PATHS || '/,/programacion-tv/en-directo,/canales,
 assert(paths.every(path => path.startsWith('/') && !path.startsWith('//')));
 const dir = new URL(`./${label}/`, import.meta.url);
 await mkdir(dir, { recursive: true });
-const browser = await chromium.launch({ headless: false });
+const browser = await chromium.launch({ headless: true });
 const results = [];
 try {
   for (const [index, path] of paths.entries()) {

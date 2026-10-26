@@ -1,0 +1,126 @@
+{
+  "origin": "https://guiaprogramaciontv.com",
+  "at": "2026-10-26T08:55:04.440Z",
+  "results": [
+    {
+      "kind": "competition-standings",
+      "path": "/deportes/futbol/competiciones/primera-division#clasificacion",
+      "width": 375,
+      "theme": "light",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "match",
+      "path": "/deportes/futbol/partido/cd-santa-clara-sport-lisboa-e-benfica-2026-10-26",
+      "width": 375,
+      "theme": "light",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "team",
+      "path": "/deportes/futbol/equipos/fc-barcelona",
+      "width": 375,
+      "theme": "light",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "competition-standings",
+      "path": "/deportes/futbol/competiciones/primera-division#clasificacion",
+      "width": 375,
+      "theme": "dark",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "match",
+      "path": "/deportes/futbol/partido/cd-santa-clara-sport-lisboa-e-benfica-2026-10-26",
+      "width": 375,
+      "theme": "dark",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "team",
+      "path": "/deportes/futbol/equipos/fc-barcelona",
+      "width": 375,
+      "theme": "dark",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "competition-standings",
+      "path": "/deportes/futbol/competiciones/primera-division#clasificacion",
+      "width": 1440,
+      "theme": "light",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "match",
+      "path": "/deportes/futbol/partido/cd-santa-clara-sport-lisboa-e-benfica-2026-10-26",
+      "width": 1440,
+      "theme": "light",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "team",
+      "path": "/deportes/futbol/equipos/fc-barcelona",
+      "width": 1440,
+      "theme": "light",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "competition-standings",
+      "path": "/deportes/futbol/competiciones/primera-division#clasificacion",
+      "width": 1440,
+      "theme": "dark",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "match",
+      "path": "/deportes/futbol/partido/cd-santa-clara-sport-lisboa-e-benfica-2026-10-26",
+      "width": 1440,
+      "theme": "dark",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "team",
+      "path": "/deportes/futbol/equipos/fc-barcelona",
+      "width": 1440,
+      "theme": "dark",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    }
+  ]
+}

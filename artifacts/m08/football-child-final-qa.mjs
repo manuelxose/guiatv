@@ -4,9 +4,11 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 
 const origin = process.env.M08_ORIGIN || 'http://127.0.0.1:4382';
+const label = process.env.M08_CHILD_LABEL || 'football-child-final';
+assert.match(label, /^[a-z0-9-]+$/);
 const browser = await chromium.launch({ headless: true });
 const results = [];
-await mkdir('artifacts/m08/football-child-final-screenshots', { recursive: true });
+await mkdir(`artifacts/m08/${label}-screenshots`, { recursive: true });
 try {
   for (const width of [375, 1440]) for (const theme of ['light', 'dark']) {
     const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce', timezoneId: 'Europe/Madrid' });
@@ -46,8 +48,8 @@ try {
       const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
       results.push({ kind, path, width, theme, status: response.status(), overflow, errors, violations: axe.violations.map(v => ({ id: v.id, impact: v.impact, nodes: v.nodes.map(n => ({ target: n.target, summary: n.failureSummary })) })) });
-      await page.screenshot({ path: `artifacts/m08/football-child-final-screenshots/${kind}-${width}-${theme}.png`, fullPage: true });
-      await writeFile('artifacts/m08/football-child-final-qa.json', JSON.stringify({ origin, at: new Date().toISOString(), results }, null, 2));
+      await page.screenshot({ path: `artifacts/m08/${label}-screenshots/${kind}-${width}-${theme}.png`, fullPage: true });
+      await writeFile(`artifacts/m08/${label}-qa.json`, JSON.stringify({ origin, at: new Date().toISOString(), results }, null, 2));
       console.log(kind, width, theme, 'overflow', overflow, 'axe', axe.violations.length);
       page.off('pageerror', onError);
     }
