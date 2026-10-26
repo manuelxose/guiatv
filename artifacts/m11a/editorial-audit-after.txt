@@ -1,0 +1,8 @@
+posts: 10 | blocking findings: 0 | with warnings: 9
+    9  short for non-human origin (N)
+    5  near-duplicate (N-gram Jaccard >= N) 
+dup: mejores-series-y-peliculas-movistar-plus-espana ~ mejores-series-y-peliculas-hbo-max-espana(0.48), mejores-series-y-peliculas-disney-plus-espana(0.37), mejores-series-y-peliculas-prime-video-espana(0.4), mejores-series-y-peliculas-netflix-espana(0.39)
+dup: mejores-series-y-peliculas-hbo-max-espana ~ mejores-series-y-peliculas-movistar-plus-espana(0.48), mejores-series-y-peliculas-disney-plus-espana(0.43), mejores-series-y-peliculas-prime-video-espana(0.4), mejores-series-y-peliculas-netflix-espana(0.36)
+dup: mejores-series-y-peliculas-disney-plus-espana ~ mejores-series-y-peliculas-movistar-plus-espana(0.37), mejores-series-y-peliculas-hbo-max-espana(0.43), mejores-series-y-peliculas-prime-video-espana(0.36), mejores-series-y-peliculas-netflix-espana(0.39)
+dup: mejores-series-y-peliculas-prime-video-espana ~ mejores-series-y-peliculas-movistar-plus-espana(0.4), mejores-series-y-peliculas-hbo-max-espana(0.4), mejores-series-y-peliculas-disney-plus-espana(0.36), mejores-series-y-peliculas-netflix-espana(0.38)
+dup: mejores-series-y-peliculas-netflix-espana ~ mejores-series-y-peliculas-movistar-plus-espana(0.39), mejores-series-y-peliculas-hbo-max-espana(0.36), mejores-series-y-peliculas-disney-plus-espana(0.39), mejores-series-y-peliculas-prime-video-espana(0.38)

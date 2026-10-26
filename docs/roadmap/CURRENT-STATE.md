@@ -374,3 +374,22 @@ Details and evidence: [../seo/m10-internal-linking.md](../seo/m10-internal-linki
   - redirect chains 1 → 0.
 - **#84:** `/series/sin-titulo` via `catalog-card`, found by the final crawl.
 - **M10 remains PARTIAL:** 664 sitemap programme URLs are still beyond depth 3, pending the M11 decision on programme-only pages. Details: [m10-internal-linking.md §7](../seo/m10-internal-linking.md).
+
+## M11-A addendum — content quality and AdSense remediation (2026-10-26): PASS
+
+Details: [M11A-DELIVERY.md](M11A-DELIVERY.md), [m11a-editorial-review.md](../seo/m11a-editorial-review.md), [m11a-programme-pages.md](../seo/m11a-programme-pages.md).
+
+- **Live:** release **`20261026213853`**, `gitSha d6f9eea` (PRs #86 `329ac2f`, #87 `d128bce`, #88 `d6f9eea`; deploy run 40397183896). Rollback target `20261026202919` (`e4360d2`). API/SSR active, 0 restarts, healthy; 22-URL canonical/robots parity identical.
+- **Corpus as measured:**
+  - 10 public guides (not 50): 2 strong, 3 incomplete, 5 one template (~71 % shared prose); 12 claims checked, 0 contradicted.
+  - 51 retired slugs: 37 → 301, 14 → 404 (9 of them unplanned losses).
+  - 703 sitemap programme pages: A 50 / B 45 / C 157 / D 451 / E 0.
+- **Fixed live:**
+  - Editorial audit blocking 9 → 0 (redirecting internal links canonicalized at serve time).
+  - EPG filler and genre-prefix synopses hidden.
+  - `/guias` H1 text; CTA accessible name.
+- **New safeguard:** graded approval gate (`block` / `human` acknowledgement / `warn`); the publish script refuses before any write without the acknowledgements.
+- **Not live yet (owner/reviewer action, production write):** republish the corrected drafts with `scripts/editorial-publish.mjs --reviewer "<name>" --acknowledge unverified-claims,near-duplicate`.
+- **Open decisions:** ranking cluster, lost retired URLs, programme D-group canonical policy, accent-dropped programme slugs (127), episode URLs in the sitemap, `/sobre-nosotros` and `/avisolegal` claims.
+- **AdSense:** internal verdict NOT READY (editorial depth, not technical). No application submitted.
+- **Next:** M11-B (original editorial production), NO-GO until a named author/reviewer is available.

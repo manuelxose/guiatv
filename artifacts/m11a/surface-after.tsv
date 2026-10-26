@@ -1,0 +1,23 @@
+path	status	location	x-robots	robots	canonical	bytes	ms	synopsis-marker
+/	200	-	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	https://guiaprogramaciontv.com/	1146027	363	
+/guias	200	-	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	https://guiaprogramaciontv.com/guias	410164	84	
+/guias/rankings	200	-	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	https://guiaprogramaciontv.com/guias/rankings	150944	259	
+/guias/donde-ver-champions-league-2026-27-espana	200	-	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	https://guiaprogramaciontv.com/guias/donde-ver-champions-league-2026-27-espana	261493	855	
+/guias/donde-ver-laliga-2026-27-espana	200	-	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	https://guiaprogramaciontv.com/guias/donde-ver-laliga-2026-27-espana	263858	419	
+/guias/mejores-series-y-peliculas-hbo-max-espana	200	-	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	https://guiaprogramaciontv.com/guias/mejores-series-y-peliculas-hbo-max-espana	205350	369	
+/guias/categoria/streaming	200	-	index, follow	index, follow	https://guiaprogramaciontv.com/guias/categoria/streaming	163029	261	
+/guias/categoria/netflix	200	-	noindex, follow	noindex, follow	https://guiaprogramaciontv.com/guias/categoria/netflix	145393	279	
+/programas/creadoras	200	-	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	https://guiaprogramaciontv.com/programas/creadoras	208634	838	clean
+/programas/agujeros-negros-superpoderosos	200	-	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	https://guiaprogramaciontv.com/programas/agujeros-negros-superpoderosos	217797	751	clean
+/programas/el-escenario	200	-	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	https://guiaprogramaciontv.com/programas/el-escenario	214067	405	clean
+/canales/la-1	200	-	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	https://guiaprogramaciontv.com/canales/la-1	394365	715	
+/programacion-tv/en-directo	200	-	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	https://guiaprogramaciontv.com/programacion-tv/en-directo	462772	78	
+/deportes/futbol/partidos-hoy	200	-	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	https://guiaprogramaciontv.com/deportes/futbol/partidos-hoy	148140	368	
+/comparador-streaming	200	-	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	https://guiaprogramaciontv.com/comparador-streaming	147144	352	
+/politica-editorial	200	-	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	https://guiaprogramaciontv.com/politica-editorial	40320	209	
+/editorial/movistar-plus-vs-dazn	301	/guias/movistar-plus-vs-dazn	-	-	-	62	57	
+/robots.txt	200	-	-	-	-	3146	179	
+/sitemap.xml	200	-	-	-	-	483	76	
+/sitemap-blog.xml	200	-	-	-	-	2747	90	
+/sitemap-programs.xml	200	-	-	-	-	133363	5002	
+/v2/health	200	-	-	-	-	483	55	
