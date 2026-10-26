@@ -79,7 +79,9 @@ export class AffiliateCTAComponent {
   });
 
   readonly screenReaderSuffix = computed(() => {
-    const merchant = this.offer()?.merchant?.name;
+    const name = this.offer()?.merchant?.name;
+    // Resolved labels already name the merchant ("Ir a Max"); repeating it read "Ir a Max de Max".
+    const merchant = name && !this.resolvedLabel().toLowerCase().includes(name.toLowerCase()) ? name : '';
     const opensNewTab = this.external() ? 'abre una pestaña nueva' : '';
     if (merchant && opensNewTab) return `de ${merchant}; ${opensNewTab}`;
     return merchant || opensNewTab;

@@ -54,7 +54,7 @@ Cálculo propio: precio mensual × 12 frente al precio anual publicado. Disney+ 
 - **Tele 4K o cuatro pantallas a la vez en casa:** HBO Max Premium (15,99 €), Disney+ Prémium (15,99 €) o Netflix Premium (21,99 €). Los dos primeros son 6 € más baratos al mes.
 - **Netflix:** cobra por un miembro extra fuera del hogar (6,99 € sin anuncios, 5,99 € con anuncios).
 - **Ya eres cliente de Prime por el envío:** Prime Video viene incluido en la membresía (4,99 €/mes o 49,90 €/año), pero con anuncios limitados.
-- **Deporte:** HBO Max ofrece un plan «HBO Max DAZN» de 44,99 €/mes y un complemento deportivo de 5 €/mes. Para fútbol, consulta antes [dónde ver LaLiga](/editorial/donde-ver-laliga-2026-27-espana).
+- **Deporte:** HBO Max ofrece un plan «HBO Max DAZN» de 44,99 €/mes y un complemento deportivo de 5 €/mes. Para fútbol, consulta antes [dónde ver LaLiga](/guias/donde-ver-laliga-2026-27-espana).
 
 ## Una nota sobre nombres
 
@@ -66,7 +66,7 @@ La plataforma que durante un tiempo se llamó «Max» figura como **HBO Max** en
 - Descargas de Disney+ Estándar con anuncios: la página oficial no las menciona para ese plan.
 - Catálogos: no afirmamos qué serie o película está en qué servicio; comprueba la ficha del título.
 
-Compara más planes en el [comparador de streaming](/comparador-streaming) o consulta la [tabla de precios completa](/editorial/precios-plataformas-streaming-espana).
+Compara más planes en el [comparador de streaming](/comparador-streaming) o consulta la [tabla de precios completa](/guias/precios-plataformas-streaming-espana).
 
 ## Fuentes (consultadas el 19 oct 2026)
 

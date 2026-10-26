@@ -30,7 +30,7 @@ Precios mensuales en euros, tomados de la página oficial de cada servicio el 19
 | Movistar Plus+ | Plan Libre Cine, Series y Deportes | 9,99 | Un partido de LaLiga por jornada, sin permanencia |
 
 ## Lo más barato, según estos precios
-- **Con anuncios:** HBO Max Básico con anuncios (6,99 €) y Disney+ Estándar con anuncios (6,99 €; 5,99 € en el plan de ahorro de 6 meses) son los más baratos; Netflix con anuncios cuesta 8,99 €.
+- **Con anuncios, entre Netflix, HBO Max y Disney+:** HBO Max Básico con anuncios (6,99 €) y Disney+ Estándar con anuncios (6,99 €; 5,99 € en el plan de ahorro de 6 meses) son los más baratos; Netflix con anuncios cuesta 8,99 €.
 - **Más baratos en general:** la membresía Prime (4,99 €) y Movistar Plus+ Libre Cine y Series (4,99 €, sin permanencia, sin deportes). Prime Video incluye anuncios limitados que no se pueden saltar (ayuda oficial de Prime Video); la opción sin anuncios es un complemento mensual aparte cuyo precio no figura en la ayuda consultada.
 - Menos de 10 €: Prime (4,99), Movistar Plus+ 4,99 y 9,99, HBO Max con anuncios (6,99), Disney+ con anuncios (6,99) y Apple TV (9,99), Netflix con anuncios (8,99).
 

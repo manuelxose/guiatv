@@ -54,11 +54,11 @@ La película más reciente de la lista es Spider-Man: un nuevo universo (2018); 
 
 ## Antes de suscribirte
 
-Compara precios, calidad y pantallas de Disney+ con las demás plataformas en [qué plan elegir](/editorial/netflix-hbo-max-disney-prime-video-que-plan-elegir) y en la [tabla de precios](/editorial/precios-plataformas-streaming-espana). Para ver qué se emite ahora en televisión, consulta la [programación de hoy](/programacion-tv/que-ver-hoy).
+Compara precios, calidad y pantallas de Disney+ con las demás plataformas en [qué plan elegir](/guias/netflix-hbo-max-disney-prime-video-que-plan-elegir) y en la [tabla de precios](/guias/precios-plataformas-streaming-espana). Para ver qué se emite ahora en televisión, consulta la [programación de hoy](/programacion-tv/que-ver-hoy).
 
 ## Fuentes
 
 - TMDB (The Movie Database), listados de series y películas por proveedor en España, consultados el 20 oct 2026: https://www.themoviedb.org/
-- Precios: página oficial de Disney+ en España (ver [guía de precios](/editorial/precios-plataformas-streaming-espana)).
+- Precios: página oficial de Disney+ en España (ver [guía de precios](/guias/precios-plataformas-streaming-espana)).
 
-Este producto usa la API de TMDB, pero no está respaldado ni certificado por TMDB.
+Datos de disponibilidad por plataforma: JustWatch (vía TMDB). Este producto usa la API de TMDB, pero no está respaldado ni certificado por TMDB.
