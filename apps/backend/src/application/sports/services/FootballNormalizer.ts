@@ -51,10 +51,16 @@ export interface NormalizedAiringInput {
   editorialCategory?: string;
   description?: string;
   channelId: string;
+  /** The channel's canonical slug source (the URL the channel page declares canonical), when the airing carries it. */
+  channelNormalizedName?: string;
   channelName: string;
   channelGroup?: string;
   streaming?: boolean;
 }
+
+/** `/canales/<slug>` by the canonical name, not the internal id (`movistar-laliga` serves `m-laliga-uhd` as canonical). */
+export const canonicalChannelPath = (input: Pick<NormalizedAiringInput, 'channelId' | 'channelNormalizedName'>) =>
+  channelPagePath(input.channelNormalizedName || input.channelId);
 
 export function slugify(value: string): string {
   return String(value || '')
@@ -242,7 +248,7 @@ function buildBroadcast(input: NormalizedAiringInput): FootballBroadcast[] {
       availability: input.streaming ? 'both' : 'tv',
       provenance: 'airing',
       confidence: 'high',
-      channelPath: input.channelId ? channelPagePath(input.channelId) : undefined,
+      channelPath: input.channelId ? canonicalChannelPath(input) : undefined,
     },
   ];
 }
@@ -305,6 +311,7 @@ export function toNormalizedAiringInput(doc: ITVReadAiringDocument): NormalizedA
     editorialCategory: program.editorialCategory,
     description: program.description,
     channelId: String(channel.id || ''),
+    channelNormalizedName: channel.normalizedName ? String(channel.normalizedName) : undefined,
     channelName: String(channel.name || ''),
     channelGroup: channel.group,
     streaming: Boolean((doc as any).availability?.streaming),

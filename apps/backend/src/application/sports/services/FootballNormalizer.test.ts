@@ -9,6 +9,7 @@ import {
   resolveCompetition,
   splitMatchup,
   slugify,
+  toNormalizedAiringInput,
 } from './FootballNormalizer';
 import { normalizeMatchStatus } from '../../../domain/sports/football/types';
 
@@ -107,4 +108,13 @@ test('buildMatchSlug is collision-safe with date suffix', () => {
     buildMatchSlug('Real Madrid', 'Barcelona', '2026-10-25T19:00:00Z'),
     'real-madrid-barcelona-2026-10-25'
   );
+});
+
+// M10: "Dónde verlo" linked /canales/movistar-laliga while that page declares /canales/m-laliga-uhd canonical.
+test('football broadcasts link the channel by its canonical name, falling back to the id', () => {
+  const canonical = normalizeEpgAiringToMatch(airing({ channelNormalizedName: 'm_laliga_uhd' }));
+  assert.equal(canonical?.broadcasts[0].channelPath, '/canales/m-laliga-uhd');
+  assert.equal(normalizeEpgAiringToMatch(airing())?.broadcasts[0].channelPath, '/canales/movistar-laliga');
+  const doc = { id: 'a', date: '20260814', channel: { id: 'movistar_laliga', name: 'Movistar LaLiga', normalizedName: 'm_laliga_uhd' }, program: { title: 'x' }, airing: {} };
+  assert.equal(toNormalizedAiringInput(doc as any).channelNormalizedName, 'm_laliga_uhd');
 });
