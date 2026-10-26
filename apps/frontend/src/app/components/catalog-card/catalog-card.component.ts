@@ -305,9 +305,12 @@ export class CatalogCardComponent {
     });
   }
 
-  get detailLink(): any[] {
-    if (this.item?.detailPath) {
-      return [this.item.detailPath];
+  get detailLink(): any[] | null {
+    // M10: a title with no slug characters ("चार यार") gets the API's `/…/sin-titulo`, a 404 shared by every such
+    // title (the /contenido fallback 301s there too): render no link rather than a broken one.
+    const path = this.item?.workPath || this.item?.detailPath;
+    if (path) {
+      return /\/sin-titulo$/.test(path) ? null : [path];
     }
     return ['/contenido', this.item?.catalogId || ''];
   }
