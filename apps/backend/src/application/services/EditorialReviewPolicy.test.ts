@@ -5,7 +5,14 @@ import {
   assertReviewerIsAccountable,
   buildEditorialApproval,
   PUBLIC_EDITORIAL_FILTER,
+  canonicalInternalPath,
+  canonicalizeInternalLinks,
+  EditorialFinding,
+  editorialGateFailures,
+  evaluateEditorialQuality,
 } from './EditorialReviewPolicy';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const validPost = {
   title: 'Guía de series de streaming que merece la pena ver',
@@ -88,4 +95,74 @@ test('reviewer must be a person: machine identities and non-allowlisted names ar
   assert.throws(() => assertReviewerIsAccountable('Ana Gates', 'maria@guia.test'), /accountable person/);
   assert.doesNotThrow(() => assertReviewerIsAccountable('Maria@guia.test', 'maria@guia.test'));
   assert.throws(() => buildEditorialApproval(validPost, 'auctorio-quality-gate', new Date(), ''), /accountable person/);
+});
+
+// M11-A: these five redirecting targets were live in the 10 published guides on 2026-10-26.
+test('internal links are rewritten to the destination the site redirects to', () => {
+  const html =
+    '<a href="/editorial/precios-plataformas-streaming-espana">a</a>' +
+    '<a href="https://guiaprogramaciontv.com/editorial/donde-ver-laliga-2026-27-espana#x">b</a>' +
+    "<a href='/deportes/futbol/en-directo'>c</a>" +
+    '<a href="/programacion-tv/guia-canales">d</a>' +
+    '<a href="/blog/top10">e</a><a href="/editorial/categoria/series">f</a>' +
+    '<a href="/programacion-tv/guia-canales-extra">g</a><a href="https://otra.web/editorial/x">h</a>';
+  assert.equal(
+    canonicalizeInternalLinks(html),
+    '<a href="/guias/precios-plataformas-streaming-espana">a</a>' +
+      '<a href="/guias/donde-ver-laliga-2026-27-espana#x">b</a>' +
+      "<a href='/deportes/futbol/partidos-hoy?filter=live'>c</a>" +
+      '<a href="/programacion-tv/en-directo">d</a>' +
+      '<a href="/guias/rankings">e</a><a href="/guias/categoria/series">f</a>' +
+      '<a href="/programacion-tv/guia-canales-extra">g</a><a href="https://otra.web/editorial/x">h</a>'
+  );
+  assert.equal(canonicalInternalPath('/guias/x'), '/guias/x');
+});
+
+test('the rewrite table matches the redirects the frontend actually serves', () => {
+  const frontend = resolve(process.cwd(), '../frontend/src/app');
+  const routes = readFileSync(resolve(frontend, 'app.routes.ts'), 'utf8') +
+    readFileSync(resolve(frontend, 'features/football/football.routes.ts'), 'utf8');
+  for (const rule of [
+    "path: 'programacion-tv/guia-canales', redirectTo: 'programacion-tv/en-directo'",
+    "path: 'editorial/:slug', redirectTo: 'guias/:slug'",
+    "path: 'blog/:slug', redirectTo: 'guias/:slug'",
+    "path: 'blog/top10', redirectTo: 'guias/rankings'",
+    "path: 'en-directo', redirectTo: () => '/deportes/futbol/partidos-hoy?filter=live'",
+  ]) assert.ok(routes.includes(rule), rule);
+});
+
+const others = [{ slug: 'precios', content: '<p>texto distinto sobre precios de plataformas en españa hoy</p>' }];
+const codes = (findings: EditorialFinding[], severity: string) =>
+  findings.filter((f) => f.severity === severity).map((f) => f.code).sort();
+
+test('quality findings: definite defects block', () => {
+  const bad = {
+    ...validPost,
+    slug: 'nueva',
+    title: 'Sin título',
+    faqItems: [{ question: '¿Precio?', answer: '' }],
+    content: `${validPost.content}<a href="/editorial/no-existe">x</a><a href="/guias/precios">ok</a><a href="/guias/nueva">self</a>`,
+  };
+  assert.deepEqual(codes(evaluateEditorialQuality(bad, { others }), 'block'), ['broken-internal-link', 'invalid-faq', 'placeholder-title']);
+  const copy = evaluateEditorialQuality({ ...validPost, slug: 'b' }, { others: [{ slug: 'a', content: validPost.content }] });
+  assert.deepEqual(codes(copy, 'block'), ['near-identical']);
+});
+
+test('quality findings: judgement calls need an explicit acknowledgement, warnings never block', () => {
+  const tokens = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `${prefix}${i}`).join(' ');
+  const half = tokens('compartida', 200); // similarity ≈ 0.57: near-duplicate, not near-identical
+  const post = {
+    ...validPost,
+    slug: 'b',
+    origin: 'ai-assisted',
+    title: 'Mejores series (octubre 2026)',
+    content: `<p>${half} ${tokens('propia', 150)}</p>`,
+    seo: { metaTitle: 'Mejores series', metaDescription: 'Las mejores series de la plataforma…' },
+  };
+  const findings = evaluateEditorialQuality(post, { others: [{ slug: 'a', content: `<p>${half}</p>` }] });
+  assert.deepEqual(codes(findings, 'block'), []);
+  assert.deepEqual(codes(findings, 'human'), ['near-duplicate', 'unverified-claims']);
+  assert.deepEqual(codes(findings, 'warn'), ['no-internal-links', 'time-bound-title', 'truncated-metadata']);
+  assert.deepEqual(editorialGateFailures(findings, ['unverified-claims']).map((f) => f.code), ['near-duplicate']);
+  assert.deepEqual(editorialGateFailures(findings, ['unverified-claims', 'near-duplicate']), []);
 });

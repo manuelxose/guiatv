@@ -24,8 +24,18 @@ for (const p of list) {
   await sleep(200);
 }
 
+// Every distinct internal destination, resolved once without following redirects: a 3xx/4xx is a link defect.
+const internalPaths = (html) => [...html.matchAll(/href="(?:https?:\/\/guiaprogramaciontv\.com)?(\/[^"]*)"/g)].map((m) => m[1]);
+const linkStatus = new Map();
+for (const p of posts) for (const path of internalPaths(String(p.content?.rendered ?? p.content ?? ''))) linkStatus.set(path, 0);
+for (const path of linkStatus.keys()) {
+  linkStatus.set(path, (await fetch(`${base}${path}`, { redirect: 'manual' }).catch(() => ({ status: 'error' }))).status);
+  await sleep(200);
+}
+
 const rows = posts.map((p) => {
   const html = String(p.content?.rendered ?? p.content ?? '');
+  const badLinks = [...new Set(internalPaths(html))].filter((path) => linkStatus.get(path) !== 200);
   const body = text(html);
   const links = [...html.matchAll(/href="(https?:\/\/[^"]+)"/g)].map((m) => m[1]).filter((u) => !u.includes('guiaprogramaciontv.com'));
   const internal = (html.match(/href="(\/|https?:\/\/guiaprogramaciontv\.com)/g) ?? []).length;
@@ -47,7 +57,8 @@ const rows = posts.map((p) => {
   if (/auctorio\.com/i.test(JSON.stringify(p.seo?.ogImage || '') + JSON.stringify(p.featured_image || ''))) warn.push('hotlinked image on auctorio.com (no own copy/licence record)');
   if (!(p.author?.name)) blocking.push('no author');
   if (internal === 0) warn.push('no internal links');
-  return { slug: p.slug, origin, words: wc, sources: links.length, internal, ageDays: Math.round(ageDays), shingles: shingles(body), blocking, warn, dupes: [] };
+  for (const path of badLinks) blocking.push(`internal link answers ${linkStatus.get(path)}: ${path}`);
+  return { slug: p.slug, origin, words: wc, sources: links.length, internal, badLinks, ageDays: Math.round(ageDays), shingles: shingles(body), blocking, warn, dupes: [] };
 });
 
 for (let i = 0; i < rows.length; i++) for (let j = i + 1; j < rows.length; j++) {

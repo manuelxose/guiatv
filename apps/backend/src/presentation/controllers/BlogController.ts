@@ -25,7 +25,10 @@ import {
 } from '../../shared/errors';
 import {
   buildEditorialApproval,
+  canonicalizeInternalLinks,
+  editorialGateFailures,
   EditorialOrigin,
+  evaluateEditorialQuality,
   PUBLIC_EDITORIAL_FILTER,
 } from '../../application/services/EditorialReviewPolicy';
 
@@ -399,6 +402,26 @@ export class BlogController {
         ]);
       }
 
+      const others = await BlogPostModel.find({ ...PUBLIC_EDITORIAL_FILTER, _id: { $ne: post._id } })
+        .select({ slug: 1, content: 1 })
+        .lean()
+        .exec();
+      const findings = evaluateEditorialQuality(post.toObject(), {
+        others: others.map((other) => ({ slug: String(other.slug), content: other.content })),
+      });
+      const acknowledged = ([] as unknown[]).concat(req.body?.acknowledge ?? []).map(String);
+      const failures = editorialGateFailures(findings, acknowledged);
+      if (failures.length) {
+        throw new ValidationError(
+          'Editorial quality gate failed',
+          failures.map((f) => ({
+            field: f.severity === 'human' ? `acknowledge:${f.code}` : f.code,
+            message: f.message,
+            value: postId,
+          }))
+        );
+      }
+
       post.status = approval.status;
       post.reviewState = approval.reviewState;
       post.reviewedBy = approval.reviewedBy;
@@ -408,7 +431,7 @@ export class BlogController {
       await post.save();
       await this.invalidatePublicReads();
 
-      res.status(200).json(successResponse({ post: this.mapPost(post.toObject()) }));
+      res.status(200).json(successResponse({ post: this.mapPost(post.toObject()), qualityFindings: findings }));
     } catch (error) {
       next(error);
     }
@@ -507,7 +530,7 @@ export class BlogController {
       type: 'post',
       link: `/guias/${post.slug}`,
       title: { rendered: post.title },
-      content: { rendered: post.content || '' },
+      content: { rendered: canonicalizeInternalLinks(post.content || '') },
       excerpt: { rendered: post.excerpt || '' },
       categories: (post.categories || []).map((cat: IBlogPostCategory) => cat.id),
       categories_name: post.categories || [],
@@ -606,7 +629,8 @@ export class BlogController {
     const status = this.normalizeStatus(payload.status, existing?.status);
     const origin = this.normalizeOrigin(payload.origin, existing?.origin);
     const excerpt = this.resolveOptionalString(payload.excerpt, existing?.excerpt);
-    const content = this.resolveOptionalString(payload.content, existing?.content);
+    const rawContent = this.resolveOptionalString(payload.content, existing?.content);
+    const content = rawContent === undefined ? undefined : canonicalizeInternalLinks(rawContent);
     const categories = this.normalizeCategories(payload.categories, existing?.categories);
     const contentType = this.normalizeContentType(payload.contentType, existing?.contentType);
     const featured = this.normalizeBoolean(payload.featured, existing?.featured, false);
