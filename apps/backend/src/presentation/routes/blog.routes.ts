@@ -10,6 +10,8 @@ export const createBlogRoutes = (blogController: BlogController): Router => {
   router.get('/categories', blogController.getCategories);
   router.post('/', analyticsAdminGuard, blogController.createPost);
   router.post('/:id/approve', analyticsAdminGuard, editorialReviewGuard, blogController.approvePost);
+  router.post('/:id/approve-by-policy', analyticsAdminGuard, editorialReviewGuard, blogController.approveByPolicy);
+  router.post('/:id/rollback', analyticsAdminGuard, editorialReviewGuard, blogController.rollbackPost);
   router.put('/:id', analyticsAdminGuard, blogController.updatePost);
   router.delete('/:id', analyticsAdminGuard, blogController.deletePost);
 

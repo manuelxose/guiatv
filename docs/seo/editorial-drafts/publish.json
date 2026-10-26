@@ -2,6 +2,7 @@
   {
     "file": "01-champions-league-2026-27.md",
     "verifiedOn": "2026-10-19",
+    "volatility": "sports-rights",
     "slug": "donde-ver-champions-league-2026-27-espana",
     "title": "Dónde ver la Champions League 2026-27 en España",
     "excerpt": "Quién emite la Champions League 2026-27 en España según UEFA, qué se ve en abierto (la final en RTVE) y cómo localizar cada partido en la programación.",
@@ -17,6 +18,7 @@
   {
     "file": "02-laliga-2026-27.md",
     "verifiedOn": "2026-10-19",
+    "volatility": "sports-rights",
     "slug": "donde-ver-laliga-2026-27-espana",
     "title": "Dónde ver LaLiga EA Sports 2026-27 en España",
     "excerpt": "Cómo se reparten LaLiga EA Sports entre DAZN y Movistar Plus+ en 2026-27, qué incluye el plan de 9,99 € de Movistar Plus+ y dónde comprobar cada jornada.",
@@ -32,6 +34,7 @@
   {
     "file": "03-precios-streaming-espana.md",
     "verifiedOn": "2026-10-19",
+    "volatility": "pricing",
     "slug": "precios-plataformas-streaming-espana",
     "title": "Precios de las plataformas de streaming en España (octubre 2026)",
     "excerpt": "Tabla con los precios mensuales de Netflix, HBO Max, Disney+, Prime, Apple TV y Movistar Plus+ en España, tomados de sus webs oficiales el 19 de octubre de 2026.",
@@ -47,6 +50,7 @@
   {
     "file": "04-netflix-hbo-max-disney-prime-que-plan-elegir.md",
     "verifiedOn": "2026-10-19",
+    "volatility": "pricing",
     "slug": "netflix-hbo-max-disney-prime-video-que-plan-elegir",
     "title": "Netflix, HBO Max, Disney+ y Prime Video: qué plan elegir en España",
     "excerpt": "Comparativa de planes de Netflix, HBO Max, Disney+ y Prime Video en España: precio mensual y anual, calidad, pantallas y anuncios, con datos de sus webs oficiales.",
@@ -62,6 +66,7 @@
   {
     "file": "05-movistar-plus-vs-dazn.md",
     "verifiedOn": "2026-10-20",
+    "volatility": "sports-rights",
     "slug": "movistar-plus-vs-dazn",
     "title": "Movistar Plus+ vs DAZN: qué incluye cada uno para ver fútbol en España",
     "excerpt": "Qué partidos de LaLiga emite cada servicio en 2026-27, qué incluye el plan de 9,99 € de Movistar Plus+ y el Plan Fútbol de DAZN, con datos de LaLiga y de sus webs oficiales.",
@@ -77,6 +82,7 @@
   {
     "file": "06-mejores-series-y-peliculas-netflix.md",
     "verifiedOn": "2026-10-20",
+    "volatility": "catalog-ranking",
     "slug": "mejores-series-y-peliculas-netflix-espana",
     "title": "Las mejores series y películas de Netflix en España (octubre 2026)",
     "excerpt": "Las 10 series y las 10 películas mejor valoradas de Netflix en España según los usuarios de TMDB, con año, nota y votos, y cómo se ha hecho la lista.",
@@ -93,6 +99,7 @@
   {
     "file": "07-mejores-series-y-peliculas-prime-video.md",
     "verifiedOn": "2026-10-20",
+    "volatility": "catalog-ranking",
     "slug": "mejores-series-y-peliculas-prime-video-espana",
     "title": "Las mejores series y películas de Prime Video en España (octubre 2026)",
     "excerpt": "Las 10 series y las 10 películas mejor valoradas de Prime Video en España según los usuarios de TMDB, con año, nota y votos, y cómo se ha hecho la lista.",
@@ -109,6 +116,7 @@
   {
     "file": "08-mejores-series-y-peliculas-disney-plus.md",
     "verifiedOn": "2026-10-20",
+    "volatility": "catalog-ranking",
     "slug": "mejores-series-y-peliculas-disney-plus-espana",
     "title": "Las mejores series y películas de Disney+ en España (octubre 2026)",
     "excerpt": "Las 10 series y las 10 películas mejor valoradas de Disney+ en España según los usuarios de TMDB, con año, nota y votos, y cómo se ha hecho la lista.",
@@ -125,6 +133,7 @@
   {
     "file": "09-mejores-series-y-peliculas-hbo-max.md",
     "verifiedOn": "2026-10-20",
+    "volatility": "catalog-ranking",
     "slug": "mejores-series-y-peliculas-hbo-max-espana",
     "title": "Las mejores series y películas de HBO Max en España (octubre 2026)",
     "excerpt": "Las 10 series y las 10 películas mejor valoradas de HBO Max en España según los usuarios de TMDB, con año, nota y votos, y cómo se ha hecho la lista.",
@@ -141,6 +150,7 @@
   {
     "file": "10-mejores-series-y-peliculas-movistar-plus.md",
     "verifiedOn": "2026-10-20",
+    "volatility": "catalog-ranking",
     "slug": "mejores-series-y-peliculas-movistar-plus-espana",
     "title": "Las mejores series y películas de Movistar Plus+ en España (octubre 2026)",
     "excerpt": "Las 10 series y las 10 películas mejor valoradas de Movistar Plus+ en España según los usuarios de TMDB, con año, nota y votos, y cómo se ha hecho la lista.",

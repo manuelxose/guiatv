@@ -27,10 +27,17 @@ import {
   buildEditorialApproval,
   canonicalizeInternalLinks,
   editorialGateFailures,
+  assertEditorialPostCanBeApproved,
   EditorialOrigin,
   evaluateEditorialQuality,
+  POLICY_REVIEWER,
+  policyGateFailures,
   PUBLIC_EDITORIAL_FILTER,
 } from '../../application/services/EditorialReviewPolicy';
+import { EditorialProvenance, evaluateEvidence } from '../../application/services/EditorialEvidence';
+
+const MAX_REVISIONS = 20;
+const MAX_PROVENANCE_BYTES = 512 * 1024;
 
 interface BlogWritePayload {
   title?: string;
@@ -67,6 +74,7 @@ interface BlogWritePayload {
   authorName?: string;
   authorId?: string;
   origin?: EditorialOrigin;
+  editorial?: EditorialProvenance;
 }
 
 const CONTENT_TYPES: ReadonlySet<BlogContentType> = new Set([
@@ -127,6 +135,7 @@ interface NormalizedBlogPayload {
   };
   publishedAt?: Date;
   author?: { name?: string; id?: string };
+  editorial?: EditorialProvenance;
 }
 
 const BLOG_LIST_PROJECTION = {
@@ -260,6 +269,8 @@ export class BlogController {
 
       if (!includeDetailFields) {
         query.select(BLOG_LIST_PROJECTION);
+      } else if (!isAdminRequest) {
+        query.select({ revisions: 0, 'editorial.bundle': 0, 'editorial.draftMarkdown': 0, 'editorial.critic': 0, 'editorial.cost': 0 });
       }
 
       const cacheKey = `v2:editorial:${filters.slug
@@ -340,6 +351,8 @@ export class BlogController {
       }
       await this.assertUniqueSlug(normalized.slug, postId);
 
+      this.pushRevision(existing, 'update');
+      existing.editorial = normalized.editorial;
       existing.title = normalized.title;
       existing.slug = normalized.slug;
       existing.status = 'draft';
@@ -402,15 +415,7 @@ export class BlogController {
         ]);
       }
 
-      // Only public posts are compared, so only their content is loaded.
-      const [publicPosts, unpublished] = await Promise.all([
-        BlogPostModel.find({ ...PUBLIC_EDITORIAL_FILTER, _id: { $ne: post._id } }).select({ slug: 1, content: 1 }).lean().exec(),
-        BlogPostModel.find({ _id: { $ne: post._id }, $nor: [PUBLIC_EDITORIAL_FILTER] }).select({ slug: 1 }).lean().exec(),
-      ]);
-      const findings = evaluateEditorialQuality(post.toObject(), {
-        others: publicPosts.map((other) => ({ slug: String(other.slug), content: other.content })),
-        unpublishedSlugs: unpublished.map((other) => String(other.slug)),
-      });
+      const findings = await this.qualityFindings(post);
       const acknowledged = ([] as unknown[])
         .concat(req.body?.acknowledge ?? [])
         .flatMap((code) => String(code).split(','))
@@ -441,6 +446,114 @@ export class BlogController {
       next(error);
     }
   };
+
+  /**
+   * M11-B: publication of an AI-written post on its evidence alone. Off unless EDITORIAL_POLICY_PUBLISHING=enabled
+   * (an owner decision); also needs the review key, a post with provenance, and no finding a person must judge.
+   */
+  public approveByPolicy = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (process.env.EDITORIAL_POLICY_PUBLISHING !== 'enabled') {
+        throw new ForbiddenError('Policy publishing is disabled (EDITORIAL_POLICY_PUBLISHING)');
+      }
+      const postId = String(req.params.id || '').trim();
+      const post = await BlogPostModel.findById(postId).exec();
+      if (!post) throw new NotFoundError('Editorial post not found');
+      if (!post.editorial || post.origin !== 'ai-assisted') {
+        throw new ValidationError('Editorial quality gate failed', [
+          { field: 'editorial', message: 'Policy approval needs an ai-assisted post with M11-B provenance', value: postId },
+        ]);
+      }
+      const dailyLimit = Number(process.env.EDITORIAL_POLICY_DAILY_LIMIT || 3);
+      const since = new Date(Date.now() - 864e5);
+      if (await BlogPostModel.countDocuments({ reviewedBy: POLICY_REVIEWER, reviewedAt: { $gte: since } }).exec() >= dailyLimit) {
+        throw new ForbiddenError(`Policy publishing limit reached (${dailyLimit} in 24 h)`);
+      }
+      try {
+        assertEditorialPostCanBeApproved(post.toObject());
+      } catch (error) {
+        throw new ValidationError('Editorial quality gate failed', [
+          { field: 'review', message: error instanceof Error ? error.message : 'Approval rejected', value: postId },
+        ]);
+      }
+      const findings = await this.qualityFindings(post);
+      const failures = policyGateFailures(findings);
+      if (failures.length) {
+        throw new ValidationError('Editorial quality gate failed', failures.map((f) => ({ field: f.code, message: f.message, value: postId })));
+      }
+      const now = new Date();
+      post.status = 'publish';
+      post.reviewState = 'approved';
+      post.reviewedBy = POLICY_REVIEWER;
+      post.reviewedAt = now;
+      post.publishedAt = post.publishedAt || now;
+      post.reviewNotes = 'Approved by the M11-B evidence policy: every stated fact verified against its source, independent AI review passed.';
+      post.editorial = { ...post.editorial, state: 'published' };
+      await post.save();
+      await this.invalidatePublicReads();
+      res.status(200).json(successResponse({ post: this.mapPost(post.toObject()), qualityFindings: findings }));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Restores a stored revision. The text comes back with the review it had: an approved version stays public
+   * (it is exactly what was approved), anything else returns as a draft. The current version is kept as a revision.
+   */
+  public rollbackPost = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const postId = String(req.params.id || '').trim();
+      const version = Number(req.body?.version);
+      const post = await BlogPostModel.findById(postId).exec();
+      if (!post) throw new NotFoundError('Editorial post not found');
+      const target = (post.revisions || []).find((r) => r.version === version);
+      if (!target) {
+        throw new ValidationError('Unknown revision', [{ field: 'version', message: 'No stored revision with this version', value: req.body?.version }]);
+      }
+      this.pushRevision(post, `rollback to ${version}`);
+      // Approved AI text whose facts are past their review date is not put back online unreviewed.
+      const expired = Date.parse(target.editorial?.nextReviewAt || '') < Date.now();
+      const keepReview = target.status === 'publish' && target.reviewState === 'approved' && !expired;
+      Object.assign(post, {
+        title: target.title, excerpt: target.excerpt, content: target.content, seo: target.seo, editorial: target.editorial,
+        status: keepReview ? 'publish' : 'draft', reviewState: keepReview ? 'approved' : 'unreviewed',
+        reviewedBy: keepReview ? target.reviewedBy : undefined, reviewedAt: keepReview ? target.reviewedAt : undefined,
+      });
+      await post.save();
+      await this.invalidatePublicReads();
+      res.status(200).json(successResponse({ post: this.mapPost(post.toObject()), restored: version }));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /** Existing CMS gate plus, for posts with M11-B provenance, the evidence gate. */
+  private async qualityFindings(post: InstanceType<typeof BlogPostModel>) {
+    // Only public posts are compared, so only their content is loaded.
+    const [publicPosts, unpublished] = await Promise.all([
+      BlogPostModel.find({ ...PUBLIC_EDITORIAL_FILTER, _id: { $ne: post._id } }).select({ slug: 1, content: 1 }).lean().exec(),
+      BlogPostModel.find({ _id: { $ne: post._id }, $nor: [PUBLIC_EDITORIAL_FILTER] }).select({ slug: 1 }).lean().exec(),
+    ]);
+    const plain = post.toObject();
+    return [
+      ...(plain.editorial ? evaluateEvidence(plain, plain.editorial) : []),
+      ...evaluateEditorialQuality(plain, {
+        others: publicPosts.map((other) => ({ slug: String(other.slug), content: other.content })),
+        unpublishedSlugs: unpublished.map((other) => String(other.slug)),
+      }),
+    ];
+  }
+
+  private pushRevision(post: InstanceType<typeof BlogPostModel>, reason: string): void {
+    const revisions = post.revisions || [];
+    const version = Math.max(0, ...revisions.map((r) => r.version)) + 1;
+    post.revisions = [...revisions, {
+      version, savedAt: new Date(), reason, title: post.title, excerpt: post.excerpt, content: post.content,
+      seo: post.toObject().seo, status: post.status, reviewState: post.reviewState, reviewedBy: post.reviewedBy,
+      reviewedAt: post.reviewedAt, editorial: post.editorial,
+    }].slice(-MAX_REVISIONS);
+  }
 
   public deletePost = async (
     req: Request,
@@ -552,7 +665,10 @@ export class BlogController {
       featured: Boolean(post.featured),
       author: post.author || null,
       // Shown as the byline's reviewer; only an approval made through the human review gate sets it.
-      reviewedBy: post.reviewState === 'approved' ? post.reviewedBy || null : null,
+      reviewedBy: post.reviewState === 'approved' && !String(post.reviewedBy || '').startsWith('policy:') ? post.reviewedBy || null : null,
+      editorial: post.editorial
+        ? { state: post.editorial.state, lastVerifiedAt: post.editorial.lastVerifiedAt || null, nextReviewAt: post.editorial.nextReviewAt || null, version: post.editorial.version ?? null }
+        : null,
       primaryIntent: post.primaryIntent || '',
       targetQuery: post.targetQuery || '',
       relatedPlatformKeys: Array.isArray(post.relatedPlatformKeys)
@@ -687,8 +803,10 @@ export class BlogController {
     const publishedAt = this.normalizePublishedAt(payload.publishedAt, status, existing?.publishedAt);
     const authorName = this.resolveOptionalString(payload.authorName, existing?.author?.name);
     const authorId = this.resolveOptionalString(payload.authorId, existing?.author?.id);
+    const editorial = this.normalizeEditorial(payload.editorial, existing?.editorial, origin);
 
     return {
+      editorial,
       title,
       slug,
       status,
@@ -722,6 +840,23 @@ export class BlogController {
       publishedAt,
       author: authorName || authorId ? { name: authorName, id: authorId } : undefined,
     };
+  }
+
+  // Shape check only: whether the evidence holds is decided at approval (evaluateEvidence).
+  private normalizeEditorial(value: unknown, fallback: EditorialProvenance | undefined, origin: EditorialOrigin): EditorialProvenance | undefined {
+    if (value === undefined) return fallback;
+    if (value === null) return undefined;
+    const p = value as Partial<EditorialProvenance>;
+    const valid = typeof p === 'object' && origin === 'ai-assisted'
+      && typeof p.pipelineVersion === 'string' && typeof p.bundleHash === 'string' && typeof p.draftHash === 'string'
+      && typeof p.draftMarkdown === 'string' && Array.isArray(p.bundle?.claims) && Array.isArray(p.bundle?.sources)
+      && JSON.stringify(p).length <= MAX_PROVENANCE_BYTES;
+    if (!valid) {
+      throw new ValidationError('Invalid editorial provenance', [
+        { field: 'editorial', message: 'Expected M11-B provenance (bundle, hashes, draft) on an ai-assisted post, under 512 KB', value: undefined },
+      ]);
+    }
+    return { ...p, state: 'draft' } as EditorialProvenance;
   }
 
   private normalizeOrigin(value: unknown, fallback?: EditorialOrigin): EditorialOrigin {

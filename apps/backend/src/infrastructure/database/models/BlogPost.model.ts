@@ -4,6 +4,7 @@ import type {
   EditorialOrigin,
   EditorialReviewState,
 } from '../../../application/services/EditorialReviewPolicy';
+import type { EditorialProvenance } from '../../../application/services/EditorialEvidence';
 
 export type BlogContentType =
   | 'guide'
@@ -86,8 +87,27 @@ export interface IBlogPostDocument {
     id?: string;
   };
   publishedAt?: Date;
+  /** M11-B provenance of AI-written posts (EditorialProvenance): evidence, critic review, cost, freshness. */
+  editorial?: EditorialProvenance;
+  /** Earlier versions, newest last (capped): what a rollback restores. */
+  revisions?: IBlogPostRevision[];
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+export interface IBlogPostRevision {
+  version: number;
+  savedAt: Date;
+  reason: string;
+  title: string;
+  excerpt?: string;
+  content?: string;
+  seo?: IBlogPostDocument['seo'];
+  status: 'draft' | 'publish';
+  reviewState: EditorialReviewState;
+  reviewedBy?: string;
+  reviewedAt?: Date;
+  editorial?: EditorialProvenance;
 }
 
 const BlogPostCategorySchema = new Schema<IBlogPostCategory>(
@@ -177,6 +197,8 @@ const BlogPostSchema = new Schema<IBlogPostDocument>(
       id: { type: String, trim: true },
     },
     publishedAt: { type: Date, index: true },
+    editorial: { type: Schema.Types.Mixed },
+    revisions: { type: [Schema.Types.Mixed], default: undefined },
   },
   {
     timestamps: true,
