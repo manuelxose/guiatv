@@ -20,7 +20,7 @@ checked: 2026-10-19
 ## Lo que no podemos confirmar
 
 - No hay evidencia de un partido semanal en abierto en España en 2026-27; no lo escribimos.
-- El precio: el plan de Movistar Plus+ con deportes está en [nuestra guía de precios](/guias/precios-plataformas-streaming-espana); consulta el vigente en movistarplus.es antes de contratar.
+- Precios de paquetes superiores y de otros operadores: están en [nuestra guía de precios](/guias/precios-plataformas-streaming-espana); consulta el vigente en la web de cada operador antes de contratar.
 
 ## Cómo encontrar tu partido en GuíaTV
 
