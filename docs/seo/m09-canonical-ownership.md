@@ -54,7 +54,7 @@ Production crawl before the fix (`artifacts/m09/crawl-before.json`, 840 sitemap 
 
 Root cause of the 70: **not established** (no database access). Established: the sitemap builder and the page lookup disagree for a stable 10 % of rows. The page lookup returns the earliest airing of the title and then `getItem` answers 404 for a row that is not consumer-visible; the lookup itself never applies that rule, so one suppressed airing of an otherwise visible title is a plausible cause. The guard mirrors the whole page path, so it removes these URLs whatever the cause. If production still shows 404 destinations afterwards, the cause is elsewhere and the post-deploy re-crawl will show it.
 
-Tests (all new, deterministic): `CatalogService.program-slug-resolves.test.ts` (valid today; tomorrow-only; unknown alias; empty slug never queries; suppressed/generic rejected; database failure propagates) and in `SitemapController.test.ts` (only resolvable slugs listed; a lookup failure surfaces as an error, nothing truncated is cached; index has no `lastmod`). Last-good fallback and worker cancellation are exercised by the same failing-lookup path.
+Tests (all new, deterministic): `CatalogService.program-slug-resolves.test.ts` (valid today; tomorrow-only; unknown alias; empty slug never queries; suppressed/generic rejected; database failure propagates) and in `SitemapController.test.ts` (only resolvable slugs listed; a lookup failure surfaces as an error, nothing truncated is cached; index has no `lastmod`). A further test covers the fallback: after a good build and an EPG invalidation, a failing rebuild serves the previous XML, runs far fewer than all lookups (workers stop), and is not retried on the next request (60 s negative TTL). The fallback is capped at 24 h, logged, and survives invalidation.
 
 ## 5. Performance of the guard
 
@@ -65,7 +65,7 @@ Tests (all new, deterministic): `CatalogService.program-slug-resolves.test.ts` (
 | without guard | 760 | 124 ms | 1 |
 | with guard | 760 | 2.5 s | 2,281 (1 find, 1,520 `distinct`, 760 `findOne`) |
 
-All lookups are served by `idx_tvread_search_tokens {searchTokens, date}` (IXSCAN → FETCH, 1,900 keys/docs for the token). The synthetic titles had two tokens each, so the loop ran twice per slug; real titles usually succeed on the first token. The cost is paid at most once per sitemap rebuild (6 h TTL or after an EPG rebuild, deduplicated in flight). Extra RSS is bounded by 722 strings; the 105 MB seen in the harness is the harness's own 22k-document seed. Failure behaviour: a failing lookup aborts the build, stops the other workers, and the last good sitemap is served; with no previous build the request errors rather than caching a truncated list.
+All lookups are served by `idx_tvread_search_tokens {searchTokens, date}` (IXSCAN → FETCH, 1,900 keys/docs for the token). The synthetic titles had two tokens each, so the loop ran twice per slug; real titles usually succeed on the first token. The cost is paid at most once per sitemap rebuild (6 h TTL or after an EPG rebuild, deduplicated in flight). Extra RSS is bounded by 722 strings; the 105 MB seen in the harness is the harness's own 22k-document seed. Failure behaviour: a failing lookup aborts the build, stops the other workers, and the last good sitemap is served; with no previous (or a >24 h old) build the request errors rather than caching a truncated list. In-flight lookups already started when one fails still complete (at most 7).
 
 ## 6. Proposed, NOT active
 

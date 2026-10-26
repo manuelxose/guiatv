@@ -8,6 +8,7 @@ import { FootballQueryService } from '../../application/sports/services/Football
 import { buildLegacyProgramSlug, normalizeTvToken, channelPagePath } from '../../shared/utils/tvMetadata';
 import { TvReadQueryService } from '../../application/services/TvReadQueryService';
 import { PUBLIC_EDITORIAL_FILTER } from '../../application/services/EditorialReviewPolicy';
+import { logger } from '../../shared/utils/logger';
 import { entityPublicReadPolicy, normalizeEntityPath } from '../../application/services/EntityPublicReadPolicy';
 
 type Changefreq =
@@ -49,11 +50,16 @@ const INDEXABLE_CHANNEL_TYPES: ReadonlySet<ChannelType> = new Set<ChannelType>([
 
 const cache = new Map<string, { value: string; expiresAt: number }>();
 const inflightMap = new Map<string, Promise<string>>();
-const lastGood = new Map<string, string>();
+/** Last successful build per key. Survives invalidation (an EPG rebuild is when a build is most likely to fail). */
+const lastGood = new Map<string, { xml: string; at: number }>();
+const STALE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const STALE_RETRY_MS = 60 * 1000;
+const log = logger.child('SitemapController');
+
+export const clearSitemapLastGood = (): void => lastGood.clear();
 
 export const invalidateSitemapCache = (): void => {
   cache.clear();
-  lastGood.clear();
   inflightMap.clear();
 };
 
@@ -152,15 +158,20 @@ export class SitemapController {
     const promise = builder()
       .then((xml) => {
         cache.set(key, { value: xml, expiresAt: Date.now() + CACHE_TTL_MS });
-        lastGood.set(key, xml);
+        lastGood.set(key, { xml, at: Date.now() });
         inflightMap.delete(key);
         return xml;
       })
       .catch((err) => {
         inflightMap.delete(key);
         // A transient failure serves the last good build instead of a 5xx to crawlers.
+        log.error('Sitemap build failed', { key, error: err });
         const stale = lastGood.get(key);
-        if (stale !== undefined) return stale;
+        if (stale && Date.now() - stale.at < STALE_MAX_AGE_MS) {
+          // Retry in a minute, not on every request: the failed build is the expensive part.
+          cache.set(key, { value: stale.xml, expiresAt: Date.now() + STALE_RETRY_MS });
+          return stale.xml;
+        }
         throw err;
       });
     inflightMap.set(key, promise);
