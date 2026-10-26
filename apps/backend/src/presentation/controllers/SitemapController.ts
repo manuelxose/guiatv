@@ -49,9 +49,11 @@ const INDEXABLE_CHANNEL_TYPES: ReadonlySet<ChannelType> = new Set<ChannelType>([
 
 const cache = new Map<string, { value: string; expiresAt: number }>();
 const inflightMap = new Map<string, Promise<string>>();
+const lastGood = new Map<string, string>();
 
 export const invalidateSitemapCache = (): void => {
   cache.clear();
+  lastGood.clear();
   inflightMap.clear();
 };
 
@@ -150,11 +152,15 @@ export class SitemapController {
     const promise = builder()
       .then((xml) => {
         cache.set(key, { value: xml, expiresAt: Date.now() + CACHE_TTL_MS });
+        lastGood.set(key, xml);
         inflightMap.delete(key);
         return xml;
       })
       .catch((err) => {
         inflightMap.delete(key);
+        // A transient failure serves the last good build instead of a 5xx to crawlers.
+        const stale = lastGood.get(key);
+        if (stale !== undefined) return stale;
         throw err;
       });
     inflightMap.set(key, promise);
@@ -331,7 +337,12 @@ export class SitemapController {
     const queue = [...slugs];
     await Promise.all(Array.from({ length: 8 }, async () => {
       for (let slug = queue.shift(); slug !== undefined; slug = queue.shift()) {
-        if (await this.programSlugResolves!(slug)) ok.add(slug);
+        try {
+          if (await this.programSlugResolves!(slug)) ok.add(slug);
+        } catch (error) {
+          queue.length = 0; // stop the other workers: the build fails as a whole
+          throw error;
+        }
       }
     }));
     return ok;

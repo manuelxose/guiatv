@@ -480,10 +480,17 @@ export class CatalogService {
   async programSlugResolves(slug: string): Promise<boolean> {
     const searchText = String(slug || '').replace(/-/g, ' ').trim();
     if (!searchText) return false;
-    return Boolean(
+    const found =
       (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getTodayYYYYMMDD())) ??
-      (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getTomorrowYYYYMMDD()))
-    );
+      (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getTomorrowYYYYMMDD()));
+    if (!found) return false;
+    // The page then loads the item by id (getProgramDetail); a hit the detail read rejects still answers 404.
+    try {
+      await this.tvReadQueryService.getItem(found.id);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private async cacheSlugNotFound(negativeCacheKey: string): Promise<void> {
