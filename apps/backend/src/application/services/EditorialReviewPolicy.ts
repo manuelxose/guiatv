@@ -96,6 +96,140 @@ export function assertEditorialPostCanBeApproved(post: ApprovableEditorialPost):
   }
 }
 
+// Paths the site answers with a 301 (apps/frontend app.routes.ts, blog.routes.ts, football.routes.ts and
+// scripts/ssr-server.mjs). Order matters: specific rules first. Retired slugs in ssr-server's EDITORIAL_REDIRECTS
+// are not mirrored: a link to one is not a public guide, so the approval gate refuses it.
+const LEGACY_INTERNAL_PATHS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/^\/(?:(?:editorial|blog|guias)\/categoria\/rankings|editorial\/rankings|blog\/top10)(?=$|[?#])/, '/guias/rankings'],
+  [/^\/(?:editorial|blog)\/categoria\/([^/?#]+)(?=$|[?#])/, '/guias/categoria/$1'],
+  [/^\/(?:editorial|blog|deportes\/futbol\/noticias)\/([^/?#]+)(?=$|[?#])/, '/guias/$1'],
+  [/^\/(?:editorial|blog)(?=$|[?#])/, '/guias'],
+  [/^\/programacion-tv\/guia-canales(?=$|[?#])/, '/programacion-tv/en-directo'],
+  // The target carries its own query, so the legacy one is dropped rather than appended.
+  [/^\/deportes\/futbol\/en-directo(?:\?[^#]*)?(?=$|#)/, '/deportes/futbol/partidos-hoy?filter=live'],
+];
+
+export function canonicalInternalPath(path: string): string {
+  for (const [pattern, target] of LEGACY_INTERNAL_PATHS) {
+    if (pattern.test(path)) return path.replace(pattern, target);
+  }
+  return path;
+}
+
+const INTERNAL_HREF = /(?<![\w-])href=(["'])(?:https?:\/\/(?:www\.)?guiaprogramaciontv\.com)?(\/(?!\/)[^"']*)\1/gi;
+
+// Same destination, one hop fewer: links stored before a route moved keep working without a crawl-visible redirect.
+export function canonicalizeInternalLinks(html: string): string {
+  return html.replace(INTERNAL_HREF, (match, quote: string, path: string) => {
+    const canonical = canonicalInternalPath(path);
+    return canonical === path ? match : `href=${quote}${canonical}${quote}`;
+  });
+}
+
+const internalPaths = (html: string): string[] =>
+  [...String(html || '').matchAll(INTERNAL_HREF)].map((m) => m[2]);
+
+export type EditorialFindingSeverity = 'block' | 'warn' | 'human';
+export interface EditorialFinding {
+  code: string;
+  severity: EditorialFindingSeverity;
+  message: string;
+}
+
+interface EditorialQualityPost extends ApprovableEditorialPost {
+  slug?: string;
+  faqItems?: Array<{ question?: string; answer?: string }>;
+}
+
+export interface EditorialQualityContext {
+  /** Other publicly approved posts: link targets and duplicate comparison. */
+  others: Array<{ slug: string; content?: string }>;
+  /** Slugs that exist but are not public (drafts, in review): linkable once both are published. */
+  unpublishedSlugs?: string[];
+}
+
+const PLACEHOLDER_TITLE =
+  /^(?:sin t[ií]tulo|untitled|t[ií]tulo|title|nuevo (?:post|art[ií]culo)|new post|borrador|draft|test|prueba|todo|tbd)$|lorem ipsum|\{\{|\[(?:t[ií]tulo|title|todo)\]/i;
+const MONTH_AND_YEAR = /\b(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b.*\b20\d\d\b/i;
+const NEAR_DUPLICATE = 0.35; // same 4-gram Jaccard flag as scripts/editorial-audit.mjs
+const NEAR_IDENTICAL = 0.8;
+
+function shingles(html: string | undefined, n = 4): Set<string> {
+  const words = visibleText(html).toLowerCase().split(/\s+/).filter((w) => w.length > 1);
+  const out = new Set<string>();
+  for (let i = 0; i + n <= words.length; i++) out.add(words.slice(i, i + n).join(' '));
+  return out;
+}
+
+function jaccard(a: Set<string>, b: Set<string>): number {
+  let shared = 0;
+  for (const s of a) if (b.has(s)) shared++;
+  return shared / (a.size + b.size - shared || 1);
+}
+
+/**
+ * Deterministic pre-publication findings. `block` = a definite defect; `warn` = an editorial-quality signal;
+ * `human` = a judgement the named reviewer must acknowledge explicitly. None of this verifies facts.
+ */
+export function evaluateEditorialQuality(
+  post: EditorialQualityPost,
+  context: EditorialQualityContext
+): EditorialFinding[] {
+  const findings: EditorialFinding[] = [];
+  const add = (severity: EditorialFindingSeverity, code: string, message: string) =>
+    findings.push({ severity, code, message });
+  const title = String(post.title || '').trim();
+  const content = String(post.content || '');
+
+  if (PLACEHOLDER_TITLE.test(title)) add('block', 'placeholder-title', `Título de relleno: «${title}»`);
+  if ((post.faqItems || []).some((item) => !String(item?.question || '').trim() || !String(item?.answer || '').trim())) {
+    add('block', 'invalid-faq', 'Pregunta frecuente sin pregunta o sin respuesta (FAQPage inválido)');
+  }
+
+  const publicSlugs = new Set(context.others.map((other) => other.slug));
+  const unpublishedSlugs = new Set(context.unpublishedSlugs || []);
+  for (const path of new Set(internalPaths(content))) {
+    const guide = /^\/guias\/(?!categoria\/|rankings(?:$|[?#]))([^/?#]+)/.exec(canonicalInternalPath(path));
+    if (!guide || guide[1] === post.slug || publicSlugs.has(guide[1])) continue;
+    if (unpublishedSlugs.has(guide[1])) {
+      add('human', 'links-unpublished-guide', `Enlaza a ${path}, que aún no es pública: publicarla también o el enlace dará 404`);
+    } else {
+      add('block', 'broken-internal-link', `Enlace a una guía inexistente o retirada: ${path}`);
+    }
+  }
+
+  const own = shingles(content);
+  for (const other of context.others) {
+    if (other.slug === post.slug) continue;
+    const similarity = jaccard(own, shingles(other.content));
+    if (similarity >= NEAR_IDENTICAL) {
+      add('block', 'near-identical', `Contenido casi idéntico a /guias/${other.slug} (${similarity.toFixed(2)})`);
+    } else if (similarity >= NEAR_DUPLICATE) {
+      add('human', 'near-duplicate', `Estructura muy parecida a /guias/${other.slug} (${similarity.toFixed(2)}): consolidar o justificar`);
+    }
+  }
+
+  if (post.origin && post.origin !== 'human') {
+    add('human', 'unverified-claims', 'Contenido asistido: cada precio, fecha, canal y disponibilidad debe comprobarse contra la fuente citada');
+  }
+
+  const meta = `${post.seo?.metaTitle || ''}\n${post.seo?.metaDescription || ''}`;
+  if (/(?:…|\.\.\.)$/m.test(meta)) add('warn', 'truncated-metadata', 'Metadatos SEO truncados automáticamente');
+  if (post.seo?.metaDescription && post.seo.metaDescription.trim() === title) {
+    add('warn', 'metadata-repeats-title', 'La meta descripción repite el título');
+  }
+  if (MONTH_AND_YEAR.test(title)) add('warn', 'time-bound-title', 'El título lleva mes y año: programar revisión');
+  if (internalPaths(content).length === 0) add('warn', 'no-internal-links', 'Sin enlaces internos');
+
+  return findings;
+}
+
+/** What still prevents approval: every `block`, and every `human` finding the reviewer has not acknowledged. */
+export function editorialGateFailures(findings: EditorialFinding[], acknowledged: Iterable<string>): EditorialFinding[] {
+  const ack = new Set(acknowledged);
+  return findings.filter((f) => f.severity === 'block' || (f.severity === 'human' && !ack.has(f.code)));
+}
+
 // A bot identity in `reviewedBy` is not editorial review. EDITORIAL_HUMAN_REVIEWERS (comma-separated)
 // pins approvals to named people; without it only the known machine identities are refused.
 const MACHINE_REVIEWER = /auctorio|quality-gate/i;
