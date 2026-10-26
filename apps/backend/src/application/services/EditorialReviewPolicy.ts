@@ -96,15 +96,17 @@ export function assertEditorialPostCanBeApproved(post: ApprovableEditorialPost):
   }
 }
 
-// Paths the site answers with a 301 (apps/frontend app.routes.ts, features/football/football.routes.ts).
-// Order matters: specific rules before the generic `/editorial|/blog/:slug` one.
+// Paths the site answers with a 301 (apps/frontend app.routes.ts, blog.routes.ts, football.routes.ts and
+// scripts/ssr-server.mjs). Order matters: specific rules first. Retired slugs in ssr-server's EDITORIAL_REDIRECTS
+// are not mirrored: a link to one is not a public guide, so the approval gate refuses it.
 const LEGACY_INTERNAL_PATHS: ReadonlyArray<readonly [RegExp, string]> = [
-  [/^\/(?:editorial|blog)\/categoria\/([^/?#]+)/, '/guias/categoria/$1'],
-  [/^\/blog\/top10(?=$|[?#])/, '/guias/rankings'],
-  [/^\/(?:editorial|blog)\/([^/?#]+)/, '/guias/$1'],
+  [/^\/(?:(?:editorial|blog|guias)\/categoria\/rankings|editorial\/rankings|blog\/top10)(?=$|[?#])/, '/guias/rankings'],
+  [/^\/(?:editorial|blog)\/categoria\/([^/?#]+)(?=$|[?#])/, '/guias/categoria/$1'],
+  [/^\/(?:editorial|blog|deportes\/futbol\/noticias)\/([^/?#]+)(?=$|[?#])/, '/guias/$1'],
   [/^\/(?:editorial|blog)(?=$|[?#])/, '/guias'],
   [/^\/programacion-tv\/guia-canales(?=$|[?#])/, '/programacion-tv/en-directo'],
-  [/^\/deportes\/futbol\/en-directo(?=$|[?#])/, '/deportes/futbol/partidos-hoy?filter=live'],
+  // The target carries its own query, so the legacy one is dropped rather than appended.
+  [/^\/deportes\/futbol\/en-directo(?:\?[^#]*)?(?=$|#)/, '/deportes/futbol/partidos-hoy?filter=live'],
 ];
 
 export function canonicalInternalPath(path: string): string {
@@ -114,7 +116,7 @@ export function canonicalInternalPath(path: string): string {
   return path;
 }
 
-const INTERNAL_HREF = /href=(["'])(?:https?:\/\/(?:www\.)?guiaprogramaciontv\.com)?(\/[^"']*)\1/gi;
+const INTERNAL_HREF = /(?<![\w-])href=(["'])(?:https?:\/\/(?:www\.)?guiaprogramaciontv\.com)?(\/(?!\/)[^"']*)\1/gi;
 
 // Same destination, one hop fewer: links stored before a route moved keep working without a crawl-visible redirect.
 export function canonicalizeInternalLinks(html: string): string {
@@ -142,6 +144,8 @@ interface EditorialQualityPost extends ApprovableEditorialPost {
 export interface EditorialQualityContext {
   /** Other publicly approved posts: link targets and duplicate comparison. */
   others: Array<{ slug: string; content?: string }>;
+  /** Slugs that exist but are not public (drafts, in review): linkable once both are published. */
+  unpublishedSlugs?: string[];
 }
 
 const PLACEHOLDER_TITLE =
@@ -183,10 +187,14 @@ export function evaluateEditorialQuality(
   }
 
   const publicSlugs = new Set(context.others.map((other) => other.slug));
+  const unpublishedSlugs = new Set(context.unpublishedSlugs || []);
   for (const path of new Set(internalPaths(content))) {
     const guide = /^\/guias\/(?!categoria\/|rankings(?:$|[?#]))([^/?#]+)/.exec(canonicalInternalPath(path));
-    if (guide && guide[1] !== post.slug && !publicSlugs.has(guide[1])) {
-      add('block', 'broken-internal-link', `Enlace a una guía no publicada: ${path}`);
+    if (!guide || guide[1] === post.slug || publicSlugs.has(guide[1])) continue;
+    if (unpublishedSlugs.has(guide[1])) {
+      add('human', 'links-unpublished-guide', `Enlaza a ${path}, que aún no es pública: publicarla también o el enlace dará 404`);
+    } else {
+      add('block', 'broken-internal-link', `Enlace a una guía inexistente o retirada: ${path}`);
     }
   }
 

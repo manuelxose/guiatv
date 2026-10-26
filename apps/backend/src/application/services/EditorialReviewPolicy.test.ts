@@ -116,18 +116,32 @@ test('internal links are rewritten to the destination the site redirects to', ()
       '<a href="/programacion-tv/guia-canales-extra">g</a><a href="https://otra.web/editorial/x">h</a>'
   );
   assert.equal(canonicalInternalPath('/guias/x'), '/guias/x');
+  // Second-hop redirects of the SSR server resolve in one step.
+  assert.equal(canonicalInternalPath('/editorial/categoria/rankings'), '/guias/rankings');
+  assert.equal(canonicalInternalPath('/guias/categoria/rankings?p=2'), '/guias/rankings?p=2');
+  assert.equal(canonicalInternalPath('/deportes/futbol/noticias/derbi'), '/guias/derbi');
+  assert.equal(canonicalInternalPath('/deportes/futbol/en-directo?x=1#top'), '/deportes/futbol/partidos-hoy?filter=live#top');
+  // Paths the routes do not match in full are left alone.
+  assert.equal(canonicalInternalPath('/editorial/a/b'), '/editorial/a/b');
+  const untouched = '<a data-href="/blog/x" href="//cdn.example/editorial/x">x</a>';
+  assert.equal(canonicalizeInternalLinks(untouched), untouched);
 });
 
 test('the rewrite table matches the redirects the frontend actually serves', () => {
-  const frontend = resolve(process.cwd(), '../frontend/src/app');
-  const routes = readFileSync(resolve(frontend, 'app.routes.ts'), 'utf8') +
-    readFileSync(resolve(frontend, 'features/football/football.routes.ts'), 'utf8');
+  // dist/application/services -> apps/frontend
+  const frontend = resolve(__dirname, '../../../../frontend');
+  const routes = ['src/app/app.routes.ts', 'src/app/blog/blog.routes.ts', 'src/app/features/football/football.routes.ts', 'scripts/ssr-server.mjs']
+    .map((file) => readFileSync(resolve(frontend, file), 'utf8'))
+    .join('\n');
   for (const rule of [
     "path: 'programacion-tv/guia-canales', redirectTo: 'programacion-tv/en-directo'",
     "path: 'editorial/:slug', redirectTo: 'guias/:slug'",
     "path: 'blog/:slug', redirectTo: 'guias/:slug'",
     "path: 'blog/top10', redirectTo: 'guias/rankings'",
+    "path: 'categoria/rankings', redirectTo: '/guias/rankings'",
     "path: 'en-directo', redirectTo: () => '/deportes/futbol/partidos-hoy?filter=live'",
+    "app.get('/deportes/futbol/noticias/:slug', (req, res) => movedTo(req, res, guidePath(req.params.slug)))",
+    "app.get(['/editorial/rankings', '/blog/top10'], (req, res) => movedTo(req, res, '/guias/rankings'))",
   ]) assert.ok(routes.includes(rule), rule);
 });
 
@@ -144,6 +158,10 @@ test('quality findings: definite defects block', () => {
     content: `${validPost.content}<a href="/editorial/no-existe">x</a><a href="/guias/precios">ok</a><a href="/guias/nueva">self</a>`,
   };
   assert.deepEqual(codes(evaluateEditorialQuality(bad, { others }), 'block'), ['broken-internal-link', 'invalid-faq', 'placeholder-title']);
+  // Two new guides that link each other: a judgement (publish both), not a dead end.
+  const linked = evaluateEditorialQuality(bad, { others, unpublishedSlugs: ['no-existe'] });
+  assert.deepEqual(codes(linked, 'block'), ['invalid-faq', 'placeholder-title']);
+  assert.ok(codes(linked, 'human').includes('links-unpublished-guide'));
   const copy = evaluateEditorialQuality({ ...validPost, slug: 'b' }, { others: [{ slug: 'a', content: validPost.content }] });
   assert.deepEqual(codes(copy, 'block'), ['near-identical']);
 });

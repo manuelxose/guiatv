@@ -402,14 +402,20 @@ export class BlogController {
         ]);
       }
 
-      const others = await BlogPostModel.find({ ...PUBLIC_EDITORIAL_FILTER, _id: { $ne: post._id } })
-        .select({ slug: 1, content: 1 })
+      const siblings = await BlogPostModel.find({ _id: { $ne: post._id } })
+        .select({ slug: 1, content: 1, status: 1, reviewState: 1 })
         .lean()
         .exec();
+      const isPublic = (p: { status?: string; reviewState?: string }) =>
+        p.status === PUBLIC_EDITORIAL_FILTER.status && p.reviewState === PUBLIC_EDITORIAL_FILTER.reviewState;
       const findings = evaluateEditorialQuality(post.toObject(), {
-        others: others.map((other) => ({ slug: String(other.slug), content: other.content })),
+        others: siblings.filter(isPublic).map((other) => ({ slug: String(other.slug), content: other.content })),
+        unpublishedSlugs: siblings.filter((other) => !isPublic(other)).map((other) => String(other.slug)),
       });
-      const acknowledged = ([] as unknown[]).concat(req.body?.acknowledge ?? []).map(String);
+      const acknowledged = ([] as unknown[])
+        .concat(req.body?.acknowledge ?? [])
+        .flatMap((code) => String(code).split(','))
+        .map((code) => code.trim());
       const failures = editorialGateFailures(findings, acknowledged);
       if (failures.length) {
         throw new ValidationError(

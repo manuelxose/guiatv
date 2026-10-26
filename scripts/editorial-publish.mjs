@@ -20,11 +20,19 @@ const only = arg('only');
 // Judgement findings the reviewer has read and accepts (e.g. unverified-claims,near-duplicate); the API refuses approval otherwise.
 const acknowledge = String(arg('acknowledge', '')).split(',').map((s) => s.trim()).filter(Boolean);
 if (!reviewer) { console.error('--reviewer is required (a name from EDITORIAL_HUMAN_REVIEWERS)'); process.exit(2); }
+// Every draft here is published as ai-assisted, so the API always raises this judgement. Refuse before the PUT,
+// which turns a live guide back into a draft: failing at approval afterwards would leave it offline.
+if (!dryRun && !acknowledge.includes('unverified-claims')) {
+  console.error('--acknowledge must include unverified-claims (you checked every price, date, channel and availability claim against its source); add near-duplicate for the platform rankings');
+  process.exit(2);
+}
 
-function toHtml(md, reviewerName) {
+const spanishDate = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Madrid' });
+
+function toHtml(md, reviewerName, verifiedOn) {
   let body = md.replace(/^---[\s\S]*?---\s*/, '').replace(/^# .*\n/, '');
   body = body.split(/^## Notas para el revisor/m)[0].trim();
-  const disclosure = `<p><em>Elaborado con asistencia de IA a partir de las fuentes oficiales citadas y verificado el 19 de octubre de 2026. Revisión editorial: ${reviewerName}. Consulta nuestra <a href="/politica-editorial">política editorial</a>.</em></p>`;
+  const disclosure = `<p><em>Elaborado con asistencia de IA a partir de las fuentes oficiales citadas y verificado el ${spanishDate(verifiedOn)}. Revisión editorial: ${reviewerName}. Consulta nuestra <a href="/politica-editorial">política editorial</a>.</em></p>`;
   return `<div class="editorial-body">${marked.parse(body)}${disclosure}</div>`;
 }
 
@@ -33,12 +41,13 @@ const headers = { 'content-type': 'application/json', 'x-admin-key': process.env
 const call = async (method, path, body, extra = {}) => {
   const res = await fetch(`${base}${path}`, { method, headers: { ...headers, ...extra }, body: body ? JSON.stringify(body) : undefined });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(`${method} ${path} -> ${res.status} ${JSON.stringify(json).slice(0, 300)}`);
+  if (!res.ok) throw new Error(`${method} ${path} -> ${res.status} ${JSON.stringify(json, null, 1)}`);
   return json;
 };
 
 for (const e of entries) {
-  const content = toHtml(readFileSync(resolve(dir, e.file), 'utf8'), reviewer);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(e.verifiedOn || '')) throw new Error(`${e.file}: publish.json needs verifiedOn (YYYY-MM-DD, the day its sources were checked)`);
+  const content = toHtml(readFileSync(resolve(dir, e.file), 'utf8'), reviewer, e.verifiedOn);
   const payload = {
     title: e.title, slug: e.slug, status: 'draft', origin: 'ai-assisted', excerpt: e.excerpt, content,
     categories: e.categories, contentType: e.contentType || 'guide', evergreen: true, targetQuery: e.targetQuery, primaryIntent: e.targetQuery,
@@ -56,7 +65,10 @@ for (const e of entries) {
   const saved = id ? await call('PUT', `/v2/blog/${id}`, payload) : await call('POST', '/v2/blog', payload);
   const postId = saved.data?.post?.id || id;
   const approved = await call('POST', `/v2/blog/${postId}/approve`, { reviewer, acknowledge, notes: 'Drafted and checked against primary sources by Claude (AI); approved by the named reviewer.' },
-    { 'x-editorial-review-key': process.env.EDITORIAL_REVIEW_KEY || '', 'x-editorial-reviewer': reviewer });
+    { 'x-editorial-review-key': process.env.EDITORIAL_REVIEW_KEY || '', 'x-editorial-reviewer': reviewer }).catch((error) => {
+    console.error(`NOT PUBLISHED: /guias/${e.slug} is now a draft (offline). Read the findings below, then rerun with --only ${e.slug}.`);
+    throw error;
+  });
   console.log(`published ${e.slug} (${postId}) reviewer=${reviewer}`);
   for (const f of approved.data?.qualityFindings ?? []) console.log(`  ${f.severity} ${f.code}: ${f.message}`);
 }
