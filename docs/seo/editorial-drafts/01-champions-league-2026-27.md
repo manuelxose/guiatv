@@ -20,12 +20,12 @@ checked: 2026-10-19
 ## Lo que no podemos confirmar
 
 - No hay evidencia de un partido semanal en abierto en España en 2026-27; no lo escribimos.
-- El precio: el plan de Movistar Plus+ con deportes está en [nuestra guía de precios](/editorial/precios-plataformas-streaming-espana); consulta el vigente en movistarplus.es antes de contratar.
+- El precio: el plan de Movistar Plus+ con deportes está en [nuestra guía de precios](/guias/precios-plataformas-streaming-espana); consulta el vigente en movistarplus.es antes de contratar.
 
 ## Cómo encontrar tu partido en GuíaTV
 
-1. Abre los [partidos de hoy](/deportes/futbol/partidos-hoy) o el [fútbol en directo](/deportes/futbol/en-directo) y busca la competición.
-2. Comprueba en la [guía de canales](/programacion-tv/guia-canales) el canal «Liga de Campeones» de tu operador.
+1. Abre los [partidos de hoy](/deportes/futbol/partidos-hoy) o el [fútbol en directo](/deportes/futbol/partidos-hoy?filter=live) y busca la competición.
+2. Comprueba en la [guía de canales](/programacion-tv/en-directo) el canal «Liga de Campeones» de tu operador.
 3. Contrasta fecha y hora con el calendario oficial de UEFA: UEFA indica horas en CET/CEST; en España peninsular coinciden con la hora local.
 
 ## Fuentes

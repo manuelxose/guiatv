@@ -40,7 +40,7 @@ La página oficial de DAZN indica que el Plan Fútbol incluye cinco partidos por
 - **Quieres cinco partidos por jornada y otras ligas europeas:** el Plan Fútbol de DAZN incluye LaLiga, Premier League, Bundesliga y Serie A.
 - **Quieres ver todo LaLiga:** necesitas ambos servicios o un paquete de operador que los incluya.
 
-Localiza cada partido en la [agenda de fútbol de hoy](/deportes/futbol/partidos-hoy) y compara más plataformas en [qué plan elegir](/editorial/netflix-hbo-max-disney-prime-video-que-plan-elegir). Para el detalle de derechos, consulta [dónde ver LaLiga 2026-27](/editorial/donde-ver-laliga-2026-27-espana).
+Localiza cada partido en la [agenda de fútbol de hoy](/deportes/futbol/partidos-hoy) y compara más plataformas en [qué plan elegir](/guias/netflix-hbo-max-disney-prime-video-que-plan-elegir). Para el detalle de derechos, consulta [dónde ver LaLiga 2026-27](/guias/donde-ver-laliga-2026-27-espana).
 
 ## Fuentes
 
