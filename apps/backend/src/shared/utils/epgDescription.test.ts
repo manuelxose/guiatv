@@ -14,5 +14,11 @@ test('EPG filler descriptions become absent, genre prefixes are dropped, real te
   assert.equal(cleanEpgDescription('Programación especial por el aniversario de la cadena, con invitados y actuaciones.'),
     'Programación especial por el aniversario de la cadena, con invitados y actuaciones.');
   assert.equal(cleanEpgDescription('(Documental,Otros)'), undefined);
+  // PR #88 review: real content and editorial markers must survive.
+  for (const kept of ['Programación de teletienda.', 'Programación de cine.', 'Programación especial: Gala de los Goya',
+    '(Estreno) Capítulo 3.', '(VOS) Episodio.', '(Des)montando mitos del cine.']) {
+    assert.equal(cleanEpgDescription(kept), kept);
+  }
+  assert.equal(cleanEpgDescription('(Series Dramáticas Españolas) Texto.'), 'Texto.');
   assert.equal(cleanEpgDescription(undefined), undefined);
 });

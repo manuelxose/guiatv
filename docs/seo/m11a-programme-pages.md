@@ -89,7 +89,7 @@ None of these is a status, robots, or canonical defect: every sitemap URL is a 2
    - "Programación Alacantí TV.": `el-escenario`, `mundo-natural`
 3. **Episode-level programme URLs with the series synopsis.** 71 sitemap slugs carry `-tN-eN` / `episodio-N`, and 29 titles are just "Episodio N". For example, `/programas/episodio-800` … `episodio-814` (RTVE Promesa) are 15 indexable pages titled "Episodio 80x" with one identical synopsis about bear cubs. Further examples: `fallen-t01-e01` … (8 slugs, one synopsis, two slug spellings `t01-e07`/`t1-e7`) and `escuela-de-enfermera-t7-e1…e4`.
 4. **Wrong synopsis on a different work:** `scream-2`/`scream-3` and `2-fast-2-furious-a-todo-gas-2`/`fast-furious-5-a-todo-gas-5` share one text each, so at least one of each pair is wrong.
-5. **Genre prefix leaked into the synopsis**: "(Documental,Otros) …" on 43 URLs, e.g. `agujeros-negros-superpoderosos`.
+5. **Genre prefix leaked into the synopsis**: "(Documental,Otros) …" on 43 URLs (42 are genre lists; display cleaning ships in #88), e.g. `agujeros-negros-superpoderosos`.
 
 ## 5. Explicitly NOT recommended
 

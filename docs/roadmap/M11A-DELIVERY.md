@@ -62,7 +62,7 @@ Implementation and measurement: **2026-10-26** (Europe/Madrid). Baseline `main@6
   - Unconfirmed items were not added.
   - Accessibility: `/guias` H1 text "Guíasde" → "Guías de"; affiliate CTA accessible name "Ir a Max de Max" → "Ir a Max".
 - **This PR.**
-  - EPG filler synopses ("sin descripción.", "Programación Alacantí TV.") are dropped, and genre prefixes such as "(Documental,Otros) …" are stripped at ingestion, at read-model build and on the programme detail read paths. This affects 6 placeholder and 43 prefixed programme pages plus guide cards.
+  - EPG filler synopses ("sin descripción.", "Programación Alacantí TV.") are hidden, and genre-list prefixes such as "(Documental,Otros) …" are stripped, when descriptions are displayed: programme detail read paths (at deploy) and read-model card fields (after the next precompute). Stored descriptions stay raw because category inference reads the prefix (PR #88 review). Measured on the live run: 6 placeholder and 42 prefixed programme pages.
   - Programme-page classifier; `classify()` moved to `scripts/seo-ownership-classify.mjs` so both audits share it.
 
 ## AdSense readiness (internal assessment; no application submitted, approval is never guaranteed)
