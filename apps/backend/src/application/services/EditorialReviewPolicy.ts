@@ -230,6 +230,16 @@ export function editorialGateFailures(findings: EditorialFinding[], acknowledged
   return findings.filter((f) => f.severity === 'block' || (f.severity === 'human' && !ack.has(f.code)));
 }
 
+/**
+ * The M11-B policy path (no person involved): every `block` fails, and so does every `human` judgement
+ * except `unverified-claims`, which the evidence gate settles claim by claim. Duplication or unpublished
+ * link targets still need a named reviewer through the normal approval.
+ */
+export const POLICY_REVIEWER = 'policy:m11b-evidence-gate';
+export function policyGateFailures(findings: EditorialFinding[]): EditorialFinding[] {
+  return findings.filter((f) => f.severity === 'block' || (f.severity === 'human' && f.code !== 'unverified-claims'));
+}
+
 // A bot identity in `reviewedBy` is not editorial review. EDITORIAL_HUMAN_REVIEWERS (comma-separated)
 // pins approvals to named people; without it only the known machine identities are refused.
 const MACHINE_REVIEWER = /auctorio|quality-gate/i;
