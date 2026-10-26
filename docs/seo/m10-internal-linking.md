@@ -119,3 +119,45 @@ Residual, not fixed:
 - **Cloudflare `/cdn-cgi/l/email-protection`.**
 
 **Acceptance against the roadmap ("no orphaned indexable detail pages"):** not met. 694 sitemap programme URLs are still outside depth 3. Twin programme pages become reachable only from their work pages, and programme-only pages are deliberately left unlinked pending an M11 decision.
+
+## 7. Follow-up release, rebuild and final measurement (2026-10-26, owner-authorised)
+
+**Football hotfix** ([#83](https://github.com/manuelxose/guiatv/pull/83), `8eaf099`):
+- The `/canales/movistar-laliga` link came from the football "Dónde verlo" list, not from the TV builder. It now uses the airing's canonical `channel.normalizedName`.
+- Deployed via [artifact run 40379443538](https://github.com/manuelxose/guiatv/actions/runs/40379443538) as release **`20261026194014`**. API and SSR active, 0 restarts, health healthy.
+
+**Read-model rebuild:** one owner-authorised precompute run, using the same CLI as the schedule (`node dist/jobs/cli/precomputeSchedules.cli.js` with the API `EnvironmentFile`, `nice 10`). It rebuilt 4 dates in about 6 minutes, with 0 errors and a log at `/var/tmp/m10-precompute.log` on the host. `Verified work links` per date (25 / 26 / 27 / 28 Oct):
+
+| Reason | Count |
+|---|---|
+| **linked** | 267 / 495 / 489 / 408 = **1,659** |
+| `title_key_mismatch` (rejected) | 284 |
+| `slug_ambiguous` (rejected; a homonym resolves the slug) | 46 |
+| `tmdb_id_shared_by_other_titles` (rejected) | 16 |
+| `slug_unresolved` (rejected) | 10 |
+| `media_id_rejected` (cross-type or conflicting) | 0 |
+| `no_media_id` (Cine/Series without a stored link; never derived) | 4,389 |
+| `not_cine_or_series` | 33,773 |
+| read errors | 0 |
+
+So 82 % of Cine/Series airings with a stored identity (1,659 of 2,015) now link their work page, and 356 are rejected on identity evidence.
+
+**Final crawl** (same bound; `artifacts/m10/link-graph-rebuilt.json`):
+
+| Metric | Before | After release | After rebuild |
+|---|---|---|---|
+| Programme → work / work → programme links | 0 / 0 | 32 / 6 | **84 / 39** |
+| `/programas/` pages reachable (depth ≤ 4) | 0 | 6 | **39** |
+| `/peliculas` + `/series` pages discovered | 108 | 88 | **279** |
+| `/contenido/program:*` discovered | 7,648 | 7,631 | **7,167** |
+| `noindex` targets linked | 776 | 740 | **686** |
+| Links to non-canonical channel URLs | 16 | 1 | **0** |
+| Redirect chains / redirected link instances | 1 / 11 | 0 / 3 | **0 / 3** |
+| Broken targets | 3 | 2 | 3 → fixed in [#84](https://github.com/manuelxose/guiatv/pull/84) (`/series/sin-titulo` via `catalog-card`) |
+
+**Remaining residuals:**
+- `/series/2020-britains-…`: TMDB-search slug, not predictable from the client.
+- Cloudflare `/cdn-cgi/l/email-protection`.
+- Two redirect links inside CMS editorial HTML (M11-A).
+- One football link uses the pre-2026-10-20 UTC-dated match slug, which resolves and declares the current slug canonical. This is pre-existing and belongs to football slug hygiene.
+- 664 sitemap programme URLs are still beyond depth 3. This is the deliberate M11 decision on programme-only pages.

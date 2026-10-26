@@ -361,3 +361,16 @@ Details and evidence: [../seo/m10-internal-linking.md](../seo/m10-internal-linki
 - **Not yet observable:** verified card links (`workPath`) appear after the 00:15 Madrid precompute; re-measure then.
 - **Open:** 694 sitemap programme URLs beyond depth 3; `/canales/movistar-laliga` alias (builder `normalizedName` fallback); two editorial-HTML redirects (M11-A); Cloudflare `/cdn-cgi` link.
 - **Next:** M11-A (content-quality remediation, including the programme-only linking/thin-content decision), then M11-B (original editorial content).
+
+### M10 follow-up (2026-10-26, owner-authorised)
+
+- **Football hotfix #83** (`8eaf099`): football broadcasts now link the canonical channel URL. Live as release **`20261026194014`**; API and SSR active, 0 restarts.
+- **Precompute:** one run with the schedule's own CLI and environment. It rebuilt 4 dates with 0 errors and assigned **1,659 verified work links** (82 % of Cine/Series airings with a stored identity); 356 were rejected on identity evidence and 0 cross-type ids appeared.
+- **Final crawl:**
+  - programme↔work links 0/0 → 84/39;
+  - reachable programme pages 0 → 39;
+  - discovered film/series pages 108 → 279;
+  - non-canonical channel links 16 → 0;
+  - redirect chains 1 → 0.
+- **#84:** `/series/sin-titulo` via `catalog-card`, found by the final crawl.
+- **M10 remains PARTIAL:** 664 sitemap programme URLs are still beyond depth 3, pending the M11 decision on programme-only pages. Details: [m10-internal-linking.md §7](../seo/m10-internal-linking.md).
