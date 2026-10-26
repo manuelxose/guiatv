@@ -64,7 +64,9 @@ export class SitemapController {
     private readonly tvReadQueryService?: Pick<
       TvReadQueryService,
       'getChannels' | 'getIndexableProgramSitemapRows'
-    >
+    >,
+    /** Same lookup the `/programas/:slug` page uses; when bound, slugs that would answer 404 stay out of the sitemap. */
+    private readonly programSlugResolves?: (slug: string) => Promise<boolean>
   ) {}
 
   /* ------------------------------------------------------------------ */
@@ -174,7 +176,6 @@ export class SitemapController {
 
   private async buildSitemapIndex(): Promise<string> {
     const baseUrl = this.getBaseUrl();
-    const todayIso = this.formatLastmod(new Date());
 
     const subs = [
       'sitemap-static.xml',
@@ -189,8 +190,8 @@ export class SitemapController {
     ];
     for (const file of subs) {
       lines.push('  <sitemap>');
+      // No lastmod: a child sitemap is rebuilt on request, so "today" would claim a change that did not happen.
       lines.push(`    <loc>${this.escapeXml(`${baseUrl}/${file}`)}</loc>`);
-      lines.push(`    <lastmod>${todayIso}</lastmod>`);
       lines.push('  </sitemap>');
     }
     lines.push('</sitemapindex>');
@@ -285,7 +286,9 @@ export class SitemapController {
         const changed = row.updatedAt ? new Date(row.updatedAt).getTime() : NaN;
         lastChanged.set(slug, Math.max(lastChanged.get(slug) ?? -Infinity, Number.isNaN(changed) ? -Infinity : changed));
       }
+      const resolvable = await this.filterResolvable([...lastChanged.keys()]);
       for (const [slug, changed] of lastChanged) {
+        if (!resolvable.has(slug)) continue;
         urls.push({
           loc: `/programas/${slug}`,
           lastmod: Number.isFinite(changed) ? this.formatLastmod(new Date(changed)) : undefined,
@@ -319,6 +322,19 @@ export class SitemapController {
       });
     }
     return this.renderUrlset(urls);
+  }
+
+  /** Bounded parallel check; a lookup failure propagates so a database outage never caches a truncated sitemap. */
+  private async filterResolvable(slugs: string[]): Promise<Set<string>> {
+    if (!this.programSlugResolves) return new Set(slugs);
+    const ok = new Set<string>();
+    const queue = [...slugs];
+    await Promise.all(Array.from({ length: 8 }, async () => {
+      for (let slug = queue.shift(); slug !== undefined; slug = queue.shift()) {
+        if (await this.programSlugResolves!(slug)) ok.add(slug);
+      }
+    }));
+    return ok;
   }
 
   private async buildBlogSitemap(): Promise<string> {

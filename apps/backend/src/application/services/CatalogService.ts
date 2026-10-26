@@ -473,6 +473,19 @@ export class CatalogService {
     throw new NotFoundError('Catalog item', slug);
   }
 
+  /**
+   * Whether `/programas/:slug` resolves today or tomorrow: exactly the lookup `resolveBySlugInternal` runs for a
+   * programme, so the sitemap can list only URLs that answer 200.
+   */
+  async programSlugResolves(slug: string): Promise<boolean> {
+    const searchText = String(slug || '').replace(/-/g, ' ').trim();
+    if (!searchText) return false;
+    return Boolean(
+      (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getTodayYYYYMMDD())) ??
+      (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getTomorrowYYYYMMDD()))
+    );
+  }
+
   private async cacheSlugNotFound(negativeCacheKey: string): Promise<void> {
     try {
       await this.cacheRepository.set(negativeCacheKey, true, this.slugNotFoundTtlSeconds);

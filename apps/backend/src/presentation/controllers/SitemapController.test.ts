@@ -268,6 +268,45 @@ test('sitemap-programs.xml uses the public TV read model instead of repository-o
   assert.doesNotMatch(getSentXml(), /raw-programme-that-cannot-resolve/);
 });
 
+test('M09: sitemap-programs.xml lists only slugs the /programas/:slug resolver answers, and a lookup failure is not cached', async () => {
+  invalidateSitemapCache();
+  const tvReadQueryService = {
+    getChannels: async () => ({ channels: [], meta: {} }),
+    getIndexableProgramSitemapRows: async () => [
+      { title: 'Resolvable', start: '2026-08-31T21:00:00.000Z' },
+      { title: 'Bonanza', start: '2026-08-31T21:00:00.000Z' },
+      { title: 'Sentimos las molestias T2 E1', start: '2026-08-31T21:00:00.000Z' },
+    ],
+  } as any;
+  const asked: string[] = [];
+  let failing = false;
+  const controller = new SitemapController({} as any, {} as any, undefined, undefined, tvReadQueryService,
+    async (slug) => { asked.push(slug); if (failing) throw new Error('db down'); return slug === 'resolvable'; });
+
+  const first = fakeReqRes();
+  await controller.getProgramsSitemap(first.req, first.res, (() => {}) as any);
+  assert.deepEqual([...asked].sort(), ['bonanza', 'resolvable', 'sentimos-las-molestias-t2-e1']);
+  assert.match(first.getSentXml(), /\/programas\/resolvable</);
+  assert.doesNotMatch(first.getSentXml(), /bonanza|sentimos/);
+
+  invalidateSitemapCache();
+  failing = true;
+  let error: unknown;
+  await controller.getProgramsSitemap(first.req, first.res, ((e: unknown) => { error = e; }) as any);
+  assert.ok(error, 'an outage must surface as an error, not as a truncated sitemap');
+});
+
+test('M09: sitemap index declares no invented lastmod', async () => {
+  invalidateSitemapCache();
+  const controller = new SitemapController({} as any, {} as any);
+  const { req, res, getSentXml } = fakeReqRes();
+
+  await controller.getSitemapIndex(req, res, (() => {}) as any);
+
+  assert.match(getSentXml(), /<sitemap>\s*<loc>[^<]+sitemap-programs\.xml<\/loc>\s*<\/sitemap>/);
+  assert.doesNotMatch(getSentXml(), /lastmod/);
+});
+
 test('sitemap-blog.xml excludes categories with fewer than three approved posts', async () => {
   invalidateSitemapCache();
   const originalFind = (await import('../../infrastructure/database/models/BlogPost.model')).BlogPostModel.find;

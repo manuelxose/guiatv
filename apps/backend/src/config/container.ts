@@ -725,7 +725,8 @@ export class Container {
       this.get('programRepository'),
       this.has('tmdbService') ? this.get('tmdbService') : undefined,
       this.has('footballQueryService') ? this.get('footballQueryService') : undefined,
-      this.get('tvReadQueryService')
+      this.get('tvReadQueryService'),
+      (slug) => this.get<{ programSlugResolves(slug: string): Promise<boolean> }>('catalogService').programSlugResolves(slug)
     );
     this.dependencies.set('sitemapController', sitemapController);
 
