@@ -7,8 +7,12 @@
  * exists, is valid, has this TMDB id and the category's kind); its title key equals the row's title or original-title
  * key; no other title in the build shares the TMDB id; and the work slug resolves, through the same local lookup the
  * detail page runs first, to this TMDB id and no other. A derived (linker-only) match never produces a link.
+ *
+ * shortcut: the proof holds for the catalogue as read at build time; a namesake row added (or a row retitled) later can
+ * change what the slug resolves to until the date is rebuilt (precompute runs every 6 h). Upgrade by making the page's
+ * local lookup refuse ambiguity if that window is ever observed to matter.
  */
-import { MediaCatalogModel } from '@/infrastructure/database/models/MediaCatalogEntry.model';
+import { MongoMediaCatalogRepository } from '@/infrastructure/repositories/MongoMediaCatalogRepository';
 import { buildLinkContext, linkCatalogueRow, LinkContext, LinkProgram, LinkRow } from '@/domain/services/catalogueLinker';
 import { titleIdentityKey } from '@/domain/services/contentIdentity';
 import { buildDetailPath, slugify, slugifyTitle } from '@/domain/services/detailPath';
@@ -18,7 +22,6 @@ import { CatalogueRowReader, readCatalogueRows, readCatalogueRowsFor } from './C
 
 const log = logger.child('VerifiedWorkLinks');
 const SLUG_BATCH = 500;
-const READ_MAX_MS = 5_000;
 
 export type WorkLinkProgram = LinkProgram & { workPath?: string };
 export type WorkLinkReason =
@@ -39,13 +42,11 @@ export interface SlugRow {
 /** Catalogue rows whose `normalizedTitle` is one of `keys` (what `MediaCatalogService.findKnownMatchesForTitles` reads). */
 export type SlugRowReader = (keys: string[]) => Promise<Array<SlugRow & { normalizedTitle?: string | null }>>;
 
-export const readSlugRows: SlugRowReader = async (keys) => {
-  const docs = await MediaCatalogModel.find({ normalizedTitle: { $in: keys } }, { tmdbId: 1, tmdbType: 1, title: 1, normalizedTitle: 1 })
-    .maxTimeMS(READ_MAX_MS)
-    .lean()
-    .exec();
-  return docs as any[];
-};
+// The page reads through this repository, whose `toEntities` drops invalid rows: read the same way so the build sees
+// exactly the candidates the page will. A read failure returns [] there, i.e. `slug_unresolved` (no link).
+const catalogue = new MongoMediaCatalogRepository();
+export const readSlugRows: SlugRowReader = async (keys) =>
+  (await catalogue.findByNormalizedTitles(keys)).map((e) => ({ tmdbId: e.tmdbId, tmdbType: e.tmdbType, title: e.title, normalizedTitle: e.normalizedTitle }));
 
 /** The key `CatalogService.getBySlug` derives from a slug before its local lookup. */
 export const slugLookupKey = (slug: string) => normalizeTvToken(slug.replace(/-/g, ' '), ' ');

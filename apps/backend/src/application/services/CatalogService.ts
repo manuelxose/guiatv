@@ -494,17 +494,20 @@ export class CatalogService {
    * visible airing that carries the same TMDB id (a homonymous programme is not this work). At most two candidate slugs.
    */
   private async resolveProgrammePath(tmdbId: number, contentType: CatalogContentType, airings: CatalogAiringDTO[]): Promise<string | undefined> {
+    // Legacy `slugify` on purpose: /programas URLs keep it (the sitemap and airingDetailSlug('program') use it).
     const slugs = [...new Set(airings.map((airing) => slugify(airing.title)).filter((slug) => slug !== 'sin-titulo'))].slice(0, 2);
-    for (const slug of slugs) {
+    // On the request path: every lookup runs at once; the page's own order (today, then tomorrow) is kept in the result.
+    const today = DateUtils.getTodayYYYYMMDD();
+    const tomorrow = DateUtils.getTomorrowYYYYMMDD();
+    const found = await Promise.all(slugs.map(async (slug) => {
       const searchText = slug.replace(/-/g, ' ');
-      const found =
-        (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getTodayYYYYMMDD())) ??
-        (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getTomorrowYYYYMMDD()));
-      // TMDB movie and tv ids share one number space: the kind must agree too.
-      if (found && isConsumerVisibleTvReadItem(found as TvReadItemDTO) && found.program?.tmdbId === tmdbId
-        && this.inferTvReadContentType(found as TvReadItemDTO) === contentType) return `/programas/${slug}`;
-    }
-    return undefined;
+      const [first, second] = await Promise.all([today, tomorrow].map((date) => this.findTvReadItemBySlug(searchText, slug, date)));
+      return { slug, item: (first ?? second) as TvReadItemDTO | null };
+    }));
+    // TMDB movie and tv ids share one number space: the kind must agree too.
+    const match = found.find(({ item }) => item && isConsumerVisibleTvReadItem(item) && item.program?.tmdbId === tmdbId
+      && this.inferTvReadContentType(item) === contentType);
+    return match ? `/programas/${match.slug}` : undefined;
   }
 
   private async cacheSlugNotFound(negativeCacheKey: string): Promise<void> {

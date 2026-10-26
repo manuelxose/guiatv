@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LinkRow } from '@/domain/services/catalogueLinker';
+import { slugifyTitle } from '@/domain/services/detailPath';
+import { MediaCatalogService } from './MediaCatalogService';
 import { assignVerifiedWorkPaths, slugLookupKey, SlugRowReader, WorkLinkProgram } from './VerifiedWorkLinks';
 
 const rows: LinkRow[] = [
@@ -78,4 +80,15 @@ test('reads are batched: one slug query for many airings of the same work', asyn
 test('slugLookupKey matches the key getBySlug derives (normalizeTvToken with spaces)', () => {
   assert.equal(slugLookupKey('spider-man-no-way-home'), 'spider man no way home');
   assert.equal(slugLookupKey('atomica'), 'atomica');
+});
+
+test('parity: the build reads the same normalizedTitle key the page lookup sends to the repository', async () => {
+  const seen: string[][] = [];
+  const service = new MediaCatalogService({ findByNormalizedTitles: async (keys: string[]) => { seen.push(keys); return []; } } as any, {} as any);
+  for (const title of ['Atómica', 'Spider-Man: No Way Home', 'Fast & Furious', 'El último maestro del aire', 'Amélie']) {
+    const slug = slugifyTitle(title);
+    // CatalogService.getBySlug: searchText = slug with spaces, then findLocalSlugMatch -> findKnownMatchesForTitles([searchText]).
+    await service.findKnownMatchesForTitles([slug.replace(/-/g, ' ').trim()]);
+    assert.deepEqual(seen.pop(), [slugLookupKey(slug)], title);
+  }
 });
