@@ -20,7 +20,7 @@ test.describe('Shared responsive shell', () => {
     await expect(sheet).toBeVisible();
     await expect(page.locator('.app-shell__route-content')).toHaveAttribute('inert', '');
     await expect(sheet.getByRole('link', { name: /Plataformas/ })).toBeVisible();
-    await expect(sheet.getByRole('link', { name: /Blog/ })).toBeVisible();
+    await expect(sheet.getByRole('link', { name: /Guías/ })).toBeVisible();
     // Rankings are intentionally discoverable from the More sheet (design system §33).
     await expect(sheet.getByRole('link', { name: /Rankings/ })).toBeVisible();
     await expect(sheet.getByRole('link', { name: /Tendencias/ })).toBeVisible();
@@ -61,7 +61,7 @@ test.describe('Shared responsive shell', () => {
     await page.goto('/');
     const nav = page.getByRole('navigation', { name: 'Secciones principales' });
     await expect(nav.getByRole('link')).toHaveCount(5);
-    await expect(nav.getByRole('link', { name: 'Blog', exact: true })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Guías', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Editorial y más' })).toHaveCount(0);
   });
 

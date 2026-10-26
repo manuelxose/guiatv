@@ -79,7 +79,7 @@ import { FootballStandingRowDTO } from '@app/features/football/football.models';
       color: var(--portal-text-muted);
       text-align: center;
     }
-    .standings__row--highlight .standings__pos { color: var(--status-warning); }
+    .standings__row--highlight .standings__pos { color: var(--portal-text); }
     .standings__team {
       display: flex;
       flex-direction: column;
@@ -97,7 +97,7 @@ import { FootballStandingRowDTO } from '@app/features/football/football.models';
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .standings__name:hover, .standings__name:focus-visible { color: var(--accent-sports); text-decoration: underline; }
+    .standings__name:hover, .standings__name:focus-visible { color: var(--portal-text); text-decoration: underline; }
     .standings__name:focus-visible { outline: 2px solid var(--accent-sports); outline-offset: 2px; }
     .standings__form {
       font-size: 0.6875rem;
@@ -105,7 +105,7 @@ import { FootballStandingRowDTO } from '@app/features/football/football.models';
       color: var(--portal-text-muted);
     }
     .standings__cell, .standings__pos { text-align: center; font-variant-numeric: tabular-nums; }
-    .standings__pts { font-weight: 850; color: var(--accent-sports); }
+    .standings__pts { font-weight: 850; color: var(--portal-text); }
     .standings__empty { padding: 1.25rem; text-align: center; color: var(--portal-text-muted); font-size: 0.875rem; }
   `,
 })

@@ -130,7 +130,7 @@
   min-height: 44px;
   border-radius: var(--radius-md);
   border: none;
-  background: var(--status-live);
+  background: var(--accent-live-strong);
   color: var(--spotify-white);
   font-weight: 700;
   font-size: 0.875rem;
@@ -187,9 +187,9 @@
 }
 
 .login-page__footer-text a {
-  color: var(--status-live);
+  color: var(--portal-text);
   font-weight: 600;
-  text-decoration: none;
+  text-decoration: underline;
 }
 
 .login-page__legal {

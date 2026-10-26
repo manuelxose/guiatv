@@ -1,0 +1,4573 @@
+{
+  "origin": "https://guiaprogramaciontv.com",
+  "at": "2026-10-23T13:25:07.599Z",
+  "results": [
+    {
+      "path": "/",
+      "status": 200,
+      "ssrMs": [
+        296,
+        111,
+        104
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".app-shell__mobile-tab--active > span[_ngcontent-ng-c3334390439=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.18 (foreground color: #f3727f, background color: #efe0e2, font size: 8.2pt (10.88px), font weight: normal). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Programación TV hoy: qué ver en televisión y streaming | Guía TV",
+        "canonical": [
+          "https://guiaprogramaciontv.com/"
+        ],
+        "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        "headings": [
+          "Programación de TV hoy en España"
+        ]
+      }
+    },
+    {
+      "path": "/programacion-tv/en-directo",
+      "status": 200,
+      "ssrMs": [
+        962,
+        93,
+        90
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    "a[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[href$=\"en-directo\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".app-shell__mobile-tab--active > span[_ngcontent-ng-c3334390439=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.18 (foreground color: #f3727f, background color: #efe0e2, font size: 8.2pt (10.88px), font weight: normal). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    "a[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.3pt (12.4416px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[href$=\"en-directo\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.3pt (12.4416px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 9.3pt (12.4416px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    "a[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.8pt (13.056px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[href$=\"en-directo\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.8pt (13.056px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 9.8pt (13.056px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    "a[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.8pt (13.12px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[href$=\"en-directo\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.8pt (13.12px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 9.8pt (13.12px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "TV en directo: qué emiten ahora los canales de España | Guía TV",
+        "canonical": [
+          "https://guiaprogramaciontv.com/programacion-tv/en-directo"
+        ],
+        "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        "headings": [
+          "En emisión ahora"
+        ]
+      }
+    },
+    {
+      "path": "/canales",
+      "status": 200,
+      "ssrMs": [
+        831,
+        355,
+        330
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".channel-catalog__guide-link"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.54 (foreground color: #f1f5f9, background color: #f3727f, font size: 12.1pt (16.1857px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".app-shell__mobile-tab--active > span[_ngcontent-ng-c3334390439=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.18 (foreground color: #f3727f, background color: #efe0e2, font size: 8.2pt (10.88px), font weight: normal). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".channel-catalog__guide-link"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.54 (foreground color: #f1f5f9, background color: #f3727f, font size: 12.1pt (16.1857px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".channel-catalog__guide-link"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.54 (foreground color: #f1f5f9, background color: #f3727f, font size: 12.8pt (17.0496px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".channel-catalog__guide-link"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.54 (foreground color: #f1f5f9, background color: #f3727f, font size: 12.8pt (17.0496px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".channel-catalog__guide-link"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.54 (foreground color: #f1f5f9, background color: #f3727f, font size: 13.0pt (17.28px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".channel-catalog__guide-link"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.54 (foreground color: #f1f5f9, background color: #f3727f, font size: 13.0pt (17.28px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".channel-catalog__guide-link"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.54 (foreground color: #f1f5f9, background color: #f3727f, font size: 13.0pt (17.28px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".channel-catalog__guide-link"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.54 (foreground color: #f1f5f9, background color: #f3727f, font size: 13.0pt (17.28px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "seo": {
+        "title": "Canales de televisión en España: TDT, cable y online | Guía TV",
+        "canonical": [
+          "https://guiaprogramaciontv.com/canales"
+        ],
+        "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        "headings": [
+          "Canales de televisión"
+        ]
+      }
+    },
+    {
+      "path": "/programacion-tv/que-ver-hoy",
+      "status": 200,
+      "ssrMs": [
+        4536,
+        152,
+        94
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    "a[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[href$=\"que-ver-hoy\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__masthead-copy > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__clear"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 9.1pt (12.16px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__module:nth-child(1) > .discover-view__section-head > div[_ngcontent-ng-c3553869314=\"\"] > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__module:nth-child(2) > .discover-view__section-head > div[_ngcontent-ng-c3553869314=\"\"] > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__module:nth-child(3) > .discover-view__section-head > div[_ngcontent-ng-c3553869314=\"\"] > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__module:nth-child(4) > .discover-view__section-head > div[_ngcontent-ng-c3553869314=\"\"] > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__section > .discover-view__section-head > div[_ngcontent-ng-c3553869314=\"\"] > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".app-shell__mobile-tab--active > span[_ngcontent-ng-c3334390439=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.18 (foreground color: #f3727f, background color: #efe0e2, font size: 8.2pt (10.88px), font weight: normal). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    "a[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.3pt (12.4416px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[href$=\"que-ver-hoy\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.3pt (12.4416px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 9.3pt (12.4416px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__masthead-copy > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__clear"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 9.1pt (12.16px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__module:nth-child(1) > .discover-view__section-head > div[_ngcontent-ng-c3553869314=\"\"] > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__module:nth-child(2) > .discover-view__section-head > div[_ngcontent-ng-c3553869314=\"\"] > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__module:nth-child(3) > .discover-view__section-head > div[_ngcontent-ng-c3553869314=\"\"] > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__module:nth-child(4) > .discover-view__section-head > div[_ngcontent-ng-c3553869314=\"\"] > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__section > .discover-view__section-head > div[_ngcontent-ng-c3553869314=\"\"] > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    "a[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.8pt (13.056px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[href$=\"que-ver-hoy\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.8pt (13.056px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 9.8pt (13.056px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__masthead-copy > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__clear"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 9.1pt (12.16px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__module:nth-child(1) > .discover-view__section-head > div[_ngcontent-ng-c3553869314=\"\"] > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__module:nth-child(2) > .discover-view__section-head > div[_ngcontent-ng-c3553869314=\"\"] > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__module:nth-child(3) > .discover-view__section-head > div[_ngcontent-ng-c3553869314=\"\"] > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__module:nth-child(4) > .discover-view__section-head > div[_ngcontent-ng-c3553869314=\"\"] > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__section > .discover-view__section-head > div[_ngcontent-ng-c3553869314=\"\"] > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    "a[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.8pt (13.12px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[href$=\"que-ver-hoy\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.8pt (13.12px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 9.8pt (13.12px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__masthead-copy > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__clear"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 9.1pt (12.16px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__module:nth-child(1) > .discover-view__section-head > div[_ngcontent-ng-c3553869314=\"\"] > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__module:nth-child(2) > .discover-view__section-head > div[_ngcontent-ng-c3553869314=\"\"] > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__module:nth-child(3) > .discover-view__section-head > div[_ngcontent-ng-c3553869314=\"\"] > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__module:nth-child(4) > .discover-view__section-head > div[_ngcontent-ng-c3553869314=\"\"] > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".discover-view__section > .discover-view__section-head > div[_ngcontent-ng-c3553869314=\"\"] > .discover-view__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.88 (foreground color: #1ed760, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Qué Ver Hoy - Guía TV",
+        "canonical": [
+          "https://guiaprogramaciontv.com/programacion-tv/que-ver-hoy"
+        ],
+        "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        "headings": [
+          "Encuentra qué ver hoy"
+        ]
+      }
+    },
+    {
+      "path": "/programacion-tv/peliculas",
+      "status": 200,
+      "ssrMs": [
+        853,
+        318,
+        875
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Películas en TV y streaming - Guía TV",
+        "canonical": [
+          "https://guiaprogramaciontv.com/programacion-tv/peliculas"
+        ],
+        "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        "headings": [
+          "Películas en TV y streaming"
+        ]
+      }
+    },
+    {
+      "path": "/programacion-tv/series",
+      "status": 200,
+      "ssrMs": [
+        2992,
+        1590,
+        405
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Series en TV y streaming - Guía TV",
+        "canonical": [
+          "https://guiaprogramaciontv.com/programacion-tv/series"
+        ],
+        "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        "headings": [
+          "Series en TV y streaming"
+        ]
+      }
+    },
+    {
+      "path": "/deportes/futbol",
+      "status": 200,
+      "ssrMs": [
+        1175,
+        459,
+        421
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    "a[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(1) > button > strong[_ngcontent-ng-c2714731906=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 9.1pt (12.16px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(2) > button > strong[_ngcontent-ng-c2714731906=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 9.1pt (12.16px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(3) > button > strong[_ngcontent-ng-c2714731906=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 9.1pt (12.16px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[routerlink=\"/deportes/futbol/calendario\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.98 (foreground color: #ffa42b, background color: #ffffff, font size: 9.1pt (12.16px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(1) > a[_ngcontent-ng-c3837985421=\"\"] > span[_ngcontent-ng-c3837985421=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 8.2pt (10.88px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(2) > a[_ngcontent-ng-c3837985421=\"\"] > span[_ngcontent-ng-c3837985421=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 8.2pt (10.88px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(3) > a[_ngcontent-ng-c3837985421=\"\"] > span[_ngcontent-ng-c3837985421=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 8.2pt (10.88px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[fragment=\"clasificacion\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.98 (foreground color: #ffa42b, background color: #ffffff, font size: 9.1pt (12.16px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[routerlink=\"/deportes/futbol/competiciones\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.98 (foreground color: #ffa42b, background color: #ffffff, font size: 9.1pt (12.16px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".app-shell__mobile-tab--active > span[_ngcontent-ng-c3334390439=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.18 (foreground color: #f3727f, background color: #efe0e2, font size: 8.2pt (10.88px), font weight: normal). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    "a[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.3pt (12.4416px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 9.3pt (12.4416px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(1) > button > strong[_ngcontent-ng-c2714731906=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 9.3pt (12.4416px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(2) > button > strong[_ngcontent-ng-c2714731906=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 9.3pt (12.4416px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(3) > button > strong[_ngcontent-ng-c2714731906=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 9.3pt (12.4416px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[routerlink=\"/deportes/futbol/calendario\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.98 (foreground color: #ffa42b, background color: #ffffff, font size: 9.3pt (12.4416px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(1) > a[_ngcontent-ng-c3837985421=\"\"] > span[_ngcontent-ng-c3837985421=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 8.2pt (10.88px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(2) > a[_ngcontent-ng-c3837985421=\"\"] > span[_ngcontent-ng-c3837985421=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 8.2pt (10.88px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(3) > a[_ngcontent-ng-c3837985421=\"\"] > span[_ngcontent-ng-c3837985421=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 8.2pt (10.88px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[fragment=\"clasificacion\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.98 (foreground color: #ffa42b, background color: #ffffff, font size: 9.3pt (12.4416px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[routerlink=\"/deportes/futbol/competiciones\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.98 (foreground color: #ffa42b, background color: #ffffff, font size: 9.3pt (12.4416px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    "a[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.8pt (13.056px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 9.8pt (13.056px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(1) > button > strong[_ngcontent-ng-c2714731906=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 9.8pt (13.056px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(2) > button > strong[_ngcontent-ng-c2714731906=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 9.8pt (13.056px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(3) > button > strong[_ngcontent-ng-c2714731906=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 9.8pt (13.056px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[routerlink=\"/deportes/futbol/calendario\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.98 (foreground color: #ffa42b, background color: #ffffff, font size: 9.8pt (13.056px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(1) > a[_ngcontent-ng-c3837985421=\"\"] > span[_ngcontent-ng-c3837985421=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 8.4pt (11.264px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(2) > a[_ngcontent-ng-c3837985421=\"\"] > span[_ngcontent-ng-c3837985421=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 8.4pt (11.264px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(3) > a[_ngcontent-ng-c3837985421=\"\"] > span[_ngcontent-ng-c3837985421=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 8.4pt (11.264px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[fragment=\"clasificacion\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.98 (foreground color: #ffa42b, background color: #ffffff, font size: 9.8pt (13.056px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[routerlink=\"/deportes/futbol/competiciones\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.98 (foreground color: #ffa42b, background color: #ffffff, font size: 9.8pt (13.056px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    "a[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.8pt (13.12px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 9.8pt (13.12px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(1) > button > strong[_ngcontent-ng-c2714731906=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 9.8pt (13.12px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(2) > button > strong[_ngcontent-ng-c2714731906=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 9.8pt (13.12px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(3) > button > strong[_ngcontent-ng-c2714731906=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 9.8pt (13.12px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[routerlink=\"/deportes/futbol/calendario\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.98 (foreground color: #ffa42b, background color: #ffffff, font size: 9.8pt (13.12px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(1) > a[_ngcontent-ng-c3837985421=\"\"] > span[_ngcontent-ng-c3837985421=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 8.5pt (11.392px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(2) > a[_ngcontent-ng-c3837985421=\"\"] > span[_ngcontent-ng-c3837985421=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 8.5pt (11.392px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "li:nth-child(3) > a[_ngcontent-ng-c3837985421=\"\"] > span[_ngcontent-ng-c3837985421=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #539df5, background color: #ffffff, font size: 8.5pt (11.392px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[fragment=\"clasificacion\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.98 (foreground color: #ffa42b, background color: #ffffff, font size: 9.8pt (13.12px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[routerlink=\"/deportes/futbol/competiciones\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.98 (foreground color: #ffa42b, background color: #ffffff, font size: 9.8pt (13.12px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Fútbol hoy: partidos, horarios y dónde verlos | Guía TV",
+        "canonical": [
+          "https://guiaprogramaciontv.com/deportes/futbol"
+        ],
+        "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        "headings": [
+          "Fútbol hoy en TV"
+        ]
+      }
+    },
+    {
+      "path": "/deportes/futbol/competiciones",
+      "status": 200,
+      "ssrMs": [
+        1076,
+        1853,
+        375
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".ng-star-inserted[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".ng-star-inserted[href$=\"futbol\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".header__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.94 (foreground color: #ffa42b, background color: #fdfdfd, font size: 8.3pt (11px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".app-shell__mobile-tab--active > span[_ngcontent-ng-c3334390439=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.18 (foreground color: #f3727f, background color: #efe0e2, font size: 8.2pt (10.88px), font weight: normal). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".ng-star-inserted[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.3pt (12.4416px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".ng-star-inserted[href$=\"futbol\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.3pt (12.4416px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 9.3pt (12.4416px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".header__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.94 (foreground color: #ffa42b, background color: #fdfdfd, font size: 8.3pt (11px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".ng-star-inserted[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.8pt (13.056px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".ng-star-inserted[href$=\"futbol\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.8pt (13.056px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 9.8pt (13.056px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".header__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.94 (foreground color: #ffa42b, background color: #fdfdfd, font size: 8.3pt (11px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".ng-star-inserted[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.8pt (13.12px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".ng-star-inserted[href$=\"futbol\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.8pt (13.12px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 9.8pt (13.12px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".header__eyebrow"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.94 (foreground color: #ffa42b, background color: #fdfdfd, font size: 8.3pt (11px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Competiciones de fútbol: LaLiga, Champions, Premier - Guía TV",
+        "canonical": [
+          "https://guiaprogramaciontv.com/deportes/futbol/competiciones"
+        ],
+        "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        "headings": [
+          "Competiciones de fútbol"
+        ]
+      }
+    },
+    {
+      "path": "/deportes/futbol/partidos-hoy",
+      "status": 200,
+      "ssrMs": [
+        5717,
+        1422,
+        162
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    "a[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[href$=\"futbol\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".app-shell__mobile-tab--active > span[_ngcontent-ng-c3334390439=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.18 (foreground color: #f3727f, background color: #efe0e2, font size: 8.2pt (10.88px), font weight: normal). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    "a[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.3pt (12.4416px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[href$=\"futbol\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.3pt (12.4416px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 9.3pt (12.4416px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    "a[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.8pt (13.056px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[href$=\"futbol\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.8pt (13.056px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 9.8pt (13.056px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    "a[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.8pt (13.12px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a[href$=\"futbol\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.8pt (13.12px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 9.8pt (13.12px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Partidos de fútbol hoy: horarios y dónde verlos | Guía TV",
+        "canonical": [
+          "https://guiaprogramaciontv.com/deportes/futbol/partidos-hoy"
+        ],
+        "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        "headings": [
+          "Partidos de fútbol hoy"
+        ]
+      }
+    },
+    {
+      "path": "/guias",
+      "status": 200,
+      "ssrMs": [
+        1285,
+        815,
+        2976
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".ng-star-inserted[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 8.6pt (11.52px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".app-shell__mobile-tab--active > span[_ngcontent-ng-c3334390439=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.18 (foreground color: #f3727f, background color: #efe0e2, font size: 8.2pt (10.88px), font weight: normal). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".ng-star-inserted[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.3pt (12.4416px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 9.3pt (12.4416px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".ng-star-inserted[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.8pt (13.056px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 9.8pt (13.056px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".ng-star-inserted[href=\"/\"][_ngcontent-ng-c1133222577=\"\"]"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.05 (foreground color: #f4f7fa, background color: #fdfdfd, font size: 9.8pt (13.12px), font weight: normal). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    ".breadcrumb__current"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.07 (foreground color: #f1f5f9, background color: #fdfdfd, font size: 9.8pt (13.12px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Guías de streaming, fútbol y TV en España | Guía TV",
+        "canonical": [
+          "https://guiaprogramaciontv.com/guias"
+        ],
+        "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        "headings": [
+          "Guíasde streaming, fútbol y TV"
+        ]
+      }
+    },
+    {
+      "path": "/perfil",
+      "status": 200,
+      "ssrMs": [
+        424,
+        207,
+        1047
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Perfil - Guía TV",
+        "canonical": [],
+        "robots": "noindex, nofollow",
+        "headings": []
+      }
+    },
+    {
+      "path": "/iniciar-sesion",
+      "status": 200,
+      "ssrMs": [
+        564,
+        337,
+        316
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".login-page__submit"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #ffffff, background color: #f3727f, font size: 10.5pt (14px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #f3727f, background color: #ffffff, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".login-page__submit"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #ffffff, background color: #f3727f, font size: 10.5pt (14px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".login-page__submit"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #ffffff, background color: #f3727f, font size: 10.5pt (14px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #f3727f, background color: #ffffff, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".login-page__submit"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #ffffff, background color: #f3727f, font size: 10.5pt (14px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".login-page__submit"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #ffffff, background color: #f3727f, font size: 10.5pt (14px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #f3727f, background color: #ffffff, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".login-page__submit"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #ffffff, background color: #f3727f, font size: 10.5pt (14px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".login-page__submit"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #ffffff, background color: #f3727f, font size: 10.5pt (14px), font weight: bold). Expected contrast ratio of 4.5:1"
+                },
+                {
+                  "target": [
+                    "a"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #f3727f, background color: #ffffff, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    ".login-page__submit"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.79 (foreground color: #ffffff, background color: #f3727f, font size: 10.5pt (14px), font weight: bold). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "seo": {
+        "title": "Iniciar sesión - Guía TV",
+        "canonical": [],
+        "robots": "noindex, follow",
+        "headings": [
+          "Inicia sesión y entra a la comunidad"
+        ]
+      }
+    },
+    {
+      "path": "/registro",
+      "status": 200,
+      "ssrMs": [
+        1180,
+        815,
+        402
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "https://guiaprogramaciontv.com/storage/channel_icons/telecinco.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    "a"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.4 (foreground color: #f3727f, background color: #eeeeee, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    "a"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.4 (foreground color: #f3727f, background color: #eeeeee, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    "a"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.4 (foreground color: #f3727f, background color: #eeeeee, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": [
+                {
+                  "target": [
+                    "a"
+                  ],
+                  "summary": "Fix any of the following:\n  Element has insufficient color contrast of 2.4 (foreground color: #f3727f, background color: #eeeeee, font size: 10.5pt (14px), font weight: normal). Expected contrast ratio of 4.5:1"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Registro - Guia TV",
+        "canonical": [],
+        "robots": "noindex, follow",
+        "headings": [
+          "Crea tu cuenta en segundos"
+        ]
+      }
+    }
+  ]
+}

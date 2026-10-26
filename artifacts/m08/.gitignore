@@ -1,0 +1,17 @@
+*.log
+*.png
+**/*.png
+!before-settled/0-375-light.png
+!before-settled/6-1440-light.png
+!after/0-375-light.png
+!after/6-1440-light.png
+!after/0-375-light-viewport.png
+!after/6-1440-light-viewport.png
+before/
+before-auth/
+candidate/
+candidate-settled/
+candidate-final/
+candidate-polish/
+football-child-qa.json
+football-child-qa.mjs

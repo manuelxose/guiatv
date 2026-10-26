@@ -78,7 +78,9 @@
   border: 1px solid var(--portal-border);
   background: var(--portal-surface-strong);
   box-shadow: var(--shadow-sm);
-  overflow: hidden;
+  max-height: min(70dvh, 36rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .search-shell__menu-head {
@@ -111,7 +113,7 @@
 
 .search-shell__loading-text {
   font-weight: 800;
-  color: var(--guide-accent);
+  color: var(--portal-text);
 }
 
 .search-shell__group + .search-shell__group {
@@ -212,7 +214,7 @@
 }
 
 .search-shell__submit {
-  color: var(--guide-accent);
+  color: var(--portal-text);
   font-weight: 800;
 }
 
@@ -223,6 +225,14 @@
     right: 0.75rem;
     bottom: 0.75rem;
     left: 0.75rem;
+    max-height: none;
     overflow-y: auto;
   }
+}
+
+.search-shell__empty {
+  padding: 1rem;
+  margin: 0;
+  color: var(--guide-text-muted);
+  font-size: 0.85rem;
 }

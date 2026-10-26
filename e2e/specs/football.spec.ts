@@ -217,7 +217,9 @@ test.describe('Competitions', () => {
     await expect(tabs.getByRole('button')).toHaveCount(3);
 
     await page.goto(`${page.url()}#clasificacion`);
+    await page.reload({ waitUntil: 'networkidle' });
     await expect(tabs.getByRole('button', { name: 'Clasificación', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('app-football-standings-table')).toHaveCount(1);
     // Either a real standings table renders, or the table's own honest
     // "not available" message does — never a blank/broken panel.
     const hasTable = await page.locator('.standings__row').first().isVisible({ timeout: 20_000 }).catch(() => false);

@@ -19,8 +19,9 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { catchError, debounceTime, distinctUntilChanged, forkJoin, map, of, startWith, switchMap } from 'rxjs';
+import { catchError, distinctUntilChanged, forkJoin, map, of, startWith, switchMap, timer } from 'rxjs';
 import { DiscoveryService } from '../../services/discovery.service';
+import { normalizeToCard } from '../../utils/tv-normalizers';
 import { CatalogItem } from '../../services/catalog.service';
 import { StorageService } from '../../services/storage.service';
 import { FootballFacade } from '../../features/football/football.facade';
@@ -83,7 +84,6 @@ export class UnifiedSearchComponent implements OnInit, OnChanges {
   showMenu = false;
   isLoading = false;
   focusedIndex = -1;
-  private userInteracted = false;
   @ViewChild('searchInput') private readonly searchInput?: { nativeElement: HTMLInputElement };
 
   private readonly isBrowser: boolean;
@@ -109,24 +109,29 @@ export class UnifiedSearchComponent implements OnInit, OnChanges {
     this.control.valueChanges
       .pipe(
         startWith(this.query || ''),
-        debounceTime(300),
         distinctUntilChanged(),
         switchMap((value) => {
           const q = String(value || '').trim();
           this.searchChange.emit(q);
+          const input = this.searchInput?.nativeElement;
+          if (input && input.ownerDocument.activeElement === input) this.showMenu = true;
+          this.suggestions = [];
+          this.suggestionGroups = [];
+          this.focusedIndex = -1;
           if (!q) {
             this.isLoading = false;
             return of([]);
           }
           this.isLoading = true;
-          return forkJoin({
+          this.changeDetector.markForCheck();
+          return timer(300).pipe(switchMap(() => forkJoin({
             catalog: this.discoveryService.search({ q, limit: 5 }).pipe(
               map((response) => response.items || []),
               catchError(() => of([] as CatalogItem[]))
             ),
             football: this.footballFacade.search(q),
-          }).pipe(map(({ catalog, football }) => [
-            ...catalog.map((item) => this.catalogSuggestion(item)),
+          })), map(({ catalog, football }) => [
+            ...catalog.filter((item) => item.detailPath || item.source === 'program').map((item) => this.catalogSuggestion(item)),
             ...this.footballSuggestions(football),
           ]));
         }),
@@ -141,10 +146,6 @@ export class UnifiedSearchComponent implements OnInit, OnChanges {
         this.suggestions = groups.flatMap((group) => group.items.map((entry) => entry.item));
         this.isLoading = false;
         this.focusedIndex = -1;
-        // Only show menu if user has interacted with the input
-        if (this.userInteracted) {
-          this.showMenu = true;
-        }
         this.changeDetector.markForCheck();
       });
   }
@@ -160,7 +161,7 @@ export class UnifiedSearchComponent implements OnInit, OnChanges {
   }
 
   get activeDescendantId(): string | null {
-    return this.focusedIndex >= 0 ? `unified-search-option-${this.focusedIndex}` : null;
+    return this.showMenu && this.focusedIndex >= 0 ? `unified-search-option-${this.focusedIndex}` : null;
   }
 
   @HostListener('document:click')
@@ -169,7 +170,6 @@ export class UnifiedSearchComponent implements OnInit, OnChanges {
   }
 
   onFocus(): void {
-    this.userInteracted = true;
     this.showMenu = true;
     this.focusedIndex = -1;
   }
@@ -179,14 +179,23 @@ export class UnifiedSearchComponent implements OnInit, OnChanges {
   }
 
   handleKeyboard(event: KeyboardEvent): void {
-    if (!this.showMenu) {
-      if (event.key === 'ArrowDown' || event.key === 'Enter') {
-        this.showMenu = true;
-      }
+    if (event.key === 'Escape' || event.key === 'Tab') {
+      this.showMenu = false;
+      this.focusedIndex = -1;
       return;
     }
+    if (event.target && event.target !== this.searchInput?.nativeElement) return;
+    if (event.key === 'Enter' && (!this.showMenu || this.focusedIndex < 0)) {
+      event.preventDefault();
+      this.submit();
+      return;
+    }
+    if (!this.showMenu) {
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+      this.showMenu = true;
+    }
 
-    const itemsCount = this.suggestions.length > 0 ? this.suggestions.length : this.history.length;
+    const itemsCount = this.suggestions.length > 0 ? this.suggestions.length : (!this.control.value.trim() ? this.history.length : 0);
     if (itemsCount === 0) return;
 
     if (event.key === 'ArrowDown') {
@@ -206,16 +215,17 @@ export class UnifiedSearchComponent implements OnInit, OnChanges {
       } else {
         this.submit();
       }
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      this.showMenu = false;
-      this.focusedIndex = -1;
+    }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      this.searchInput?.nativeElement.closest('.search-shell')
+        ?.querySelector(`#${this.activeDescendantId}`)?.scrollIntoView({ block: 'nearest' });
     }
   }
 
   clear(): void {
     this.control.setValue('');
-    this.showMenu = false;
+    this.focusedIndex = -1;
+    this.focusInput();
   }
 
   focusInput(): void {
@@ -280,7 +290,7 @@ export class UnifiedSearchComponent implements OnInit, OnChanges {
       id: item.catalogId,
       title: item.title,
       meta: item.channel?.name || item.primaryPlatforms?.slice(0, 2).join(' · ') || item.contentType,
-      detailPath: item.detailPath || `/contenido/${item.catalogId}`,
+      detailPath: item.detailPath || normalizeToCard(item).detailPath,
       group: item.contentType === 'program' ? 'program' : 'catalog',
     };
   }

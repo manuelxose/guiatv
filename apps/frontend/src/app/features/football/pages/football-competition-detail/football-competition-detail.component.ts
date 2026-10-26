@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { map, switchMap } from 'rxjs';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
@@ -63,6 +63,7 @@ export class FootballCompetitionDetailComponent {
   private readonly facade = inject(FootballFacade);
   private readonly route = inject(ActivatedRoute);
   private readonly meta = inject(MetaService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly tabs: readonly FilterChipItem[] = [
     { id: 'resumen', label: 'Resumen' },
@@ -115,7 +116,9 @@ export class FootballCompetitionDetailComponent {
   readonly standingsPreview = computed(() => (this.detail()?.standings ?? []).slice(0, 5));
 
   constructor() {
-    this.route.fragment.pipe(takeUntilDestroyed()).subscribe((fragment) => this.selectTab(fragment || 'resumen'));
+    // URL fragments are browser-only; hydrate the server's summary before switching panels.
+    afterNextRender(() => this.route.fragment.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((fragment) => this.selectTab(fragment || 'resumen')));
     effect(() => {
       const state = this.state();
       if (state.status === 'found') {

@@ -1,0 +1,100 @@
+{
+  "at": "2026-10-23T13:34:27.002Z",
+  "origins": [
+    "https://guiaprogramaciontv.com",
+    "http://127.0.0.1:4382"
+  ],
+  "results": [
+    {
+      "path": "/",
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "headerRobots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "https://guiaprogramaciontv.com/"
+    },
+    {
+      "path": "/programacion-tv/en-directo",
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "headerRobots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "https://guiaprogramaciontv.com/programacion-tv/en-directo"
+    },
+    {
+      "path": "/canales",
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "headerRobots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "https://guiaprogramaciontv.com/canales"
+    },
+    {
+      "path": "/programacion-tv/que-ver-hoy",
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "headerRobots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "https://guiaprogramaciontv.com/programacion-tv/que-ver-hoy"
+    },
+    {
+      "path": "/programacion-tv/peliculas",
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "headerRobots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "https://guiaprogramaciontv.com/programacion-tv/peliculas"
+    },
+    {
+      "path": "/programacion-tv/series",
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "headerRobots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "https://guiaprogramaciontv.com/programacion-tv/series"
+    },
+    {
+      "path": "/deportes/futbol",
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "headerRobots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "https://guiaprogramaciontv.com/deportes/futbol"
+    },
+    {
+      "path": "/deportes/futbol/competiciones",
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "headerRobots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "https://guiaprogramaciontv.com/deportes/futbol/competiciones"
+    },
+    {
+      "path": "/deportes/futbol/partidos-hoy",
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "headerRobots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "https://guiaprogramaciontv.com/deportes/futbol/partidos-hoy"
+    },
+    {
+      "path": "/guias",
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "headerRobots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "https://guiaprogramaciontv.com/guias"
+    },
+    {
+      "path": "/perfil",
+      "status": 200,
+      "robots": "noindex, follow",
+      "headerRobots": "noindex, follow",
+      "canonical": null
+    },
+    {
+      "path": "/iniciar-sesion",
+      "status": 200,
+      "robots": "noindex, follow",
+      "headerRobots": "noindex, follow",
+      "canonical": null
+    },
+    {
+      "path": "/registro",
+      "status": 200,
+      "robots": "noindex, follow",
+      "headerRobots": "noindex, follow",
+      "canonical": null
+    }
+  ]
+}

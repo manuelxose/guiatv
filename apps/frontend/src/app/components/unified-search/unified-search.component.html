@@ -21,7 +21,7 @@
       autocomplete="off"
       role="combobox"
       aria-autocomplete="list"
-      aria-controls="unified-search-results"
+      [attr.aria-controls]="showMenu ? 'unified-search-results' : null"
       [attr.aria-expanded]="showMenu"
       [attr.aria-activedescendant]="activeDescendantId"
       (focus)="onFocus()"
@@ -42,7 +42,9 @@
       <span *ngIf="isLoading" class="search-shell__loading-text">Buscando…</span>
     </div>
 
-    <div id="unified-search-results" role="listbox">
+    <p *ngIf="!isLoading && control.value.trim() && !suggestions.length" class="search-shell__empty" role="status">No hay sugerencias. Prueba con otro título o consulta los resultados completos.</p>
+    <p *ngIf="!isLoading && !control.value.trim() && !history.length" class="search-shell__empty">Busca programas, películas, series o fútbol.</p>
+    <div id="unified-search-results" role="listbox" aria-label="Sugerencias de búsqueda" [attr.aria-busy]="isLoading">
       <div
         *ngFor="let group of suggestionGroups"
         class="search-shell__group"
@@ -58,6 +60,7 @@
         *ngFor="let entry of group.items"
         type="button"
         role="option"
+        tabindex="-1"
         [id]="'unified-search-option-' + entry.index"
         [attr.aria-selected]="focusedIndex === entry.index"
         class="search-shell__option"
@@ -79,9 +82,10 @@
       </div>
 
       <button
-        *ngFor="let entry of !suggestions.length ? history : []; let i = index"
+        *ngFor="let entry of !control.value.trim() ? history : []; let i = index"
         type="button"
         role="option"
+        tabindex="-1"
         [id]="'unified-search-option-' + i"
         [attr.aria-selected]="focusedIndex === i"
         class="search-shell__option search-shell__option--history"

@@ -320,3 +320,11 @@ To check, re-run `scripts/m03l2-cross-type.cjs`. `crossType.airings` should be 0
 ## M05 addendum — released and verified (2026-10-23)
 
 M05 is live after PR #66 (backend/navigation), PR #69 (detail UX, accessibility and QA) and PR #70 (the confirmed film/series classification redirect). The final production artifact is release 20261023010043, git SHA cb5a860d953d353b86ebc3966b004e67e6cde772; guiatv-api and guiatv-ssr are active with zero restarts. Public verification returned /series/camino-a-la-perdicion → 301 /peliculas/camino-a-la-perdicion, the target page 200, and /v2/health 200. CI erify and ssr-resilience are green. Full evidence and acceptance details are in docs/roadmap/M05-DELIVERY.md and rtifacts/m05/QA.md.
+
+## M08 addendum - candidate verified, release pending (2026-10-23)
+
+Canonical repo manuelxose/guiatv; baseline main 2aa7389 and production release 20261023142416 on da9ec11. Shared navigation PR #73 merged as 5662db0; football PR #74 merged as ee4dd9e after independent reviews and green verify/SSR CI. Search/final accessibility PR #75 remains gated; no M08 deploy yet.
+
+Candidate: 104 settled viewport/theme cells and 12 football-child combinations pass axe/overflow/runtime checks. Actual mobile search focus trapping, classification SSR hydration and time-only Madrid scoreboard rendering are verified. Real-data football/search 17 passed; public/admin shell 4/4 each, mocked auth/profile 2, navigation recovery 5. Raw SSR canonical/robots/header parity holds for 13 routes. Initial referenced assets +19,515 bytes (+2.71%); production build budgets pass.
+
+M06 still lacks season/episode routes, DTOs and UI; work-level series/broadcast detail already exists. Historical EPG classification/identity debt is not rewritten. Five existing channel-icon URLs return 503 with fallback before M08. Final CI, artifact release, exact live commit/health/flag inventories/rollback and post-release browser matrix remain mandatory. Full evidence and next M09 action: docs/roadmap/M08-DELIVERY.md.

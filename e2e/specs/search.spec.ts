@@ -52,6 +52,18 @@ test.describe('Buscar -> suggestions -> resultado -> detalle', () => {
     ).trim();
     expect(firstSuggestionTitle.length).toBeGreaterThan(0);
 
+    // Keyboard selection follows grouped display order and Escape restores a closed combobox.
+    await searchInput.press('ArrowDown');
+    const firstOptionId = await suggestionOptions.first().getAttribute('id');
+    await expect(searchInput).toHaveAttribute('aria-activedescendant', firstOptionId!);
+    await expect(suggestionOptions.first()).toHaveAttribute('aria-selected', 'true');
+    await searchInput.press('Escape');
+    await expect(suggestionMenu).not.toBeVisible();
+    await expect(searchInput).toHaveAttribute('aria-expanded', 'false');
+    await expect(searchInput).not.toHaveAttribute('aria-activedescendant');
+    await searchInput.press('ArrowDown');
+    await expect(suggestionMenu).toBeVisible();
+
     // "resultado": submit the full search instead of picking the suggestion directly.
     const submitButton = page.locator('.search-shell__submit', { hasText: 'Ver resultados completos' });
     await submitButton.click();
@@ -64,7 +76,7 @@ test.describe('Buscar -> suggestions -> resultado -> detalle', () => {
     await expect(resultCard).toBeVisible({ timeout: 15_000 });
     await resultCard.locator('a.program-card__tap').click();
 
-    await page.waitForURL(/\/(programas|peliculas|series|detalles)\//, { timeout: 15_000 });
+    await page.waitForURL(/\/(contenido|programas|peliculas|series|detalles|canales)\//, { timeout: 15_000 });
     const heading = page.locator('h1').first();
     await expect(heading).toBeVisible({ timeout: 15_000 });
     expect((await heading.innerText()).trim().length).toBeGreaterThan(0);

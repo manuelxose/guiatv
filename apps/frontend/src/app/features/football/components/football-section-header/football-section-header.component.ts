@@ -37,7 +37,7 @@ import { RouterModule } from '@angular/router';
       font-weight: 800;
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      color: var(--accent-sports);
+      color: var(--portal-text-soft);
     }
     .header__title {
       margin: 0;
@@ -58,7 +58,7 @@ import { RouterModule } from '@angular/router';
       text-decoration: none;
       white-space: nowrap;
     }
-    .header__link:hover { color: var(--accent-sports); }
+    .header__link:hover { color: var(--portal-text); text-decoration: underline; }
     .header__link:focus-visible { outline: 2px solid var(--accent-sports); outline-offset: 2px; border-radius: var(--radius-sm); }
   `,
 })

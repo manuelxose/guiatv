@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { CatalogItem, CatalogResponse } from '../../services/catalog.service';
 import { DiscoveryService } from '../../services/discovery.service';
 import { StorageService } from '../../services/storage.service';
@@ -143,4 +143,59 @@ describe('UnifiedSearchComponent', () => {
 
     expect(navigate).toHaveBeenCalledWith('/contenido/program:1');
   });
+  it('submits and dismisses an empty menu with the keyboard', () => {
+    const submit = spyOn(component.searchSubmit, 'emit');
+    component.control.setValue('No matches');
+    component.showMenu = true;
+    component.handleKeyboard(new KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(submit).toHaveBeenCalledWith('No matches');
+    expect(component.showMenu).toBeFalse();
+    component.showMenu = true;
+    component.handleKeyboard(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(component.showMenu).toBeFalse();
+  });
+
+  it('clears stale options immediately and cancels an older request during debounce', fakeAsync(() => {
+    const pending = new Subject<CatalogResponse>();
+    discovery.search.and.returnValue(pending);
+    fixture.detectChanges();
+    component.onFocus();
+    component.control.setValue('old');
+    tick(300);
+    component.control.setValue('new');
+    expect(component.isLoading).toBeTrue();
+    expect(component.suggestions).toEqual([]);
+    pending.next({ items: [item('movie:1', 'movie', 'Old result', '/peliculas/old')], meta: {} } as CatalogResponse);
+    pending.complete();
+    expect(component.suggestions).toEqual([]);
+    component.onDocumentClick();
+    discovery.search.and.returnValue(of({ items: [], meta: {} } as CatalogResponse));
+    tick(300);
+    expect(component.showMenu).toBeFalse();
+  }));
+
+  it('shows a no-match status instead of unrelated history and removes hidden active descendants', fakeAsync(() => {
+    discovery.search.and.returnValue(of({ items: [], meta: {} } as CatalogResponse));
+    fixture.detectChanges();
+    component.history = ['Older search'];
+    component.onFocus();
+    component.control.setValue('Unknown title');
+    tick(300);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.search-shell__empty')?.textContent).toContain('No hay sugerencias');
+    expect(fixture.nativeElement.querySelectorAll('.search-shell__option--history').length).toBe(0);
+    component.focusedIndex = 0;
+    component.onDocumentClick();
+    expect(component.activeDescendantId).toBeNull();
+  }));
+
+  it('uses verified catalogue paths and safe channel fallback for programmes', fakeAsync(() => {
+    const program = { ...item('program:2', 'program', 'Noticias', ''), channel: { id: 'la_1', name: 'La 1' } };
+    discovery.search.and.returnValue(of({ items: [program, item('movie:2', 'movie', 'Unverified title', '')], meta: {} } as CatalogResponse));
+    component.query = 'Noticias';
+    fixture.detectChanges();
+    tick(300);
+    expect(component.suggestions.map((entry) => entry.detailPath)).toEqual(['/canales/la-1']);
+  }));
+
 });

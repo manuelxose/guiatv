@@ -94,6 +94,7 @@ import {
       align-items: center;
       gap: 0.75rem;
     }
+    .scoreboard__team { min-width: 0; }
     .scoreboard__team--away { text-align: right; }
 
     .scoreboard__center { text-align: center; }
@@ -129,6 +130,11 @@ import {
       border-radius: var(--radius-pill);
       background: var(--status-live);
       animation: football-pulse 1.4s ease-in-out infinite;
+    }
+    @media (max-width: 640px) {
+      .scoreboard__grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1fr); }
+      .scoreboard__center { min-width: 0; overflow-wrap: anywhere; }
+      .scoreboard__score { gap: .25rem; font-size: var(--text-xl); }
     }
     @media (prefers-reduced-motion: reduce) {
       .scoreboard__dot { animation: none; }
@@ -169,6 +175,6 @@ export class FootballScoreboardComponent {
   private format(iso: string, options: Intl.DateTimeFormatOptions): string {
     const date = new Date(iso);
     if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleDateString('es-ES', options);
+    return new Intl.DateTimeFormat('es-ES', { ...options, timeZone: 'Europe/Madrid' }).format(date);
   }
 }

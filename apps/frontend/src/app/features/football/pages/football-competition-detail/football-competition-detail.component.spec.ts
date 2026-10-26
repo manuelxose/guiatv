@@ -86,9 +86,11 @@ describe('FootballCompetitionDetailComponent (SEO/meta regression)', () => {
     expect(lastCall.robots).toBe('noindex, follow');
   });
 
-  it('opens the linked standings tab and handles only supported fragment changes without altering canonical', () => {
+  it('opens the linked standings tab after rendering and handles supported fragment changes without altering canonical', async () => {
     const fragment = new BehaviorSubject<string | null>('clasificacion');
     const { fixture, setMetaTags } = setup(detail(), fragment);
+    await fixture.whenStable();
+    fixture.detectChanges();
     expect(fixture.componentInstance.activeTab()).toBe('clasificacion');
     expect(fixture.nativeElement.querySelector('app-football-standings-table')).toBeTruthy();
     fragment.next('calendario');

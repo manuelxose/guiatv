@@ -1,0 +1,4324 @@
+{
+  "at": "2026-10-23T13:34:42.512Z",
+  "sources": [
+    "http://127.0.0.1:4381",
+    "http://127.0.0.1:4382"
+  ],
+  "cells": 104,
+  "seriousContrastCellsBefore": 45,
+  "seoEvidence": "seo-parity.json",
+  "results": [
+    {
+      "path": "/",
+      "status": 200,
+      "ssrMs": [
+        2165,
+        40,
+        45
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Programación TV hoy: qué ver en televisión y streaming | Guía TV",
+        "canonical": [
+          "https://guiaprogramaciontv.com/"
+        ],
+        "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        "headings": [
+          "Programación de TV hoy en España"
+        ]
+      }
+    },
+    {
+      "path": "/programacion-tv/en-directo",
+      "status": 200,
+      "ssrMs": [
+        567,
+        29,
+        17
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "TV en directo: qué emiten ahora los canales de España | Guía TV",
+        "canonical": [
+          "https://guiaprogramaciontv.com/programacion-tv/en-directo"
+        ],
+        "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        "headings": [
+          "En emisión ahora"
+        ]
+      }
+    },
+    {
+      "path": "/canales",
+      "status": 200,
+      "ssrMs": [
+        1673,
+        149,
+        131
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/heartbeat",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/heartbeat",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/heartbeat",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/heartbeat",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/heartbeat",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/heartbeat",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/heartbeat",
+          "status": 500
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Canales de televisión en España: TDT, cable y online | Guía TV",
+        "canonical": [
+          "https://guiaprogramaciontv.com/canales"
+        ],
+        "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        "headings": [
+          "Canales de televisión"
+        ]
+      }
+    },
+    {
+      "path": "/programacion-tv/que-ver-hoy",
+      "status": 200,
+      "ssrMs": [
+        61,
+        30,
+        32
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/heartbeat",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/affiliate/resolve",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/heartbeat",
+          "status": 500
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Qué Ver Hoy - Guía TV",
+        "canonical": [
+          "https://guiaprogramaciontv.com/programacion-tv/que-ver-hoy"
+        ],
+        "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        "headings": [
+          "Encuentra qué ver hoy"
+        ]
+      }
+    },
+    {
+      "path": "/programacion-tv/peliculas",
+      "status": 200,
+      "ssrMs": [
+        851,
+        20,
+        14
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/heartbeat",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/heartbeat",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Películas en TV y streaming - Guía TV",
+        "canonical": [
+          "https://guiaprogramaciontv.com/programacion-tv/peliculas"
+        ],
+        "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        "headings": [
+          "Películas en TV y streaming"
+        ]
+      }
+    },
+    {
+      "path": "/programacion-tv/series",
+      "status": 200,
+      "ssrMs": [
+        1108,
+        8,
+        22
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/heartbeat",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Series en TV y streaming - Guía TV",
+        "canonical": [
+          "https://guiaprogramaciontv.com/programacion-tv/series"
+        ],
+        "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        "headings": [
+          "Series en TV y streaming"
+        ]
+      }
+    },
+    {
+      "path": "/deportes/futbol",
+      "status": 200,
+      "ssrMs": [
+        188,
+        15,
+        16
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Fútbol hoy: partidos, horarios y dónde verlos | Guía TV",
+        "canonical": [
+          "https://guiaprogramaciontv.com/deportes/futbol"
+        ],
+        "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        "headings": [
+          "Fútbol hoy en TV"
+        ]
+      }
+    },
+    {
+      "path": "/deportes/futbol/competiciones",
+      "status": 200,
+      "ssrMs": [
+        1100,
+        6,
+        11
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Competiciones de fútbol: LaLiga, Champions, Premier - Guía TV",
+        "canonical": [
+          "https://guiaprogramaciontv.com/deportes/futbol/competiciones"
+        ],
+        "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        "headings": [
+          "Competiciones de fútbol"
+        ]
+      }
+    },
+    {
+      "path": "/deportes/futbol/partidos-hoy",
+      "status": 200,
+      "ssrMs": [
+        51,
+        11,
+        15
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4381/storage/channel_icons/la_2.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Partidos de fútbol hoy: horarios y dónde verlos | Guía TV",
+        "canonical": [
+          "https://guiaprogramaciontv.com/deportes/futbol/partidos-hoy"
+        ],
+        "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        "headings": [
+          "Partidos de fútbol hoy"
+        ]
+      }
+    },
+    {
+      "path": "/guias",
+      "status": 200,
+      "ssrMs": [
+        533,
+        16,
+        10
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Guías de streaming, fútbol y TV en España | Guía TV",
+        "canonical": [
+          "https://guiaprogramaciontv.com/guias"
+        ],
+        "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+        "headings": [
+          "Guíasde streaming, fútbol y TV"
+        ]
+      }
+    },
+    {
+      "path": "/perfil",
+      "status": 200,
+      "ssrMs": [
+        18,
+        19,
+        15
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Guía de Programación TV — Qué ver hoy en televisión y streaming",
+        "canonical": [],
+        "robots": "noindex, follow",
+        "headings": []
+      }
+    },
+    {
+      "path": "/iniciar-sesion",
+      "status": 200,
+      "ssrMs": [
+        121,
+        50,
+        37
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/session/start",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Iniciar sesión - Guía TV",
+        "canonical": [],
+        "robots": "noindex, follow",
+        "headings": [
+          "Inicia sesión y entra a la comunidad"
+        ]
+      }
+    },
+    {
+      "path": "/registro",
+      "status": 200,
+      "ssrMs": [
+        135,
+        25,
+        45
+      ],
+      "errors": [],
+      "serverErrors": [
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/telecinco.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/cuatro.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_2.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/antena_3.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/storage/channel_icons/la_1.webp",
+          "status": 503
+        },
+        {
+          "url": "http://127.0.0.1:4382/v2/telemetry/event",
+          "status": 500
+        }
+      ],
+      "matrix": [
+        {
+          "width": 375,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 375,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 768,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1280,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "light",
+          "overflow": false,
+          "violations": []
+        },
+        {
+          "width": 1440,
+          "theme": "dark",
+          "overflow": false,
+          "violations": []
+        }
+      ],
+      "seo": {
+        "title": "Registro - Guia TV",
+        "canonical": [],
+        "robots": "noindex, follow",
+        "headings": [
+          "Crea tu cuenta en segundos"
+        ]
+      }
+    }
+  ]
+}

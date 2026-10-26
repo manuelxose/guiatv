@@ -46,7 +46,7 @@ test.describe('Canonical section navigation', () => {
       ).toHaveAttribute('aria-current', 'page');
       await expect(page.locator('app-portal-context-nav app-breadcrumb')).toHaveCount(1);
       await expect(page.locator('app-breadcrumb')).toHaveCount(1);
-      await expect(page.locator('app-portal-context-nav .portal-context-nav')).toHaveCSS('border-radius', /16px|20px/);
+      await expect(page.locator('app-portal-context-nav .portal-context-nav')).toHaveCSS('border-radius', '0px');
 
       await expect(page.getByRole('navigation', { name: contextLabel })).toBeVisible();
     });
@@ -168,7 +168,9 @@ test.describe('Canonical section navigation', () => {
     await expect(page.getByRole('heading', { name: 'Compara plataformas con datos útiles' })).toBeVisible();
 
     await expect(page.getByRole('link', { name: 'Explorar catálogos' })).toHaveAttribute('href', '/plataformas');
-    await expect(page.getByRole('link', { name: /Consultar proveedor de/ }).first()).toHaveAttribute(
+    const providerLink = page.locator('.offer__actions').first().getByRole('link');
+    await expect(providerLink).toHaveAccessibleName(/.+; abre una pestaña nueva/);
+    await expect(providerLink).toHaveAttribute(
       'href',
       /^\/v2\/monetization\/go\//
     );

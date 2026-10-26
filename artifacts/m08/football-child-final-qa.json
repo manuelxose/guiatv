@@ -1,0 +1,126 @@
+{
+  "origin": "http://127.0.0.1:4382",
+  "at": "2026-10-23T13:28:22.828Z",
+  "results": [
+    {
+      "kind": "competition-standings",
+      "path": "/deportes/futbol/competiciones/primera-division#clasificacion",
+      "width": 375,
+      "theme": "light",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "match",
+      "path": "/deportes/futbol/partido/cr-flamengo-estudiantes-de-la-plata-2026-10-23",
+      "width": 375,
+      "theme": "light",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "team",
+      "path": "/deportes/futbol/equipos/fc-barcelona",
+      "width": 375,
+      "theme": "light",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "competition-standings",
+      "path": "/deportes/futbol/competiciones/primera-division#clasificacion",
+      "width": 375,
+      "theme": "dark",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "match",
+      "path": "/deportes/futbol/partido/cr-flamengo-estudiantes-de-la-plata-2026-10-23",
+      "width": 375,
+      "theme": "dark",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "team",
+      "path": "/deportes/futbol/equipos/fc-barcelona",
+      "width": 375,
+      "theme": "dark",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "competition-standings",
+      "path": "/deportes/futbol/competiciones/primera-division#clasificacion",
+      "width": 1440,
+      "theme": "light",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "match",
+      "path": "/deportes/futbol/partido/cr-flamengo-estudiantes-de-la-plata-2026-10-23",
+      "width": 1440,
+      "theme": "light",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "team",
+      "path": "/deportes/futbol/equipos/fc-barcelona",
+      "width": 1440,
+      "theme": "light",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "competition-standings",
+      "path": "/deportes/futbol/competiciones/primera-division#clasificacion",
+      "width": 1440,
+      "theme": "dark",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "match",
+      "path": "/deportes/futbol/partido/cr-flamengo-estudiantes-de-la-plata-2026-10-23",
+      "width": 1440,
+      "theme": "dark",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    },
+    {
+      "kind": "team",
+      "path": "/deportes/futbol/equipos/fc-barcelona",
+      "width": 1440,
+      "theme": "dark",
+      "status": 200,
+      "overflow": false,
+      "errors": [],
+      "violations": []
+    }
+  ]
+}

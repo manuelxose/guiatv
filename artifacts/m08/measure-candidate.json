@@ -1,0 +1,126 @@
+{
+  "origin": "http://127.0.0.1:4382",
+  "at": "2026-10-23T13:34:42.438Z",
+  "initialBytes": 739058,
+  "assets": [
+    {
+      "path": "styles-G5ORFOY6.css",
+      "bytes": 233957
+    },
+    {
+      "path": "chunk-YRYZYDPV.js",
+      "bytes": 11948
+    },
+    {
+      "path": "chunk-5U3USNOU.js",
+      "bytes": 720
+    },
+    {
+      "path": "chunk-CLSO3LCJ.js",
+      "bytes": 732
+    },
+    {
+      "path": "chunk-6E2JUTCY.js",
+      "bytes": 7790
+    },
+    {
+      "path": "chunk-PS3AUPFL.js",
+      "bytes": 3662
+    },
+    {
+      "path": "chunk-WE7YPVIJ.js",
+      "bytes": 5689
+    },
+    {
+      "path": "chunk-HK55KX5E.js",
+      "bytes": 14276
+    },
+    {
+      "path": "chunk-7MOXAH63.js",
+      "bytes": 10059
+    },
+    {
+      "path": "chunk-YT74SBPW.js",
+      "bytes": 101390
+    },
+    {
+      "path": "chunk-RVTYRUDJ.js",
+      "bytes": 6210
+    },
+    {
+      "path": "polyfills-YMBILSHJ.js",
+      "bytes": 34585
+    },
+    {
+      "path": "main-W4NXZVLS.js",
+      "bytes": 189550
+    },
+    {
+      "path": "chunk-UXIMNE57.js",
+      "bytes": 36432
+    },
+    {
+      "path": "chunk-PTHXM4AJ.js",
+      "bytes": 15211
+    },
+    {
+      "path": "chunk-YF2PIQCK.js",
+      "bytes": 21982
+    },
+    {
+      "path": "chunk-4CKMBTWN.js",
+      "bytes": 3891
+    },
+    {
+      "path": "chunk-5LXVANYC.js",
+      "bytes": 10200
+    },
+    {
+      "path": "chunk-RYBSY3PA.js",
+      "bytes": 6417
+    },
+    {
+      "path": "chunk-XFSXIAJR.js",
+      "bytes": 1608
+    },
+    {
+      "path": "chunk-35T3ITBM.js",
+      "bytes": 7051
+    },
+    {
+      "path": "chunk-FUMNQXXX.js",
+      "bytes": 10673
+    },
+    {
+      "path": "chunk-VFOM7SZM.js",
+      "bytes": 5025
+    }
+  ],
+  "checks": [
+    {
+      "path": "/v2/health",
+      "status": 200,
+      "location": null,
+      "robots": null
+    },
+    {
+      "path": "/robots.txt",
+      "status": 200,
+      "location": null,
+      "robots": null,
+      "body": "User-agent: *\nAllow: /\n\n# Non-indexable user/admin pages\nDisallow: /mi-cuenta\nDisallow: /admin\nDisallow: /iniciar-sesion\nDisallow: /registro\nDisallow: /comunidad\n\n# Outbound click-tracking redirects (affiliate and plan links): not pages, and crawler hits would count as clicks.\nDisallow: /v2/affiliate/go/\nDisallow: /v2/monetization/go/\n\n# Legacy routes remain crawlable so redirects consolidate into canonical URLs.\n\nSitemap: https://guiaprogramaciontv.com/sitemap.xml\n"
+    },
+    {
+      "path": "/sitemap.xml",
+      "status": 200,
+      "location": null,
+      "robots": null
+    },
+    {
+      "path": "/deportes/futbol/en-directo",
+      "status": 301,
+      "location": "/deportes/futbol/partidos-hoy?filter=live",
+      "robots": null
+    }
+  ]
+}
