@@ -119,14 +119,14 @@ test('entity SSR: enriched movie page has the facts, broadcasts, attribution, on
       assert.ok(html.includes(text), `SSR HTML is missing "${text}"`);
     }
     assert.match(html, /href="\/canales\/amc"/);
-    assert.match(html, /<time[^>]*datetime="2026-10-25T02:30:00\+01:00"/);
+    assert.match(html, /<time[^>]*datetime="2027-01-10T02:30:00\+01:00"/);
     assert.match(html, /aria-label="[^"]*CET/);
     const poster = (html.match(/<img[^>]*>/g) || []).find((tag) => tag.includes('alt="Cartel de La cura del bienestar"'));
     assert.ok(poster && poster.includes('src="' + entityFixture().images.poster + '"'), `the poster is a TMDB URL with a text alternative: ${JSON.stringify((html.match(/<img[^>]*>/g) || []))}`);
     const movie = ld(html).flat().find((j) => j['@type'] === 'Movie');
     assert.equal(movie.name, 'La cura del bienestar');
     assert.equal(movie.duration, 'PT2H27M');
-    assert.equal(movie.publication[0].startDate, '2026-10-25T02:30:00+01:00');
+    assert.equal(movie.publication[0].startDate, '2027-01-10T02:30:00+01:00');
     assert.ok(!('aggregateRating' in movie) && !('inLanguage' in movie));
     assert.ok(ld(html).flat().some((j) => j['@type'] === 'BreadcrumbList'));
 
