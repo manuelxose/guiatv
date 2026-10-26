@@ -37,6 +37,13 @@ function toHtml(md, reviewerName, verifiedOn) {
 }
 
 const entries = JSON.parse(readFileSync(resolve(dir, 'publish.json'), 'utf8')).filter((e) => !only || e.slug === only);
+const badDate = entries.find((e) => !/^\d{4}-\d{2}-\d{2}$/.test(e.verifiedOn || ''));
+if (badDate) { console.error(`${badDate.file}: publish.json needs verifiedOn (YYYY-MM-DD, the day its sources were checked)`); process.exit(2); }
+// The five platform rankings share one template, so the API flags them as near-duplicates of each other.
+if (!dryRun && entries.some((e) => e.slug.startsWith('mejores-series-y-peliculas-')) && !acknowledge.includes('near-duplicate')) {
+  console.error('--acknowledge must include near-duplicate to republish the platform rankings (they share one template; see docs/seo/m11a-editorial-review.md §4)');
+  process.exit(2);
+}
 const headers = { 'content-type': 'application/json', 'x-admin-key': process.env.ANALYTICS_ADMIN_KEY || '' };
 const call = async (method, path, body, extra = {}) => {
   const res = await fetch(`${base}${path}`, { method, headers: { ...headers, ...extra }, body: body ? JSON.stringify(body) : undefined });
@@ -46,7 +53,6 @@ const call = async (method, path, body, extra = {}) => {
 };
 
 for (const e of entries) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(e.verifiedOn || '')) throw new Error(`${e.file}: publish.json needs verifiedOn (YYYY-MM-DD, the day its sources were checked)`);
   const content = toHtml(readFileSync(resolve(dir, e.file), 'utf8'), reviewer, e.verifiedOn);
   const payload = {
     title: e.title, slug: e.slug, status: 'draft', origin: 'ai-assisted', excerpt: e.excerpt, content,
@@ -66,7 +72,7 @@ for (const e of entries) {
   const postId = saved.data?.post?.id || id;
   const approved = await call('POST', `/v2/blog/${postId}/approve`, { reviewer, acknowledge, notes: 'Drafted and checked against primary sources by Claude (AI); approved by the named reviewer.' },
     { 'x-editorial-review-key': process.env.EDITORIAL_REVIEW_KEY || '', 'x-editorial-reviewer': reviewer }).catch((error) => {
-    console.error(`NOT PUBLISHED: /guias/${e.slug} is now a draft (offline). Read the findings below, then rerun with --only ${e.slug}.`);
+    console.error(`NOT PUBLISHED: /guias/${e.slug} ${id ? 'is now a draft (offline)' : 'was saved as a draft'}. Read the findings below, then rerun with --only ${e.slug}.`);
     throw error;
   });
   console.log(`published ${e.slug} (${postId}) reviewer=${reviewer}`);

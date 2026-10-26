@@ -402,15 +402,14 @@ export class BlogController {
         ]);
       }
 
-      const siblings = await BlogPostModel.find({ _id: { $ne: post._id } })
-        .select({ slug: 1, content: 1, status: 1, reviewState: 1 })
-        .lean()
-        .exec();
-      const isPublic = (p: { status?: string; reviewState?: string }) =>
-        p.status === PUBLIC_EDITORIAL_FILTER.status && p.reviewState === PUBLIC_EDITORIAL_FILTER.reviewState;
+      // Only public posts are compared, so only their content is loaded.
+      const [publicPosts, unpublished] = await Promise.all([
+        BlogPostModel.find({ ...PUBLIC_EDITORIAL_FILTER, _id: { $ne: post._id } }).select({ slug: 1, content: 1 }).lean().exec(),
+        BlogPostModel.find({ _id: { $ne: post._id }, $nor: [PUBLIC_EDITORIAL_FILTER] }).select({ slug: 1 }).lean().exec(),
+      ]);
       const findings = evaluateEditorialQuality(post.toObject(), {
-        others: siblings.filter(isPublic).map((other) => ({ slug: String(other.slug), content: other.content })),
-        unpublishedSlugs: siblings.filter((other) => !isPublic(other)).map((other) => String(other.slug)),
+        others: publicPosts.map((other) => ({ slug: String(other.slug), content: other.content })),
+        unpublishedSlugs: unpublished.map((other) => String(other.slug)),
       });
       const acknowledged = ([] as unknown[])
         .concat(req.body?.acknowledge ?? [])
