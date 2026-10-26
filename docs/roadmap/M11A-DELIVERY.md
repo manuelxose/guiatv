@@ -91,3 +91,16 @@ Engineering follow-ups:
 - `/editorial/<retired>` should answer 404/410 directly instead of 301 → 404.
 - Stored `seo.canonicalUrl` values are `/editorial/<slug>` (the rendered canonical is correct: `/guias/<slug>`).
 - Exact-duplicate synopses between different works (e.g. `scream-2`/`scream-3`) come from the EPG feed.
+
+## Release and production verification (2026-10-26)
+
+- **Merges** (squash, each pinned to its independently reviewed head, `verify` + `ssr-resilience` green): #87 → `d128bce`, #86 → `329ac2f`, #88 → `d6f9eea`. `main` CI on `d6f9eea`: *Build, test, and performance budgets* ✔, *SEO regression* ✔.
+- **Deploy:** one `deploy-artifact.yml` dispatch, [run 40397183896](https://github.com/manuelxose/guiatv/actions/runs/40397183896), build ✔ deploy ✔ on the first attempt. Live release `20261026202919` (`e4360d2`) → **`20261026213853` (`d6f9eea`)**, read from `release.json` over SSH. API and SSR active, `NRestarts` 0, health `healthy`, 0 error-level API/SSR journal lines in the 20 minutes after release. Rollback target `20261026202919` on disk, not needed. No flag, env file, database or indexation rule touched.
+- **Parity** (`artifacts/m11a/surface-{before,after}.tsv`, 22 URLs: guides, categories, programme pages, channel, live, football, comparator, policy, redirect, robots, 3 sitemaps, health): status, `Location`, `X-Robots-Tag`, meta robots and canonical **identical**.
+- **Fixes observed live:**
+  - `scripts/editorial-audit.mjs`: blocking 9 → **0** (`editorial-audit-after.*`). Rendered Champions/LaLiga guides: redirecting links 3 → 0.
+  - `/programas/creadoras`, `/programas/el-escenario`: synopsis `null` (was "sin descripción." / "Programación Alacantí TV."). `/programas/agujeros-negros-superpoderosos`: prefix gone.
+  - `/guias` H1 reads "Guías de streaming…". The HBO Max CTA no longer reads "Ir a Max de Max".
+- **Caveat:** API responses carry `s-maxage=900, stale-while-revalidate=3600`, so the first post-release read of each guide could still return pre-release HTML hrefs. One audit pass refreshed them. Guide cards pick up cleaned synopses at the next scheduled precompute.
+
+**M11-A: PASS** for engineering, release and verification. The editorial decisions above remain open, and the corrected draft text is not live until a named reviewer republishes it.

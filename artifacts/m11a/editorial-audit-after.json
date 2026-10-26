@@ -1,0 +1,242 @@
+{
+ "base": "https://guiaprogramaciontv.com",
+ "at": "2026-10-26T20:44:11.511Z",
+ "thresholds": {
+  "minWords": 250,
+  "minWordsAi": 600,
+  "dupJaccard": 0.35,
+  "staleDays": 45,
+  "metaTitle": 70,
+  "metaDesc": 170
+ },
+ "posts": [
+  {
+   "slug": "mejores-series-y-peliculas-movistar-plus-espana",
+   "origin": "ai-assisted",
+   "words": 455,
+   "sources": 1,
+   "internal": 5,
+   "badLinks": [],
+   "ageDays": 7,
+   "blocking": [],
+   "warn": [
+    "short for non-human origin (455)",
+    "near-duplicate (4-gram Jaccard >= 0.35) of 4 post(s)"
+   ],
+   "dupes": [
+    [
+     "mejores-series-y-peliculas-hbo-max-espana",
+     0.48
+    ],
+    [
+     "mejores-series-y-peliculas-disney-plus-espana",
+     0.37
+    ],
+    [
+     "mejores-series-y-peliculas-prime-video-espana",
+     0.4
+    ],
+    [
+     "mejores-series-y-peliculas-netflix-espana",
+     0.39
+    ]
+   ]
+  },
+  {
+   "slug": "mejores-series-y-peliculas-hbo-max-espana",
+   "origin": "ai-assisted",
+   "words": 466,
+   "sources": 1,
+   "internal": 5,
+   "badLinks": [],
+   "ageDays": 7,
+   "blocking": [],
+   "warn": [
+    "short for non-human origin (466)",
+    "near-duplicate (4-gram Jaccard >= 0.35) of 4 post(s)"
+   ],
+   "dupes": [
+    [
+     "mejores-series-y-peliculas-movistar-plus-espana",
+     0.48
+    ],
+    [
+     "mejores-series-y-peliculas-disney-plus-espana",
+     0.43
+    ],
+    [
+     "mejores-series-y-peliculas-prime-video-espana",
+     0.4
+    ],
+    [
+     "mejores-series-y-peliculas-netflix-espana",
+     0.36
+    ]
+   ]
+  },
+  {
+   "slug": "mejores-series-y-peliculas-disney-plus-espana",
+   "origin": "ai-assisted",
+   "words": 475,
+   "sources": 1,
+   "internal": 5,
+   "badLinks": [],
+   "ageDays": 7,
+   "blocking": [],
+   "warn": [
+    "short for non-human origin (475)",
+    "near-duplicate (4-gram Jaccard >= 0.35) of 4 post(s)"
+   ],
+   "dupes": [
+    [
+     "mejores-series-y-peliculas-movistar-plus-espana",
+     0.37
+    ],
+    [
+     "mejores-series-y-peliculas-hbo-max-espana",
+     0.43
+    ],
+    [
+     "mejores-series-y-peliculas-prime-video-espana",
+     0.36
+    ],
+    [
+     "mejores-series-y-peliculas-netflix-espana",
+     0.39
+    ]
+   ]
+  },
+  {
+   "slug": "mejores-series-y-peliculas-prime-video-espana",
+   "origin": "ai-assisted",
+   "words": 440,
+   "sources": 1,
+   "internal": 5,
+   "badLinks": [],
+   "ageDays": 7,
+   "blocking": [],
+   "warn": [
+    "short for non-human origin (440)",
+    "near-duplicate (4-gram Jaccard >= 0.35) of 4 post(s)"
+   ],
+   "dupes": [
+    [
+     "mejores-series-y-peliculas-movistar-plus-espana",
+     0.4
+    ],
+    [
+     "mejores-series-y-peliculas-hbo-max-espana",
+     0.4
+    ],
+    [
+     "mejores-series-y-peliculas-disney-plus-espana",
+     0.36
+    ],
+    [
+     "mejores-series-y-peliculas-netflix-espana",
+     0.38
+    ]
+   ]
+  },
+  {
+   "slug": "mejores-series-y-peliculas-netflix-espana",
+   "origin": "ai-assisted",
+   "words": 456,
+   "sources": 1,
+   "internal": 5,
+   "badLinks": [],
+   "ageDays": 7,
+   "blocking": [],
+   "warn": [
+    "short for non-human origin (456)",
+    "near-duplicate (4-gram Jaccard >= 0.35) of 4 post(s)"
+   ],
+   "dupes": [
+    [
+     "mejores-series-y-peliculas-movistar-plus-espana",
+     0.39
+    ],
+    [
+     "mejores-series-y-peliculas-hbo-max-espana",
+     0.36
+    ],
+    [
+     "mejores-series-y-peliculas-disney-plus-espana",
+     0.39
+    ],
+    [
+     "mejores-series-y-peliculas-prime-video-espana",
+     0.38
+    ]
+   ]
+  },
+  {
+   "slug": "netflix-hbo-max-disney-prime-video-que-plan-elegir",
+   "origin": "ai-assisted",
+   "words": 649,
+   "sources": 5,
+   "internal": 4,
+   "badLinks": [],
+   "ageDays": 7,
+   "blocking": [],
+   "warn": [],
+   "dupes": []
+  },
+  {
+   "slug": "precios-plataformas-streaming-espana",
+   "origin": "ai-assisted",
+   "words": 433,
+   "sources": 7,
+   "internal": 2,
+   "badLinks": [],
+   "ageDays": 7,
+   "blocking": [],
+   "warn": [
+    "short for non-human origin (433)"
+   ],
+   "dupes": []
+  },
+  {
+   "slug": "donde-ver-laliga-2026-27-espana",
+   "origin": "ai-assisted",
+   "words": 368,
+   "sources": 5,
+   "internal": 4,
+   "badLinks": [],
+   "ageDays": 7,
+   "blocking": [],
+   "warn": [
+    "short for non-human origin (368)"
+   ],
+   "dupes": []
+  },
+  {
+   "slug": "donde-ver-champions-league-2026-27-espana",
+   "origin": "ai-assisted",
+   "words": 314,
+   "sources": 4,
+   "internal": 5,
+   "badLinks": [],
+   "ageDays": 7,
+   "blocking": [],
+   "warn": [
+    "short for non-human origin (314)"
+   ],
+   "dupes": []
+  },
+  {
+   "slug": "movistar-plus-vs-dazn",
+   "origin": "ai-assisted",
+   "words": 483,
+   "sources": 5,
+   "internal": 4,
+   "badLinks": [],
+   "ageDays": 7,
+   "blocking": [],
+   "warn": [
+    "short for non-human origin (483)"
+   ],
+   "dupes": []
+  }
+ ]
+}
