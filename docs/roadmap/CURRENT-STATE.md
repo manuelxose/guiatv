@@ -344,3 +344,20 @@ PR #77 squash-merged as `aa04139`; main CI green; [artifact deploy 40334982895](
 Production re-crawl (`artifacts/m09/crawl-after.json`, 782 sitemap URLs, 0 duplicates): programmes sitemap **722 → 664, all 664 answer 200 self-canonical** (was 652/722); the **70 previously failing URLs: 0 still listed**; 648 of the 652 previously valid programme URLs remain (the other 4 left the schedule window); static 23/23, channels 82/82, blog 13/13 (earlier one-off 503s did not recur). Only crawl note: `/deportes/futbol/partidos-hoy` thin-word heuristic (pre-existing). Probes unchanged: `/peliculas/gladiator` `noindex, follow` (airing-dependent rule untouched), unknown `/series/*` 404 `noindex, nofollow`, `/canales/la_1` 301, `/guias/rankings` index. Sitemap index has no `lastmod`. Health healthy, 5xx 0, p95 146 ms.
 
 Inactive / pending owner decision: `/programas/` ↔ `/peliculas|/series` consolidation (563 of 722 programme URLs have a proven same-TMDB-id indexable twin), airing-dependent movie `noindex`. Repository note: the SSR entity fixture dates were a time bomb (fixed in #77); `main` CI does not run `ssr-resilience`, so such failures only appear on PRs.
+
+## M10 addendum — internal linking and crawl architecture (2026-10-26): PARTIAL
+
+Details and evidence: [../seo/m10-internal-linking.md](../seo/m10-internal-linking.md) (`artifacts/m10/`).
+
+- **Merged:** PRs #79/#80/#81 were squash-merged as `25853be`/`91feaa4`/`6288900`, each independently reviewed (no critical or high findings; mediums fixed). CI on `main` passed, including `ssr-resilience` on push, the first time it has run on `main`.
+- **Deploy:** [artifact run 40372256365](https://github.com/manuelxose/guiatv/actions/runs/40372256365) → live **`20261026185109`**, `gitSha 6288900`; API and SSR active with 0 restarts; 0 API server errors; legacy enrichment and the catalogue linker both `off`. Rollback target `20261026145804` was not needed. Auth/Socket.IO smoke checks were skipped, as before (no `SMOKE_AUTH_TOKEN`). Env files and the nginx log were not read: the sudo reads were blocked.
+- **Parity (17 URLs):** status, canonical, robots and `X-Robots-Tag` unchanged except `/v2/docs`, which went 301-loop → 200. Programme sitemap 664 → 700 (EPG growth).
+- **Link graph (1,200-page bound):**
+  - redirect chains 1 → 0;
+  - non-canonical link targets 16 → 1;
+  - redirected link targets 4 → 2;
+  - broken targets 3 → 2;
+  - programme pages within depth 3: 0 → 6.
+- **Not yet observable:** verified card links (`workPath`) appear after the 00:15 Madrid precompute; re-measure then.
+- **Open:** 694 sitemap programme URLs beyond depth 3; `/canales/movistar-laliga` alias (builder `normalizedName` fallback); two editorial-HTML redirects (M11-A); Cloudflare `/cdn-cgi` link.
+- **Next:** M11-A (content-quality remediation, including the programme-only linking/thin-content decision), then M11-B (original editorial content).

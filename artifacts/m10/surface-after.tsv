@@ -1,0 +1,22 @@
+path	status	location	canonical	robots	x-robots	bytes
+/	200	-	https://guiaprogramaciontv.com/	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	358627	311ms
+/canales	200	-	https://guiaprogramaciontv.com/canales	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	5742817	293ms
+/canales/la-1	200	-	https://guiaprogramaciontv.com/canales/la-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	388761	814ms
+/canales/discovery	200	-	https://guiaprogramaciontv.com/canales/discovery	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	635552	1118ms
+/canales/dmax	200	-	https://guiaprogramaciontv.com/canales/discovery	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	635537	1044ms
+/programas/chicago-pd	404	-	-	noindex, nofollow	noindex, nofollow	100486	362ms
+/peliculas/gladiator	200	-	https://guiaprogramaciontv.com/peliculas/gladiator	noindex, follow	noindex, follow	223644	808ms
+/programacion-tv/en-directo	200	-	https://guiaprogramaciontv.com/programacion-tv/en-directo	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	455409	161ms
+/programacion-tv/peliculas	200	-	https://guiaprogramaciontv.com/programacion-tv/peliculas	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	276032	122ms
+/guias	200	-	https://guiaprogramaciontv.com/guias	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	395136	132ms
+/guias/rankings	200	-	https://guiaprogramaciontv.com/guias/rankings	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	150943	365ms
+/guias/categoria/rankings	301	/guias/rankings	-	-	-	49	71ms
+/deportes/futbol	200	-	https://guiaprogramaciontv.com/deportes/futbol	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1	210519	105ms
+/sitemap	200	-	-	noindex, follow	noindex, follow	59025	232ms
+/v2/docs	200	-	-	-	-	3113	72ms
+/v2/health	200	-	-	-	-	483	73ms
+/robots.txt	200	-	-	-	-	3146	24ms
+sitemap	sitemap-static.xml	23
+sitemap	sitemap-channels.xml	82
+sitemap	sitemap-programs.xml	700
+sitemap	sitemap-blog.xml	13

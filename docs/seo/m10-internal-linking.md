@@ -79,6 +79,43 @@ Residual, not fixed:
 - `/deportes/futbol/en-directo`: the link sits inside CMS editorial HTML (M11-A).
 - `/cdn-cgi/l/email-protection`: Cloudflare email obfuscation.
 
-## 6. After the release
+## 6. Release and after-measurement (2026-10-26)
 
-Filled in from the post-release crawl; see §7.
+- **Release:** PRs #79/#80/#81 merged as `25853be`/`91feaa4`/`6288900`. CI on `main` was green, including `ssr-resilience` on push, which now runs there for the first time.
+- **Deploy:** [artifact run 40372256365](https://github.com/manuelxose/guiatv/actions/runs/40372256365) → release **`20261026185109`**; `release.json` `gitSha` is `6288900`.
+- **Services:** API and SSR active, 0 restarts.
+- **Health:** healthy; 0 API server errors; legacy enrichment and the catalogue linker both `off`.
+- **Rollback target:** `20261026145804`, kept and not needed.
+
+**Parity** (`artifacts/m10/surface-{before,after}.tsv`, 17 URLs):
+- Status, canonical, meta robots and `X-Robots-Tag` are identical except `/v2/docs`, which went 301 → **200** (the loop fix).
+- `/peliculas/gladiator` is still `noindex, follow`; the airing-dependent rule is untouched.
+- The programme sitemap went 664 → 700 URLs, which is evening-EPG growth (M09 guard unchanged).
+
+**Link graph** (same bound: 1,200 pages, depth ≤ 2 complete; `artifacts/m10/link-graph-after.json`, taken about 15 minutes after the release):
+
+| Metric | Before | After |
+|---|---|---|
+| Redirect chains | 1 (`/v2/docs` loop) | **0** |
+| Redirecting link targets / link instances | 4 / 11 | **2 / 3** (both inside CMS editorial HTML) |
+| Links to non-canonical URLs | 16 targets | **1** (`/canales/movistar-laliga`) |
+| Broken targets / link instances | 3 / 11 | **2 / 8** (`/series/2020-britains-…`; Cloudflare `/cdn-cgi`) |
+| `/programas/` pages reachable within depth 3 | **0** | **6** (via "Horarios de … en televisión") |
+| Work → programme links | 0 | 6 |
+| `noindex` targets linked | 776 | 740 |
+| `/contenido/program:*` URLs discovered | 7,648 | 7,631 |
+
+**Not yet measurable: the card switch to verified work pages.**
+- `program.workPath` is computed when the read model is built. The last precompute before the release ran at 18:15 Madrid time, so cards still point at `/contenido` until the **00:15 Madrid rebuild**.
+- Re-measure after that rebuild with `node scripts/seo-link-graph.mjs … --out link-graph-rebuilt.json` and `--compare`.
+- The API build log line `Verified work links` gives the linked count and the count rejected per reason.
+
+**Unsafe relationships rejected:** counted per build and logged under `Verified work links`. No production count exists yet, for the same reason (first rebuild at 00:15). The rules and their tests are in §4.
+
+**Residuals:**
+- **`/canales/movistar-laliga` vs canonical `/canales/m-laliga-uhd`.** The builder falls back to a source-derived `normalizedName` when a channel has no stored document (`TvReadModelBuilder`); this should be fixed in the builder.
+- **Two editorial links that redirect.** These are in CMS editorial HTML (M11-A).
+- **`/series/2020-britains-…`.** Slug fallback via TMDB search, which the client cannot predict.
+- **Cloudflare `/cdn-cgi/l/email-protection`.**
+
+**Acceptance against the roadmap ("no orphaned indexable detail pages"):** not met. 694 sitemap programme URLs are still outside depth 3. Twin programme pages become reachable only from their work pages, and programme-only pages are deliberately left unlinked pending an M11 decision.
