@@ -26,6 +26,7 @@ import {
 } from '@/shared/utils/tvMetadata';
 import { ProgramDeduplicator } from './ProgramDeduplicator';
 import { guardExistingMediaIds, runCatalogueLinkShadow } from './CatalogueLinkShadow';
+import { assignVerifiedWorkPaths } from './VerifiedWorkLinks';
 import { getPrimaryEpgSourceUrl, isTdtChannelsSourceUrl } from '@/shared/config/epgSources';
 
 export interface ResolvedProgramEntry {
@@ -408,6 +409,8 @@ export class TvReadModelBuilder {
     const airings = Array.from(airingsById.values());
     // M03-L2: drop a carried mediaId whose catalogue row is missing, foreign or of the other kind (built airing only).
     await guardExistingMediaIds(airings.map((airing) => airing.program));
+    // M10: link the work page only on full identity proof; otherwise cards keep the airing route.
+    await assignVerifiedWorkPaths(airings.map((airing) => airing.program));
     // M03-L1: no-op unless EPG_CATALOGUE_LINK_MODE=shadow; reads the built programme fields (resolved category), never mutates.
     await runCatalogueLinkShadow(airings.map((airing) => airing.program));
 

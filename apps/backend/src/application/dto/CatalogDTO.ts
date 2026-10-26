@@ -83,6 +83,8 @@ export interface CatalogAiringDTO {
    * raw `program:<id>` fallback URL. */
   catalogId: string;
   detailPath: string;
+  /** M10: verified work page of this airing's programme (absent unless proven). */
+  workPath?: string;
   liveNow?: boolean;
   /** Program poster/still, when the EPG source has one — without it, airing
    * cards on the detail page rendered as plain text-only boxes. */
@@ -113,6 +115,10 @@ export interface CatalogItemDTO {
   title: string;
   slug: string;
   detailPath: string;
+  /** M10, programme-sourced items only: the verified work page of this airing (absent unless proven). */
+  workPath?: string;
+  /** M10, TMDB work detail only: the `/programas/:slug` broadcast page resolving to this same TMDB id (absent unless proven). */
+  programmePath?: string;
   subtitle?: string;
   synopsis?: string;
   image?: string;

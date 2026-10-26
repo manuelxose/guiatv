@@ -144,6 +144,29 @@ test('getBySlug: distinct missing slugs are cached independently', async () => {
   }
 });
 
+// M10: the guide links work slugs a local catalogue row resolves; a miss cached before that row existed must not 404 them.
+test('getBySlug: a cached miss is ignored once a local catalogue row resolves the slug, and still served otherwise', async () => {
+  const tmdbCallCounter = { count: 0 };
+  const cache = new InMemoryCache();
+  const service = buildService(tmdbCallCounter, cache);
+  stubTvReadFind();
+  (service as any).mediaCatalogService = {
+    findKnownMatchesForTitles: async (titles: string[]) =>
+      titles.includes('heat') ? [{ tmdbId: 949, tmdbType: 'movie', title: 'Heat' }] : [],
+  };
+  (service as any).getTmdbDetail = async (tmdbId: number) => ({ catalogId: `tmdb:movie:${tmdbId}`, tmdbId, title: 'Heat', slug: 'heat' });
+
+  try {
+    await cache.set('catalog:slug:notfound:movie:heat', true, 300);
+    await cache.set('catalog:slug:notfound:movie:no-such-film', true, 300);
+    assert.equal((await service.getBySlug('movie', 'heat', undefined)).tmdbId, 949);
+    await assert.rejects(() => service.getBySlug('movie', 'no-such-film', undefined), NotFoundError);
+    assert.equal(tmdbCallCounter.count, 0, 'neither lookup may reach TMDB');
+  } finally {
+    cache.destroy();
+  }
+});
+
 function stubTvReadSlug(
   titlesByToken: Record<string, string[]>,
   observed: Record<string, unknown>[] = []

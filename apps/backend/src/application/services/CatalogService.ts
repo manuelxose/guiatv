@@ -331,7 +331,8 @@ export class CatalogService {
     const cachedNotFound = contentType === 'program'
       ? false
       : await this.cacheRepository.get<boolean>(negativeCacheKey);
-    if (cachedNotFound) {
+    // M10: the guide links slugs a verified local row resolves; a miss cached before that row existed must not 404 them.
+    if (cachedNotFound && !(await this.findLocalSlugMatch(searchText, slug, contentType === 'movie' ? 'movie' : 'tv'))) {
       throw new NotFoundError('Catalog item', slug);
     }
 
@@ -486,6 +487,24 @@ export class CatalogService {
     // The page then loads the item by id (getProgramDetail -> getItem), which answers 404 for an item that is not
     // consumer-visible. The lookup does not apply that rule, so apply it here (same row, no extra query).
     return Boolean(found) && isConsumerVisibleTvReadItem(found as TvReadItemDTO);
+  }
+
+  /**
+   * M10: the `/programas/:slug` broadcast page of this TMDB work, only when the page's own lookup resolves the slug to a
+   * visible airing that carries the same TMDB id (a homonymous programme is not this work). At most two candidate slugs.
+   */
+  private async resolveProgrammePath(tmdbId: number, contentType: CatalogContentType, airings: CatalogAiringDTO[]): Promise<string | undefined> {
+    const slugs = [...new Set(airings.map((airing) => slugify(airing.title)).filter((slug) => slug !== 'sin-titulo'))].slice(0, 2);
+    for (const slug of slugs) {
+      const searchText = slug.replace(/-/g, ' ');
+      const found =
+        (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getTodayYYYYMMDD())) ??
+        (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getTomorrowYYYYMMDD()));
+      // TMDB movie and tv ids share one number space: the kind must agree too.
+      if (found && isConsumerVisibleTvReadItem(found as TvReadItemDTO) && found.program?.tmdbId === tmdbId
+        && this.inferTvReadContentType(found as TvReadItemDTO) === contentType) return `/programas/${slug}`;
+    }
+    return undefined;
   }
 
   private async cacheSlugNotFound(negativeCacheKey: string): Promise<void> {
@@ -799,6 +818,7 @@ export class CatalogService {
       title: item.program.title,
       slug,
       detailPath: programDetailPath(item.id),
+      workPath: item.program.workPath,
       subtitle: item.program.subtitle,
       synopsis: item.program.description,
       image,
@@ -851,9 +871,13 @@ export class CatalogService {
       this.loadAiringsForTmdb(detail, item.contentType)
     );
     const original = (detail.original_title || detail.original_name || '').trim();
+    const programmePath = airings.length
+      ? await measureTiming('programme', () => this.resolveProgrammePath(tmdbId, item.contentType, airings).catch(() => undefined))
+      : undefined;
 
     return {
       ...item,
+      programmePath,
       // The full record of this same TMDB id (search results carry none of these). A series' runtime is per
       // episode, so only a film gets a duration.
       genres: (detail.genres ?? []).map((genre) => genre.name).filter(Boolean),
@@ -1993,6 +2017,7 @@ export class CatalogService {
       title: item.program.title,
       catalogId: buildProgramCatalogId(item.id),
       detailPath: programDetailPath(item.id),
+      workPath: item.program.workPath,
       liveNow: item.airing.liveNow,
       // Same fallback chain mapTvReadItemToCatalogItem uses for `image` —
       // without this, "Próximas emisiones"/"A continuación" cards on the
