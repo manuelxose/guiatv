@@ -92,9 +92,41 @@ const get = async (url) => {
     const r = await fetch(url, { redirect: 'manual', headers: { 'user-agent': 'Mozilla/5.0 (compatible; guiatv-link-graph/1.0)' }, signal: AbortSignal.timeout(30000) });
     // One retry on transient upstream errors so a cold render is not reported as a broken link.
     if ((r.status === 429 || r.status >= 502) && attempt === 0) { await r.arrayBuffer(); await new Promise((ok) => setTimeout(ok, 3000)); continue; }
-    return { r, body: r.headers.get('content-type')?.includes('html') ? await r.text() : (await r.arrayBuffer(), '') };
+    return { r, body: /html|xml/.test(r.headers.get('content-type') ?? '') ? await r.text() : (await r.arrayBuffer(), '') };
   }
 };
+const locs = (xml) => [...xml.matchAll(/<loc>\s*([^<]+?)\s*<\/loc>/g)].map((m) => decode(m[1]));
+const readSitemap = async () => {
+  const sitemap = new Map();
+  for (const child of locs((await get(`${base}/sitemap.xml`)).body)) {
+    for (const u of locs((await get(child.replace(/^https?:\/\/[^/]+/, base))).body)) sitemap.set(new URL(u).pathname.replace(/(.)\/$/, '$1'), child.split('/').pop());
+  }
+  if (!sitemap.size) throw new Error('sitemap returned no URLs');
+  return sitemap;
+};
+
+// Re-run only the sitemap comparison against a saved crawl (no page fetches).
+if (args.includes('--sitemap-check')) {
+  const file = opt('--sitemap-check');
+  const data = JSON.parse(readFileSync(file, 'utf8'));
+  const sitemap = await readSitemap();
+  const notReached = [...sitemap.keys()].filter((p) => !data.pages[p]);
+  data.summary.sitemapUrls = sitemap.size;
+  data.summary.sitemapNotReached = notReached.length;
+  data.summary.sitemapReached = sitemap.size - notReached.length;
+  data.notReached = notReached;
+  data.notReachedByFamily = {};
+  data.sitemapNotReachedBySitemap = {};
+  for (const p of notReached) {
+    data.notReachedByFamily[family(p)] = (data.notReachedByFamily[family(p)] ?? 0) + 1;
+    data.sitemapNotReachedBySitemap[sitemap.get(p)] = (data.sitemapNotReachedBySitemap[sitemap.get(p)] ?? 0) + 1;
+  }
+  data.lowInlinkSitemap = [...sitemap.keys()].filter((p) => data.pages[p] && data.pages[p].in <= 1).map((p) => [p, data.pages[p].in, data.pages[p].d]);
+  data.sitemapCheckedAt = new Date().toISOString();
+  writeFileSync(file, JSON.stringify(data, null, 1));
+  console.log(JSON.stringify({ sitemapUrls: sitemap.size, reached: sitemap.size - notReached.length, notReached: notReached.length, byFamily: data.notReachedByFamily, bySitemap: data.sitemapNotReachedBySitemap, lowInlink: data.lowInlinkSitemap.length }));
+  process.exit(0);
+}
 const attr = (html, re) => { const v = html.match(re)?.[1]; return v === undefined ? undefined : decode(v).trim(); };
 
 const pages = new Map(); // path -> { depth, status?, location?, robots?, canonical?, out?: [[path, text]] }
@@ -154,11 +186,7 @@ while (level.length && fetched < max) {
   console.error(`depth done, fetched ${fetched}, next level ${level.length}`);
 }
 
-const sitemap = new Map();
-const locs = (xml) => [...xml.matchAll(/<loc>\s*([^<]+?)\s*<\/loc>/g)].map((m) => decode(m[1]));
-for (const child of locs((await get(`${base}/sitemap.xml`)).body)) {
-  for (const u of locs((await get(child.replace(/^https?:\/\/[^/]+/, base))).body)) sitemap.set(new URL(u).pathname.replace(/(.)\/$/, '$1'), child.split('/').pop());
-}
+const sitemap = await readSitemap();
 
 const done = [...pages].filter(([, p]) => p.status !== undefined);
 const isBroken = (p) => typeof p.status !== 'number' || p.status >= 400;
