@@ -72,6 +72,24 @@ describe('UnifiedProgramCardComponent — affiliate opt-in', () => {
     expect(fixture.componentInstance.affiliateOffer()).toBeNull();
   });
 
+  it('M10: a card without a provable destination renders no href and announces no action', () => {
+    const fixture = TestBed.createComponent(UnifiedProgramCardComponent);
+    fixture.componentInstance.item = { ...testItem, title: 'चार यार', contentType: 'series' };
+    fixture.componentInstance.ngOnChanges({ item: {} as any });
+    fixture.detectChanges();
+    const tap: HTMLElement = fixture.nativeElement.querySelector('.program-card__tap');
+    expect(tap.hasAttribute('href')).toBeFalse();
+    expect(tap.hasAttribute('aria-label')).toBeFalse();
+
+    const linked = TestBed.createComponent(UnifiedProgramCardComponent);
+    linked.componentInstance.item = testItem;
+    linked.componentInstance.ngOnChanges({ item: {} as any });
+    linked.detectChanges();
+    const linkedTap: HTMLElement = linked.nativeElement.querySelector('.program-card__tap');
+    expect(linkedTap.getAttribute('href')).toBe('/peliculas/test-movie');
+    expect(linkedTap.getAttribute('aria-label')).toContain('Test Movie');
+  });
+
   it('formats broadcast times in Madrid through the autumn clock change', () => {
     const fixture = TestBed.createComponent(UnifiedProgramCardComponent);
     fixture.componentInstance.item = { ...testItem, start: '2026-10-25T00:30:00Z', end: '2026-10-25T02:30:00Z' };

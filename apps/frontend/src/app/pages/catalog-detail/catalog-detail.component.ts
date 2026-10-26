@@ -156,7 +156,7 @@ type LegacyCatalogMode = 'program' | 'movie' | 'series';
               </a>
               <!-- M10: API-verified relationships only (same TMDB work and kind); absent fields render nothing. -->
               <a *ngIf="content.source === 'program' && content.workPath" [routerLink]="content.workPath" data-testid="work-link" class="inline-block text-sm font-semibold text-[var(--hero-text)] underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
-                Ficha completa de {{ content.contentType === 'series' ? 'la serie' : 'la película' }}
+                Ficha completa de {{ content.workPath.startsWith('/series/') ? 'la serie' : 'la película' }}
               </a>
               <a *ngIf="content.source === 'tmdb' && content.programmePath" [routerLink]="content.programmePath" data-testid="programme-link" class="inline-block text-sm font-semibold text-[var(--hero-text)] underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
                 Horarios de {{ content.title }} en televisión
@@ -272,7 +272,7 @@ type LegacyCatalogMode = 'program' | 'movie' | 'series';
                   {{ airing.channelName }} · {{ formatTime(airing.start) }} - {{ formatTime(airing.end) }}
                 </p>
                 <span class="mt-2 inline-block text-xs font-semibold text-[var(--portal-text)] underline underline-offset-4">
-                  {{ airing.detailPath ? 'Ver qué se emite →' : 'Ver programación del canal →' }}
+                  {{ airing.workPath ? 'Ver ficha →' : airing.detailPath ? 'Ver qué se emite →' : 'Ver programación del canal →' }}
                 </span>
               </span>
             </a>
