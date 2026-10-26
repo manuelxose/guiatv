@@ -8,6 +8,7 @@ import { FootballQueryService } from '../../application/sports/services/Football
 import { buildLegacyProgramSlug, normalizeTvToken, channelPagePath } from '../../shared/utils/tvMetadata';
 import { TvReadQueryService } from '../../application/services/TvReadQueryService';
 import { PUBLIC_EDITORIAL_FILTER } from '../../application/services/EditorialReviewPolicy';
+import { logger } from '../../shared/utils/logger';
 import { entityPublicReadPolicy, normalizeEntityPath } from '../../application/services/EntityPublicReadPolicy';
 
 type Changefreq =
@@ -49,6 +50,13 @@ const INDEXABLE_CHANNEL_TYPES: ReadonlySet<ChannelType> = new Set<ChannelType>([
 
 const cache = new Map<string, { value: string; expiresAt: number }>();
 const inflightMap = new Map<string, Promise<string>>();
+/** Last successful build per key. Survives invalidation (an EPG rebuild is when a build is most likely to fail). */
+const lastGood = new Map<string, { xml: string; at: number }>();
+const STALE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const STALE_RETRY_MS = 60 * 1000;
+const log = logger.child('SitemapController');
+
+export const clearSitemapLastGood = (): void => lastGood.clear();
 
 export const invalidateSitemapCache = (): void => {
   cache.clear();
@@ -64,7 +72,9 @@ export class SitemapController {
     private readonly tvReadQueryService?: Pick<
       TvReadQueryService,
       'getChannels' | 'getIndexableProgramSitemapRows'
-    >
+    >,
+    /** Same lookup the `/programas/:slug` page uses; when bound, slugs that would answer 404 stay out of the sitemap. */
+    private readonly programSlugResolves?: (slug: string) => Promise<boolean>
   ) {}
 
   /* ------------------------------------------------------------------ */
@@ -148,11 +158,20 @@ export class SitemapController {
     const promise = builder()
       .then((xml) => {
         cache.set(key, { value: xml, expiresAt: Date.now() + CACHE_TTL_MS });
+        lastGood.set(key, { xml, at: Date.now() });
         inflightMap.delete(key);
         return xml;
       })
       .catch((err) => {
         inflightMap.delete(key);
+        // A transient failure serves the last good build instead of a 5xx to crawlers.
+        log.error('Sitemap build failed', { key, error: err });
+        const stale = lastGood.get(key);
+        if (stale && Date.now() - stale.at < STALE_MAX_AGE_MS) {
+          // Retry in a minute, not on every request: the failed build is the expensive part.
+          cache.set(key, { value: stale.xml, expiresAt: Date.now() + STALE_RETRY_MS });
+          return stale.xml;
+        }
         throw err;
       });
     inflightMap.set(key, promise);
@@ -174,7 +193,6 @@ export class SitemapController {
 
   private async buildSitemapIndex(): Promise<string> {
     const baseUrl = this.getBaseUrl();
-    const todayIso = this.formatLastmod(new Date());
 
     const subs = [
       'sitemap-static.xml',
@@ -189,8 +207,8 @@ export class SitemapController {
     ];
     for (const file of subs) {
       lines.push('  <sitemap>');
+      // No lastmod: a child sitemap is rebuilt on request, so "today" would claim a change that did not happen.
       lines.push(`    <loc>${this.escapeXml(`${baseUrl}/${file}`)}</loc>`);
-      lines.push(`    <lastmod>${todayIso}</lastmod>`);
       lines.push('  </sitemap>');
     }
     lines.push('</sitemapindex>');
@@ -285,7 +303,9 @@ export class SitemapController {
         const changed = row.updatedAt ? new Date(row.updatedAt).getTime() : NaN;
         lastChanged.set(slug, Math.max(lastChanged.get(slug) ?? -Infinity, Number.isNaN(changed) ? -Infinity : changed));
       }
+      const resolvable = await this.filterResolvable([...lastChanged.keys()]);
       for (const [slug, changed] of lastChanged) {
+        if (!resolvable.has(slug)) continue;
         urls.push({
           loc: `/programas/${slug}`,
           lastmod: Number.isFinite(changed) ? this.formatLastmod(new Date(changed)) : undefined,
@@ -319,6 +339,24 @@ export class SitemapController {
       });
     }
     return this.renderUrlset(urls);
+  }
+
+  /** Bounded parallel check; a lookup failure propagates so a database outage never caches a truncated sitemap. */
+  private async filterResolvable(slugs: string[]): Promise<Set<string>> {
+    if (!this.programSlugResolves) return new Set(slugs);
+    const ok = new Set<string>();
+    const queue = [...slugs];
+    await Promise.all(Array.from({ length: 8 }, async () => {
+      for (let slug = queue.shift(); slug !== undefined; slug = queue.shift()) {
+        try {
+          if (await this.programSlugResolves!(slug)) ok.add(slug);
+        } catch (error) {
+          queue.length = 0; // stop the other workers: the build fails as a whole
+          throw error;
+        }
+      }
+    }));
+    return ok;
   }
 
   private async buildBlogSitemap(): Promise<string> {

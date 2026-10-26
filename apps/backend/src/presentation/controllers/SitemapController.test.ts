@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { invalidateSitemapCache, SitemapController } from './SitemapController';
+import { invalidateSitemapCache, clearSitemapLastGood, SitemapController } from './SitemapController';
 
 // Regression coverage for a real gap: competition/match/team detail pages
 // were entirely absent from every sitemap — only the 5 static football hub
@@ -266,6 +266,77 @@ test('sitemap-programs.xml uses the public TV read model instead of repository-o
   assert.match(getSentXml(), /\/programas\/el-ltimo-pase/);
   assert.doesNotMatch(getSentXml(), /\/programas\/el-ultimo-pase/);
   assert.doesNotMatch(getSentXml(), /raw-programme-that-cannot-resolve/);
+});
+
+test('M09: sitemap-programs.xml lists only slugs the /programas/:slug resolver answers, and a lookup failure is not cached', async () => {
+  invalidateSitemapCache();
+  clearSitemapLastGood();
+  const tvReadQueryService = {
+    getChannels: async () => ({ channels: [], meta: {} }),
+    getIndexableProgramSitemapRows: async () => [
+      { title: 'Resolvable', start: '2026-08-31T21:00:00.000Z' },
+      { title: 'Bonanza', start: '2026-08-31T21:00:00.000Z' },
+      { title: 'Sentimos las molestias T2 E1', start: '2026-08-31T21:00:00.000Z' },
+    ],
+  } as any;
+  const asked: string[] = [];
+  let failing = false;
+  const controller = new SitemapController({} as any, {} as any, undefined, undefined, tvReadQueryService,
+    async (slug) => { asked.push(slug); if (failing) throw new Error('db down'); return slug === 'resolvable'; });
+
+  const first = fakeReqRes();
+  await controller.getProgramsSitemap(first.req, first.res, (() => {}) as any);
+  assert.deepEqual([...asked].sort(), ['bonanza', 'resolvable', 'sentimos-las-molestias-t2-e1']);
+  assert.match(first.getSentXml(), /\/programas\/resolvable</);
+  assert.doesNotMatch(first.getSentXml(), /bonanza|sentimos/);
+
+  invalidateSitemapCache();
+  clearSitemapLastGood(); // no previous build to fall back to
+  failing = true;
+  let error: unknown;
+  await controller.getProgramsSitemap(first.req, first.res, ((e: unknown) => { error = e; }) as any);
+  assert.ok(error, 'an outage must surface as an error, not as a truncated sitemap');
+});
+
+test('M09: a failing rebuild serves the last good sitemap, retries later, and stops the other workers', async () => {
+  invalidateSitemapCache();
+  clearSitemapLastGood();
+  const rows = Array.from({ length: 200 }, (_, i) => ({ title: `Programa ${i}`, start: '2026-08-31T21:00:00.000Z' }));
+  const tvReadQueryService = { getChannels: async () => ({ channels: [], meta: {} }), getIndexableProgramSitemapRows: async () => rows } as any;
+  let calls = 0;
+  let failing = false;
+  const controller = new SitemapController({} as any, {} as any, undefined, undefined, tvReadQueryService,
+    async () => { calls++; await new Promise((r) => setImmediate(r)); if (failing) throw new Error('db down'); return true; });
+
+  const ok = fakeReqRes();
+  await controller.getProgramsSitemap(ok.req, ok.res, (() => {}) as any);
+  const good = ok.getSentXml();
+  assert.equal((good.match(/<url>/g) || []).length, 200);
+
+  invalidateSitemapCache(); // an EPG rebuild: the cache is dropped, the last good build is kept
+  failing = true;
+  calls = 0;
+  const stale = fakeReqRes();
+  let error: unknown;
+  await controller.getProgramsSitemap(stale.req, stale.res, ((e: unknown) => { error = e; }) as any);
+  assert.equal(error, undefined);
+  assert.equal(stale.getSentXml(), good, 'stale XML instead of a 5xx');
+  assert.ok(calls <= 16, `workers stopped after the first failure (${calls} of 200 lookups ran)`);
+
+  const before = calls;
+  await controller.getProgramsSitemap(stale.req, stale.res, (() => {}) as any);
+  assert.equal(calls, before, 'the stale answer is cached briefly: no rebuild on the next request');
+});
+
+test('M09: sitemap index declares no invented lastmod', async () => {
+  invalidateSitemapCache();
+  const controller = new SitemapController({} as any, {} as any);
+  const { req, res, getSentXml } = fakeReqRes();
+
+  await controller.getSitemapIndex(req, res, (() => {}) as any);
+
+  assert.match(getSentXml(), /<sitemap>\s*<loc>[^<]+sitemap-programs\.xml<\/loc>\s*<\/sitemap>/);
+  assert.doesNotMatch(getSentXml(), /lastmod/);
 });
 
 test('sitemap-blog.xml excludes categories with fewer than three approved posts', async () => {

@@ -328,3 +328,11 @@ Latest verified production: release **20261026095229**, exact code **13aeaa8de4c
 Production: **104** viewport/theme cells and **12** football-child combinations pass axe/overflow/runtime checks; football/search **17** journeys pass. Raw SSR canonical/robots/header parity holds for **13** routes; health/robots/sitemap 200, legacy live-football redirect 301. Final CI: Angular **339**, backend **651/one skip**, ops **29**, SSR units **23**, deterministic Playwright **38/four duplicate-matrix skips**. Initial referenced assets +19,515 bytes (+2.71%); build budgets pass. Production lab SSR median85ms/p95357ms, not field CWV.
 
 **M08 PASS.** M06 still lacks season/episode routes, DTOs and UI; work-level series/broadcast detail already exists. Historical EPG classification/identity debt is not rewritten. Known bounded debt: five existing channel-icon URLs return503 with fallback; extremely early paste can race SSR form hydration; signed-out profile lacks a primary heading; Nginx keeps old HTML for up to five minutes after release. No unexpected production API5xx or runtime errors in the completed matrix. Original unrelated local edits preserved in their checkout. Evidence and exact M09 next action: [M08-DELIVERY.md](M08-DELIVERY.md).
+
+## M09 addendum — canonical ownership and sitemap correctness (2026-10-26)
+
+Details: [../seo/m09-canonical-ownership.md](../seo/m09-canonical-ownership.md). Baseline `main@2919ebc`.
+
+- **Measured**: 70 of 722 `sitemap-programs.xml` URLs answered 404; 563 of 722 have a proven same-TMDB-id indexable `/peliculas|/series` twin (policy question, **unchanged**).
+- **Implemented (safe)**: programme sitemap lists only slugs the page lookup resolves and that are consumer-visible; no `lastmod` on the sitemap index; last-good sitemap on build failure; read-only audit and perf scripts.
+- **Not changed, pending owner decision**: `/programas/` ↔ `/peliculas|/series` consolidation; airing-dependent movie `noindex`; any mass index/noindex change.

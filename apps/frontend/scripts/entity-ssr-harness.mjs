@@ -40,8 +40,8 @@ export function entityFixture(over = {}) {
     credits: { directors: ['Gore Verbinski'], cast: [{ name: 'Dane DeHaan', character: 'Lockhart' }, { name: 'Jason Isaacs', character: 'Volmer' }, { name: 'Mia Goth', character: 'Hannah' }] },
     attribution: { source: 'tmdb', updatedAt: '2026-10-21T23:15:00.000Z', notice: 'Datos e imágenes de TMDB. Este producto usa la API de TMDB pero no está avalado ni certificado por TMDB.' },
     broadcasts: { status: 'ok', generatedAt: new Date().toISOString(), timeZone: 'Europe/Madrid', items: [
-      { airingId: 'a1', channel: { id: 'amc', name: 'AMC', path: '/canales/amc' }, programmeTitle: 'La cura del bienestar', start: '2026-10-25T01:30:00.000Z', end: '2026-10-25T03:50:00.000Z', startLocal: '2026-10-25T02:30:00+01:00', localDate: '2026-10-25', localTime: '02:30', durationMinutes: 140 },
-      { airingId: 'a2', channel: { id: 'la_1', name: 'La 1', path: '/canales/la-1' }, programmeTitle: 'La cura del bienestar (2017)', start: '2026-10-28T20:00:00.000Z', end: '2026-10-28T22:20:00.000Z', startLocal: '2026-10-28T21:00:00+01:00', localDate: '2026-10-28', localTime: '21:00', durationMinutes: 140 },
+      { airingId: 'a1', channel: { id: 'amc', name: 'AMC', path: '/canales/amc' }, programmeTitle: 'La cura del bienestar', start: '2027-01-10T01:30:00.000Z', end: '2027-01-10T03:50:00.000Z', startLocal: '2027-01-10T02:30:00+01:00', localDate: '2027-01-10', localTime: '02:30', durationMinutes: 140 },
+      { airingId: 'a2', channel: { id: 'la_1', name: 'La 1', path: '/canales/la-1' }, programmeTitle: 'La cura del bienestar (2017)', start: '2027-01-13T20:00:00.000Z', end: '2027-01-13T22:20:00.000Z', startLocal: '2027-01-13T21:00:00+01:00', localDate: '2027-01-13', localTime: '21:00', durationMinutes: 140 },
     ] }, ...over,
   };
 }

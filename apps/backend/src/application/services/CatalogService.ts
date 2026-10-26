@@ -47,7 +47,7 @@ import { UserProfileModel } from '@/infrastructure/database/models/UserProfile.m
 import { buildCatalogAssetSet, buildSearchTokens } from '@/shared/utils/tvMetadata';
 import { l1Cache } from '@/infrastructure/cache/L1Cache';
 import { TvReadItemDTO, TvReadView } from '../dto/TvReadDTO';
-import { TvReadQueryService } from './TvReadQueryService';
+import { TvReadQueryService, isConsumerVisibleTvReadItem } from './TvReadQueryService';
 import { TVReadAiringModel } from '@/infrastructure/database/models/TVReadAiring.model';
 import { MediaCatalogService } from './MediaCatalogService';
 import { measureTiming } from '@/shared/utils/performanceTiming';
@@ -471,6 +471,21 @@ export class CatalogService {
 
     await this.cacheSlugNotFound(negativeCacheKey);
     throw new NotFoundError('Catalog item', slug);
+  }
+
+  /**
+   * Whether `/programas/:slug` resolves today or tomorrow: exactly the lookup `resolveBySlugInternal` runs for a
+   * programme, so the sitemap can list only URLs that answer 200.
+   */
+  async programSlugResolves(slug: string): Promise<boolean> {
+    const searchText = String(slug || '').replace(/-/g, ' ').trim();
+    if (!searchText) return false;
+    const found =
+      (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getTodayYYYYMMDD())) ??
+      (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getTomorrowYYYYMMDD()));
+    // The page then loads the item by id (getProgramDetail -> getItem), which answers 404 for an item that is not
+    // consumer-visible. The lookup does not apply that rule, so apply it here (same row, no extra query).
+    return Boolean(found) && isConsumerVisibleTvReadItem(found as TvReadItemDTO);
   }
 
   private async cacheSlugNotFound(negativeCacheKey: string): Promise<void> {
