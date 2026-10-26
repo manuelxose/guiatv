@@ -336,3 +336,11 @@ Details: [../seo/m09-canonical-ownership.md](../seo/m09-canonical-ownership.md).
 - **Measured**: 70 of 722 `sitemap-programs.xml` URLs answered 404; 563 of 722 have a proven same-TMDB-id indexable `/peliculas|/series` twin (policy question, **unchanged**).
 - **Implemented (safe)**: programme sitemap lists only slugs the page lookup resolves and that are consumer-visible; no `lastmod` on the sitemap index; last-good sitemap on build failure; read-only audit and perf scripts.
 - **Not changed, pending owner decision**: `/programas/` ↔ `/peliculas|/series` consolidation; airing-dependent movie `noindex`; any mass index/noindex change.
+
+### M09 production release (2026-10-26)
+
+PR #77 squash-merged as `aa04139`; main CI green; [artifact deploy 40334982895](https://github.com/manuelxose/guiatv/actions/runs/40334982895) succeeded: live release **`20261026145804`**, rollback target `20261026095229` (not needed). Flags unchanged (no activation flag introduced; env files not readable from here, API metrics show 0 server errors).
+
+Production re-crawl (`artifacts/m09/crawl-after.json`, 782 sitemap URLs, 0 duplicates): programmes sitemap **722 → 664, all 664 answer 200 self-canonical** (was 652/722); the **70 previously failing URLs: 0 still listed**; 648 of the 652 previously valid programme URLs remain (the other 4 left the schedule window); static 23/23, channels 82/82, blog 13/13 (earlier one-off 503s did not recur). Only crawl note: `/deportes/futbol/partidos-hoy` thin-word heuristic (pre-existing). Probes unchanged: `/peliculas/gladiator` `noindex, follow` (airing-dependent rule untouched), unknown `/series/*` 404 `noindex, nofollow`, `/canales/la_1` 301, `/guias/rankings` index. Sitemap index has no `lastmod`. Health healthy, 5xx 0, p95 146 ms.
+
+Inactive / pending owner decision: `/programas/` ↔ `/peliculas|/series` consolidation (563 of 722 programme URLs have a proven same-TMDB-id indexable twin), airing-dependent movie `noindex`. Repository note: the SSR entity fixture dates were a time bomb (fixed in #77); `main` CI does not run `ssr-resilience`, so such failures only appear on PRs.
