@@ -1,3 +1,4 @@
+import { cleanEpgDescription } from '../../shared/utils/epgDescription';
 import { IProgramRepository } from '@/domain/repositories/IProgramRepository';
 import { IChannelRepository } from '@/domain/repositories/IChannelRepository';
 import { ICacheRepository } from '@/domain/repositories/ICacheRepository';
@@ -136,7 +137,7 @@ export class GetContentDetail {
       program: {
         ...layout,
         tmdbId: resolvedTmdb.tmdbId,
-        synopsis: resolvedTmdb.detail?.overview || program.description,
+        synopsis: resolvedTmdb.detail?.overview || cleanEpgDescription(program.description),
         cast: this.mapCast(resolvedTmdb.detail),
         director: this.getDirector(resolvedTmdb.detail),
         year: this.resolveYear(program.year, resolvedTmdb.detail),

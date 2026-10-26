@@ -1,5 +1,6 @@
 // src/v2/infrastructure/parsers/XMLParser.ts
 
+import { cleanEpgDescription } from '../../shared/utils/epgDescription';
 import { parseStringPromise } from 'xml2js';
 import { logger } from '../../shared/utils/logger';
 
@@ -113,8 +114,7 @@ export class XMLParser {
   private extractDescription(prog: any): string | undefined {
     const desc = this.firstValue(prog.desc);
     if (!desc) return undefined;
-    const trimmed = desc.trim();
-    return trimmed ? trimmed.substring(0, 500) : undefined;
+    return cleanEpgDescription(desc)?.substring(0, 500);
   }
 
   private extractYear(prog: any): string | undefined {
