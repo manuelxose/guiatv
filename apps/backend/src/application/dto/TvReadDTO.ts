@@ -57,6 +57,8 @@ export interface TvReadProgramDTO {
   /** Reference to the shared entry in the local media catalog, when the
    * airing's identity has been resolved. See MediaCatalogEntry. */
   mediaId?: string;
+  /** M10: verified `/peliculas|/series` work page (`VerifiedWorkLinks`); absent unless identity is proven. */
+  workPath?: string;
   description?: string;
   titleResolutionState?:
     | 'specific_source_title'
