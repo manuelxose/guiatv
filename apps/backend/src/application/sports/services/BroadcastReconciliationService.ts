@@ -17,6 +17,7 @@ import {
   FootballMatch,
 } from '../../../domain/sports/football/types';
 import {
+  canonicalChannelPath,
   isFootballAiring,
   resolveCompetition,
   splitMatchup,
@@ -87,7 +88,7 @@ export class BroadcastReconciliationService {
                 availability: 'tv',
                 provenance: 'reconciliation',
                 confidence: best.confidence,
-                channelPath: best.channelId ? channelPagePath(best.channelId) : undefined,
+                channelPath: best.channelId ? canonicalChannelPath(toNormalizedAiringInput(best.airing)) : undefined,
               },
             ],
           };
