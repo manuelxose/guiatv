@@ -18,6 +18,7 @@ import { AdminCommunitySectionComponent } from './sections/community/admin-commu
 import { AdminOverviewSectionComponent } from './sections/overview/admin-overview-section.component';
 import { AdminAISectionComponent } from './sections/ai/admin-ai-section.component';
 import { AdminAffiliateSectionComponent } from './sections/affiliate/admin-affiliate-section.component';
+import { AdminEditorialSectionComponent } from './sections/editorial/admin-editorial-section.component';
 
 @Component({
   selector: 'app-admin-panel',
@@ -37,6 +38,7 @@ import { AdminAffiliateSectionComponent } from './sections/affiliate/admin-affil
     AdminSystemSectionComponent,
     AdminAISectionComponent,
     AdminAffiliateSectionComponent,
+    AdminEditorialSectionComponent,
   ],
   templateUrl: './admin.component.html',
   styleUrls: ['./admin.component.scss'],
@@ -83,6 +85,7 @@ export class AdminComponent implements OnInit {
       icon: 'M12 3 13.8 8.2 19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z',
       items: [
         { id: 'dashboard', label: 'Usage & quality', description: 'Conversations, feedback and activity' },
+        { id: 'editorial', label: 'Operaciones IA', description: 'Pipeline editorial, evidencia y parada de emergencia' },
       ],
     },
     {

@@ -76,7 +76,7 @@
           <figure *ngIf="state.post.coverImage !== '/assets/images/blog-og-image.webp'" class="overflow-hidden rounded-[1.75rem] border border-[var(--portal-border)] bg-[var(--portal-surface)]">
             <img
               [src]="state.post.coverImage"
-              [alt]="state.post.title"
+              [alt]="state.post.coverAlt || state.post.title"
               class="h-auto w-full object-cover"
               loading="eager"
             />
