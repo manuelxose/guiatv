@@ -34,9 +34,10 @@ import {
   policyGateFailures,
   PUBLIC_EDITORIAL_FILTER,
 } from '../../application/services/EditorialReviewPolicy';
-import { EditorialProvenance, evaluateEvidence } from '../../application/services/EditorialEvidence';
+import { EditorialProvenance, evaluateEvidence, provenanceSignatureValid } from '../../application/services/EditorialEvidence';
 
 const MAX_REVISIONS = 20;
+const MAX_REVISIONS_BYTES = 6 * 1024 * 1024;
 const MAX_PROVENANCE_BYTES = 512 * 1024;
 
 interface BlogWritePayload {
@@ -464,11 +465,14 @@ export class BlogController {
           { field: 'editorial', message: 'Policy approval needs an ai-assisted post with M11-B provenance', value: postId },
         ]);
       }
-      const dailyLimit = Number(process.env.EDITORIAL_POLICY_DAILY_LIMIT || 3);
-      const since = new Date(Date.now() - 864e5);
-      if (await BlogPostModel.countDocuments({ reviewedBy: POLICY_REVIEWER, reviewedAt: { $gte: since } }).exec() >= dailyLimit) {
-        throw new ForbiddenError(`Policy publishing limit reached (${dailyLimit} in 24 h)`);
+      // Only provenance the pipeline runner signed, from live models: replayed or hand-made bundles need a person.
+      if (!provenanceSignatureValid(post.editorial, process.env.EDITORIAL_PIPELINE_SIGNING_KEY) || post.editorial.backend !== 'anthropic') {
+        throw new ValidationError('Editorial quality gate failed', [
+          { field: 'editorial', message: 'Provenance is not signed by the pipeline (live models) — use the named-reviewer approval', value: postId },
+        ]);
       }
+      const dailyLimit = Number(process.env.EDITORIAL_POLICY_DAILY_LIMIT ?? 3);
+      if (!Number.isInteger(dailyLimit) || dailyLimit < 1) throw new ForbiddenError('EDITORIAL_POLICY_DAILY_LIMIT must be a positive integer');
       try {
         assertEditorialPostCanBeApproved(post.toObject());
       } catch (error) {
@@ -480,6 +484,13 @@ export class BlogController {
       const failures = policyGateFailures(findings);
       if (failures.length) {
         throw new ValidationError('Editorial quality gate failed', failures.map((f) => ({ field: f.code, message: f.message, value: postId })));
+      }
+      // Append-only ledger, insert first: concurrent approvals both count, and a later PUT cannot erase one.
+      const ledger = BlogPostModel.db.collection('editorial_policy_approvals');
+      const { insertedId } = await ledger.insertOne({ postId: post._id, at: new Date() });
+      if (await ledger.countDocuments({ at: { $gte: new Date(Date.now() - 864e5) } }) > dailyLimit) {
+        await ledger.deleteOne({ _id: insertedId });
+        throw new ForbiddenError(`Policy publishing limit reached (${dailyLimit} in 24 h)`);
       }
       const now = new Date();
       post.status = 'publish';
@@ -512,13 +523,17 @@ export class BlogController {
         throw new ValidationError('Unknown revision', [{ field: 'version', message: 'No stored revision with this version', value: req.body?.version }]);
       }
       this.pushRevision(post, `rollback to ${version}`);
-      // Approved AI text whose facts are past their review date is not put back online unreviewed.
-      const expired = Date.parse(target.editorial?.nextReviewAt || '') < Date.now();
-      const keepReview = target.status === 'publish' && target.reviewState === 'approved' && !expired;
-      Object.assign(post, {
-        title: target.title, excerpt: target.excerpt, content: target.content, seo: target.seo, editorial: target.editorial,
+      const snap = target.snapshot;
+      // It stays public only as exactly what was approved: a policy approval needs the policy switch still on,
+      // and AI text whose facts are past their review date comes back as a draft.
+      const expired = Date.parse(snap.editorial?.nextReviewAt || '') < Date.now();
+      const policyOff = String(snap.reviewedBy || '').startsWith('policy:') && process.env.EDITORIAL_POLICY_PUBLISHING !== 'enabled';
+      const keepReview = snap.status === 'publish' && snap.reviewState === 'approved' && !expired && !policyOff;
+      post.set({
+        ...snap,
         status: keepReview ? 'publish' : 'draft', reviewState: keepReview ? 'approved' : 'unreviewed',
-        reviewedBy: keepReview ? target.reviewedBy : undefined, reviewedAt: keepReview ? target.reviewedAt : undefined,
+        reviewedBy: keepReview ? snap.reviewedBy : undefined, reviewedAt: keepReview ? snap.reviewedAt : undefined,
+        reviewNotes: `Restored revision ${version} by ${String(req.header('x-editorial-reviewer') || 'unnamed operator').trim()}`,
       });
       await post.save();
       await this.invalidatePublicReads();
@@ -548,11 +563,12 @@ export class BlogController {
   private pushRevision(post: InstanceType<typeof BlogPostModel>, reason: string): void {
     const revisions = post.revisions || [];
     const version = Math.max(0, ...revisions.map((r) => r.version)) + 1;
-    post.revisions = [...revisions, {
-      version, savedAt: new Date(), reason, title: post.title, excerpt: post.excerpt, content: post.content,
-      seo: post.toObject().seo, status: post.status, reviewState: post.reviewState, reviewedBy: post.reviewedBy,
-      reviewedAt: post.reviewedAt, editorial: post.editorial,
-    }].slice(-MAX_REVISIONS);
+    // The whole document (FAQ, author, affiliate fields included), so a rollback cannot mix versions.
+    const { _id, __v, revisions: _r, createdAt, updatedAt, ...snapshot } = post.toObject() as IBlogPostDocument & { _id: unknown; __v?: number };
+    const kept = [...revisions, { version, savedAt: new Date(), reason, snapshot }].slice(-MAX_REVISIONS);
+    // Stay far below Mongo's 16 MB document limit; the oldest revisions go first.
+    while (kept.length > 1 && JSON.stringify(kept).length > MAX_REVISIONS_BYTES) kept.shift();
+    post.revisions = kept;
   }
 
   public deletePost = async (
@@ -844,7 +860,8 @@ export class BlogController {
 
   // Shape check only: whether the evidence holds is decided at approval (evaluateEvidence).
   private normalizeEditorial(value: unknown, fallback: EditorialProvenance | undefined, origin: EditorialOrigin): EditorialProvenance | undefined {
-    if (value === undefined) return fallback;
+    // Kept as it was, but no longer the published state: the post is a draft again after any edit.
+    if (value === undefined) return fallback && { ...fallback, state: 'draft' };
     if (value === null) return undefined;
     const p = value as Partial<EditorialProvenance>;
     const valid = typeof p === 'object' && origin === 'ai-assisted'

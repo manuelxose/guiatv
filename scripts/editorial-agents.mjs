@@ -52,8 +52,8 @@ async function publicCorpus() {
 function replayModel(answers, slug) {
   return {
     async call(req) {
-      const queue = answers[req.role] ?? [];
-      const json = queue.length > 1 ? queue.shift() : queue[0];
+      // Each recorded answer is used once, in order, like the live calls it stands for.
+      const json = (answers[req.role] ?? []).shift();
       if (json === undefined) {
         const dir = resolve('artifacts/m11b/prompts');
         mkdirSync(dir, { recursive: true });
@@ -65,10 +65,17 @@ function replayModel(answers, slug) {
     },
   };
 }
+// A malformed cap must stop the run, not silently disable the cap (NaN compares false).
+const positive = (name, fallback) => {
+  if (process.env[name] === undefined) return fallback;
+  const v = Number(process.env[name]);
+  if (!Number.isFinite(v) || v <= 0) { console.error(`${name} must be a positive number`); process.exit(2); }
+  return v;
+};
 const limits = () => ({
   ...evidence.DEFAULT_EDITORIAL_LIMITS,
-  ...(process.env.EDITORIAL_MAX_ARTICLE_USD ? { maxArticleUsd: Number(process.env.EDITORIAL_MAX_ARTICLE_USD) } : {}),
-  ...(process.env.EDITORIAL_MAX_DAILY ? { maxDailyArticles: Number(process.env.EDITORIAL_MAX_DAILY) } : {}),
+  maxArticleUsd: positive('EDITORIAL_MAX_ARTICLE_USD', evidence.DEFAULT_EDITORIAL_LIMITS.maxArticleUsd),
+  maxDailyArticles: positive('EDITORIAL_MAX_DAILY', evidence.DEFAULT_EDITORIAL_LIMITS.maxDailyArticles),
 });
 const today = () => new Date().toISOString().slice(0, 10);
 const runFiles = () => (existsSync(out) ? readdirSync(out).filter((f) => f.endsWith('.json')) : []);
@@ -80,6 +87,7 @@ if (command === 'run') {
   const deps = (slug) => ({
     model: replay ? replayModel(structuredClone(replay[slug] ?? {}), slug) : new (require(join(dist, 'infrastructure/external/AnthropicEditorialModel.js')).AnthropicEditorialModel)(),
     fetchSource, internalLinkStatus, corpus, render: (md) => marked.parse(md),
+    backend: replay ? 'replay' : 'anthropic', signingKey: process.env.EDITORIAL_PIPELINE_SIGNING_KEY,
   });
   mkdirSync(out, { recursive: true });
   // Other articles started today; a rerun of the same topic does not use up the quota again.
@@ -100,7 +108,7 @@ if (command === 'run') {
 } else if (command === 'verify') {
   const run = readJson(target);
   const r = await reverify(run.provenance);
-  const findings = evidence.evaluateEvidence({ content: run.draft.content, author: { name: run.draft.authorName } }, { ...run.provenance, bundle: r.bundle, bundleHash: evidence.hashBundle(r.bundle), critic: { ...run.provenance.critic, bundleHash: evidence.hashBundle(r.bundle) } });
+  const findings = evidence.evaluateEvidence({ ...run.draft, author: { name: run.draft.authorName }, seo: { metaTitle: run.draft.metaTitle, metaDescription: run.draft.metaDescription } }, { ...run.provenance, bundle: r.bundle, bundleHash: evidence.hashBundle(r.bundle), critic: { ...run.provenance.critic, bundleHash: evidence.hashBundle(r.bundle) } });
   console.log(JSON.stringify({ slug: run.slug, changed: r.changed, findings }, null, 1));
   process.exit(findings.some((f) => f.severity === 'block') ? 1 : 0);
 } else if (command === 'maintain') {
@@ -126,6 +134,9 @@ if (command === 'run') {
   const run = readJson(target);
   const api = (arg('api') || '').replace(/\/$/, '');
   if (!api) { console.error('--api is required (a production API is a production write: needs the owner\'s authorisation)'); process.exit(2); }
+  if (!/^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?$/.test(api) && !process.argv.includes('--confirm-production-write')) {
+    console.error(`${api} is not local: add --confirm-production-write once the owner has authorised this write`); process.exit(2);
+  }
   const headers = { 'content-type': 'application/json', 'x-admin-key': process.env.ANALYTICS_ADMIN_KEY || '' };
   const found = await (await fetch(`${api}/v2/blog?slug=${encodeURIComponent(run.slug)}&status=all`, { headers })).json();
   if (command === 'save-draft') {

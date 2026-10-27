@@ -21,9 +21,10 @@ const call = (handler: (req: any, res: any, next: any) => Promise<void>, req: { 
   });
 
 /** A real pipeline run (scripted model, offline sources) turned into the CMS write payload. */
-async function aiPost(slug: string, critic: object = pass) {
+const KEY = 'test-pipeline-signing-key';
+async function aiPost(slug: string, critic: object = pass, backend = 'anthropic') {
   const m = scripted({ research: [research], evidence: [{ conflicts: [] }], editorial: [draft(LONG)], critic: [critic] });
-  const run = await runEditorialJob({ ...topic, slug }, deps(m.model, { now: () => new Date() }), { maxArticleUsd: 3, maxResearchCalls: 1, maxSourceFetches: 12, maxRetries: 0, maxReviewLoops: 0, maxDailyArticles: 3, maxConcurrentJobs: 1 });
+  const run = await runEditorialJob({ ...topic, slug }, deps(m.model, { now: () => new Date(), backend, signingKey: KEY }), { maxArticleUsd: 3, maxResearchCalls: 1, maxSourceFetches: 12, maxRetries: 0, maxReviewLoops: 0, maxDailyArticles: 3, maxConcurrentJobs: 1 });
   assert.ok(run.draft && run.provenance);
   const created = await call(controller.createPost, { body: { ...run.draft, editorial: run.provenance } });
   assert.equal(created.code, 201, String(created.error));
@@ -34,6 +35,7 @@ const fields = (o: Outcome) => (o.error?.details ?? o.error?.errors ?? []).map((
 test('M11-B CMS: evidence gate, policy approval, versioning and rollback', { skip: !process.env.TEST_MONGO_URI }, async () => {
   await mongoose.connect(process.env.TEST_MONGO_URI!, { dbName: `guiatv_test_m11b_${process.pid}` });
   const env = { ...process.env };
+  process.env.EDITORIAL_PIPELINE_SIGNING_KEY = KEY;
   try {
     await BlogPostModel.init();
     const id = await aiPost('el-padrino-en-la-2');
@@ -46,6 +48,11 @@ test('M11-B CMS: evidence gate, policy approval, versioning and rollback', { ski
     assert.match(String((await call(controller.approveByPolicy, { params: { id } })).error), /disabled/);
 
     process.env.EDITORIAL_POLICY_PUBLISHING = 'enabled';
+    // Replayed role answers, or a bundle the runner did not sign, need a named reviewer.
+    assert.ok(fields(await call(controller.approveByPolicy, { params: { id: await aiPost('el-padrino-replay', pass, 'replay') } })).includes('editorial'));
+    process.env.EDITORIAL_PIPELINE_SIGNING_KEY = 'another-key';
+    assert.ok(fields(await call(controller.approveByPolicy, { params: { id } })).includes('editorial'));
+    process.env.EDITORIAL_PIPELINE_SIGNING_KEY = KEY;
     const approved = await call(controller.approveByPolicy, { params: { id } });
     assert.equal(approved.code, 200, JSON.stringify(approved.error));
     assert.equal(approved.body.data.post.status, 'publish');
@@ -55,9 +62,9 @@ test('M11-B CMS: evidence gate, policy approval, versioning and rollback', { ski
 
     // Editing the text outside the pipeline: kept as a revision, offline, and the evidence no longer matches.
     const live = (await BlogPostModel.findById(id).lean())!;
-    const edited = await call(controller.updatePost, { params: { id }, body: { status: 'draft', content: String(live.content).replace('22:00', '23:00') } });
+    const edited = await call(controller.updatePost, { params: { id }, body: { status: 'draft', content: String(live.content).replace('22:00', '23:00'), faqItems: [{ question: '¿Hora?', answer: 'Tarde' }] } });
     assert.equal(edited.body?.data.post.status, 'draft', String(edited.error?.stack));
-    assert.deepEqual(fields(await call(controller.approveByPolicy, { params: { id } })), ['content-not-reviewed-draft']);
+    assert.deepEqual(fields(await call(controller.approveByPolicy, { params: { id } })), ['content-not-reviewed-draft', 'faq-not-evidenced']);
     // The human path runs the same evidence gate, and acknowledgements cannot waive a block.
     const human = await call(controller.approvePost, { params: { id }, body: { reviewer: 'Revisora Prueba', acknowledge: 'unverified-claims,near-duplicate' } });
     assert.ok(fields(human).includes('content-not-reviewed-draft'));
@@ -67,8 +74,16 @@ test('M11-B CMS: evidence gate, policy approval, versioning and rollback', { ski
     assert.equal(rolled.body.data.post.status, 'publish', 'the approved text comes back with its approval');
     const after = (await BlogPostModel.findById(id).lean())!;
     assert.equal(after.content, live.content);
-    assert.deepEqual(after.revisions!.map((r) => [r.version, r.reason, r.status]), [[1, 'update', 'publish'], [2, 'rollback to 1', 'draft']]);
+    assert.deepEqual(after.faqItems, [], 'the whole document comes back, not only the text');
+    assert.deepEqual(after.revisions!.map((r) => [r.version, r.reason, r.snapshot.status]), [[1, 'update', 'publish'], [2, 'rollback to 1', 'draft']]);
     assert.match(String((await call(controller.rollbackPost, { params: { id }, body: { version: 9 } })).error), /Unknown revision/);
+    // With the policy switch off again, a policy approval is not restored: the text comes back as a draft.
+    delete process.env.EDITORIAL_POLICY_PUBLISHING;
+    await call(controller.updatePost, { params: { id }, body: { status: 'draft', title: 'Otro título para El Padrino en La 2' } });
+    const offline = await call(controller.rollbackPost, { params: { id }, body: { version: 3 } });
+    assert.equal(offline.body.data.post.status, 'draft');
+    process.env.EDITORIAL_POLICY_PUBLISHING = 'enabled';
+    assert.equal((await call(controller.rollbackPost, { params: { id }, body: { version: 3 } })).body.data.post.status, 'publish');
 
     // A draft the critic did not pass is refused by both paths.
     const rejected = await aiPost('el-padrino-revisar', { verdict: 'revise', issues: [{ severity: 'high', message: 'exagera' }] });
@@ -84,6 +99,8 @@ test('M11-B CMS: evidence gate, policy approval, versioning and rollback', { ski
 
     // Daily cap on policy publications.
     process.env.EDITORIAL_POLICY_DAILY_LIMIT = '1';
+    // Unpublishing the first post does not free its slot: the ledger is append-only.
+    await BlogPostModel.updateOne({ _id: id }, { status: 'draft', reviewState: 'unreviewed', $unset: { reviewedBy: 1 } });
     const third = await aiPost('el-padrino-tercero');
     assert.match(String((await call(controller.approveByPolicy, { params: { id: third } })).error), /limit reached/);
   } finally {

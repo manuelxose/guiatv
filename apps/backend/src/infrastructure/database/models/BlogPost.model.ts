@@ -99,15 +99,8 @@ export interface IBlogPostRevision {
   version: number;
   savedAt: Date;
   reason: string;
-  title: string;
-  excerpt?: string;
-  content?: string;
-  seo?: IBlogPostDocument['seo'];
-  status: 'draft' | 'publish';
-  reviewState: EditorialReviewState;
-  reviewedBy?: string;
-  reviewedAt?: Date;
-  editorial?: EditorialProvenance;
+  /** The whole post at that moment, without _id, timestamps and revisions. */
+  snapshot: Omit<IBlogPostDocument, 'revisions' | 'createdAt' | 'updatedAt'>;
 }
 
 const BlogPostCategorySchema = new Schema<IBlogPostCategory>(
