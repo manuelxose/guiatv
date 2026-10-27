@@ -18,6 +18,7 @@ import {
   stripClaimMarkers,
   verifyBundle,
 } from './EditorialEvidence';
+import { policyGateFailures } from './EditorialReviewPolicy';
 
 const NOW = new Date('2026-10-26T12:00:00Z');
 const RETRIEVED = '2026-10-26T09:00:00Z';
@@ -59,7 +60,7 @@ const render = (md: string) =>
   `<div class="editorial-body"><p>${stripClaimMarkers(md).replace(/^# .*\n/, '').replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')}</p>` +
   `${aiDisclosure(new Date(RETRIEVED))}</div>`;
 
-function provenanceFor(bundle: EvidenceBundle, draftMarkdown = DRAFT, verdict: 'pass' | 'revise' = 'pass'): EditorialProvenance {
+function provenanceFor(bundle: EvidenceBundle, draftMarkdown = DRAFT, verdict: 'pass' | 'revise' | 'block' = 'pass'): EditorialProvenance {
   const bundleHash = hashBundle(bundle);
   const draftHash = hashText(draftMarkdown);
   return {
@@ -149,7 +150,11 @@ test('publication gate: fabricated sources, experience, placeholders and missing
 
 test('publication gate: the critic must have passed this exact draft and bundle', () => {
   const v = verifyBundle(bundleFixture(), snapshots);
-  assert.deepEqual(codes(evaluateEvidence({ author: AI_AUTHOR, content: render(DRAFT) }, provenanceFor(v, DRAFT, 'revise'), NOW)), ['critic-rejected']);
+  const revise = evaluateEvidence({ author: AI_AUTHOR, content: render(DRAFT) }, provenanceFor(v, DRAFT, 'revise'), NOW);
+  assert.deepEqual(revise.map((x) => `${x.severity}:${x.code}`), ['human:critic-rejected'], 'a revise is for a named reviewer to judge');
+  assert.deepEqual(policyGateFailures(revise).map((x) => x.code), ['critic-rejected'], 'never for the policy');
+  const veto = evaluateEvidence({ author: AI_AUTHOR, content: render(DRAFT) }, provenanceFor(v, DRAFT, 'block'), NOW);
+  assert.deepEqual(veto.map((x) => `${x.severity}:${x.code}`), ['block:critic-rejected']);
   const stale = { ...provenanceFor(v), critic: { ...provenanceFor(v).critic!, draftHash: 'older' } };
   assert.deepEqual(codes(evaluateEvidence({ author: AI_AUTHOR, content: render(DRAFT) }, stale, NOW)), ['critic-stale']);
   const { critic: _c, ...none } = provenanceFor(v);

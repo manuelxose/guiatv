@@ -22,6 +22,7 @@ const server = createServer((req, res) => {
       if (mode === 'reset') return req.socket.destroy();
       return undefined; // 'hang': never answers
     }
+    if (req.url.startsWith('/v2/admin/editorial/overview')) return res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ data: { policy: { dailyLimit: 3 } } }));
     if (req.url.startsWith('/v2/admin/editorial/jobs')) { reports.push(JSON.parse(body)); return res.writeHead(201).end('{}'); }
     if (req.url.startsWith('/v2/blog')) return res.writeHead(200, { 'content-type': 'application/json' }).end('[]');
     return res.writeHead(200).end('ok');

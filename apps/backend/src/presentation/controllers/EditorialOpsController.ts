@@ -23,21 +23,33 @@ import { editorialCoverPreview } from '../middlewares/editorialMediaGate';
  */
 
 const db = () => BlogPostModel.db;
-const settings = () => db().collection<{ _id: string; paused?: boolean; pausedAt?: Date; pausedBy?: string; pausedReason?: string }>('editorial_settings');
+const settings = () => db().collection<{ _id: string; paused?: boolean; pausedAt?: Date; pausedBy?: string; pausedReason?: string; dailyLimit?: number; dailyLimitBy?: string; dailyLimitAt?: Date }>('editorial_settings');
 const audit = () => db().collection('editorial_audit');
 const jobs = () => db().collection('editorial_jobs');
 const DAY = 864e5;
+
+/**
+ * M11-D: AI articles per day (pipeline runs and policy publications). Recommended 3: a steady cadence of
+ * well-sourced guides; Google's scaled-content policy targets volume without value, not a number, so the cap is
+ * a quality brake rather than an SEO target. Changeable at any time from the Admin, within 1..10.
+ */
+export const DAILY_LIMIT = Object.freeze({ recommended: 3, min: 1, max: 10 });
+const validDailyLimit = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= DAILY_LIMIT.min && (n as number) <= DAILY_LIMIT.max;
 
 /** Automatic publication needs the deploy-time switch on AND no emergency stop from the Admin. */
 export async function editorialPolicyState() {
   const doc = await settings().findOne({ _id: 'policy' });
   const envEnabled = process.env.EDITORIAL_POLICY_PUBLISHING === 'enabled';
   const paused = Boolean(doc?.paused);
+  // The Admin setting wins; then the deploy-time env (legacy); then the recommendation.
+  const envLimit = Number(process.env.EDITORIAL_POLICY_DAILY_LIMIT);
+  const dailyLimit = validDailyLimit(doc?.dailyLimit) ? doc!.dailyLimit : validDailyLimit(envLimit) ? envLimit : DAILY_LIMIT.recommended;
   return {
     envEnabled, paused, active: envEnabled && !paused,
     pausedAt: doc?.paused ? doc.pausedAt?.toISOString() ?? null : null,
     pausedBy: doc?.paused ? doc.pausedBy ?? null : null,
     pausedReason: doc?.paused ? doc.pausedReason ?? null : null,
+    dailyLimit, dailyLimitBy: doc?.dailyLimitBy ?? null, dailyLimitRange: DAILY_LIMIT,
   };
 }
 
@@ -86,14 +98,13 @@ export class EditorialOpsController {
     res.json(successResponse({
       policy: {
         ...policy, approvalsLast24h,
-        dailyLimit: Number(process.env.EDITORIAL_POLICY_DAILY_LIMIT ?? 3),
         signingKeyConfigured: Boolean(process.env.EDITORIAL_PIPELINE_SIGNING_KEY),
         liveProviders: [...LIVE_PROVIDERS],
       },
       limits: {
         maxArticleUsd: Number(process.env.EDITORIAL_MAX_ARTICLE_USD ?? DEFAULT_EDITORIAL_LIMITS.maxArticleUsd),
         maxDailyUsd: Number(process.env.EDITORIAL_MAX_DAILY_USD ?? DEFAULT_EDITORIAL_LIMITS.maxDailyUsd),
-        maxDailyArticles: Number(process.env.EDITORIAL_MAX_DAILY ?? DEFAULT_EDITORIAL_LIMITS.maxDailyArticles),
+        maxDailyArticles: policy.dailyLimit,
       },
       routes, imageRoutes,
       spend: {
@@ -170,6 +181,19 @@ export class EditorialOpsController {
     const by = String(req.header('x-editorial-reviewer') || '').trim().slice(0, 120) || actor(req);
     await settings().updateOne({ _id: 'policy' }, { $set: { paused: false }, $unset: { pausedAt: 1, pausedBy: 1, pausedReason: 1 } }, { upsert: true });
     await audit().insertOne({ at: new Date(), action: 'policy-resume', by, actor: actor(req) });
+    res.json(successResponse({ policy: await editorialPolicyState() }));
+  };
+
+  /** Articles per day; needs the human review key (router), so the runner cannot raise its own cap. */
+  setDailyLimit = async (req: Request, res: Response): Promise<void> => {
+    const dailyLimit = Number(req.body?.dailyLimit);
+    if (!validDailyLimit(dailyLimit)) {
+      throw new ValidationError('Invalid daily limit', [{ field: 'dailyLimit', message: `An integer from ${DAILY_LIMIT.min} to ${DAILY_LIMIT.max}`, value: req.body?.dailyLimit }]);
+    }
+    const by = String(req.header('x-editorial-reviewer') || '').trim().slice(0, 120) || actor(req);
+    const before = (await editorialPolicyState()).dailyLimit;
+    await settings().updateOne({ _id: 'policy' }, { $set: { dailyLimit, dailyLimitBy: by, dailyLimitAt: new Date() } }, { upsert: true });
+    await audit().insertOne({ at: new Date(), action: 'daily-limit', by, actor: actor(req), from: before, to: dailyLimit });
     res.json(successResponse({ policy: await editorialPolicyState() }));
   };
 

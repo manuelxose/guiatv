@@ -86,10 +86,15 @@ test('M11-B CMS: evidence gate, policy approval, versioning and rollback', { ski
     process.env.EDITORIAL_POLICY_PUBLISHING = 'enabled';
     assert.equal((await call(controller.rollbackPost, { params: { id }, body: { version: 3 } })).body.data.post.status, 'publish');
 
-    // A draft the critic did not pass is refused by both paths.
+    // M11-D: a critic 'revise' never publishes by policy; a named reviewer must acknowledge it explicitly. A 'block' is final.
     const rejected = await aiPost('el-padrino-revisar', { verdict: 'revise', issues: [{ severity: 'high', message: 'exagera' }] });
     assert.ok(fields(await call(controller.approveByPolicy, { params: { id: rejected } })).includes('critic-rejected'));
-    assert.ok(fields(await call(controller.approvePost, { params: { id: rejected }, body: { reviewer: 'Revisora Prueba', acknowledge: 'unverified-claims' } })).includes('critic-rejected'));
+    assert.ok(fields(await call(controller.approvePost, { params: { id: rejected }, body: { reviewer: 'Revisora Prueba', acknowledge: 'unverified-claims' } })).includes('acknowledge:critic-rejected'));
+    // Acknowledged, the critic no longer stops the reviewer (this twin of a public guide may still fail other gates).
+    const taken = fields(await call(controller.approvePost, { params: { id: rejected }, body: { reviewer: 'Revisora Prueba', acknowledge: 'unverified-claims,critic-rejected' } }));
+    assert.ok(!taken.some((f: string) => f.endsWith('critic-rejected')), JSON.stringify(taken));
+    const vetoed = await aiPost('el-padrino-vetado', { verdict: 'block', issues: [{ severity: 'high', message: 'inventa' }] });
+    assert.ok(fields(await call(controller.approvePost, { params: { id: vetoed }, body: { reviewer: 'Revisora Prueba', acknowledge: 'unverified-claims,critic-rejected' } })).includes('critic-rejected'));
 
     // A near-identical twin of a public guide is a block; the policy path never acknowledges judgements.
     assert.ok(fields(await call(controller.approveByPolicy, { params: { id: await aiPost('el-padrino-copia') } })).includes('near-identical'));

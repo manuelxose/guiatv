@@ -477,8 +477,8 @@ export class BlogController {
           { field: 'editorial', message: `Provenance is not signed by the pipeline with live providers${providerProblem ? ` (${providerProblem})` : ''} — use the named-reviewer approval`, value: postId },
         ]);
       }
-      const dailyLimit = Number(process.env.EDITORIAL_POLICY_DAILY_LIMIT ?? 3);
-      if (!Number.isInteger(dailyLimit) || dailyLimit < 1) throw new ForbiddenError('EDITORIAL_POLICY_DAILY_LIMIT must be a positive integer');
+      // Set from the Admin at any time (editorial_settings), validated there; see DAILY_LIMIT.
+      const { dailyLimit } = policy;
       try {
         assertEditorialPostCanBeApproved(post.toObject());
       } catch (error) {

@@ -18,6 +18,7 @@ export const createAdminEditorialRoutes = (controller: EditorialOpsController, a
   router.get('/posts/:id', asyncHandler(controller.post));
   router.post('/policy/pause', strictRateLimit, asyncHandler(controller.pause));
   router.post('/policy/resume', strictRateLimit, humanEditorialReviewGuard, asyncHandler(controller.resume));
+  router.post('/policy/daily-limit', strictRateLimit, humanEditorialReviewGuard, asyncHandler(controller.setDailyLimit));
   router.post('/jobs', asyncHandler(controller.recordJob));
   router.post(
     '/media/:sha256',

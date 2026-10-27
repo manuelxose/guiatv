@@ -149,6 +149,18 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
       const pausedBy = await (await fetch(`${base}/policy/pause`, { method: 'POST', headers: { ...bearer('admin-token'), 'content-type': 'application/json' }, body: JSON.stringify({ reason: 'http' }) })).json() as any;
       assert.equal(pausedBy.data.policy.pausedBy, 'admin-token@x');
       assert.equal(await status('/media/' + asset.sha256, { method: 'POST', headers: { 'content-type': 'image/png' }, body: bytes }), 401);
+      // M11-D: articles per day, changeable at any time, only with the human key; the runner cannot raise its own cap.
+      const setLimit = (n: unknown, headers: Record<string, string>) => fetch(`${base}/policy/daily-limit`, { method: 'POST', headers: { ...bearer('admin-token'), 'content-type': 'application/json', ...headers }, body: JSON.stringify({ dailyLimit: n }) });
+      assert.equal((await (await fetch(`${base}/overview`, { headers: bearer('admin-token') })).json() as any).data.policy.dailyLimit, 3, 'recommended default');
+      assert.equal((await setLimit(5, {})).status, 403);
+      assert.equal((await setLimit(5, { 'x-editorial-review-key': 'automation-key-test', 'x-editorial-reviewer': 'auctorio-bot' })).status, 403);
+      assert.equal((await setLimit(11, { 'x-editorial-review-key': 'review-key-test' })).status, 400);
+      assert.equal((await setLimit(2.5, { 'x-editorial-review-key': 'review-key-test' })).status, 400);
+      const set = await setLimit(5, { 'x-editorial-review-key': 'review-key-test', 'x-editorial-reviewer': 'Revisora Prueba' });
+      assert.equal(set.status, 200);
+      const after = (await (await fetch(`${base}/overview`, { headers: bearer('admin-token') })).json() as any).data;
+      assert.deepEqual([after.policy.dailyLimit, after.policy.dailyLimitBy, after.limits.maxDailyArticles], [5, 'Revisora Prueba', 5]);
+      assert.ok(await mongoose.connection.collection('editorial_audit').findOne({ action: 'daily-limit', from: 3, to: 5 }));
       // M11-D: the runner's policy key is not a reviewer key, whatever header it is sent in.
       process.env.EDITORIAL_POLICY_KEY = 'policy-key-test';
       assert.equal(await status('/policy/resume', { method: 'POST', headers: { ...bearer('admin-token'), 'x-editorial-review-key': 'policy-key-test' } }), 403, 'the runner cannot lift a stop');
