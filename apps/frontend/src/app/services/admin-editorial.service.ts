@@ -16,6 +16,10 @@ export type EditorialSeverity = 'block' | 'warn' | 'human';
 export interface EditorialPolicyStatus {
   envEnabled: boolean;
   paused: boolean;
+  /** M11-E2: one-time administrative activation (human key); the env switch alone publishes nothing. */
+  activated: boolean;
+  activatedAt: string | null;
+  activatedBy: string | null;
   active: boolean;
   pausedAt: string | null;
   pausedBy: string | null;
@@ -48,6 +52,23 @@ export interface EditorialJobSummary {
   costEntries: EditorialCostEntry[];
   blockingCodes: string[];
   imageFailure: string | null;
+  /** M11-E2 (absent on older reports). */
+  revisions?: number;
+  revisionLog?: string[];
+  budget?: 'capped' | 'unlimited';
+  publicUrl?: string | null;
+}
+
+/** M11-E2: today's attempts and their outcome; attempts and publications are counted separately. */
+export interface EditorialToday {
+  generated: number;
+  published: number;
+  ready: number;
+  held: number;
+  rejected: number;
+  revisions: number;
+  models: Record<string, { calls: number; inputTokens: number; outputTokens: number; usd: number }>;
+  reasons: Record<string, number>;
 }
 
 export interface EditorialPostSummary {
@@ -71,7 +92,9 @@ export interface EditorialPostSummary {
 
 export interface EditorialOverview {
   policy: EditorialPolicyStatus;
-  limits: { maxArticleUsd: number; maxDailyUsd: number; maxDailyArticles: number };
+  /** USD caps are null when the runner reported EDITORIAL_BUDGET=unlimited. */
+  limits: { budget: 'capped' | 'unlimited'; maxArticleUsd: number | null; maxDailyUsd: number | null; maxDailyArticles: number };
+  today: EditorialToday;
   routes: Record<EditorialRole, Array<{ provider: string; model: string; effort: 'low' | 'medium' | 'high' }>>;
   imageRoutes: Array<{ provider: string; model: string }>;
   spend: { todayUsd: number; last30dUsd: number };

@@ -49,6 +49,9 @@ test('M11-B CMS: evidence gate, policy approval, versioning and rollback', { ski
     assert.match(String((await call(controller.approveByPolicy, { params: { id } })).error), /disabled/);
 
     process.env.EDITORIAL_POLICY_PUBLISHING = 'enabled';
+    // M11-E2: the switch only makes the mode available; nothing publishes until an administrator activates it once.
+    assert.match(String((await call(controller.approveByPolicy, { params: { id } })).error), /not been activated/);
+    await BlogPostModel.db.collection<{ _id: string }>('editorial_settings').updateOne({ _id: 'policy' }, { $set: { activatedAt: new Date(), activatedBy: 'Revisora Prueba' } }, { upsert: true });
     // Replayed role answers, or a bundle the runner did not sign, need a named reviewer.
     assert.ok(fields(await call(controller.approveByPolicy, { params: { id: await aiPost('el-padrino-replay', pass, 'replay') } })).includes('editorial'));
     process.env.EDITORIAL_PIPELINE_SIGNING_KEY = 'another-key';

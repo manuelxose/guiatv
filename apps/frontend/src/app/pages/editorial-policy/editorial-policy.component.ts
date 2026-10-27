@@ -34,12 +34,17 @@ import { MetaService } from '../../services/meta.service';
           decide una persona.</p>
       </section>
       <section class="space-y-3">
-        <h2 class="text-xl font-semibold">Supervisión humana</h2>
-        <p>Preparar un borrador es automático; publicarlo es una decisión aparte. Hoy ningún artículo nuevo se publica
-          sin que lo apruebe una persona identificada, y la aprobación registra quién la dio y cuándo.</p>
-        <p>Existe una vía de publicación automática para los artículos que superan todas las comprobaciones, con un
-          límite diario. Está desactivada. Si la activamos, lo indicaremos en esta página: a partir de entonces no todos
-          los artículos tendrán una revisión humana individual.</p>
+        <h2 class="text-xl font-semibold">Supervisión humana y publicación automática</h2>
+        <p>Preparar un borrador es automático; publicarlo es una decisión aparte, que se toma de una de estas dos formas:</p>
+        <ul class="list-disc pl-6 space-y-1">
+          <li>Una persona identificada aprueba el artículo, y la aprobación registra quién la dio y cuándo.</li>
+          <li>La publicación automática: un artículo de IA que supera todas las comprobaciones anteriores se publica sin
+            una revisión humana individual. Si una comprobación falla, el sistema corrige el borrador y lo vuelve a
+            comprobar entero un número limitado de veces; si no lo consigue, el artículo no se publica.</li>
+        </ul>
+        <p>Las personas responsables de Guía TV deciden si la publicación automática está activa, fijan cuántos artículos
+          puede publicar al día y pueden detenerla en cualquier momento. Cada artículo registra si lo aprobó una persona
+          o la política automática.</p>
       </section>
       <section class="space-y-3">
         <h2 class="text-xl font-semibold">Fuentes y actualidad</h2>

@@ -4,6 +4,9 @@ import { policyStateText } from './admin-editorial-section.component';
 const BASE: EditorialPolicyStatus = {
   envEnabled: true,
   paused: false,
+  activated: true,
+  activatedAt: null,
+  activatedBy: 'ana@guiatv.es',
   active: true,
   pausedAt: null,
   pausedBy: null,
@@ -18,7 +21,13 @@ const BASE: EditorialPolicyStatus = {
 
 describe('policyStateText', () => {
   it('reports active publication', () => {
-    expect(policyStateText(BASE)).toBe('Publicación automática: activa');
+    expect(policyStateText(BASE)).toBe('Publicación automática: activa (activada por ana@guiatv.es). Sin aprobación humana por artículo.');
+  });
+
+  it('reports a switch that is on but not yet activated by an administrator', () => {
+    expect(policyStateText({ ...BASE, activated: false, active: false, activatedBy: null })).toBe(
+      'Publicación automática: disponible, pendiente de activación por un administrador'
+    );
   });
 
   it('reports env-disabled publication', () => {

@@ -116,11 +116,30 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     assert.equal((await call(ops.recordJob, { body: { ...job, jobId: 'y', costUsd: -1 } })).error?.name, 'ValidationError');
     assert.equal((await mongoose.connection.collection('editorial_jobs').findOne({ jobId: job.jobId }))!.draftMarkdown, undefined);
 
+    // M11-E2: the audit of an autonomous job (revisions, budget mode, public URL); a URL off the site is not stored.
+    const auto = { ...job, jobId: '2026-10-27T11:00:00.000Z-y', slug: 'y', startedAt: new Date(Date.parse(job.startedAt) + 1).toISOString(), state: 'published', reason: null, blockingCodes: [], revisions: 2, revisionLog: ['revise/re-research:unsupported-claim', 'revise/rewrite', 'pass/pass'], budget: 'unlimited', publicUrl: 'https://guiaprogramaciontv.com/guias/y', costEntries: [{ role: 'critic', model: 'claude-opus-5-5', inputTokens: 10, outputTokens: 20, searches: 0, usd: 0.1 }], costUsd: 0.1 };
+    assert.equal((await call(ops.recordJob, { body: auto })).code, 201);
+    assert.equal((await call(ops.recordJob, { body: { ...auto, jobId: 'z', startedAt: '2026-10-01T00:00:00.000Z', publicUrl: 'https://evil.example/guias/y' } })).code, 201);
+    assert.equal((await mongoose.connection.collection('editorial_jobs').findOne({ jobId: 'z' }))!.publicUrl, null);
+    await mongoose.connection.collection('editorial_jobs').updateOne({ jobId: job.jobId }, { $set: { blockingCodes: ['no-distinct-value'] } });
+    // Review M3/M4/L1: hostile numbers and names are neutralised at ingest; a non-ISO date is stored as ISO.
+    const hostile = { ...job, jobId: 'h', startedAt: 'Tue Oct 01 2026 10:00:00 GMT+0000', costEntries: [{ role: 'x', model: '__proto__', inputTokens: '1e309', outputTokens: -5, searches: 0, usd: 'Infinity' }] };
+    assert.equal((await call(ops.recordJob, { body: hostile })).code, 201);
+    const row = (await mongoose.connection.collection('editorial_jobs').findOne({ jobId: 'h' }))!;
+    assert.deepEqual([row.startedAt, row.costEntries[0].model, row.costEntries[0].inputTokens, row.costEntries[0].outputTokens, row.costEntries[0].usd], ['2026-10-01T10:00:00.000Z', null, 0, 0, 0]);
+    assert.equal(({} as Record<string, unknown>).calls, undefined, 'Object.prototype untouched');
+
     const overview = (await call(ops.overview)).body.data;
     assert.equal(overview.policy.approvalsLast24h, 1);
     assert.equal(overview.policy.signingKeyConfigured, true);
-    assert.equal(overview.spend.todayUsd, 0.42);
-    assert.deepEqual(overview.jobs.map((j: { jobId: string }) => j.jobId), [job.jobId]);
+    assert.deepEqual([overview.policy.activated, overview.policy.activatedBy], [true, 'admin-key'], 'the last resume (no reviewer header) re-activated');
+    assert.equal(overview.spend.todayUsd, 0.52);
+    assert.deepEqual(overview.jobs.map((j: { jobId: string }) => j.jobId), [auto.jobId, job.jobId, 'h', 'z']);
+    assert.deepEqual([overview.limits.budget, overview.limits.maxDailyUsd], ['unlimited', null], 'the runner reported an unlimited budget');
+    assert.deepEqual(JSON.parse(JSON.stringify(overview.today)), {
+      generated: 2, published: 1, ready: 0, held: 0, rejected: 1, revisions: 2,
+      models: { 'claude-opus-5-5': { calls: 2, inputTokens: 11, outputTokens: 22, usd: 0.52 } }, reasons: { 'no-distinct-value': 1 },
+    });
     // The cover post could not be relabelled, so it stays in the AI list with its provenance.
     assert.deepEqual(overview.posts.map((p: { slug: string }) => p.slug), ['el-padrino-portada', 'el-padrino-m11c']);
     assert.deepEqual(overview.posts[1].claims, { supported: 4, conflicting: 0, unverified: 1 });
@@ -161,6 +180,9 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
       const after = (await (await fetch(`${base}/overview`, { headers: bearer('admin-token') })).json() as any).data;
       assert.deepEqual([after.policy.dailyLimit, after.policy.dailyLimitBy, after.limits.maxDailyArticles], [5, 'Revisora Prueba', 5]);
       assert.ok(await mongoose.connection.collection('editorial_audit').findOne({ action: 'daily-limit', from: 3, to: 5 }));
+      // M11-E2 testing profile: 10 a day, stored on the server, applied without a deploy.
+      assert.equal((await setLimit(10, { 'x-editorial-review-key': 'review-key-test', 'x-editorial-reviewer': 'Revisora Prueba' })).status, 200);
+      assert.equal((await (await fetch(`${base}/overview`, { headers: bearer('admin-token') })).json() as any).data.policy.dailyLimit, 10);
       // M11-D: the runner's policy key is not a reviewer key, whatever header it is sent in.
       process.env.EDITORIAL_POLICY_KEY = 'policy-key-test';
       assert.equal(await status('/policy/resume', { method: 'POST', headers: { ...bearer('admin-token'), 'x-editorial-review-key': 'policy-key-test' } }), 403, 'the runner cannot lift a stop');

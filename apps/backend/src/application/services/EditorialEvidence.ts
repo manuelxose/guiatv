@@ -52,6 +52,8 @@ export interface EvidenceClaim {
   status?: ClaimStatus;
   /** Why it is not supported (filled by the deterministic verifier or a conflict review). */
   note?: string;
+  /** Legal references in the text that verifyBundle located around a verified quote (never set by a model). */
+  legalRefs?: string[];
 }
 
 export interface EvidenceBundle {
@@ -188,6 +190,47 @@ export function sourceKindFor(url: string): EvidenceSourceKind {
 }
 
 /**
+ * M11-E2: a legal reference ("art. 98.1", "artículo 99", "Ley 13/2022") names a provision, it is not a figure.
+ * Its numbers may be absent from the quote, but only when the verifier places the quote inside that provision.
+ */
+const LEGAL_REF = /\b(?:art(?:[íi]culo|s?\.)\s*(\d+)(?:\.(\d+))?\b|(?:Ley(?:\s+Org[áa]nica)?|Real\s+Decreto(?:-ley)?|Decreto(?:-ley)?|Directiva(?:\s+\(UE\))?|Reglamento(?:\s+\(UE\))?)\s+(\d+\/\d{4})\b)/gi;
+interface LegalRef { key: string; numbers: string[]; article?: string; apartado?: string; id?: string }
+export function legalRefsIn(text: string): LegalRef[] {
+  return [...String(text).matchAll(LEGAL_REF)].map((m) => ({
+    key: m[3] ? `${m[0].replace(/\s+\d.*$/, '').replace(/\s+/g, ' ').toLowerCase()} ${m[3]}` : `art. ${m[1]}${m[2] ? `.${m[2]}` : ''}`,
+    numbers: numbersIn(m[0]), article: m[1], apartado: m[2], id: m[3],
+  }));
+}
+/** `text` without the spans of the references in `located`: their numbers are references, any other copy is a figure. */
+export function withoutLocatedRefs(text: string, located: Iterable<string>): string {
+  const keys = new Set(located);
+  return String(text).replace(LEGAL_REF, (span) => (keys.has(legalRefsIn(span)[0]?.key ?? '') ? ' ' : span));
+}
+/** The law a source page is: its first legal identifier (a BOE page opens with its own title). */
+const ownLaw = (raw: string) => legalRefsIn(raw).find((r) => r.id)?.key;
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/**
+ * Raw source text of a provision: from an "Artículo N." heading (capitalised: cross-references are lowercase) to the next
+ * heading, and within it from apartado "K. " to "K+1. ". Every occurrence counts, because a BOE page lists its index first.
+ */
+function provisionTexts(raw: string, article: string, apartado?: string): string[] {
+  const heading = /(?:^|\s)Art[íi]culo \d+\.\s/g;
+  const out: string[] = [];
+  for (const m of raw.matchAll(new RegExp(`(?:^|\\s)Art[íi]culo ${escapeRe(article)}\\.\\s`, 'g'))) {
+    heading.lastIndex = m.index! + m[0].length;
+    const end = heading.exec(raw)?.index ?? raw.length;
+    const body = raw.slice(m.index!, end);
+    if (!apartado) { out.push(body); continue; }
+    const start = new RegExp(`\\s${apartado}\\.\\s+\\p{Lu}`, 'u').exec(body);
+    if (!start) continue;
+    const rest = body.slice(start.index + 1);
+    const next = new RegExp(`\\s${Number(apartado) + 1}\\.\\s+\\p{Lu}`, 'u').exec(rest);
+    out.push(rest.slice(0, next?.index ?? rest.length));
+  }
+  return out;
+}
+
+/**
  * Deterministic verification against fetched source text (snapshots keyed by source id). A claim is
  * supported when a verified quote comes from an official/dataset/internal source, or from two press
  * sources on different domains; and every number the claim states appears in one of its verified quotes.
@@ -198,15 +241,26 @@ export function verifyBundle(bundle: EvidenceBundle, snapshots: ReadonlyMap<stri
   const normalized = new Map([...snapshots].map(([id, text]) => [id, normalizeForMatch(text)]));
   return assessBundle({
     ...bundle,
-    claims: bundle.claims.map((claim) => ({
-      ...claim,
-      quotes: claim.quotes.map((q) => {
+    claims: bundle.claims.map((claim) => {
+      const quotes = claim.quotes.map((q) => {
         const source = sources.get(q.sourceId);
         const text = normalized.get(q.sourceId);
         const needle = normalizeForMatch(q.quote);
         return { ...q, verified: Boolean(source?.retrievedAt && source.contentHash && text && needle.length >= MIN_QUOTE_CHARS && containsQuote(text, needle)) };
-      }),
-    })),
+      });
+      // A reference counts when one verified quote comes from that law's own page and, for an article, lies inside it.
+      // An article in a claim that also names a law must be found in that law, not in any page that has an article N.
+      const refs = legalRefsIn(claim.text);
+      const law = refs.find((r) => r.id)?.key;
+      const legalRefs = refs.filter((ref) => quotes.some((q) => {
+        const raw = q.verified ? snapshots.get(q.sourceId) : undefined;
+        if (!raw) return false;
+        if (ref.id) return ownLaw(raw) === ref.key;
+        if (law && ownLaw(raw) !== law) return false;
+        return provisionTexts(raw, ref.article!, ref.apartado).some((p) => containsQuote(normalizeForMatch(p), normalizeForMatch(q.quote)));
+      })).map((ref) => ref.key);
+      return { ...claim, quotes, legalRefs };
+    }),
   });
 }
 
@@ -228,7 +282,11 @@ export function assessBundle(bundle: EvidenceBundle): EvidenceBundle {
     const primary = good.some((s) => s.kind !== 'press');
     const pressDomains = new Set(good.filter((s) => s.kind === 'press').map((s) => registrableDomain(s.url)));
     const quotedNumbers = new Set(quotes.filter((q) => q.verified).flatMap((q) => numbersIn(q.quote)));
-    const missingNumbers = numbersIn(claim.text).filter((n) => !quotedNumbers.has(n));
+    // A located reference's span is not a figure; the rest of the text is checked as before. Any unlocated reference fails,
+    // even when the quote happens to contain its numbers: the attribution itself is the claim.
+    const located = new Set(claim.legalRefs ?? []);
+    const unlocated = legalRefsIn(claim.text).filter((r) => !located.has(r.key));
+    const missingNumbers = numbersIn(withoutLocatedRefs(claim.text, located)).filter((n) => !quotedNumbers.has(n));
 
     let status: ClaimStatus = 'supported';
     let note: string | undefined;
@@ -241,6 +299,9 @@ export function assessBundle(bundle: EvidenceBundle): EvidenceBundle {
     } else if (!primary && pressDomains.size < 2) {
       status = 'unverified';
       note = 'solo una fuente de prensa: hace falta la fuente oficial o un segundo medio independiente';
+    } else if (unlocated.length) {
+      status = 'unverified';
+      note = `referencia legal no localizada junto a la cita: ${unlocated.map((r) => r.key).join(', ')}`;
     } else if (missingNumbers.length) {
       status = 'unverified';
       note = `cifras sin respaldo en las citas: ${missingNumbers.join(', ')}`;
@@ -267,7 +328,8 @@ function allowedNumbers(claims: EvidenceClaim[]): Set<string> {
   const out = new Set<string>();
   const madrid = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
   for (const claim of claims) {
-    numbersIn(claim.text).forEach((n) => out.add(n));
+    // A provision's numbers are not figures: they are allowed only as that reference (refNumbers).
+    numbersIn(withoutLocatedRefs(claim.text, claim.legalRefs ?? [])).forEach((n) => out.add(n));
     for (const q of claim.quotes.filter((x) => x.verified)) {
       numbersIn(q.quote).forEach((n) => out.add(n));
       for (const [iso] of q.quote.matchAll(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?Z/g)) {
@@ -280,6 +342,8 @@ function allowedNumbers(claims: EvidenceClaim[]): Set<string> {
   }
   return out;
 }
+/** Numbers of `text` once the spans of references located by `claims` are removed: a reference is not a figure, a copy of its number is. */
+const figuresIn = (text: string, claims: EvidenceClaim[]) => numbersIn(withoutLocatedRefs(text, claims.flatMap((c) => c.legalRefs ?? [])));
 const stripListNumber = (unit: string) => unit.replace(/^\s*\d{1,2}[.)]\s+/, '');
 const FABRICATED_EXPERIENCE =
   /\b(?:(?:he|hemos)\s+(?:probado|testado|usado|comprobado\s+personalmente)|en\s+(?:mi|nuestra)\s+experiencia|nuestras?\s+pruebas?|personalmente|(?:entrevistamos|hemos\s+entrevistado|hablamos\s+con)\b|nos\s+(?:dijo|contó|confirmó))/i;
@@ -450,8 +514,9 @@ export function evaluateEvidence(post: EvidencePost, provenance: EditorialProven
     for (const claim of cited.filter((c) => c.status !== 'supported')) {
       add('block', 'unsupported-claim', `${claim.id} (${claim.status ?? 'sin verificar'}): ${claim.note ?? claim.text}`);
     }
-    const allowed = allowedNumbers(cited.filter((c) => c.status === 'supported'));
-    const stray = numbersIn(visible).filter((n) => !allowed.has(n));
+    const supportedCited = cited.filter((c) => c.status === 'supported');
+    const allowed = allowedNumbers(supportedCited);
+    const stray = figuresIn(visible, supportedCited).filter((n) => !allowed.has(n));
     if (stray.length) add('block', 'figure-not-in-claim', `Cifras que no están en ${ids.join(', ')}: ${stray.join(', ')} («${visible.slice(0, 100)}»)`);
     if (NUMBER_WORDS.test(visible)) add('block', 'figure-in-words', `Cifra escrita con letras: «${visible.slice(0, 100)}»`);
   }
@@ -460,7 +525,7 @@ export function evaluateEvidence(post: EvidencePost, provenance: EditorialProven
   const allowedAll = allowedNumbers(usedSupported);
   for (const [field, text] of [['title', post.title], ['excerpt', post.excerpt], ['metaTitle', post.seo?.metaTitle], ['metaDescription', post.seo?.metaDescription]] as const) {
     const visible = String(text || '').replace(/<[^>]+>/g, ' ');
-    const stray = numbersIn(visible).filter((n) => !allowedAll.has(n));
+    const stray = figuresIn(visible, usedSupported).filter((n) => !allowedAll.has(n));
     if (stray.length || NUMBER_WORDS.test(visible)) add('block', 'metadata-figure-not-in-claims', `${field}: cifras sin afirmación verificada en el texto (${stray.join(', ') || 'cifra con letras'})`);
   }
   if ((post.faqItems || []).length) add('block', 'faq-not-evidenced', 'Las preguntas frecuentes no pasan por el paquete de evidencias');
@@ -545,18 +610,24 @@ export interface EditorialLimits {
   maxResearchCalls: number;
   maxSourceFetches: number;
   maxRetries: number;
+  /** Revisions after the first draft (M11-E2: each one is re-validated and re-criticised from scratch). */
   maxReviewLoops: number;
+  /** M11-E2: articles per day that may reach a publishable state (the Admin limit minus today's publications). */
   maxDailyArticles: number;
+  /** M11-E2: jobs started per day, publishable or not; bounds retries when money is not the brake. */
+  maxDailyAttempts?: number;
   maxConcurrentJobs: number;
 }
+/** M11-E2 testing profile: EDITORIAL_BUDGET=unlimited sets both USD caps to Infinity; spend is still recorded. */
 export const DEFAULT_EDITORIAL_LIMITS: Readonly<EditorialLimits> = Object.freeze({
   maxArticleUsd: 3,
   maxDailyUsd: 10,
-  maxResearchCalls: 2,
-  maxSourceFetches: 12,
+  maxResearchCalls: 3,
+  maxSourceFetches: 16,
   maxRetries: 1,
-  maxReviewLoops: 2,
+  maxReviewLoops: 5,
   maxDailyArticles: 3,
+  maxDailyAttempts: 30,
   maxConcurrentJobs: 1,
 });
 

@@ -21,7 +21,7 @@
       <div class="flex flex-wrap items-center gap-3">
         <app-admin-status-badge
           [status]="ov.policy.active ? 'active' : ov.policy.paused ? 'critical' : 'unconfigured'"
-          [label]="ov.policy.active ? 'Activa' : ov.policy.paused ? 'Pausada' : 'Desactivada'"
+          [label]="ov.policy.active ? 'Activa' : ov.policy.paused ? 'Pausada' : ov.policy.envEnabled && !ov.policy.activated ? 'Sin activar' : 'Desactivada'"
         ></app-admin-status-badge>
         <p class="text-sm text-[var(--portal-text)]">{{ policyText }}</p>
       </div>
@@ -37,7 +37,10 @@
         </div>
         <div>
           <dt class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Gasto hoy</dt>
-          <dd class="text-[var(--portal-text)] mt-1">${{ ov.spend.todayUsd | number: '1.2-4' }} / ${{ ov.limits.maxDailyUsd | number: '1.2-2' }} máx. diario</dd>
+          <dd class="text-[var(--portal-text)] mt-1">
+            ${{ ov.spend.todayUsd | number: '1.2-4' }} estimado
+            <ng-container *ngIf="ov.limits.maxDailyUsd !== null; else noCap"> / ${{ ov.limits.maxDailyUsd | number: '1.2-2' }} máx. diario</ng-container>
+          </dd>
         </div>
         <div>
           <dt class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Gasto 30 días</dt>
@@ -45,13 +48,43 @@
         </div>
         <div>
           <dt class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Límites</dt>
-          <dd class="text-[var(--portal-text)] mt-1">${{ ov.limits.maxArticleUsd | number: '1.2-2' }} por artículo · {{ ov.limits.maxDailyArticles }} artículos/día</dd>
+          <dd class="text-[var(--portal-text)] mt-1">
+            <ng-container *ngIf="ov.limits.maxArticleUsd !== null; else noCap">${{ ov.limits.maxArticleUsd | number: '1.2-2' }} por artículo</ng-container>
+            · {{ ov.limits.maxDailyArticles }} artículos/día
+          </dd>
         </div>
         <div>
           <dt class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Proveedores en vivo</dt>
           <dd class="text-[var(--portal-text)] mt-1">{{ ov.policy.liveProviders.join(', ') || '—' }}</dd>
         </div>
       </dl>
+
+      <!-- Today (M11-E2): attempts and publications are separate counts -->
+      <div class="border-t border-[var(--portal-border)] pt-4 space-y-3">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-[var(--portal-text-muted)]">Hoy (UTC)</h4>
+        <dl class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 text-sm">
+          <div><dt class="text-xs text-[var(--portal-text-muted)]">Generados</dt><dd class="text-[var(--portal-text)] mt-1">{{ ov.today.generated }}</dd></div>
+          <div><dt class="text-xs text-[var(--portal-text-muted)]">Publicados</dt><dd class="text-[var(--portal-text)] mt-1">{{ ov.today.published }}</dd></div>
+          <div><dt class="text-xs text-[var(--portal-text-muted)]">Listos sin publicar</dt><dd class="text-[var(--portal-text)] mt-1">{{ ov.today.ready }}</dd></div>
+          <div><dt class="text-xs text-[var(--portal-text-muted)]">Retenidos (revisión humana)</dt><dd class="text-[var(--portal-text)] mt-1">{{ ov.today.held }}</dd></div>
+          <div><dt class="text-xs text-[var(--portal-text-muted)]">Rechazados</dt><dd class="text-[var(--portal-text)] mt-1">{{ ov.today.rejected }}</dd></div>
+          <div><dt class="text-xs text-[var(--portal-text-muted)]">Revisiones</dt><dd class="text-[var(--portal-text)] mt-1">{{ ov.today.revisions }}</dd></div>
+        </dl>
+        <div class="grid md:grid-cols-2 gap-4 text-xs">
+          <div>
+            <p class="text-[var(--portal-text-muted)] mb-1">Motivos de rechazo</p>
+            <ul *ngIf="topReasons(ov.today.reasons).length; else noneList" class="space-y-1">
+              <li *ngFor="let r of topReasons(ov.today.reasons)"><code>{{ r[0] }}</code> × {{ r[1] }}</li>
+            </ul>
+          </div>
+          <div>
+            <p class="text-[var(--portal-text-muted)] mb-1">Uso de modelos (coste estimado, no factura)</p>
+            <ul *ngIf="(ov.today.models | keyvalue).length; else noneList" class="space-y-1">
+              <li *ngFor="let m of ov.today.models | keyvalue">{{ m.key }}: {{ m.value.calls }} llamadas · {{ m.value.inputTokens | number }} / {{ m.value.outputTokens | number }} tokens · ${{ m.value.usd | number: '1.2-4' }}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
 
       <!-- Emergency stop -->
       <div *ngIf="!ov.policy.paused" class="border-t border-[var(--portal-border)] pt-4 space-y-2">
@@ -76,9 +109,13 @@
         <p *ngIf="pauseError" role="alert" class="text-xs text-[var(--spotify-negative)]">{{ pauseError }}</p>
       </div>
 
-      <!-- Resume -->
-      <form *ngIf="ov.policy.paused" class="border-t border-[var(--portal-border)] pt-4 space-y-2" (ngSubmit)="resume()" autocomplete="off">
-        <p class="text-xs text-[var(--portal-text-muted)]">Reanudar requiere la clave de revisión editorial. No se guarda.</p>
+      <!-- Activate (once) or resume: an administrative switch for the mode, never an approval of an article -->
+      <form *ngIf="ov.policy.paused || (ov.policy.envEnabled && !ov.policy.activated)" class="border-t border-[var(--portal-border)] pt-4 space-y-2" (ngSubmit)="resume()" autocomplete="off">
+        <p *ngIf="!ov.policy.paused" class="text-xs text-[var(--portal-text-muted)]">
+          Al activarla, los artículos que superen todas las comprobaciones (evidencias, crítico independiente, SEO, firma, límite diario)
+          se publicarán sin aprobación humana por artículo. La parada de emergencia la detiene en cualquier momento.
+        </p>
+        <p class="text-xs text-[var(--portal-text-muted)]">{{ ov.policy.paused ? 'Reanudar' : 'Activar' }} requiere la clave de revisión editorial. No se guarda.</p>
         <div class="flex flex-wrap gap-3 items-end">
           <div>
             <label for="editorial-resume-reviewer" class="block text-xs text-[var(--portal-text-muted)]">Revisor</label>
@@ -108,7 +145,7 @@
             [disabled]="!resumeKey || !resumeReviewer.trim() || resumeBusy"
             class="px-3 py-2 rounded-xl text-xs font-medium bg-[var(--portal-surface-strong)] border border-[var(--portal-border-strong)] text-[var(--portal-text)] disabled:opacity-50"
           >
-            {{ resumeBusy ? 'Reanudando…' : 'Reanudar' }}
+            {{ resumeBusy ? 'Guardando…' : ov.policy.paused ? 'Reanudar' : 'Activar publicación automática' }}
           </button>
         </div>
         <p *ngIf="resumeError" role="alert" class="text-xs text-[var(--spotify-negative)]">{{ resumeError }}</p>
@@ -422,6 +459,7 @@
               <th scope="col" class="pb-2 pr-3">Slug</th>
               <th scope="col" class="pb-2 pr-3">Estado</th>
               <th scope="col" class="pb-2 pr-3">Motivo</th>
+              <th scope="col" class="pb-2 pr-3">Revisiones</th>
               <th scope="col" class="pb-2 pr-3">Backend</th>
               <th scope="col" class="pb-2 pr-3 text-right">Coste</th>
               <th scope="col" class="pb-2 pr-3">Códigos bloqueantes</th>
@@ -431,15 +469,19 @@
           <tbody>
             <tr *ngFor="let j of ov.jobs" class="border-t border-[var(--portal-border)] align-top">
               <td class="py-2 pr-3 whitespace-nowrap">{{ j.startedAt | date: 'short' }}</td>
-              <td class="py-2 pr-3">{{ j.slug }}</td>
+              <td class="py-2 pr-3">
+                <a *ngIf="j.publicUrl; else plainSlug" [href]="j.publicUrl" target="_blank" rel="noopener" class="underline">{{ j.slug }}</a>
+                <ng-template #plainSlug>{{ j.slug }}</ng-template>
+              </td>
               <td class="py-2 pr-3"><app-admin-status-badge [status]="badgeStatus(j.state)" [label]="j.state"></app-admin-status-badge></td>
               <td class="py-2 pr-3">{{ j.reason || '—' }}</td>
+              <td class="py-2 pr-3" [title]="(j.revisionLog || []).join(' → ')">{{ j.revisions ?? '—' }}</td>
               <td class="py-2 pr-3">{{ j.backend || '—' }}</td>
-              <td class="py-2 pr-3 text-right">${{ j.costUsd | number: '1.2-4' }}</td>
+              <td class="py-2 pr-3 text-right">${{ j.costUsd | number: '1.2-4' }}<span *ngIf="j.budget === 'unlimited'" class="text-[var(--portal-text-faint)]"> (sin tope)</span></td>
               <td class="py-2 pr-3">{{ j.blockingCodes.join(', ') || '—' }}</td>
               <td class="py-2">{{ j.imageFailure || '—' }}</td>
             </tr>
-            <tr *ngIf="!ov.jobs.length"><td colspan="8" class="py-2 text-[var(--portal-text-faint)]">No hay ejecuciones</td></tr>
+            <tr *ngIf="!ov.jobs.length"><td colspan="9" class="py-2 text-[var(--portal-text-faint)]">No hay ejecuciones</td></tr>
           </tbody>
         </table>
       </div>
@@ -448,6 +490,7 @@
 </div>
 
 <ng-template #none>—</ng-template>
+<ng-template #noCap><span> · presupuesto sin tope (modo de prueba)</span></ng-template>
 <ng-template #noneList><p class="text-xs text-[var(--portal-text-faint)]">Ninguno</p></ng-template>
 
 <app-admin-confirm-dialog

@@ -35,7 +35,7 @@ import { coverAsset, coverRequest, ImageModel, imageProblems, ImageRoute } from 
  * The output is a reviewable CMS draft plus its provenance; nothing here writes to a database.
  */
 
-export const PIPELINE_VERSION = 'm11b-1';
+export const PIPELINE_VERSION = 'm11e2-1';
 export type EditorialRole = 'research' | 'evidence' | 'editorial' | 'seo' | 'critic';
 
 export interface ModelRoute { provider: string; model: string; effort: 'low' | 'medium' | 'high' }
@@ -206,7 +206,24 @@ export interface EditorialRun {
   media?: Array<{ asset: ImageAsset; bytes: Buffer }>;
   /** Why the article has no cover; the text goes on without one. */
   imageFailure?: string;
+  /** M11-E2: every draft version, its critic verdict and gate result, and what the pipeline did next. */
+  revisions?: RevisionRecord[];
+  /** Sources the research named that could not be read (left out of the evidence). */
+  droppedSources?: string[];
 }
+
+export interface RevisionRecord {
+  attempt: number;
+  draftHash: string;
+  verdict: CriticReview['verdict'];
+  issues: number;
+  blocking: string[];
+  action: 'pass' | 'block' | 'rewrite' | 're-research' | 'abandon';
+  /** The excerpt and metadata were rewritten for this version (the reviewed text was not). */
+  repaired?: 'metadata';
+}
+/** Gate findings that mean the evidence is short, so another rewrite of the same claims cannot fix them. */
+const EVIDENCE_GAPS = new Set(['unsupported-claim', 'no-distinct-value', 'uncited-factual-statement', 'figure-not-in-claim', 'metadata-figure-not-in-claims']);
 
 // ---- prompts & schemas --------------------------------------------------------------------------
 
@@ -240,6 +257,11 @@ const DRAFT_SCHEMA = {
 const META_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['title', 'metaTitle', 'metaDescription'],
   properties: { title: str, metaTitle: str, metaDescription: str },
+};
+/** M11-E2 metadata repair: the title is the draft's h1 (hashed and criticised), so only these fields may change. */
+const META_REPAIR_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['excerpt', 'metaTitle', 'metaDescription'],
+  properties: { excerpt: str, metaTitle: str, metaDescription: str },
 };
 const CRITIC_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['verdict', 'issues'],
@@ -324,10 +346,12 @@ export async function runEditorialJob(topic: EditorialTopic, deps: EditorialDeps
     const seedText = seeds.filter((s) => snapshots.has(s.id))
       .map((s) => `### ${s.id} ${s.url} (${s.publisher})\n${clip(snapshots.get(s.id)!.slice(from(s)), 12000)}`).join('\n\n');
 
-    // 1. Research: sources, verbatim quotes, candidate claims.
-    let research: { researchQuestions: string[]; sources: Array<{ id: string; url: string; publisher: string }>; claims: EvidenceClaim[] } | undefined;
-    for (let attempt = 0; attempt < limits.maxResearchCalls && !research?.claims?.length; attempt++) {
-      research = await ask('research',
+    // 1. Research: sources, verbatim quotes, candidate claims. `gaps` (M11-E2) asks for evidence a review found missing.
+    type ResearchAnswer = { researchQuestions: string[]; sources: Array<{ id: string; url: string; publisher: string }>; claims: EvidenceClaim[] };
+    let researchCalls = 0;
+    const doResearch = (gaps = '') => {
+      researchCalls++;
+      return ask<ResearchAnswer>('research',
         `${STYLE}\nEres el agente de investigación. Buscas fuentes primarias (webs oficiales de operadores, plataformas, competiciones, organismos) y, solo si no existen, prensa de referencia. No uses agregadores de dudosa procedencia ni copies artículos.`,
         `Tema: ${topic.topic}\nIntención del lector: ${topic.intent}\nVolatilidad: ${topic.volatility}\n${topic.notes ? `Notas: ${topic.notes}\n` : ''}
 Datos propios de GuíaTV (fuentes internas con su id; cítalos con ese id):\n${internalText || '(ninguno)'}
@@ -335,9 +359,12 @@ ${seedText ? `\nFuentes primarias ya descargadas (cítalas con su id; las citas 
 
 Devuelve preguntas de investigación, fuentes (id corto, URL exacta que hayas consultado, editor) y afirmaciones atómicas.
 Cada afirmación lleva 1-3 citas literales, copiadas carácter a carácter de la fuente (12-200 caracteres, sin parafrasear) que la prueban, incluidas todas sus cifras.
-Si un dato no aparece literal en una fuente consultada, no lo incluyas. Ids de afirmación: c1, c2…`,
+Una referencia a una norma («artículo 98.1», «Ley 13/2022») solo si la cita está dentro de esa disposición de esa fuente.
+Si un dato no aparece literal en una fuente consultada, no lo incluyas. Ids de afirmación: c1, c2…${gaps}`,
         RESEARCH_SCHEMA, 5);
-    }
+    };
+    let research: ResearchAnswer | undefined;
+    while (researchCalls < limits.maxResearchCalls && !research?.claims?.length) research = await doResearch();
     if (!research?.claims?.length) return { ...run, state: 'blocked', reason: 'la investigación no devolvió afirmaciones' };
 
     const fixedIds = new Set([...topic.internalSources, ...seeds].map((s) => s.id));
@@ -349,40 +376,67 @@ Si un dato no aparece literal en una fuente consultada, no lo incluyas. Ids de a
       ...research.sources.filter((s) => /^https?:\/\//.test(s.url) && !fixedIds.has(s.id) && !seedPages.has(s.url.split('#')[0])),
     ];
     for (const s of sources) await fetchOnce(s.id, s.url);
-    let bundle: EvidenceBundle = {
-      topic: topic.topic, intent: topic.intent, researchQuestions: research.researchQuestions, createdAt: now().toISOString(), conflicts: [],
-      sources: sources.map((s) => ({ ...s, kind: sourceKindFor(s.url), ...retrieval.get(s.id) })),
-      claims: research.claims.map((c) => ({ id: c.id, text: c.text, volatility: c.volatility, quotes: c.quotes })),
+    // M11-E2: a page that cannot be read is not evidence; kept in the bundle it blocked every draft (source-not-retrieved).
+    const retrieved = (list: Array<{ id: string; url: string; publisher: string }>) => {
+      run.droppedSources = [...(run.droppedSources ?? []), ...list.filter((s) => !snapshots.has(s.id)).map((s) => `${s.url} (HTTP ${retrieval.get(s.id)?.httpStatus ?? 0})`)];
+      return list.filter((s) => snapshots.has(s.id)).map((s) => ({ ...s, kind: sourceKindFor(s.url), ...retrieval.get(s.id) }));
     };
-    run.state = 'researched';
-
     // 2. Evidence: deterministic quote verification, then a conflict review that can only demote.
-    bundle = verifyBundle(bundle, snapshots);
-    const supported = bundle.claims.filter((c) => c.status === 'supported');
-    if (supported.length >= 2) {
+    const assess = async (draftBundle: EvidenceBundle): Promise<EvidenceBundle> => {
+      const checked = verifyBundle(draftBundle, snapshots);
+      const supported = checked.claims.filter((c) => c.status === 'supported');
+      if (supported.length < 2) return checked;
       const review = await ask<{ conflicts: Array<{ claimIds: string[]; note: string }> }>('evidence',
         'Eres el agente de evidencias. Comparas afirmaciones verificadas y señalas solo contradicciones reales entre ellas o con la fecha actual (un dato caducado). No añades información.',
         `Fecha: ${now().toISOString().slice(0, 10)}\nAfirmaciones verificadas con sus citas:\n${claimDigest(supported)}\n\nDevuelve los grupos de ids que se contradicen, con una nota breve. Lista vacía si no hay.`,
         CONFLICT_SCHEMA);
       const known = new Set(supported.map((c) => c.id));
-      bundle = verifyBundle({ ...bundle, conflicts: review.conflicts.filter((c) => c.claimIds.some((id) => known.has(id))) }, snapshots);
-    }
-    const usable = bundle.claims.filter((c) => c.status === 'supported');
+      return verifyBundle({ ...checked, conflicts: [...checked.conflicts, ...review.conflicts.filter((c) => c.claimIds.some((id) => known.has(id)))] }, snapshots);
+    };
+    let bundle = await assess({
+      topic: topic.topic, intent: topic.intent, researchQuestions: research.researchQuestions, createdAt: now().toISOString(), conflicts: [],
+      sources: retrieved(sources),
+      claims: research.claims.map((c) => ({ id: c.id, text: c.text, volatility: c.volatility, quotes: c.quotes })),
+    });
+    run.state = 'researched';
+    let usable = bundle.claims.filter((c) => c.status === 'supported');
     if (usable.length < 3) return { ...run, state: 'blocked', reason: `solo ${usable.length} afirmaciones verificadas`, provenance: partial(bundle) };
+
+    /** M11-E2 targeted re-research: new claims and sources join the bundle under fresh ids and go through the same checks. */
+    const reResearch = async (gaps: string) => {
+      const tag = `r${researchCalls + 1}`;
+      const more = await doResearch(`\n\nUna revisión encontró estos huecos de evidencia:\n${gaps}\nAfirmaciones descartadas y motivo:\n${bundle.claims.filter((c) => c.status !== 'supported').map((c) => `- ${c.id}: ${c.text} → ${c.note ?? c.status}`).join('\n') || '(ninguna)'}
+Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas literales. No repitas una afirmación descartada sin corregir el motivo.`);
+      const idMap = new Map<string, string>();
+      const added: Array<{ id: string; url: string; publisher: string }> = [];
+      for (const s of more.sources.filter((x) => /^https?:\/\//.test(x.url))) {
+        const same = bundle.sources.find((b) => b.url.split('#')[0] === s.url.split('#')[0]);
+        if (same) idMap.set(s.id, same.id);
+        else if (!fixedIds.has(s.id)) { idMap.set(s.id, `${tag}-${s.id}`); added.push({ ...s, id: `${tag}-${s.id}` }); }
+      }
+      for (const s of added) await fetchOnce(s.id, s.url);
+      bundle = await assess({
+        ...bundle,
+        sources: [...bundle.sources, ...retrieved(added)],
+        claims: [...bundle.claims, ...more.claims.map((c) => ({ id: `${tag}-${c.id}`, text: c.text, volatility: c.volatility, quotes: c.quotes.map((q) => ({ sourceId: idMap.get(q.sourceId) ?? q.sourceId, quote: q.quote })) }))],
+      });
+      usable = bundle.claims.filter((c) => c.status === 'supported');
+    };
 
     // 3-5. Editorial ⇄ critic, with deterministic SEO checks in between.
     const taken = new Set(deps.corpus.map((p) => p.slug));
-    const sourceList = bundle.sources.filter((s) => s.retrievedAt).map((s) => `- ${s.id}: ${s.url} (${s.publisher})`).join('\n');
+    const sourceList = () => bundle.sources.filter((s) => s.retrievedAt).map((s) => `- ${s.id}: ${s.url} (${s.publisher})`).join('\n');
     let feedback = '';
     let previous = '';
+    run.revisions = [];
     for (let loop = 0; loop <= limits.maxReviewLoops; loop++) {
       ledger.count('draftAttempts');
       let draft = await ask<{ title: string; excerpt: string; metaTitle: string; metaDescription: string; markdown: string }>('editorial',
         `${STYLE}\nEres el agente editorial. Redactas una guía útil y diferente: explica criterios, compara, y aprovecha los datos propios de GuíaTV cuando los haya.`,
-        `Tema: ${topic.topic}\nIntención: ${topic.intent}\n\nSolo puedes usar estas afirmaciones verificadas:\n${claimDigest(usable)}\n\nFuentes que puedes enlazar:\n${sourceList}
+        `Tema: ${topic.topic}\nIntención: ${topic.intent}\n\nSolo puedes usar estas afirmaciones verificadas:\n${claimDigest(usable)}\n\nFuentes que puedes enlazar:\n${sourceList()}
 \nReglas: markdown con un único "# título"; cada frase, fila de tabla o elemento de lista que dé una cifra, fecha, hora, precio, canal o disponibilidad termina con su marcador [[cN]] (o [[c1,c2]]) antes del punto.
-Nada factual sin marcador. Enlaza las fuentes con su URL exacta. Enlaces internos solo a rutas de guiaprogramaciontv.com que aparezcan en los datos propios. Sin sección de preguntas frecuentes.
-Extensión: la que pida el tema, sin inflarla.${feedback ? `\n\nBorrador anterior:\n${previous}\n\nCorrige estos problemas de la revisión anterior y conserva el resto:\n${feedback}` : ''}`,
+Nada factual sin marcador. El título, el resumen y los metadatos solo llevan cifras que el texto da con su marcador. Enlaza las fuentes con su URL exacta. Enlaces internos solo a rutas de guiaprogramaciontv.com que aparezcan en los datos propios. Sin sección de preguntas frecuentes.
+Extensión: la que pida el tema, sin inflarla.${feedback ? `\n\nBorrador anterior:\n${previous}\n\nCorrige estos problemas de la revisión anterior y conserva el resto. Un dato que no esté entre las afirmaciones verificadas se elimina o se sustituye por uno verificado:\n${feedback}` : ''}`,
         DRAFT_SCHEMA);
 
       const metaIssues = metadataProblems(draft, topic.slug, taken);
@@ -419,9 +473,24 @@ Extensión: la que pida el tema, sin inflarla.${feedback ? `\n\nBorrador anterio
       };
       let findings = await publisherFindings(cms, provenance, deps, taken, verifiedOn);
       Object.assign(run, { draft: cms, provenance, findings, value: measureValue(draft.markdown, bundle) });
+      let blocking = findings.filter((f) => f.severity === 'block');
+      const revision: RevisionRecord = { attempt: loop, draftHash, verdict: verdict.verdict, issues: verdict.issues.length, blocking: blocking.map((f) => f.code), action: 'pass' };
+      run.revisions.push(revision);
+      // A passed text held only by a figure in its excerpt or metadata: repair those fields, not the reviewed text.
+      if (verdict.verdict === 'pass' && blocking.length && blocking.every((f) => f.code === 'metadata-figure-not-in-claims' && !/^title:/.test(f.message))) {
+        const fixed = await ask<{ excerpt: string; metaTitle: string; metaDescription: string }>('seo',
+          'Eres el agente SEO. Reescribes el resumen y los metadatos de un artículo ya revisado. Solo puedes usar cifras, fechas y números que aparezcan en el texto del artículo; si dudas, quita la cifra. Sin añadir datos, sin palabras clave repetidas.',
+          `Problemas: ${blocking.map((f) => f.message).join('; ')}\nLímites: metaTitle 15-60 caracteres, metaDescription 70-160.\nTexto del artículo:\n${clip(stripClaimMarkers(draft.markdown), 8000)}\n\nResumen: ${cms.excerpt}\nmetaTitle: ${cms.metaTitle}\nmetaDescription: ${cms.metaDescription}`,
+          META_REPAIR_SCHEMA);
+        Object.assign(cms, { excerpt: fixed.excerpt, metaTitle: fixed.metaTitle, metaDescription: fixed.metaDescription });
+        findings = run.findings = await publisherFindings(cms, provenance, deps, taken, verifiedOn);
+        blocking = findings.filter((f) => f.severity === 'block');
+        revision.repaired = 'metadata';
+        revision.blocking = blocking.map((f) => f.code);
+      }
 
-      if (verdict.verdict === 'block') return finish(run, 'blocked', 'el crítico bloqueó el borrador');
-      const blocking = findings.filter((f) => f.severity === 'block');
+      // A critic 'block' is final for this candidate: its draft and signed provenance are kept as they are.
+      if (verdict.verdict === 'block') { revision.action = 'block'; return finish(run, 'blocked', 'el crítico bloqueó el borrador'); }
       if (verdict.verdict === 'pass' && !blocking.length) {
         // Only a text that passed gets a cover, so a rejected draft never spends on images.
         if (await addCover(run, cms, provenance, topic, deps, ledger, verifiedOn)) {
@@ -432,10 +501,22 @@ Extensión: la que pida el tema, sin inflarla.${feedback ? `\n\nBorrador anterio
         return finish(run, pending.length ? 'verified' : 'approved-by-policy', pending.length ? `requiere confirmación: ${pending.map((f) => f.code).join(', ')}` : undefined);
       }
       ledger.count('reviewFailures');
+      // The writer returned the same text again: retrying the same prompt would not change the outcome.
+      if (draftHash === hashText(previous)) { revision.action = 'abandon'; return finish(run, 'blocked', 'sin progreso: el borrador revisado es idéntico al anterior'); }
       previous = draft.markdown;
       feedback = [...verdict.issues.map((i) => `- (${i.severity}) ${i.claimId ? `${i.claimId}: ` : ''}${i.message}`), ...blocking.map((f) => `- (gate) ${f.code}: ${f.message}`)].join('\n');
+      // Missing evidence is fixed by research, not by rewording: the writer can only use verified claims.
+      const known = new Set(usable.map((c) => c.id));
+      const gaps = [
+        ...blocking.filter((f) => EVIDENCE_GAPS.has(f.code)).map((f) => `- ${f.code}: ${f.message}`),
+        ...verdict.issues.filter((i) => i.claimId && !known.has(i.claimId)).map((i) => `- ${i.claimId}: ${i.message}`),
+      ];
+      if (loop < limits.maxReviewLoops && gaps.length && researchCalls < limits.maxResearchCalls) {
+        revision.action = 're-research';
+        await reResearch(gaps.join('\n'));
+      } else revision.action = 'rewrite';
     }
-    return finish(run, 'blocked', 'agotados los ciclos de revisión');
+    return finish(run, 'blocked', `agotados los ciclos de revisión (${limits.maxReviewLoops})`);
   } catch (error) {
     if (error instanceof EditorialBudgetExceeded) return finish(run, 'blocked', `límite: ${error.message}`);
     // A refusal, truncation or network error holds this article; the batch and its ledger survive.
@@ -508,33 +589,48 @@ export interface SpendJournal {
   settle(run: EditorialRun, usd: number): void;
 }
 
+/** Reached a publishable state: by policy, or held only for a named reviewer's judgement. */
+const PUBLISHABLE: ReadonlySet<EditorialPipelineState> = new Set(['approved-by-policy', 'verified']);
+
 /**
- * Daily volume, spend and concurrency caps around runEditorialJob. `doneToday` = runs already started today
- * and `spentToday` = USD already spent or reserved today (the CLI reads both from its logs), so a rerun cannot exceed them.
+ * Daily volume, spend and concurrency caps around runEditorialJob. `doneToday` = jobs already started today (attempts)
+ * and `spentToday` = USD already spent or reserved today (the CLI reads both from its journal), so a rerun cannot exceed them.
+ * M11-E2: `maxDailyArticles` caps publishable results and `maxDailyAttempts` caps jobs, so a held article does not use up
+ * the publishing quota; with infinite USD caps (EDITORIAL_BUDGET=unlimited) nothing is reserved, every spend is still settled.
  */
 export async function runEditorialBatch(topics: EditorialTopic[], deps: EditorialDeps, limits: EditorialLimits = DEFAULT_EDITORIAL_LIMITS, doneToday = 0, spentToday = 0, journal?: SpendJournal): Promise<EditorialRun[]> {
   const held = (t: EditorialTopic, reason: string): EditorialRun => ({ slug: t.slug, state: 'blocked', reason, findings: [], cost: new CostLedger(limits).summary });
-  const allowed = topics.slice(0, Math.max(0, limits.maxDailyArticles - doneToday));
-  const skipped = topics.slice(allowed.length).map((t) => held(t, `límite diario de ${limits.maxDailyArticles} artículos`));
+  const attempts = limits.maxDailyAttempts ?? limits.maxDailyArticles;
+  const allowed = topics.slice(0, Math.max(0, attempts - doneToday));
+  const skipped = topics.slice(allowed.length).map((t) => held(t, `límite diario de ${attempts} intentos`));
   const results: EditorialRun[] = new Array(allowed.length);
   let next = 0;
+  let publishable = 0;
+  const capped = Number.isFinite(limits.maxDailyUsd);
   // Each job reserves its whole allowance up front, so concurrent jobs cannot together pass the daily ceiling.
   let committed = spentToday;
   const running = new Set<Promise<void>>();
   const worker = async () => {
     while (next < allowed.length) {
       const i = next++;
-      // Running jobs give back what they did not spend: wait for them before holding or under-funding a topic.
-      while (limits.maxDailyUsd - committed < limits.maxArticleUsd && running.size) await Promise.race(running);
-      const allowance = Math.min(limits.maxArticleUsd, limits.maxDailyUsd - committed);
+      // A running job may still pass: count it before starting another, so concurrency cannot exceed the quota.
+      // Running jobs also give back what they did not spend. One loop for both: no await between the check and the start.
+      while (running.size && (publishable + running.size >= limits.maxDailyArticles || (capped && limits.maxDailyUsd - committed < limits.maxArticleUsd))) {
+        await Promise.race(running);
+      }
+      if (publishable >= limits.maxDailyArticles) { results[i] = held(allowed[i], `límite diario de ${limits.maxDailyArticles} artículos`); continue; }
+      const allowance = capped ? Math.min(limits.maxArticleUsd, limits.maxDailyUsd - committed) : limits.maxArticleUsd;
       if (allowance <= 0) { results[i] = held(allowed[i], `límite diario de ${limits.maxDailyUsd} USD`); continue; }
-      committed += allowance;
-      journal?.reserve(allowed[i].slug, allowance);
+      const reserved = Number.isFinite(allowance) ? allowance : 0;
+      committed += reserved;
+      journal?.reserve(allowed[i].slug, reserved);
       const job: Promise<void> = runEditorialJob(allowed[i], deps, { ...limits, maxArticleUsd: allowance }).then((run) => {
         results[i] = run;
-        const usd = run.cost.unresolved ? Math.max(allowance, run.cost.usd) : run.cost.usd;
+        if (PUBLISHABLE.has(run.state)) publishable++;
+        // Unresolved spend counts the whole allowance when there is one; without a cap only what is known can be counted.
+        const usd = run.cost.unresolved ? Math.max(reserved, run.cost.usd) : run.cost.usd;
         journal?.settle(run, usd);
-        committed += usd - allowance;
+        committed += usd - reserved;
         running.delete(job);
       });
       running.add(job);
