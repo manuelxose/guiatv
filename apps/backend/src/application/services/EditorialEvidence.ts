@@ -69,7 +69,10 @@ export interface EvidenceBundle {
 
 export interface CriticReview {
   model: string;
+  /** M11-E2b: the verdict the rubric gives the issues (criticVerdict); this is what is signed and gated. */
   verdict: 'pass' | 'revise' | 'block';
+  /** What the model itself answered, kept for the audit. */
+  modelVerdict?: 'pass' | 'revise' | 'block';
   issues: Array<{ claimId?: string; severity: 'high' | 'medium' | 'low'; message: string }>;
   bundleHash: string;
   draftHash: string;

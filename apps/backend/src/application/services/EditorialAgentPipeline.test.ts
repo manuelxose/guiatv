@@ -68,8 +68,11 @@ test('pipeline: uncited figures go back to the writer with the gate findings, th
   const run = await runEditorialJob(topic, deps(m.model));
   assert.equal(run.state, 'approved-by-policy');
   assert.equal(run.cost.draftAttempts, 2);
-  assert.equal(run.cost.reviewFailures, 1);
-  assert.match(m.calls.filter((c) => c.role === 'editorial')[1].prompt, /uncited-factual-statement/);
+  // M11-E2b: a mechanical defect is fixed before the critic, so it costs no review round.
+  assert.equal(run.cost.reviewFailures, 0);
+  assert.equal(m.calls.filter((c) => c.role === 'critic').length, 1);
+  assert.equal(run.revisions![0].gateFixes, 1);
+  assert.match(m.calls.filter((c) => c.role === 'editorial')[1].prompt, /menor cambio posible[\s\S]*uncited-factual-statement: .*Antena 3 en 2019/);
 });
 
 test('pipeline: the critic can only hold a draft, and review loops are bounded', async () => {

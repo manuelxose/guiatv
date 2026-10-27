@@ -221,9 +221,53 @@ export interface RevisionRecord {
   action: 'pass' | 'block' | 'rewrite' | 're-research' | 'abandon';
   /** The excerpt and metadata were rewritten for this version (the reviewed text was not). */
   repaired?: 'metadata';
+  /** Local edits made for deterministic gate defects before the critic saw this version. */
+  gateFixes?: number;
 }
 /** Gate findings that mean the evidence is short, so another rewrite of the same claims cannot fix them. */
-const EVIDENCE_GAPS = new Set(['unsupported-claim', 'no-distinct-value', 'uncited-factual-statement', 'figure-not-in-claim', 'metadata-figure-not-in-claims']);
+const EVIDENCE_GAPS = new Set(['unsupported-claim', 'no-distinct-value']);
+/** M11-E2b: gate findings the writer or the SEO agent can fix with a local edit, before the critic sees the draft. */
+const WRITER_FIXABLE = new Set([
+  'uncited-factual-statement', 'figure-not-in-claim', 'figure-in-words', 'metadata-figure-not-in-claims', 'invalid-metadata',
+  'internal-link-status', 'broken-internal-link', 'unsourced-link', 'invalid-link', 'claim-marker-leak', 'fabricated-experience',
+  'placeholder-text', 'unknown-claim', 'faq-not-evidenced',
+]);
+const MAX_GATE_FIXES = 3;
+
+/**
+ * M11-E2b: one quality standard for writer and critic. Live runs showed drafts failing on criteria the writer never saw
+ * (repetition, filler, inferences), and every rewrite trading old defects for new ones.
+ */
+export const EDITORIAL_RUBRIC = `Criterios de calidad (los mismos que aplica el crítico):
+1. Responde a la intención del lector en el primer párrafo, con el dato concreto.
+2. Cada dato aparece una sola vez, donde más ayuda: no repitas la misma información en varias secciones.
+3. Sin relleno: cada frase aporta un dato, un criterio o una consecuencia práctica. Nada de frases que anuncian lo que viene o resumen lo ya dicho.
+4. No vas más allá de las afirmaciones verificadas: ni inferencias, ni consejos, ni generalizaciones que no respalden. Conservas sus matices (excepciones, condiciones).
+5. Recomendaciones solo con su criterio explicado.
+6. Estructura escaneable: secciones ## con títulos descriptivos y una tabla cuando se comparan opciones.
+7. Tono directo de guía práctica, sin fórmulas genéricas.`;
+/** What the deterministic gates check, said to the writer up front instead of after a failed draft. */
+const GATE_RULES = `Reglas que comprueba un programa (un fallo impide publicar):
+- Markdown con un único "# título"; sin sección de preguntas frecuentes; nunca primera persona ni experiencias propias.
+- Toda frase, fila de tabla o elemento de lista con una cifra, fecha, hora, día, mes, precio, canal, disponibilidad o una referencia a una norma («artículo 98.1», «Ley 13/2022») termina con su marcador [[cN]] (o [[c1,c2]]) antes del punto, y esa cifra o referencia aparece en las afirmaciones que cita.
+- Escribe cada cifra como en su afirmación (si la afirmación dice «dieciocho», no escribas «18»). No uses cantidades con letras seguidas de unidad («dos euros», «tres horas»).
+- Título, resumen, metaTitle y metaDescription: solo cifras que el texto da con marcador y escritas igual (nada de «+18» si el texto dice «dieciocho»).
+- Enlaces externos solo a las URL exactas de la lista de fuentes; internos solo a rutas de guiaprogramaciontv.com que aparezcan en los datos propios.
+- Extensión: la que pida la intención, sin inflarla.`;
+const CRITIC_SEVERITY = `Gravedad de cada problema:
+- high: dato falso, no respaldado o mal atribuido; matiz de la fuente perdido que cambia el sentido; el texto no responde a la intención.
+- medium: inferencia o consejo más allá de la evidencia; falta información importante para la intención que sí está en las afirmaciones; repetición o relleno que ocupa una parte apreciable del texto; recomendación sin criterio.
+- low: mejoras de estilo u orden que no cambian lo que el lector entiende.
+Veredicto: block solo si el tema o la evidencia no permiten un artículo útil y veraz; revise si hay algún problema high o medium; pass si solo quedan problemas low o ninguno. Señala cada problema una vez, con la frase concreta y cómo corregirla.`;
+
+/**
+ * The verdict follows the rubric from the issues the critic reports: any high or medium issue means revise, even if the
+ * model said pass; only low issues means pass, even if it said revise. A model 'block' is always kept.
+ */
+export function criticVerdict(answer: { verdict: CriticReview['verdict']; issues: CriticReview['issues'] }): CriticReview['verdict'] {
+  if (answer.verdict === 'block') return 'block';
+  return answer.issues.some((i) => i.severity === 'high' || i.severity === 'medium') ? 'revise' : 'pass';
+}
 
 // ---- prompts & schemas --------------------------------------------------------------------------
 
@@ -429,14 +473,37 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
     let feedback = '';
     let previous = '';
     run.revisions = [];
+    type Draft = { title: string; excerpt: string; metaTitle: string; metaDescription: string; markdown: string };
+    const writerSystem = `${STYLE}\nEres el agente editorial. Redactas una guía útil y diferente: explica criterios, compara, y aprovecha los datos propios de GuíaTV cuando los haya.\n${EDITORIAL_RUBRIC}`;
+    // A function: re-research can add sources between drafts.
+    const writerRules = () => `Fuentes que puedes enlazar:\n${sourceList()}\n\n${GATE_RULES}`;
+    // Everything that does not depend on the critic: the HTML, hashes, the unsigned provenance and the CMS fields.
+    const assemble = (d: Draft, verifiedOn: Date, critic?: CriticReview) => {
+      const html = `<div class="editorial-body">${deps.render(stripClaimMarkers(d.markdown).replace(/^# .*\n?/m, ''))}${aiDisclosure(verifiedOn)}</div>`;
+      const provenance: EditorialProvenance = {
+        pipelineVersion: PIPELINE_VERSION, state: 'draft', bundle, bundleHash: hashBundle(bundle), draftMarkdown: d.markdown, draftHash: hashText(d.markdown),
+        ...(critic ? { critic } : {}), cost: ledger.summary,
+        lastVerifiedAt: verifiedOn.toISOString(), nextReviewAt: nextReviewAt(bundle, d.markdown)?.toISOString(), version: 1, backend,
+      };
+      const cms: CmsDraft = {
+        title: d.title, slug: topic.slug, status: 'draft', origin: 'ai-assisted', excerpt: d.excerpt, content: html,
+        categories: topic.categories, contentType: 'guide', evergreen: topic.volatility === 'stable', targetQuery: topic.intent,
+        metaTitle: d.metaTitle, metaDescription: d.metaDescription, canonicalUrl: `/guias/${topic.slug}`,
+        authorName: AI_AUTHOR.name, authorId: AI_AUTHOR.id,
+      };
+      return { provenance, cms };
+    };
+    const repairMetadata = async (d: Draft, problems: string[]): Promise<Draft> => ({
+      ...d,
+      ...await ask<{ excerpt: string; metaTitle: string; metaDescription: string }>('seo',
+        'Eres el agente SEO. Reescribes el resumen y los metadatos de un artículo. Solo puedes usar cifras, fechas y números que aparezcan escritos igual en el texto del artículo; si dudas, quita la cifra. Sin añadir datos, sin palabras clave repetidas.',
+        `Problemas: ${problems.join('; ')}\nLímites: metaTitle 15-60 caracteres, metaDescription 70-160.\nTexto del artículo:\n${clip(stripClaimMarkers(d.markdown), 8000)}\n\nResumen: ${d.excerpt}\nmetaTitle: ${d.metaTitle}\nmetaDescription: ${d.metaDescription}`,
+        META_REPAIR_SCHEMA),
+    });
     for (let loop = 0; loop <= limits.maxReviewLoops; loop++) {
       ledger.count('draftAttempts');
-      let draft = await ask<{ title: string; excerpt: string; metaTitle: string; metaDescription: string; markdown: string }>('editorial',
-        `${STYLE}\nEres el agente editorial. Redactas una guía útil y diferente: explica criterios, compara, y aprovecha los datos propios de GuíaTV cuando los haya.`,
-        `Tema: ${topic.topic}\nIntención: ${topic.intent}\n\nSolo puedes usar estas afirmaciones verificadas:\n${claimDigest(usable)}\n\nFuentes que puedes enlazar:\n${sourceList()}
-\nReglas: markdown con un único "# título"; cada frase, fila de tabla o elemento de lista que dé una cifra, fecha, hora, precio, canal o disponibilidad termina con su marcador [[cN]] (o [[c1,c2]]) antes del punto.
-Nada factual sin marcador. El título, el resumen y los metadatos solo llevan cifras que el texto da con su marcador. Enlaza las fuentes con su URL exacta. Enlaces internos solo a rutas de guiaprogramaciontv.com que aparezcan en los datos propios. Sin sección de preguntas frecuentes.
-Extensión: la que pida el tema, sin inflarla.${feedback ? `\n\nBorrador anterior:\n${previous}\n\nCorrige estos problemas de la revisión anterior y conserva el resto. Un dato que no esté entre las afirmaciones verificadas se elimina o se sustituye por uno verificado:\n${feedback}` : ''}`,
+      let draft = await ask<Draft>('editorial', writerSystem,
+        `Tema: ${topic.topic}\nIntención: ${topic.intent}\n\nSolo puedes usar estas afirmaciones verificadas (no hace falta usarlas todas: elige las que responden a la intención):\n${claimDigest(usable)}\n\n${writerRules()}${feedback ? `\n\nBorrador anterior:\n${previous}\n\nCorrige estos problemas de la revisión anterior con el menor cambio posible y conserva el resto tal cual. Un dato que no esté entre las afirmaciones verificadas se elimina o se sustituye por uno verificado:\n${feedback}` : ''}`,
         DRAFT_SCHEMA);
 
       const metaIssues = metadataProblems(draft, topic.slug, taken);
@@ -448,40 +515,49 @@ Extensión: la que pida el tema, sin inflarla.${feedback ? `\n\nBorrador anterio
         draft = { ...draft, ...fixed, markdown: draft.markdown.replace(/^# .*$/m, `# ${fixed.title}`) };
       }
 
+      // M11-E2b: the deterministic gates run BEFORE the critic. Mechanical defects are fixed with the smallest edit
+      // (metadata by the SEO agent, text by the writer), so the critic reviews a clean draft and its round is not wasted.
+      let gateFixes = 0;
+      let repaired: RevisionRecord['repaired'];
+      for (let fix = 0; fix < MAX_GATE_FIXES; fix++) {
+        const { provenance: unreviewed, cms: candidate } = assemble(draft, now());
+        const gate = (await publisherFindings(candidate, unreviewed, deps, taken, now())).filter((f) => f.severity === 'block' && !/^critic-/.test(f.code));
+        if (!gate.length || !gate.every((f) => WRITER_FIXABLE.has(f.code))) break;
+        gateFixes++;
+        if (gate.every((f) => f.code === 'metadata-figure-not-in-claims' && !/^title:/.test(f.message))) {
+          draft = await repairMetadata(draft, gate.map((f) => f.message));
+          repaired = 'metadata';
+          continue;
+        }
+        ledger.count('draftAttempts');
+        const edited = await ask<Draft>('editorial', writerSystem,
+          `Tema: ${topic.topic}\n\nAfirmaciones verificadas:\n${claimDigest(usable)}\n\n${writerRules()}\n\nBorrador:\n${draft.markdown}\n\nResumen: ${draft.excerpt}\nmetaTitle: ${draft.metaTitle}\nmetaDescription: ${draft.metaDescription}\n\nEl control automático ha encontrado estos defectos. Corrige solo esas frases o campos, con el menor cambio posible, y devuelve todo lo demás exactamente igual:\n${gate.map((f) => `- ${f.code}: ${f.message}`).join('\n')}`,
+          DRAFT_SCHEMA);
+        if (hashText(edited.markdown) === hashText(draft.markdown) && edited.excerpt === draft.excerpt && edited.metaTitle === draft.metaTitle && edited.metaDescription === draft.metaDescription) break;
+        draft = edited;
+      }
+
       const verifiedOn = now();
-      const html = `<div class="editorial-body">${deps.render(stripClaimMarkers(draft.markdown).replace(/^# .*\n?/m, ''))}${aiDisclosure(verifiedOn)}</div>`;
       const bundleHash = hashBundle(bundle);
       const draftHash = hashText(draft.markdown);
 
-      const verdict = await ask<{ verdict: CriticReview['verdict']; issues: CriticReview['issues'] }>('critic',
-        'Eres el crítico independiente. No escribiste este texto. Lo contrastas solo con el paquete de evidencias: cualquier dato no respaldado, matiz perdido, conclusión exagerada, recomendación sin criterio explicado, relleno, tono de IA genérico o aporte nulo frente a una ficha de catálogo es un problema. Pass solo si publicarías el texto tal cual.',
-        `Afirmaciones verificadas:\n${claimDigest(usable)}\n\nAfirmaciones descartadas:\n${bundle.claims.filter((c) => c.status !== 'supported').map((c) => `- ${c.id} (${c.status}): ${c.text}`).join('\n') || '(ninguna)'}\n\nBorrador:\n${draft.markdown}`,
+      const answer = await ask<{ verdict: CriticReview['verdict']; issues: CriticReview['issues'] }>('critic',
+        `Eres el crítico independiente. No escribiste este texto. Lo contrastas solo con el paquete de evidencias.\n${EDITORIAL_RUBRIC}\n${CRITIC_SEVERITY}`,
+        `Intención del lector: ${topic.intent}\n\nAfirmaciones verificadas:\n${claimDigest(usable)}\n\nAfirmaciones descartadas:\n${bundle.claims.filter((c) => c.status !== 'supported').map((c) => `- ${c.id} (${c.status}): ${c.text}`).join('\n') || '(ninguna)'}\n\nBorrador:\n${draft.markdown}`,
         CRITIC_SCHEMA);
-      const critic: CriticReview = { model: chosen.critic.route.model, verdict: verdict.verdict, issues: verdict.issues, bundleHash, draftHash, reviewedAt: now().toISOString() };
+      const critic: CriticReview = { model: chosen.critic.route.model, verdict: criticVerdict(answer), modelVerdict: answer.verdict, issues: answer.issues, bundleHash, draftHash, reviewedAt: now().toISOString() };
+      const verdict = critic;
 
-      const provenance: EditorialProvenance = {
-        pipelineVersion: PIPELINE_VERSION, state: 'draft', bundle, bundleHash, draftMarkdown: draft.markdown, draftHash, critic, cost: ledger.summary,
-        lastVerifiedAt: verifiedOn.toISOString(), nextReviewAt: nextReviewAt(bundle, draft.markdown)?.toISOString(), version: 1,
-        backend,
-      };
+      const { provenance, cms } = assemble(draft, verifiedOn, critic);
       if (deps.signingKey) provenance.signature = signProvenance(provenance, deps.signingKey);
-      const cms: CmsDraft = {
-        title: draft.title, slug: topic.slug, status: 'draft', origin: 'ai-assisted', excerpt: draft.excerpt, content: html,
-        categories: topic.categories, contentType: 'guide', evergreen: topic.volatility === 'stable', targetQuery: topic.intent,
-        metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, canonicalUrl: `/guias/${topic.slug}`,
-        authorName: AI_AUTHOR.name, authorId: AI_AUTHOR.id,
-      };
       let findings = await publisherFindings(cms, provenance, deps, taken, verifiedOn);
       Object.assign(run, { draft: cms, provenance, findings, value: measureValue(draft.markdown, bundle) });
       let blocking = findings.filter((f) => f.severity === 'block');
-      const revision: RevisionRecord = { attempt: loop, draftHash, verdict: verdict.verdict, issues: verdict.issues.length, blocking: blocking.map((f) => f.code), action: 'pass' };
+      const revision: RevisionRecord = { attempt: loop, draftHash, verdict: verdict.verdict, issues: verdict.issues.length, blocking: blocking.map((f) => f.code), action: 'pass', gateFixes, ...(repaired ? { repaired } : {}) };
       run.revisions.push(revision);
       // A passed text held only by a figure in its excerpt or metadata: repair those fields, not the reviewed text.
       if (verdict.verdict === 'pass' && blocking.length && blocking.every((f) => f.code === 'metadata-figure-not-in-claims' && !/^title:/.test(f.message))) {
-        const fixed = await ask<{ excerpt: string; metaTitle: string; metaDescription: string }>('seo',
-          'Eres el agente SEO. Reescribes el resumen y los metadatos de un artículo ya revisado. Solo puedes usar cifras, fechas y números que aparezcan en el texto del artículo; si dudas, quita la cifra. Sin añadir datos, sin palabras clave repetidas.',
-          `Problemas: ${blocking.map((f) => f.message).join('; ')}\nLímites: metaTitle 15-60 caracteres, metaDescription 70-160.\nTexto del artículo:\n${clip(stripClaimMarkers(draft.markdown), 8000)}\n\nResumen: ${cms.excerpt}\nmetaTitle: ${cms.metaTitle}\nmetaDescription: ${cms.metaDescription}`,
-          META_REPAIR_SCHEMA);
+        const fixed = await repairMetadata(draft, blocking.map((f) => f.message));
         Object.assign(cms, { excerpt: fixed.excerpt, metaTitle: fixed.metaTitle, metaDescription: fixed.metaDescription });
         findings = run.findings = await publisherFindings(cms, provenance, deps, taken, verifiedOn);
         blocking = findings.filter((f) => f.severity === 'block');

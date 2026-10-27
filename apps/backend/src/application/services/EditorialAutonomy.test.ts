@@ -1,7 +1,7 @@
 /** M11-E2: legal references, the autonomous revision loop, unlimited budget and the publishable-per-day cap. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { EditorialModel, EditorialTopic, runEditorialBatch, runEditorialJob } from './EditorialAgentPipeline';
+import { criticVerdict, EDITORIAL_RUBRIC, EditorialModel, EditorialTopic, runEditorialBatch, runEditorialJob } from './EditorialAgentPipeline';
 import { DEFAULT_EDITORIAL_LIMITS, EvidenceBundle, evaluateEvidence, hashText, verifyBundle } from './EditorialEvidence';
 import { deps, draft, GOOD, NOW, pass, research, scripted, topic } from './EditorialAgentPipeline.fixtures';
 
@@ -151,6 +151,25 @@ test('M11-E2 SEO repair: a passed text held only by a figure in its excerpt gets
   const held = await runEditorialJob(topic, deps(stubborn.model), { ...DEFAULT_EDITORIAL_LIMITS, maxReviewLoops: 0 });
   assert.equal(held.state, 'blocked');
   assert.ok(held.findings.some((f) => f.code === 'metadata-figure-not-in-claims'));
+});
+
+test('M11-E2b rubric: writer and critic share one standard, and the verdict follows the severities the critic reports', async () => {
+  assert.equal(criticVerdict({ verdict: 'revise', issues: [{ severity: 'low', message: 'orden' }] }), 'pass', 'only polish left');
+  assert.equal(criticVerdict({ verdict: 'pass', issues: [{ severity: 'medium', message: 'inferencia' }] }), 'revise', 'a medium issue is never waved through');
+  assert.equal(criticVerdict({ verdict: 'block', issues: [] }), 'block');
+  const lowOnly = { verdict: 'revise', issues: [{ severity: 'low', message: 'podría ordenar mejor las secciones' }] };
+  const m = scripted({ research: [research], evidence: [{ conflicts: [] }], editorial: [draft()], critic: [lowOnly] });
+  const run = await runEditorialJob(topic, deps(m.model));
+  assert.equal(run.state, 'approved-by-policy');
+  assert.deepEqual([run.provenance!.critic!.verdict, run.provenance!.critic!.modelVerdict], ['pass', 'revise'], 'both are kept for the audit');
+  const [writer] = m.calls.filter((c) => c.role === 'editorial');
+  const [critic] = m.calls.filter((c) => c.role === 'critic');
+  assert.ok(writer.system.includes(EDITORIAL_RUBRIC) && critic.system.includes(EDITORIAL_RUBRIC), 'the same rubric on both sides');
+  assert.match(writer.prompt, /Reglas que comprueba un programa[\s\S]*dieciocho/);
+  // The critic never sees a draft the gates would block: it reviewed the fixed version.
+  const sloppy = scripted({ research: [research], evidence: [{ conflicts: [] }], editorial: [draft(`${GOOD}\n\nTambién la emitió Antena 3 en 2019.`), draft()], critic: [pass] });
+  await runEditorialJob(topic, deps(sloppy.model));
+  assert.doesNotMatch(sloppy.calls.find((c) => c.role === 'critic')!.prompt, /2019/);
 });
 
 test('M11-E2 failed retrieval: an unreadable page is dropped from the evidence and recorded, instead of blocking every draft', async () => {
