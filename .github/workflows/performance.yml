@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Docs-only changes (docs/, artifacts/, *.md) skip the heavy jobs; `verify` still reports, so the
+  # PRs run lint + unit tests only (owner, 2026-10-27: PRs must be fast). Docs-only changes (docs/, artifacts/, *.md) skip those too; `verify` still reports, so the
   # required check (docs/ops/main-ruleset.json) never stays "Expected".
   changes:
     runs-on: ubuntu-latest
@@ -56,8 +56,10 @@ jobs:
       - run: npm ci --legacy-peer-deps
       - run: npm run lint:backend
       - run: npm run test:backend
-      - run: npm run test:deploy
       - run: npm run test:ops
+      # Deploy-script test (~2 min): after merge only; the deploy itself is the real check.
+      - if: github.event_name == 'push'
+        run: npm run test:deploy
 
   frontend:
     needs: changes
@@ -74,10 +76,14 @@ jobs:
           cache: npm
       - run: npm ci --legacy-peer-deps
       - run: npm run lint:frontend
-      - name: Install the Playwright Chromium used by Karma
-        run: npx playwright install --with-deps chromium
+      # Karma uses the runner's preinstalled Chrome (karma.conf.cjs honours CHROME_BIN): no Playwright download.
       - run: npm run test:frontend
-      - name: Production build with Angular bundle budgets
+        env:
+          CHROME_BIN: /usr/bin/google-chrome
+      # The production build (bundle budgets fail it) runs after merge and again in deploy-artifact.yml,
+      # which builds the artifact anyway; PRs skip it to stay fast.
+      - if: github.event_name == 'push'
+        name: Production build with Angular bundle budgets
         run: npm run build
 
   # The one required check: green only if both halves passed, or were skipped for a docs-only change.
