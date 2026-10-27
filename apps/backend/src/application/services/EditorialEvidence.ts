@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import type { EditorialFinding, EditorialFindingSeverity } from './EditorialReviewPolicy';
 
 /**
@@ -89,6 +89,10 @@ export interface EditorialProvenance {
   nextReviewAt?: string;
   changedEvidence?: string[];
   version?: number;
+  /** Who answered the roles: 'anthropic' (live models) or 'replay' (recorded answers). */
+  backend?: string;
+  /** signProvenance() by the pipeline runner. */
+  signature?: string;
 }
 
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -123,19 +127,39 @@ const hostOf = (url: string) => {
 /** Last two labels: press.example.com and example.com are one publisher, not two corroborations. */
 const registrableDomain = (url: string) => hostOf(url).split('.').slice(-2).join('.');
 
+/**
+ * The quote occurs in the text as a whole: a quote ending in "1" does not match "13,99", and one
+ * starting with "3,99" does not match the tail of "13,99".
+ */
+function containsQuote(text: string, needle: string): boolean {
+  for (let at = text.indexOf(needle); at !== -1; at = text.indexOf(needle, at + 1)) {
+    const before = text[at - 1] ?? '';
+    const after = text.slice(at + needle.length, at + needle.length + 2);
+    if (/^\d/.test(needle) && /[\d.,]/.test(before)) continue;
+    if (/\d$/.test(needle) && /^(?:\d|[.,]\d)/.test(after)) continue;
+    return true;
+  }
+  return false;
+}
+
 // Rights holders and operators whose own pages state their prices, catalogue and broadcast rights.
 const OFFICIAL_DOMAINS = [
-  'netflix.com', 'hbomax.com', 'max.com', 'disneyplus.com', 'primevideo.com', 'amazon.es', 'movistarplus.es', 'movistar.es',
+  'netflix.com', 'hbomax.com', 'max.com', 'disneyplus.com', 'primevideo.com', 'movistarplus.es', 'movistar.es',
   'dazn.com', 'apple.com', 'filmin.es', 'skyshowtime.com', 'atresplayer.com', 'rtve.es', 'mitele.es', 'laliga.com', 'uefa.com',
   'rfef.es', 'boe.es', 'cnmc.es', 'fifa.com',
 ];
 const DATASET_DOMAINS = ['themoviedb.org', 'justwatch.com', 'wikidata.org'];
+// User-generated areas of official domains are not the operator speaking.
+const USER_CONTENT_HOST = /^(?:discussions|community|comunidad|foros?|forums?|answers|support-community)\./;
 const onDomain = (url: string, domains: string[]) => { const h = hostOf(url); return domains.some((d) => h === d || h.endsWith(`.${d}`)); };
 
 /** Source trust is derived from the URL, never from what an agent labels it. */
 export function sourceKindFor(url: string): EvidenceSourceKind {
   if (onDomain(url, ['guiaprogramaciontv.com'])) return 'internal';
+  if (USER_CONTENT_HOST.test(hostOf(url))) return 'press';
   if (onDomain(url, OFFICIAL_DOMAINS)) return 'official';
+  // Amazon is official only for its own Prime Video / Prime pages, not marketplace listings.
+  if (onDomain(url, ['amazon.es']) && /^\/(?:gp\/video|prime|amazonprime)/.test(new URL(url).pathname)) return 'official';
   if (onDomain(url, DATASET_DOMAINS)) return 'dataset';
   return 'press';
 }
@@ -147,18 +171,36 @@ export function sourceKindFor(url: string): EvidenceSourceKind {
  * Agents reading the same original material are not independent: corroboration counts domains, not agents.
  */
 export function verifyBundle(bundle: EvidenceBundle, snapshots: ReadonlyMap<string, string>): EvidenceBundle {
-  const sources = new Map(bundle.sources.map((s) => [s.id, { ...s, kind: sourceKindFor(s.url) }]));
+  const sources = new Map(bundle.sources.map((s) => [s.id, s]));
   const normalized = new Map([...snapshots].map(([id, text]) => [id, normalizeForMatch(text)]));
+  return assessBundle({
+    ...bundle,
+    claims: bundle.claims.map((claim) => ({
+      ...claim,
+      quotes: claim.quotes.map((q) => {
+        const source = sources.get(q.sourceId);
+        const text = normalized.get(q.sourceId);
+        const needle = normalizeForMatch(q.quote);
+        return { ...q, verified: Boolean(source?.retrievedAt && source.contentHash && text && needle.length >= MIN_QUOTE_CHARS && containsQuote(text, needle)) };
+      }),
+    })),
+  });
+}
+
+/**
+ * Claim status from the quotes' verification flags alone: source kinds come from the URLs, and the
+ * corroboration, figure and conflict rules are re-applied. Used again at approval, so a stored bundle
+ * cannot simply declare its claims supported.
+ */
+export function assessBundle(bundle: EvidenceBundle): EvidenceBundle {
+  const sources = new Map(bundle.sources.map((s) => [s.id, { ...s, kind: sourceKindFor(s.url) }]));
   const conflicting = new Set(bundle.conflicts.flatMap((c) => c.claimIds));
 
   const claims = bundle.claims.map((claim) => {
-    const quotes = claim.quotes.map((q) => {
-      const source = sources.get(q.sourceId);
-      const text = normalized.get(q.sourceId);
-      const needle = normalizeForMatch(q.quote);
-      const verified = Boolean(source?.retrievedAt && source.contentHash && text && needle.length >= MIN_QUOTE_CHARS && text.includes(needle));
-      return { ...q, verified };
-    });
+    const quotes = claim.quotes.map((q) => ({
+      ...q,
+      verified: Boolean(q.verified && sources.get(q.sourceId)?.retrievedAt && sources.get(q.sourceId)?.contentHash && normalizeForMatch(q.quote).length >= MIN_QUOTE_CHARS),
+    }));
     const good = quotes.filter((q) => q.verified).map((q) => sources.get(q.sourceId)!);
     const primary = good.some((s) => s.kind !== 'press');
     const pressDomains = new Set(good.filter((s) => s.kind === 'press').map((s) => registrableDomain(s.url)));
@@ -189,30 +231,65 @@ const MARKER = /\[\[([a-z0-9_,\s-]+)\]\]/gi;
 const markerIds = (text: string) => [...text.matchAll(MARKER)].flatMap((m) => m[1].split(',').map((id) => id.trim()).filter(Boolean));
 export const stripClaimMarkers = (markdown: string) => markdown.replace(/[ \t]*\[\[[a-z0-9_,\s-]+\]\]/gi, '');
 
+// Figures written in words count as figures when they quantify something.
+const NUMBER_WORDS = /\b(?:dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|treinta|cuarenta|cincuenta|sesenta|cien|ciento|mil|mill[oó]n(?:es)?)\s+(?:de\s+)?(?:euros?|€|por\s+ciento|horas?|minutos?|d[ií]as|semanas|meses|años|temporadas|episodios|cap[ií]tulos|partidos|pantallas|dispositivos|suscriptores)\b/i;
 // A sentence that states a figure, date or time is a factual claim and must cite one.
-const FACTUAL = /\d|€|\b(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|lunes|martes|miércoles|jueves|viernes|sábado|domingo)\b/i;
+const FACTUAL = new RegExp(`\\d|€|\\b(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|lunes|martes|miércoles|jueves|viernes|sábado|domingo)\\b|${NUMBER_WORDS.source}`, 'i');
+
+/**
+ * Figures a sentence citing these claims may state: the claims' own numbers, plus the Europe/Madrid
+ * date and time of any UTC timestamp in their verified quotes (the only derivation allowed).
+ */
+function allowedNumbers(claims: EvidenceClaim[]): Set<string> {
+  const out = new Set<string>();
+  const madrid = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  for (const claim of claims) {
+    numbersIn(claim.text).forEach((n) => out.add(n));
+    for (const q of claim.quotes.filter((x) => x.verified)) {
+      numbersIn(q.quote).forEach((n) => out.add(n));
+      for (const [iso] of q.quote.matchAll(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?Z/g)) {
+        const parts = Object.fromEntries(madrid.formatToParts(new Date(iso)).map((p) => [p.type, p.value]));
+        for (const v of [parts.year, parts.month, parts.day, parts.hour, parts.minute]) {
+          if (v) { out.add(v); out.add(String(Number(v))); }
+        }
+      }
+    }
+  }
+  return out;
+}
+const stripListNumber = (unit: string) => unit.replace(/^\s*\d{1,2}[.)]\s+/, '');
 const FABRICATED_EXPERIENCE =
   /\b(?:(?:he|hemos)\s+(?:probado|testado|usado|comprobado\s+personalmente)|en\s+(?:mi|nuestra)\s+experiencia|nuestras?\s+pruebas?|personalmente|(?:entrevistamos|hemos\s+entrevistado|hablamos\s+con)\b|nos\s+(?:dijo|contó|confirmó))/i;
-const PLACEHOLDER = /\b(?:TODO|TBD|XXX|lorem ipsum)\b|\[(?:cita|fuente|enlace|link|insertar|pendiente)[^\]]*\]|\{\{/i;
-// The disclosure the publisher renders for AI-written posts (scripts/editorial-agents.mjs).
+// Markers are uppercase on purpose: Spanish "todo" is an ordinary word.
+const PLACEHOLDER = /\b(?:TODO|TBD|XXX|[Ll]orem ipsum)\b|\[(?:[Cc]ita|[Ff]uente|[Ee]nlace|[Ll]ink|[Ii]nsertar|[Pp]endiente)[^\]]*\]|\{\{/;
 // AI-written posts are signed by the publication, which the Article schema renders as an Organization.
 export const AI_AUTHOR = Object.freeze({ name: 'Redacción IA de Guía TV', id: 'guiatv-ai' });
 const AI_BYLINE = /gu[ií]a\s*tv/i;
-const AI_DISCLOSURE = /data-ai-disclosure|(?:inteligencia artificial|agentes? de IA|asistencia de IA)/i;
 
-/** Lines of prose (and table rows) the reader will see, without headings. */
+/** The only disclosure text an AI-written post carries; the gate recognises exactly this paragraph. */
+export const aiDisclosure = (verifiedOn: Date) =>
+  `<p data-ai-disclosure><em>Artículo investigado, redactado y revisado por agentes de inteligencia artificial de GuíaTV a partir de las fuentes enlazadas, comprobadas el ${verifiedOn.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Madrid' })}. No contiene pruebas ni experiencias propias. Consulta nuestra <a href="/politica-editorial">política editorial</a>.</em></p>`;
+const AI_DISCLOSURE = /<p data-ai-disclosure><em>Artículo investigado, redactado y revisado por agentes de inteligencia artificial de GuíaTV a partir de las fuentes enlazadas, comprobadas el \d{1,2} de [a-z]+ de \d{4}\. No contiene pruebas ni experiencias propias\. Consulta nuestra <a href="\/politica-editorial">política editorial<\/a>\.<\/em><\/p>/;
+
+/** Lines of prose, headings below the title, list items and table rows the reader will see. */
 function factualUnits(markdown: string): string[] {
   return stripFences(markdown)
     .split('\n')
-    .filter((line) => line.trim() && !/^\s*#/.test(line) && !/^\s*\|?\s*:?-{3,}/.test(line))
-    .flatMap((line) => (/^\s*\|/.test(line) ? [line] : line.split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ¿¡])/)));
+    .filter((line) => line.trim() && !/^#\s/.test(line) && !/^\s*\|?\s*:?-{3,}/.test(line))
+    .flatMap((line) => (/^\s*\|/.test(line) ? [line] : line.split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ¿¡])/)))
+    .map(stripListNumber);
 }
 const stripFences = (md: string) => md.replace(/^---[\s\S]*?---\s*/, '').replace(/```[\s\S]*?```/g, '');
 /** What a reader sees of a markdown line: link and image targets are attributes, not text. */
 const visibleMarkdown = (md: string) => stripClaimMarkers(md).replace(/\]\([^)]*\)/g, ']').replace(/<https?:[^>]+>/g, '');
 const words = (text: string) => normalizeForMatch(text.replace(/[^\p{L}\p{N}]+/gu, ' ')).length;
-const fingerprint = (text: string) => String(text || '').replace(/<[^>]+>/g, ' ').replace(/&[a-z0-9#]+;/gi, ' ')
-  .toLowerCase().normalize('NFKC').replace(/[^\p{L}\p{N}]+/gu, '');
+const ENTITIES: Record<string, string> = { amp: '&', quot: '"', '#39': "'", apos: "'", lt: '<', gt: '>', nbsp: ' ', euro: '€' };
+/** Visible words and numbers in order; "6,99" stays one token, so changing a figure changes the sequence. */
+const visibleTokens = (text: string) => (String(text || '')
+  .replace(/<[^>]+>/g, ' ')
+  .replace(/&(#?\w+);/g, (_m, e: string) => ENTITIES[e.toLowerCase()] ?? (/^#\d+$/.test(e) ? String.fromCodePoint(Number(e.slice(1))) : ' '))
+  .normalize('NFKC').toLowerCase()
+  .match(/[\p{L}\p{N}]+(?:[.,:'’][\p{L}\p{N}]+)*/gu) ?? []).join(' ');
 
 export interface ValueSignals {
   /** Claims backed by GuíaTV's own data (schedule, channel, catalogue): what a generic article cannot copy. */
@@ -266,27 +343,54 @@ export function changedClaims(before: EvidenceBundle, after: EvidenceBundle, dra
 const normalizeUrl = (url: string) => {
   try { const u = new URL(url); u.hash = ''; return `${u.hostname.replace(/^www\./, '')}${u.pathname.replace(/\/$/, '')}${u.search}`; } catch { return url; }
 };
+const SITE = 'https://guiaprogramaciontv.com/';
+const isSiteHost = (host: string) => /^(?:www\.)?guiaprogramaciontv\.com$/i.test(host);
+/** Every href/src value, quoted or not. */
+const linkTargets = (html: string) =>
+  [...html.matchAll(/\b(?:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gi)].map((m) => (m[1] ?? m[2] ?? m[3] ?? '').trim());
+
+/**
+ * Pipeline attestation: HMAC over what the deterministic checks and the critic decided. Only the
+ * pipeline runner holds the key; the API refuses policy approval of provenance it did not sign.
+ */
+const attestation = (p: EditorialProvenance) =>
+  [p.pipelineVersion, p.backend ?? '', p.bundleHash, p.draftHash, p.critic?.verdict ?? '', p.critic?.bundleHash ?? '', p.critic?.draftHash ?? ''].join('|');
+export const signProvenance = (p: EditorialProvenance, key: string) => createHmac('sha256', key).update(attestation(p)).digest('hex');
+export function provenanceSignatureValid(p: EditorialProvenance, key: string | undefined): boolean {
+  if (!key || !p.signature || !/^[0-9a-f]{64}$/.test(p.signature)) return false;
+  return timingSafeEqual(Buffer.from(signProvenance(p, key), 'hex'), Buffer.from(p.signature, 'hex'));
+}
+
+interface EvidencePost {
+  content?: string;
+  title?: string;
+  excerpt?: string;
+  author?: { name?: string };
+  seo?: { metaTitle?: string; metaDescription?: string };
+  faqItems?: Array<{ question?: string; answer?: string }>;
+}
 
 /**
  * Publication findings for a post that carries M11-B provenance, in the same severities as
  * evaluateEditorialQuality. Every check is deterministic; the critic can only add a block.
  */
-export function evaluateEvidence(
-  post: { content?: string; author?: { name?: string } },
-  provenance: EditorialProvenance,
-  now = new Date()
-): EditorialFinding[] {
+export function evaluateEvidence(post: EvidencePost, provenance: EditorialProvenance, now = new Date()): EditorialFinding[] {
   const findings: EditorialFinding[] = [];
   const add = (severity: EditorialFindingSeverity, code: string, message: string) => findings.push({ severity, code, message });
-  const { bundle, draftMarkdown } = provenance;
+  const { draftMarkdown } = provenance;
+  // Statuses are re-derived, never taken from what the stored bundle declares.
+  const bundle = assessBundle(provenance.bundle);
   const html = String(post.content || '');
   const claims = new Map(bundle.claims.map((c) => [c.id, c]));
   const sources = new Map(bundle.sources.map((s) => [s.id, s]));
+  const used = new Set(markerIds(draftMarkdown));
+  const usedSupported = bundle.claims.filter((c) => used.has(c.id) && c.status === 'supported');
 
-  if (hashBundle(bundle) !== provenance.bundleHash) add('block', 'evidence-tampered', 'El paquete de evidencias no coincide con su hash');
+  if (hashBundle(provenance.bundle) !== provenance.bundleHash) add('block', 'evidence-tampered', 'El paquete de evidencias no coincide con su hash');
   if (hashText(draftMarkdown) !== provenance.draftHash) add('block', 'draft-tampered', 'El borrador no coincide con su hash');
-  // The published HTML must be the reviewed draft: same visible words, in order (the disclosure is appended).
-  if (!fingerprint(html).includes(fingerprint(visibleMarkdown(stripFences(draftMarkdown).replace(/^#\s.*$/m, ''))))) {
+  // The published HTML is exactly the reviewed draft plus the standard disclosure: nothing added, no figure changed.
+  const body = html.replace(AI_DISCLOSURE, ' ');
+  if (visibleTokens(body) !== visibleTokens(visibleMarkdown(stripFences(draftMarkdown).replace(/^#\s.*$/m, '')))) {
     add('block', 'content-not-reviewed-draft', 'El HTML publicado no es la versión del borrador que se verificó');
   }
   if (/\[\[[a-z0-9_,\s-]+\]\]/i.test(html)) add('block', 'claim-marker-leak', 'Quedan marcadores [[claim]] en el HTML');
@@ -294,7 +398,7 @@ export function evaluateEvidence(
   for (const source of bundle.sources) {
     if (!source.retrievedAt || !source.contentHash) add('block', 'source-not-retrieved', `Fuente sin recuperación registrada: ${source.url}`);
   }
-  const unknown = [...new Set(markerIds(draftMarkdown))].filter((id) => !claims.has(id));
+  const unknown = [...used].filter((id) => !claims.has(id));
   if (unknown.length) add('block', 'unknown-claim', `Marcadores sin afirmación en el paquete: ${unknown.join(', ')}`);
 
   for (const unit of factualUnits(draftMarkdown)) {
@@ -304,23 +408,36 @@ export function evaluateEvidence(
       if (FACTUAL.test(visible)) add('block', 'uncited-factual-statement', `Dato sin afirmación verificada: «${visible.slice(0, 120)}»`);
       continue;
     }
-    for (const id of ids) {
-      const claim = claims.get(id);
-      if (claim && claim.status !== 'supported') {
-        add('block', 'unsupported-claim', `${id} (${claim.status ?? 'sin verificar'}): ${claim.note ?? claim.text}`);
-      }
+    const cited = ids.map((id) => claims.get(id)).filter(Boolean) as EvidenceClaim[];
+    for (const claim of cited.filter((c) => c.status !== 'supported')) {
+      add('block', 'unsupported-claim', `${claim.id} (${claim.status ?? 'sin verificar'}): ${claim.note ?? claim.text}`);
+    }
+    const allowed = allowedNumbers(cited.filter((c) => c.status === 'supported'));
+    const stray = numbersIn(visible).filter((n) => !allowed.has(n));
+    if (stray.length) add('block', 'figure-not-in-claim', `Cifras que no están en ${ids.join(', ')}: ${stray.join(', ')} («${visible.slice(0, 100)}»)`);
+    if (NUMBER_WORDS.test(visible)) add('block', 'figure-in-words', `Cifra escrita con letras: «${visible.slice(0, 100)}»`);
+  }
+
+  // Title, excerpt and metadata cannot carry markers: their figures must come from the claims the draft states.
+  const allowedAll = allowedNumbers(usedSupported);
+  for (const [field, text] of [['title', post.title], ['excerpt', post.excerpt], ['metaTitle', post.seo?.metaTitle], ['metaDescription', post.seo?.metaDescription]] as const) {
+    const visible = String(text || '').replace(/<[^>]+>/g, ' ');
+    const stray = numbersIn(visible).filter((n) => !allowedAll.has(n));
+    if (stray.length || NUMBER_WORDS.test(visible)) add('block', 'metadata-figure-not-in-claims', `${field}: cifras sin afirmación verificada en el texto (${stray.join(', ') || 'cifra con letras'})`);
+  }
+  if ((post.faqItems || []).length) add('block', 'faq-not-evidenced', 'Las preguntas frecuentes no pasan por el paquete de evidencias');
+
+  const sourceUrls = new Set(bundle.sources.map((s) => normalizeUrl(s.url)));
+  for (const target of linkTargets(html)) {
+    let url: URL;
+    try { url = new URL(target, SITE); } catch { add('block', 'invalid-link', `Enlace no válido: ${target}`); continue; }
+    if (!/^https?:$/.test(url.protocol)) add('block', 'invalid-link', `Enlace con protocolo no permitido: ${target}`);
+    else if (!isSiteHost(url.hostname) && !sourceUrls.has(normalizeUrl(url.href))) {
+      add('block', 'unsourced-link', `Enlace externo que no está en el paquete de evidencias: ${target}`);
     }
   }
 
-  const sourceUrls = new Set(bundle.sources.map((s) => normalizeUrl(s.url)));
-  for (const [, href] of html.matchAll(/href=["'](https?:\/\/[^"']+)["']/gi)) {
-    if (/guiaprogramaciontv\.com/i.test(href)) continue;
-    if (!sourceUrls.has(normalizeUrl(href))) add('block', 'unsourced-link', `Enlace externo que no está en el paquete de evidencias: ${href}`);
-  }
-
-  const used = new Set(markerIds(draftMarkdown));
-  for (const claim of bundle.claims) {
-    if (!used.has(claim.id) || claim.status !== 'supported') continue;
+  for (const claim of usedSupported) {
     const retrieved = claim.quotes.filter((q) => q.verified).map((q) => Date.parse(sources.get(q.sourceId)?.retrievedAt || '')).filter((t) => !Number.isNaN(t));
     if (retrieved.length && now.getTime() - Math.max(...retrieved) > REVIEW_CADENCE_DAYS[claim.volatility] * 864e5) {
       add('block', 'stale-evidence', `${claim.id} (${claim.volatility}) se comprobó hace más de ${REVIEW_CADENCE_DAYS[claim.volatility]} días`);

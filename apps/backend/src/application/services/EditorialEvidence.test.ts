@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   AI_AUTHOR,
+  aiDisclosure,
   changedClaims,
   CostLedger,
   EditorialBudgetExceeded,
@@ -12,6 +13,8 @@ import {
   hashText,
   measureValue,
   nextReviewAt,
+  provenanceSignatureValid,
+  signProvenance,
   stripClaimMarkers,
   verifyBundle,
 } from './EditorialEvidence';
@@ -54,7 +57,7 @@ const DRAFT = [
 ].join('\n');
 const render = (md: string) =>
   `<div class="editorial-body"><p>${stripClaimMarkers(md).replace(/^# .*\n/, '').replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')}</p>` +
-  '<p data-ai-disclosure><em>Escrito y revisado por agentes de IA de GuíaTV.</em></p></div>';
+  `${aiDisclosure(new Date(RETRIEVED))}</div>`;
 
 function provenanceFor(bundle: EvidenceBundle, draftMarkdown = DRAFT, verdict: 'pass' | 'revise' = 'pass'): EditorialProvenance {
   const bundleHash = hashBundle(bundle);
@@ -133,7 +136,7 @@ test('publication gate: missing evidence, uncited figures and unknown markers bl
   const v = verifyBundle(bundleFixture(), snapshots);
   const draft = `${DRAFT}\n\nNetflix subirá el Premium en 2027 [[c3]]. Disney+ cuesta 5,99 €. Otro dato [[c9]].`;
   const f = evaluateEvidence({ author: AI_AUTHOR, content: render(draft) }, provenanceFor(v, draft), NOW);
-  assert.deepEqual([...new Set(codes(f))], ['uncited-factual-statement', 'unknown-claim', 'unsupported-claim']);
+  assert.deepEqual([...new Set(codes(f))], ['figure-not-in-claim', 'uncited-factual-statement', 'unknown-claim', 'unsupported-claim']);
 });
 
 test('publication gate: fabricated sources, experience, placeholders and missing disclosure block', () => {
@@ -197,4 +200,87 @@ test('cost ledger: prices tokens per model and stops at the article budget', () 
   ledger.count('sourceFetches', 2);
   ledger.count('sourceFetches', 2);
   assert.throws(() => ledger.count('sourceFetches', 2), EditorialBudgetExceeded);
+});
+
+// ---- regressions from the independent review (each case passed the first version of the gate) ----
+const gate = (draft: string, post: Record<string, unknown> = {}, bundle = verifyBundle(bundleFixture(), snapshots)) =>
+  codes(evaluateEvidence({ author: AI_AUTHOR, content: render(draft), ...post }, provenanceFor(bundle, draft), NOW));
+
+test('review H1: appended text or a reshuffled figure in the HTML is not the reviewed draft', () => {
+  const p = provenanceFor(verifyBundle(bundleFixture(), snapshots));
+  const appended = render(DRAFT).replace('</div>', '<p>Netflix cuesta 1 € desde marzo.</p></div>');
+  assert.deepEqual(codes(evaluateEvidence({ author: AI_AUTHOR, content: appended }, p, NOW)), ['content-not-reviewed-draft']);
+  const shuffled = render(DRAFT).replace('6,99', '69,9');
+  assert.deepEqual(codes(evaluateEvidence({ author: AI_AUTHOR, content: shuffled }, p, NOW)), ['content-not-reviewed-draft']);
+  // Text slipped into the disclosure paragraph makes it a non-standard disclosure.
+  const disclosure = render(DRAFT).replace('No contiene pruebas', 'Netflix sube a 9 €. No contiene pruebas');
+  assert.ok(codes(evaluateEvidence({ author: AI_AUTHOR, content: disclosure }, p, NOW)).includes('missing-ai-disclosure'));
+});
+
+test('review H2: a cited sentence may only state its claims\' figures, or the Madrid time of a quoted UTC instant', () => {
+  assert.deepEqual(gate(DRAFT.replace('6,99 € al mes [[c1]]', '2,99 € al mes [[c1]]')), ['figure-not-in-claim']);
+  const utc = bundleFixture({
+    claims: [...bundleFixture().claims, { id: 'c4', text: 'Vértigo se emite el 28 de octubre de 2026 de 21:30 a 23:40 UTC', volatility: 'tv-schedule', quotes: [{ sourceId: 's2', quote: '"start":"2026-10-28T21:30:00.000Z","end":"2026-10-28T23:40:00.000Z"' }] }],
+  });
+  const snaps = new Map(snapshots).set('s2', `${INTERNAL}{"start":"2026-10-28T21:30:00.000Z","end":"2026-10-28T23:40:00.000Z"}`);
+  const v = verifyBundle(utc, snaps);
+  const ok = `${DRAFT}\n\nEl miércoles 28 a las 22:30 hora peninsular, Vértigo hasta las 00:40 [[c4]].`;
+  assert.deepEqual(gate(ok, {}, v), []);
+  assert.deepEqual(gate(ok.replace('22:30', '20:15'), {}, v), ['figure-not-in-claim']);
+});
+
+test('review H3: headings, title, metadata, FAQ and figures in words are checked too', () => {
+  assert.deepEqual(gate(`${DRAFT}\n\n## Netflix sube a 25 € en 2027`), ['uncited-factual-statement']);
+  assert.deepEqual(gate(DRAFT, { title: 'Netflix a 4,99 € esta semana' }), ['metadata-figure-not-in-claims']);
+  assert.deepEqual(gate(DRAFT, { excerpt: 'El plan con anuncios cuesta 6,99 €.' }), []);
+  assert.deepEqual(gate(DRAFT, { seo: { metaDescription: 'Desde veinte euros al mes' } }), ['metadata-figure-not-in-claims']);
+  assert.deepEqual(gate(DRAFT, { faqItems: [{ question: '¿Precio?', answer: 'Barato' }] }), ['faq-not-evidenced']);
+  assert.deepEqual(gate(`${DRAFT}\n\nCuesta veinte euros al mes.`), ['uncited-factual-statement']);
+});
+
+test('review H4: links are judged by their parsed hostname, in any attribute form', () => {
+  const p = provenanceFor(verifyBundle(bundleFixture(), snapshots));
+  for (const link of [
+    '<a href="https://evil.example/?guiaprogramaciontv.com">x</a>',
+    '<a href="https://guiaprogramaciontv.com.evil.example/">x</a>',
+    '<a href=https://evil.example/a>x</a>',
+    '<a href="//evil.example/a">x</a>',
+    '<img src="https://evil.example/pixel.png">',
+  ]) {
+    const html = render(DRAFT).replace('</div>', `${link}</div>`);
+    assert.ok(codes(evaluateEvidence({ author: AI_AUTHOR, content: html }, p, NOW)).includes('unsourced-link'), link);
+  }
+  const js = render(DRAFT).replace('</div>', '<a href="javascript:alert(1)">x</a></div>');
+  assert.ok(codes(evaluateEvidence({ author: AI_AUTHOR, content: js }, p, NOW)).includes('invalid-link'));
+});
+
+test('review H5: a stored bundle cannot declare its own claims supported', () => {
+  const real = verifyBundle(bundleFixture(), snapshots);
+  const forged = { ...real, claims: real.claims.map((c) => (c.id === 'c3' ? { ...c, status: 'supported' as const } : c)) };
+  assert.ok(gate(`${DRAFT}\n\nNetflix subirá el Premium en 2027 [[c3]].`, {}, forged).includes('unsupported-claim'));
+});
+
+test('review M4: a quote matches only at digit boundaries', () => {
+  const v = verifyBundle(bundleFixture({ claims: [
+    { id: 'd1', text: 'Netflix Estándar cuesta 1 €', volatility: 'pricing', quotes: [{ sourceId: 's1', quote: 'Plan Estándar: 1' }] },
+    { id: 'd2', text: 'Estándar 3,99', volatility: 'pricing', quotes: [{ sourceId: 's1', quote: '3,99 €/mes. Plan Premium' }] },
+  ] }), snapshots);
+  assert.deepEqual(v.claims.map((c) => c.status), ['unverified', 'unverified']);
+});
+
+test('review L2: user-generated areas and marketplace pages of official domains are press', () => {
+  const kind = (url: string) => verifyBundle(bundleFixture({ sources: [{ id: 'x', url, publisher: 'x', kind: 'official' }], claims: [] }), new Map()).sources[0].kind;
+  assert.equal(kind('https://discussions.apple.com/thread/1'), 'press');
+  assert.equal(kind('https://www.amazon.es/dp/B0TEST'), 'press');
+  assert.equal(kind('https://www.amazon.es/gp/video/storefront'), 'official');
+});
+
+test('signature: only unmodified provenance signed with the runner key is attested', () => {
+  const p = { ...provenanceFor(verifyBundle(bundleFixture(), snapshots)), backend: 'anthropic' };
+  const signed = { ...p, signature: signProvenance(p, 'k') };
+  assert.equal(provenanceSignatureValid(signed, 'k'), true);
+  assert.equal(provenanceSignatureValid(signed, 'other'), false);
+  assert.equal(provenanceSignatureValid(signed, undefined), false);
+  assert.equal(provenanceSignatureValid({ ...signed, backend: 'replay' }, 'k'), false);
+  assert.equal(provenanceSignatureValid({ ...signed, critic: { ...signed.critic!, verdict: 'revise' } }, 'k'), false);
 });
