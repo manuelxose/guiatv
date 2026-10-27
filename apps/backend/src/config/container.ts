@@ -646,6 +646,8 @@ export class Container {
 
     const blogController = new BlogController(this.get('cacheRepository'));
     this.dependencies.set('blogController', blogController);
+    const { EditorialOpsController } = await import('../presentation/controllers/EditorialOpsController');
+    this.dependencies.set('editorialOpsController', new EditorialOpsController(this.get('storageRepository')));
 
     const analyticsController = new AnalyticsController(this.get('analyticsService'));
     this.dependencies.set('analyticsController', analyticsController);

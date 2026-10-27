@@ -8,6 +8,7 @@ import type { EditorialModel, ModelCall, ModelResult } from '../../application/s
  */
 export class AnthropicEditorialModel implements EditorialModel {
   readonly provider = 'anthropic';
+  readonly webSearch = true;
   private readonly client: Pick<Anthropic, 'messages'>;
 
   constructor(options: { apiKey?: string; maxRetries?: number; client?: Pick<Anthropic, 'messages'> } = {}) {

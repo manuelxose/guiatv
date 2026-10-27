@@ -191,7 +191,7 @@ test('original value: no GuíaTV data and no multi-source comparison blocks', ()
 });
 
 test('cost ledger: prices tokens per model and stops at the article budget', () => {
-  const ledger = new CostLedger({ maxArticleUsd: 0.5, maxResearchCalls: 1, maxSourceFetches: 2, maxRetries: 0, maxReviewLoops: 1, maxDailyArticles: 1, maxConcurrentJobs: 1 });
+  const ledger = new CostLedger({ maxArticleUsd: 0.5, maxDailyUsd: 10, maxResearchCalls: 1, maxSourceFetches: 2, maxRetries: 0, maxReviewLoops: 1, maxDailyArticles: 1, maxConcurrentJobs: 1 });
   assert.equal(ledger.charge('research', 'claude-opus-5-5', { input_tokens: 10_000, output_tokens: 5_000 }, 3).usd, 0.17);
   assert.equal(ledger.charge('seo', 'claude-haiku-5-5', { input_tokens: 100_000, output_tokens: 0 }).usd, 0.01);
   assert.throws(() => ledger.charge('critic', 'claude-opus-5-5', { input_tokens: 50_000, output_tokens: 10_000 }), EditorialBudgetExceeded);

@@ -91,9 +91,32 @@ export interface EditorialProvenance {
   version?: number;
   /** Who answered the roles: 'anthropic' (live models) or 'replay' (recorded answers). */
   backend?: string;
+  /** Generated images (docs/adr/0001 Decision 2); their hashes are part of the signed attestation. */
+  images?: ImageAsset[];
   /** signProvenance() by the pipeline runner. */
   signature?: string;
 }
+
+/** An AI-generated picture: provenance only, the bytes live in media storage under `url`. */
+export interface ImageAsset {
+  assetId: string;
+  purpose: 'cover';
+  /** Content-addressed public path (/storage/editorial/<sha256>-<width>.webp). */
+  url: string;
+  width: number;
+  height: number;
+  contentType: string;
+  sha256: string;
+  provider: string;
+  model: string;
+  prompt: string;
+  /** Written from the article, never taken from the image model. */
+  altText: string;
+  rights: string;
+  costUsd: number;
+  createdAt: string;
+}
+export const AI_IMAGE_RIGHTS = 'ai-generated; owned by GuíaTV; no third-party marks, posters, stills or real people';
 
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
 const canonicalJson = (value: unknown): string =>
@@ -354,7 +377,9 @@ const linkTargets = (html: string) =>
  * pipeline runner holds the key; the API refuses policy approval of provenance it did not sign.
  */
 const attestation = (p: EditorialProvenance) =>
-  [p.pipelineVersion, p.backend ?? '', p.bundleHash, p.draftHash, p.critic?.verdict ?? '', p.critic?.bundleHash ?? '', p.critic?.draftHash ?? ''].join('|');
+  [p.pipelineVersion, p.backend ?? '', p.bundleHash, p.draftHash, p.critic?.verdict ?? '', p.critic?.bundleHash ?? '', p.critic?.draftHash ?? '',
+    // Appended only when present, so provenance signed before images existed still verifies.
+    ...(p.images?.length ? [p.images.map((i) => `${i.provider}:${i.sha256}:${i.url}`).join(',')] : [])].join('|');
 export const signProvenance = (p: EditorialProvenance, key: string) => createHmac('sha256', key).update(attestation(p)).digest('hex');
 export function provenanceSignatureValid(p: EditorialProvenance, key: string | undefined): boolean {
   if (!key || !p.signature || !/^[0-9a-f]{64}$/.test(p.signature)) return false;
@@ -366,8 +391,9 @@ interface EvidencePost {
   title?: string;
   excerpt?: string;
   author?: { name?: string };
-  seo?: { metaTitle?: string; metaDescription?: string };
+  seo?: { metaTitle?: string; metaDescription?: string; ogImage?: string };
   faqItems?: Array<{ question?: string; answer?: string }>;
+  featuredImage?: { sourceUrl?: string; alt?: string };
 }
 
 /**
@@ -427,6 +453,18 @@ export function evaluateEvidence(post: EvidencePost, provenance: EditorialProven
   }
   if ((post.faqItems || []).length) add('block', 'faq-not-evidenced', 'Las preguntas frecuentes no pasan por el paquete de evidencias');
 
+  const images = provenance.images ?? [];
+  for (const image of images) {
+    if (image.provider === 'mock') add('block', 'mock-image', `Imagen de prueba (${image.model}), no publicable`);
+    if (image.rights !== AI_IMAGE_RIGHTS || image.altText.trim().length < 15) add('block', 'image-metadata', `Imagen ${image.assetId} sin derechos o texto alternativo válidos`);
+  }
+  // A cover outside the provenance (a poster, a still) needs a person who checked its licence.
+  for (const [field, url] of [['featuredImage', post.featuredImage?.sourceUrl], ['ogImage', post.seo?.ogImage]] as const) {
+    if (url && !images.some((i) => i.url === url)) add('human', 'image-not-in-provenance', `${field}: imagen sin procedencia registrada (${url})`);
+  }
+  const cover = images.find((i) => i.url === post.featuredImage?.sourceUrl);
+  if (cover && post.featuredImage?.alt !== cover.altText) add('block', 'image-alt-mismatch', 'El texto alternativo de la portada no es el registrado');
+
   const sourceUrls = new Set(bundle.sources.map((s) => normalizeUrl(s.url)));
   for (const target of linkTargets(html)) {
     let url: URL;
@@ -478,9 +516,18 @@ export const MODEL_PRICES: Readonly<Record<string, readonly [number, number]>> =
 });
 /** Web search is billed per search on top of tokens. */
 export const WEB_SEARCH_USD = 0.01;
+/**
+ * USD per generated image. Only the local mock is priced: a real image model is added here after its
+ * price and commercial terms are checked (docs/adr/0001), and until then the ledger refuses it.
+ */
+export const IMAGE_PRICES: Readonly<Record<string, number>> = Object.freeze({
+  'mock-cover-1': 0,
+});
 
 export interface EditorialLimits {
   maxArticleUsd: number;
+  /** Spend ceiling for all jobs started in one UTC day (text and images). */
+  maxDailyUsd: number;
   maxResearchCalls: number;
   maxSourceFetches: number;
   maxRetries: number;
@@ -490,6 +537,7 @@ export interface EditorialLimits {
 }
 export const DEFAULT_EDITORIAL_LIMITS: Readonly<EditorialLimits> = Object.freeze({
   maxArticleUsd: 3,
+  maxDailyUsd: 10,
   maxResearchCalls: 2,
   maxSourceFetches: 12,
   maxRetries: 1,
@@ -512,12 +560,27 @@ export class CostLedger {
     const price = MODEL_PRICES[model];
     if (!price) throw new EditorialBudgetExceeded(`modelo sin precio conocido: ${model}`);
     const usd = (usage.input_tokens * price[0] + usage.output_tokens * price[1]) / 1e6 + searches * WEB_SEARCH_USD;
-    const entry = { role, model, inputTokens: usage.input_tokens, outputTokens: usage.output_tokens, searches, usd: +usd.toFixed(6) };
+    return this.record({ role, model, inputTokens: usage.input_tokens, outputTokens: usage.output_tokens, searches, usd: +usd.toFixed(6) });
+  }
+
+  /** An image costs a flat price per picture; an unpriced image model is refused before it is called. */
+  imagePrice(model: string): number {
+    const price = IMAGE_PRICES[model];
+    if (price === undefined) throw new EditorialBudgetExceeded(`modelo de imagen sin precio conocido: ${model}`);
+    if (this.summary.usd + price > this.limits.maxArticleUsd) throw new EditorialBudgetExceeded(`la imagen (${price} USD) supera el límite ${this.limits.maxArticleUsd}`);
+    return price;
+  }
+
+  chargeImage(model: string): CostEntry {
+    return this.record({ role: 'image', model, inputTokens: 0, outputTokens: 0, searches: 0, usd: this.imagePrice(model) });
+  }
+
+  private record(entry: CostEntry): CostEntry {
     const s = this.summary;
     s.entries.push(entry);
-    s.usd = +(s.usd + usd).toFixed(6);
-    s.inputTokens += usage.input_tokens;
-    s.outputTokens += usage.output_tokens;
+    s.usd = +(s.usd + entry.usd).toFixed(6);
+    s.inputTokens += entry.inputTokens;
+    s.outputTokens += entry.outputTokens;
     if (s.usd > this.limits.maxArticleUsd) throw new EditorialBudgetExceeded(`coste ${s.usd.toFixed(2)} USD > límite ${this.limits.maxArticleUsd}`);
     return entry;
   }

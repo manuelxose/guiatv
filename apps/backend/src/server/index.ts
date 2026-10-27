@@ -34,6 +34,7 @@ async function startServer() {
       tvController: container.get('tvController'),
       footballController: container.get('footballController'),
       blogController: container.get('blogController'),
+      editorialOpsController: container.get('editorialOpsController'),
       analyticsController: container.get('analyticsController'),
       monetizationController: container.get('monetizationController'),
       affiliateController: container.get('affiliateController'),
