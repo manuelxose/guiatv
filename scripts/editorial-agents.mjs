@@ -254,9 +254,10 @@ if (command === 'run') {
     if (!saved.ok) { console.error(saved.message); process.exit(1); }
     console.log(`saved draft ${run.slug} ${saved.id}`);
   } else {
-    if (!found) { console.error(`${run.slug} is not in the CMS: save-draft first`); process.exit(1); }
-    const res = await approveByPolicy(api, found.id);
-    console.log(`${res.ok ? 'published' : 'REFUSED'} ${run.slug}`, res.ok ? '' : res.message);
+    // Same path as --autopublish: only this run's own unreviewed draft (or a fresh save of it) is published by policy.
+    const res = await publishRun(run, api, resolve(target, '..'));
+    console.log(`${res.ok ? `published ${res.url}` : 'REFUSED'} ${run.slug}`, res.ok ? '' : res.message);
+    if (!res.ok) process.exitCode = 1;
   }
 } else {
   console.error('usage: editorial-agents.mjs run|verify|maintain|save-draft|publish …'); process.exit(2);
@@ -278,10 +279,11 @@ async function saveDraft(run, api, runDir) {
   const res = await fetch(`${api}/v2/blog`, { method: 'POST', headers: adminHeaders(), body: JSON.stringify({ ...run.draft, editorial: run.provenance }) });
   return res.ok ? { ok: true, id: (await res.json()).data.post.id } : { ok: false, message: `save FAILED ${res.status} ${await res.text()}` };
 }
-const approveByPolicy = async (api, id) => {
+// A function declaration, like the helpers above: the top-level command code runs before any `const` below it exists.
+async function approveByPolicy(api, id) {
   const res = await fetch(`${api}/v2/blog/${id}/approve-by-policy`, { method: 'POST', headers: { ...adminHeaders(), 'x-editorial-policy-key': process.env.EDITORIAL_POLICY_KEY || '' } });
   return { ok: res.ok, message: res.ok ? '' : `${res.status} ${(await res.text()).slice(0, 800)}` };
-};
+}
 /**
  * M11-E2 autonomous publication of one passed run. The server re-runs every gate, the signature and the daily cap.
  * Idempotent after a crash: only a draft of THIS run (same draft hash) that no person has reviewed is reused; any
