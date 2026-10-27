@@ -1,7 +1,7 @@
 // src/v2/presentation/routes/app.ts
 
 import express, { Application } from 'express';
-import path from 'path';
+import { editorialMediaGate, storageRoot } from '../middlewares/editorialMediaGate';
 import { createV2Routes, RoutesDependencies } from './index';
 import { createBlogRoutes } from './blog.routes';
 import { createSitemapRoutes } from './sitemap.routes';
@@ -31,10 +31,9 @@ export const createApp = (dependencies: RoutesDependencies): Application => {
 
   // Serve storage from the same path LocalStorageRepository writes to:
   // STORAGE_LOCAL_PATH when configured, otherwise <cwd>/tmp-storage.
-  const storagePath = process.env.STORAGE_LOCAL_PATH
-    ? path.resolve(process.env.STORAGE_LOCAL_PATH)
-    : path.join(process.cwd(), 'tmp-storage');
-  app.use('/storage', express.static(storagePath));
+  // Generated editorial covers pass the publication gate first.
+  app.use('/storage/editorial', editorialMediaGate);
+  app.use('/storage', express.static(storageRoot()));
 
   // Middlewares globales
   app.use(corsMiddleware);

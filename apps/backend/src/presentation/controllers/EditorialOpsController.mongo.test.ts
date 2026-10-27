@@ -15,6 +15,7 @@ import { BlogController } from './BlogController';
 import { EditorialOpsController } from './EditorialOpsController';
 import { createAdminEditorialRoutes } from '../routes/admin-editorial.routes';
 import { errorHandler } from '../middlewares/errorHandler';
+import { editorialMediaGate } from '../middlewares/editorialMediaGate';
 import { BlogPostModel } from '../../infrastructure/database/models/BlogPost.model';
 import { LocalStorageRepository } from '../../infrastructure/storage/LocalStorageRepository';
 import { MockImageModel } from '../../infrastructure/external/MockImageModel';
@@ -47,6 +48,7 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
   const ops = new EditorialOpsController(new LocalStorageRepository(storageDir));
   process.env.EDITORIAL_PIPELINE_SIGNING_KEY = KEY;
   process.env.EDITORIAL_POLICY_PUBLISHING = 'enabled';
+  process.env.STORAGE_LOCAL_PATH = storageDir;
   try {
     await BlogPostModel.init();
     const create = async (run: Awaited<ReturnType<typeof pipelineRun>>) => {
@@ -92,6 +94,7 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     const detail = (await call(ops.post, { params: { id: coverId } })).body.data;
     assert.equal(detail.post.coverUrl, asset.url);
     assert.equal(detail.post.coverAlt, asset.altText);
+    assert.match(detail.post.coverPreview, /^data:image\/webp;base64,/, 'the Admin previews a draft cover without a public URL');
     assert.equal(detail.provenance.signed, true);
     assert.deepEqual(detail.policyBlockers.map((f: { code: string }) => f.code), ['mock-image', 'generated-image-unverified']);
     assert.match(String((await call(blog.approveByPolicy, { params: { id: coverId } })).error?.details?.[0]?.message), /imagen no verificado: mock/);
@@ -145,8 +148,26 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
       const pausedBy = await (await fetch(`${base}/policy/pause`, { method: 'POST', headers: { ...bearer('admin-token'), 'content-type': 'application/json' }, body: JSON.stringify({ reason: 'http' }) })).json() as any;
       assert.equal(pausedBy.data.policy.pausedBy, 'admin-token@x');
       assert.equal(await status('/media/' + asset.sha256, { method: 'POST', headers: { 'content-type': 'image/png' }, body: bytes }), 401);
+      // M11-D: the runner's policy key is not a reviewer key, whatever header it is sent in.
+      process.env.EDITORIAL_POLICY_KEY = 'policy-key-test';
+      assert.equal(await status('/policy/resume', { method: 'POST', headers: { ...bearer('admin-token'), 'x-editorial-review-key': 'policy-key-test' } }), 403, 'the runner cannot lift a stop');
     } finally {
       server.close();
+    }
+
+    // M11-D: a draft's generated cover is a 404 for anonymous readers even with its exact URL; once public it is served.
+    const media = express().use('/storage/editorial', editorialMediaGate).use('/storage', express.static(storageDir)).use(errorHandler).listen(0);
+    try {
+      const get = (path: string) => fetch(`http://127.0.0.1:${(media.address() as AddressInfo).port}${path}`);
+      const draftCover = await get(asset.url);
+      assert.deepEqual([draftCover.status, draftCover.headers.get('cache-control')], [404, 'no-store']);
+      assert.equal((await get(`/storage/editorial/${asset.sha256}.png`)).status, 404, 'the original too');
+      assert.equal((await get('/storage/editorial/../editorial/x.webp')).status, 404);
+      await BlogPostModel.updateOne({ _id: coverId }, { status: 'publish', reviewState: 'approved' });
+      const published = await get(asset.url);
+      assert.deepEqual([published.status, published.headers.get('content-type')], [200, 'image/webp']);
+    } finally {
+      media.close();
     }
   } finally {
     process.env = env;

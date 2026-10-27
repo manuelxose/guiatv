@@ -14,6 +14,7 @@ import { LIVE_PROVIDERS, routesFromEnv } from '../../application/services/Editor
 import type { IStorageRepository } from '../../domain/repositories/IStorageRepository';
 import { EditorialMediaRejected, storeEditorialCover } from '../../infrastructure/storage/EditorialMediaStore';
 import { generatedImageFindings } from '../../application/services/EditorialImages';
+import { editorialCoverPreview } from '../middlewares/editorialMediaGate';
 
 /**
  * M11-C Admin supervision of the AI editorial pipeline (/v2/admin/editorial, admin role enforced by the router).
@@ -138,6 +139,8 @@ export class EditorialOpsController {
         reviewedBy: post.reviewedBy ?? null, reviewNotes: post.reviewNotes ?? null, excerpt: post.excerpt ?? '', content: post.content ?? '',
         metaTitle: post.seo?.metaTitle ?? '', metaDescription: post.seo?.metaDescription ?? '',
         coverUrl: post.featuredImage?.sourceUrl ?? null, coverAlt: post.featuredImage?.alt ?? null, author: post.author ?? null,
+        // A draft's cover is not public (editorialMediaGate), so the Admin gets the image itself.
+        coverPreview: await editorialCoverPreview(post.featuredImage?.sourceUrl),
       },
       provenance: {
         pipelineVersion: p.pipelineVersion, state: p.state, backend: p.backend ?? null,

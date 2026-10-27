@@ -223,7 +223,7 @@
           </div>
           <div class="space-y-3">
             <h4 class="text-xs font-medium uppercase tracking-wider text-[var(--portal-text-muted)]">Portada</h4>
-            <img *ngIf="d.post.coverUrl" [src]="d.post.coverUrl" [alt]="d.post.coverAlt || ''" class="w-full rounded-xl border border-[var(--portal-border)]" />
+            <img *ngIf="d.post.coverUrl" [src]="d.post.coverPreview || d.post.coverUrl" [alt]="d.post.coverAlt || ''" class="w-full rounded-xl border border-[var(--portal-border)]" />
             <p *ngIf="d.post.coverAlt" class="text-xs text-[var(--portal-text-soft)]">Alt: {{ d.post.coverAlt }}</p>
             <p *ngIf="!d.post.coverUrl" class="text-xs text-[var(--portal-text-faint)]">Sin portada</p>
             <dl *ngFor="let img of d.provenance.images" class="text-xs grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">

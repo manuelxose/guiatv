@@ -89,6 +89,8 @@ export interface EditorialPostDetail {
     reviewedBy: string | null; reviewNotes: string | null;
     excerpt: string; content: string; metaTitle: string; metaDescription: string;
     coverUrl: string | null; coverAlt: string | null; author: { name?: string; id?: string } | null;
+    /** Data URL: an unpublished cover is not served anonymously. */
+    coverPreview?: string | null;
   };
   provenance: {
     pipelineVersion: string; state: string; backend: string | null; signed: boolean;
