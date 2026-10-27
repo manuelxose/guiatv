@@ -1,14 +1,8 @@
 name: SEO regression
 
 on:
-  pull_request:
-    paths: # keep identical to push.paths (asserted in scripts/workflows.test.mjs)
-      - 'apps/frontend/**'
-      - 'apps/backend/src/**'
-      - 'scripts/seo-*.mjs'
-      - 'e2e/entity/**'
-      - 'playwright.entity.config.ts'
-      - '.github/workflows/seo-regression.yml'
+  # 2026-10-27: not on pull requests (owner: PRs must be fast). It runs after merge on main, path-filtered,
+  # and on demand; a regression there is fixed forward or rolled back before the next deploy.
   # M10: also on main, so a regression that only appears after merge (e.g. dated fixtures) is visible there.
   # Never deploys; live-crawl stays manual through its `if`.
   push:
