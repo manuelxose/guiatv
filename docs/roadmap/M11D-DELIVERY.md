@@ -6,9 +6,9 @@ Date: 2026-10-27. Scope: M11-D only.
 | State | Result |
 |---|---|
 | ENGINEERING PASS | **PASS**. Released as `20261027160344` @ `c06a09b`. The three activation blockers are closed, the real CLI was exercised, and an independent review found nothing left at HIGH or above |
-| LIVE CANARY PASS | **BLOCKED**. No direct Anthropic API credential is available (see §5). $0 spent |
-| PUBLICATION PASS | **BLOCKED**. There is no live-generated article to review. Nothing was published |
-| AUTOMATION READY | **NO**. A live canary, a supervised publication, the policy-page update and a server `EDITORIAL_POLICY_KEY` are still missing |
+| LIVE CANARY PASS | **PASS (execution)**. One signed job ran with real Claude through the owner's subscription gateway. The pipeline worked end to end and the gates **held the article** (critic `revise` after 3 loops; one source 404). $0.80 at list price (§5) |
+| PUBLICATION PASS | **BLOCKED**. The canary produced no publishable article. Nothing was published |
+| AUTOMATION READY | **NO**. A canary article that passes the gates, a supervised publication, the policy-page update and a server `EDITORIAL_POLICY_KEY` are still missing |
 | AUTOMATION ENABLED | **NO**. `EDITORIAL_POLICY_PUBLISHING` was not changed |
 
 ## 2. Changes (PR #97)
@@ -62,10 +62,50 @@ Date: 2026-10-27. Scope: M11-D only.
   - a silent provider switch
   - prices the ledger does not know
   - provenance falsely saying `anthropic`
-- **The canary was not run. $0 spent, no model used.**
+- **First attempt: not run.** $0 spent, no model used.
+- **Second attempt.** The owner clarified that Claude is used through the subscription, via that gateway. A probe confirmed the gateway serves real Claude under `cc/`:
+  - `cc/claude-opus-5-5` answers as `claude-opus-5-5`; the same holds for sonnet and haiku.
+  - The `web_search` server tool is accepted.
+- **Adapter change (PR #99).** `ANTHROPIC_MODEL_PREFIX=cc/` is applied on the wire only, so prices and provenance keep the canonical id. A response from any other model is refused.
+- **Canary.** One signed job on 2026-10-27, run with:
+  - topic `cine-en-abierto-tdt-27-28-octubre-2026`
+  - caps of $3 per article, $3 per day and 1 article per day
+  - a local signing key
+  - no `--report`
+  - no production write
+- **Result: `blocked`.** The reason is "agotados los ciclos de revisión" (review loops exhausted).
+  - The critic (Opus) asked for `revise` 3 times. The last time it raised 6 issues, for example a phrase about "Sam" that c16 does not support.
+  - One internal source returned 404: `program:20261027_paramount_network_20261027220000`.
+- **Evidence.**
+  - Claims: 20 in total; 8 supported, 12 unverified.
+  - Quotes: all 34 match the retrieved text verbatim.
+  - Sources: 6 internal GuíaTV sources, 5 retrieved.
+  - Research did not run a web search; it used only the internal sources.
+- **Draft.**
+  - Title: "Cuatro películas en la TDT: qué plantea cada una y cómo elegir".
+  - About 567 words.
+  - Metadata within limits.
+  - No cover.
+- **Findings:**
+  - block `source-not-retrieved`
+  - block `critic-rejected`
+  - human `unverified-claims`
+- **Provenance.** Backend `anthropic`. The signature verifies with the run key and fails with another key.
+- **Cost:** $0.802 at list price (actual billing is the subscription). 76,420 input and 26,015 output tokens.
+
+  | Role | Model | Calls | USD |
+  |---|---|---|---|
+  | research | opus | 1 | 0.457 |
+  | evidence | opus | 1 | 0.008 |
+  | editorial | opus | 3 | 0.194 |
+  | seo | haiku | 2 | 0.001 |
+  | critic | opus | 3 | 0.143 |
+
+- **Spend journal:** `reserve` $3, then `settle` $0.802401. The lock was released.
+- The run file is in `artifacts/m11d/runs/` (untracked).
 
 ## 6. Article, review and publication
-No article was generated, so nothing was reviewed or published. Production content is unchanged.
+The canary article was blocked by the gates, so it was neither saved to the CMS nor reviewed, and nothing was published. Production content is unchanged.
 
 ## 7. Security findings
 | Sev | Finding | Status |
@@ -81,9 +121,9 @@ No article was generated, so nothing was reviewed or published. Production conte
 | LOW | Title and meta are not in the signed attestation | Accepted: the runner holds the signing key anyway; the content is bound to `draftHash` |
 
 ## 8. Owner actions
-1. Create a **direct** Anthropic API key for GuíaTV. Put it in the runner only, as `ANTHROPIC_API_KEY`, with `ANTHROPIC_BASE_URL` unset.
+1. Runner credentials: the subscription gateway with `ANTHROPIC_MODEL_PREFIX=cc/` (after PR #99), plus the **server's** `EDITORIAL_PIPELINE_SIGNING_KEY` and `ANALYTICS_ADMIN_KEY`. Without them, `save-draft` and the Admin's "signed" check cannot work.
 2. Generate `EDITORIAL_POLICY_KEY`, different from every other key. Set it on the server and in the runner. Keep `EDITORIAL_REVIEW_KEY` on the server and with the human reviewer only.
-3. Run the canary:
+3. Run the canary again on a topic whose internal sources are all live (the 27–28 Oct topic had one programme that has since gone):
    `EDITORIAL_MAX_ARTICLE_USD=3 EDITORIAL_MAX_DAILY_USD=3 EDITORIAL_MAX_DAILY=1 node scripts/editorial-agents.mjs run topics.json --report <api> --confirm-production-write`
 4. If the run passes, `save-draft`. A named reviewer then reads the Admin detail view and approves with `approve` (the human key). The cover stays mock or none: `LIVE_IMAGE_PROVIDERS` is empty, so the article is published without a cover or held.
 
