@@ -114,7 +114,7 @@ test('batch: daily volume and concurrency limits are enforced', async () => {
   assert.equal(m.peak() <= 2, true);
 });
 test('review M1: a model error holds that article only; the batch and its ledger survive', async () => {
-  const flaky: EditorialModel = { async call(req) { if (req.role === 'editorial') throw new Error('refused'); return scripted({ research: [research], evidence: [{ conflicts: [] }] }).model.call(req); } };
+  const flaky: EditorialModel = { provider: 'scripted', async call(req) { if (req.role === 'editorial') throw new Error('refused'); return scripted({ research: [research], evidence: [{ conflicts: [] }] }).model.call(req); } };
   const runs = await runEditorialBatch([topic, { ...topic, slug: `${topic.slug}-2` }], deps(flaky));
   assert.deepEqual(runs.map((r) => [r.state, r.reason]), [['blocked', 'error: refused'], ['blocked', 'error: refused']]);
   assert.equal(runs[0].cost.entries.length, 2, 'research and evidence calls stay on the ledger');

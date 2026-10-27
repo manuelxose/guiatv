@@ -51,11 +51,12 @@ export const draft = (markdown = GOOD) => ({
 export const pass = { verdict: 'pass', issues: [] };
 
 export type Script = Partial<Record<EditorialRole, unknown[]>>;
-export function scripted(script: Script, usage = { input_tokens: 2000, output_tokens: 800 }) {
+export function scripted(script: Script, usage = { input_tokens: 2000, output_tokens: 800 }, provider = 'scripted') {
   const calls: ModelCall[] = [];
   let active = 0;
   let peak = 0;
   const model: EditorialModel = {
+    provider,
     async call(request) {
       calls.push(request);
       active++;

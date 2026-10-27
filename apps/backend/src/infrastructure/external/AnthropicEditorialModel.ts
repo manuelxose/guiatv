@@ -7,6 +7,7 @@ import type { EditorialModel, ModelCall, ModelResult } from '../../application/s
  * A refusal or an unparseable answer throws: the job stops rather than switching model mid-fact-check.
  */
 export class AnthropicEditorialModel implements EditorialModel {
+  readonly provider = 'anthropic';
   private readonly client: Pick<Anthropic, 'messages'>;
 
   constructor(options: { apiKey?: string; maxRetries?: number; client?: Pick<Anthropic, 'messages'> } = {}) {
@@ -15,6 +16,7 @@ export class AnthropicEditorialModel implements EditorialModel {
   }
 
   async call(request: ModelCall): Promise<ModelResult> {
+    if (request.provider !== this.provider) throw new Error(`${request.role}: routed to ${request.provider}, not ${this.provider}`);
     const research = Boolean(request.webSearches);
     const messages: Anthropic.MessageParam[] = [{
       role: 'user',

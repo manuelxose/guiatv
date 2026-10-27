@@ -51,6 +51,7 @@ async function publicCorpus() {
 // would get (system, prompt, schema), so a separate agent can answer it and the run can resume.
 function replayModel(answers, slug) {
   return {
+    provider: 'replay',
     async call(req) {
       // Each recorded answer is used once, in order, like the live calls it stands for.
       const json = (answers[req.role] ?? []).shift();
@@ -87,7 +88,7 @@ if (command === 'run') {
   const deps = (slug) => ({
     model: replay ? replayModel(structuredClone(replay[slug] ?? {}), slug) : new (require(join(dist, 'infrastructure/external/AnthropicEditorialModel.js')).AnthropicEditorialModel)(),
     fetchSource, internalLinkStatus, corpus, render: (md) => marked.parse(md),
-    backend: replay ? 'replay' : 'anthropic', signingKey: process.env.EDITORIAL_PIPELINE_SIGNING_KEY,
+    signingKey: process.env.EDITORIAL_PIPELINE_SIGNING_KEY,
   });
   mkdirSync(out, { recursive: true });
   // Other articles started today; a rerun of the same topic does not use up the quota again.
