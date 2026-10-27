@@ -87,7 +87,9 @@ const runFiles = () => (existsSync(out) ? readdirSync(out).filter((f) => f.endsW
 // Append-only: a rerun overwrites its run file, but the money it spent stays counted for the day.
 // M11-D: a job writes `reserve` (its whole allowance) before it may spend and `settle` when it ends, so a job
 // that never settled (crash, kill) keeps counting its whole allowance. Rows without `kind` are pre-M11-D spends.
-const spendLog = () => join(out, 'spend.jsonl');
+// One journal and lock per machine, whatever --out says, so two output dirs cannot each spend the day's ceiling.
+const spendDir = resolve(process.env.EDITORIAL_SPEND_DIR || 'artifacts/m11b/runs');
+const spendLog = () => join(spendDir, 'spend.jsonl');
 const spentToday = () => {
   const rows = (existsSync(spendLog()) ? readFileSync(spendLog(), 'utf8').split('\n').filter(Boolean).map(JSON.parse) : []).filter((e) => e.day === today());
   const settled = new Set(rows.filter((e) => e.kind === 'settle').map((e) => e.jobId));
@@ -95,8 +97,10 @@ const spentToday = () => {
 };
 const appendSpend = (row) => writeFileSync(spendLog(), `${JSON.stringify({ day: today(), at: new Date().toISOString(), ...row })}\n`, { flag: 'a' });
 // The runner may sign and publish by policy, never approve as a person or lift the emergency stop.
-if (['run', 'save-draft', 'publish'].includes(command) && process.env.EDITORIAL_REVIEW_KEY) {
-  console.error('EDITORIAL_REVIEW_KEY is the human reviewer key and must not be in the runner environment; publish uses EDITORIAL_POLICY_KEY'); process.exit(2);
+for (const name of ['EDITORIAL_REVIEW_KEY', 'AUCTORIO_EDITORIAL_REVIEW_KEY']) {
+  if (['run', 'save-draft', 'publish'].includes(command) && process.env[name]) {
+    console.error(`${name} is a reviewer key and must not be in the runner environment; publish uses EDITORIAL_POLICY_KEY`); process.exit(2);
+  }
 }
 const MEDIA_EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
 // A production API is a production write: only with the owner's authorisation.
@@ -125,10 +129,13 @@ if (command === 'run') {
     fetchSource, internalLinkStatus, corpus, render: (md) => marked.parse(md),
     signingKey: process.env.EDITORIAL_PIPELINE_SIGNING_KEY,
   });
+  // Job ids and the journal are per slug: a repeated slug would let one settle cancel two reserves.
+  if (new Set(topics.map((t) => t.slug)).size !== topics.length) { console.error('duplicate topic slugs'); process.exit(2); }
   mkdirSync(join(out, 'media'), { recursive: true });
-  // One runner at a time per output dir: two processes would each read the same day's spend and both spend it.
+  mkdirSync(spendDir, { recursive: true });
+  // One runner at a time: two processes would each read the same day's spend and both spend it.
   // A crash leaves the lock: whoever removes it checks spend.jsonl first (unsettled reserves stay counted anyway).
-  const lock = join(out, 'run.lock');
+  const lock = join(spendDir, 'run.lock');
   try { writeFileSync(lock, `${process.pid} ${new Date().toISOString()}\n`, { flag: 'wx' }); } catch {
     console.error(`${lock} exists: another run is active or one crashed. Check spend.jsonl, then remove the lock.`); process.exit(3);
   }

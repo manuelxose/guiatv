@@ -9,6 +9,7 @@ import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
+import http from 'node:http';
 import express from 'express';
 import mongoose from 'mongoose';
 import { BlogController } from './BlogController';
@@ -156,13 +157,20 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     }
 
     // M11-D: a draft's generated cover is a 404 for anonymous readers even with its exact URL; once public it is served.
-    const media = express().use('/storage/editorial', editorialMediaGate).use('/storage', express.static(storageDir)).use(errorHandler).listen(0);
+    const media = express().use('/storage', editorialMediaGate).use('/storage', express.static(storageDir)).use(errorHandler).listen(0);
     try {
-      const get = (path: string) => fetch(`http://127.0.0.1:${(media.address() as AddressInfo).port}${path}`);
+      const port = (media.address() as AddressInfo).port;
+      // Raw request paths: fetch() would normalise the dot segments a hostile client can send as-is.
+      const get = (path: string) => new Promise<{ status: number; headers: { get(n: string): string | null } }>((resolve, reject) => {
+        http.get({ host: '127.0.0.1', port, path }, (res) => { res.resume(); resolve({ status: res.statusCode!, headers: { get: (n) => (res.headers[n] as string) ?? null } }); }).on('error', reject);
+      });
       const draftCover = await get(asset.url);
       assert.deepEqual([draftCover.status, draftCover.headers.get('cache-control')], [404, 'no-store']);
       assert.equal((await get(`/storage/editorial/${asset.sha256}.png`)).status, 404, 'the original too');
-      assert.equal((await get('/storage/editorial/../editorial/x.webp')).status, 404);
+      for (const spelling of ['/storage/%65ditorial/', '/storage//editorial/', '/storage/./editorial/', '/storage/x/../editorial/', '/storage/editorial%2F', '/storage/EDITORIAL/']) {
+        assert.equal((await get(`${spelling}${asset.sha256}-800.webp`)).status, 404, `no bypass through ${spelling}`);
+      }
+      assert.equal((await get('/storage/%E0%A4%A')).status, 400);
       await BlogPostModel.updateOne({ _id: coverId }, { status: 'publish', reviewState: 'approved' });
       const published = await get(asset.url);
       assert.deepEqual([published.status, published.headers.get('content-type')], [200, 'image/webp']);

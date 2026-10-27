@@ -31,8 +31,8 @@ export const createApp = (dependencies: RoutesDependencies): Application => {
 
   // Serve storage from the same path LocalStorageRepository writes to:
   // STORAGE_LOCAL_PATH when configured, otherwise <cwd>/tmp-storage.
-  // Generated editorial covers pass the publication gate first.
-  app.use('/storage/editorial', editorialMediaGate);
+  // Generated editorial covers pass the publication gate first (it sees every /storage path, however spelled).
+  app.use('/storage', editorialMediaGate);
   app.use('/storage', express.static(storageRoot()));
 
   // Middlewares globales

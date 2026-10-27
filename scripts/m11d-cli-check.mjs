@@ -37,10 +37,10 @@ writeFileSync(topics, JSON.stringify([{ slug: 'm11d-cli-check', topic: 'Comproba
 const day = new Date().toISOString().slice(0, 10);
 const spend = () => (existsSync(join(out, 'spend.jsonl')) ? readFileSync(join(out, 'spend.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse) : []);
 
-function cli(extraEnv = {}, { killWhen } = {}) {
-  const env = { ...process.env, ANTHROPIC_API_KEY: 'sk-ant-fake-m11d', ANTHROPIC_BASE_URL: base, EDITORIAL_PIPELINE_SIGNING_KEY: 'm11d-signing-test', ...extraEnv };
-  for (const k of ['ANTHROPIC_AUTH_TOKEN', 'EDITORIAL_REVIEW_KEY']) if (!(k in extraEnv)) delete env[k];
-  const child = spawn(process.execPath, ['scripts/editorial-agents.mjs', 'run', topics, '--out', out, '--site', base, '--report', base], { env });
+function cli(extraEnv = {}, { killWhen, outDir = out, topicsFile = topics } = {}) {
+  const env = { ...process.env, ANTHROPIC_API_KEY: 'sk-ant-fake-m11d', ANTHROPIC_BASE_URL: base, EDITORIAL_PIPELINE_SIGNING_KEY: 'm11d-signing-test', EDITORIAL_SPEND_DIR: out, ...extraEnv };
+  for (const k of ['ANTHROPIC_AUTH_TOKEN', 'EDITORIAL_REVIEW_KEY', 'AUCTORIO_EDITORIAL_REVIEW_KEY']) if (!(k in extraEnv)) delete env[k];
+  const child = spawn(process.execPath, ['scripts/editorial-agents.mjs', 'run', topicsFile, '--out', outDir, '--site', base, '--report', base], { env });
   let text = '';
   child.stdout.on('data', (d) => { text += d; });
   child.stderr.on('data', (d) => { text += d; });
@@ -57,6 +57,14 @@ try {
   await check('runner refuses the human review key', async () => {
     const r = await cli({ EDITORIAL_REVIEW_KEY: 'human' });
     assert.equal(r.code, 2); assert.match(r.text, /must not be in the runner environment/); assert.equal(providerHits, 0);
+    const auctorio = await cli({ AUCTORIO_EDITORIAL_REVIEW_KEY: 'bot' });
+    assert.equal(auctorio.code, 2); assert.match(auctorio.text, /AUCTORIO_EDITORIAL_REVIEW_KEY is a reviewer key/);
+  });
+  await check('duplicate topic slugs are refused', async () => {
+    const dup = join(dir, 'dup.json');
+    writeFileSync(dup, JSON.stringify([...JSON.parse(readFileSync(topics, 'utf8')), ...JSON.parse(readFileSync(topics, 'utf8'))]));
+    const r = await cli({}, { topicsFile: dup });
+    assert.equal(r.code, 2); assert.match(r.text, /duplicate topic slugs/);
   });
   await check('malformed spend cap stops the run', async () => {
     const r = await cli({ EDITORIAL_MAX_DAILY_USD: 'abc' });
@@ -94,6 +102,8 @@ try {
     rmSync(join(out, 'run.lock'));
     const after = await cli({ EDITORIAL_MAX_DAILY_USD: '3' });
     assert.match(after.text, /límite diario de 3 USD/, 'the unsettled reservation still counts against the day');
+    const elsewhere = await cli({ EDITORIAL_MAX_DAILY_USD: '3' }, { outDir: join(dir, 'other-out') });
+    assert.match(elsewhere.text, /límite diario de 3 USD/, 'another --out shares the same journal');
   });
   console.log(`\n${results.length} CLI checks passed (day ${day}, provider calls to the fake API: ${providerHits}, no real provider contacted)`);
 } finally {

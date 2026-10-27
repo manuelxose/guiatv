@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { editorialReviewGuard, humanEditorialReviewGuard, policyApprovalGuard } from './editorialReviewGuard';
 
-const ENV_KEYS = ['EDITORIAL_REVIEW_KEY', 'AUCTORIO_EDITORIAL_REVIEW_KEY', 'AUCTORIO_EDITORIAL_REVIEWER', 'EDITORIAL_POLICY_KEY'] as const;
+const ENV_KEYS = ['EDITORIAL_REVIEW_KEY', 'AUCTORIO_EDITORIAL_REVIEW_KEY', 'AUCTORIO_EDITORIAL_REVIEWER', 'EDITORIAL_POLICY_KEY', 'ANALYTICS_ADMIN_KEY'] as const;
 const originalEnv = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]));
 
 function restoreEnv(): void {
@@ -68,4 +68,8 @@ test('M11-D: a policy key equal to a reviewer key, or none, closes policy approv
   assert.throws(() => humanEditorialReviewGuard(req, {} as never, () => undefined), /human editorial review key/);
   delete process.env.EDITORIAL_POLICY_KEY;
   assert.throws(() => policyApprovalGuard(req, {} as never, () => undefined), /not configured/);
+  // The runner holds the admin key: a human key equal to it cannot lift the stop.
+  process.env.ANALYTICS_ADMIN_KEY = 'same-key';
+  delete process.env.EDITORIAL_POLICY_KEY;
+  assert.throws(() => humanEditorialReviewGuard(request({ 'x-editorial-review-key': 'same-key' }), {} as never, () => undefined), /human editorial review key/);
 });

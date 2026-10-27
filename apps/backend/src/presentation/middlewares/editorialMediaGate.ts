@@ -10,7 +10,7 @@ export const storageRoot = (): string => (process.env.STORAGE_LOCAL_PATH
   ? path.resolve(process.env.STORAGE_LOCAL_PATH)
   : path.join(process.cwd(), 'tmp-storage'));
 
-const FILE = /^\/([0-9a-f]{64})(?:-\d+)?\.(?:webp|png|jpg)$/;
+const FILE = /^\/editorial\/([0-9a-f]{64})(?:-\d+)?\.(?:webp|png|jpg)$/;
 
 /** Published means a public post points at the cover or carries it in its provenance. */
 const isPublished = (sha256: string) => BlogPostModel.exists({
@@ -21,11 +21,21 @@ const isPublished = (sha256: string) => BlogPostModel.exists({
 /**
  * M11-D: generated covers under /storage/editorial are anonymous only once their article is public. A draft's cover
  * is a 404 for everyone, URL known or not; the Admin previews it through its own authenticated API (coverPreview).
+ * Mounted on all of /storage and judged on the path as the static server will resolve it (decoded once, normalised),
+ * so `%65ditorial`, `//editorial` or `x/../editorial` cannot reach the files around the check.
  * shortcut: one unindexed lookup per image request; cache the published set if cover traffic ever matters.
  */
 export const editorialMediaGate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const sha256 = FILE.exec(req.path)?.[1];
+    let resolved: string;
+    try {
+      resolved = path.posix.normalize(decodeURIComponent(req.path).replace(/\\/g, '/')).toLowerCase();
+    } catch {
+      res.status(400).end();
+      return;
+    }
+    if (!/^\/+editorial(?:\/|$)/.test(resolved)) { next(); return; }
+    const sha256 = FILE.exec(resolved)?.[1];
     if (sha256 && (await isPublished(sha256))) { next(); return; }
     res.set('Cache-Control', 'no-store').status(404).end();
   } catch (error) {

@@ -278,7 +278,8 @@ export async function runEditorialJob(topic: EditorialTopic, deps: EditorialDeps
   let chosen: Chosen;
   const ask = async <T>(role: EditorialRole, system: string, prompt: string, schema: Record<string, unknown>, webSearches?: number): Promise<T> => {
     const { route: { provider, model, effort }, model: adapter } = chosen[role];
-    ledger.assertHeadroom(model, adapter.maxOutputTokens ?? 0);
+    // Research with server tools may resume up to 4 paused turns (AnthropicEditorialModel), each up to the output cap.
+    ledger.assertHeadroom(model, (adapter.maxOutputTokens ?? 0) * (webSearches ? 4 : 1));
     let result: ModelResult;
     try {
       result = await adapter.call({ role, provider, model, effort, system, prompt, schema, webSearches });

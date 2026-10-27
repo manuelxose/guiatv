@@ -569,7 +569,7 @@ export class CostLedger {
 
   /**
    * Refuses a call the article could not pay for if it used its whole output cap.
-   * shortcut: one request's output only (not input, nor paused server-tool turns); bound those if a call ever overshoots.
+   * shortcut: output only (input tokens and search fees are not bounded); bound them if a call ever overshoots.
    */
   assertHeadroom(model: string, maxOutputTokens: number): void {
     const price = MODEL_PRICES[model];
