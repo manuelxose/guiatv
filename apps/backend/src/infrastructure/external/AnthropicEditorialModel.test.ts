@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type Anthropic from '@anthropic-ai/sdk';
 import { AnthropicEditorialModel, parseJson } from './AnthropicEditorialModel';
-import type { ModelCall } from '../../application/services/EditorialAgentPipeline';
+import { ModelCallFailed, type ModelCall } from '../../application/services/EditorialAgentPipeline';
 
 const reply = (stop_reason: string, text: string, searches = 0) => ({
   stop_reason,
@@ -41,4 +41,16 @@ test('anthropic model: refusals and truncation stop the job', async () => {
   // A role routed to another provider is refused before any API call, never answered by Claude instead.
   await assert.rejects(new AnthropicEditorialModel({ client: fake([]).client }).call(call({ provider: 'openai' })), /routed to openai/);
   assert.throws(() => parseJson('sin json', true), /no JSON/);
+});
+
+test('M11-D: a failed call reports the usage it was billed; a broken stream does not pretend to know it', async () => {
+  const truncated = await new AnthropicEditorialModel({ client: fake([reply('max_tokens', '{"a"')]).client }).call(call()).catch((e) => e);
+  assert.ok(truncated instanceof ModelCallFailed);
+  assert.deepEqual(truncated.usage, { input_tokens: 110, output_tokens: 50 });
+  const badJson = await new AnthropicEditorialModel({ client: fake([reply('pause_turn', '', 2), reply('end_turn', 'sin json', 1)]).client }).call(call({ role: 'research', webSearches: 3 })).catch((e) => e);
+  assert.ok(badJson instanceof ModelCallFailed);
+  assert.deepEqual([badJson.usage.output_tokens, badJson.searches], [100, 3]);
+  const cut = { messages: { stream: () => ({ finalMessage: async () => { throw new Error('socket hang up'); } }) } } as unknown as Pick<Anthropic, 'messages'>;
+  const unknown = await new AnthropicEditorialModel({ client: cut }).call(call()).catch((e) => e);
+  assert.ok(!(unknown instanceof ModelCallFailed));
 });

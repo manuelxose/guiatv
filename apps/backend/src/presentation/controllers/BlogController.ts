@@ -503,6 +503,11 @@ export class BlogController {
         await ledger.deleteOne({ _id: insertedId });
         throw new ForbiddenError(`Policy publishing limit reached (${dailyLimit} in 24 h)`);
       }
+      // An emergency stop pressed while the gates ran still wins.
+      if (!(await editorialPolicyState()).active) {
+        await ledger.deleteOne({ _id: insertedId });
+        throw new ForbiddenError('Policy publishing was stopped while this approval ran');
+      }
       const now = new Date();
       post.status = 'publish';
       post.reviewState = 'approved';
