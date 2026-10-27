@@ -25,6 +25,23 @@ test('pipeline: a researched, verified and independently reviewed draft is appro
   assert.deepEqual(evaluateEvidence({ content: run.draft!.content, author: { name: run.draft!.authorName } }, run.provenance!, NOW), []);
 });
 
+test('pipeline: seed pages are fetched for the research agent and kept as sources with their own publisher', async () => {
+  const seeded = { ...topic, seedUrls: ['https://www.rtve.es/play/la-2/'] };
+  const cited = { ...research, sources: research.sources.filter((s) => s.id !== 'r1'), claims: research.claims.map((c) => (c.id === 'c4' ? { ...c, quotes: [{ sourceId: 's1', quote: c.quotes[0].quote }] } : c)) };
+  const m = scripted({ research: [cited], evidence: [{ conflicts: [] }], editorial: [draft()], critic: [pass] });
+  const run = await runEditorialJob(seeded, deps(m.model));
+  // Without server tools the model can only quote what it is given: the page text must be in its prompt.
+  assert.match(m.calls[0].prompt, /### s1 https:\/\/www\.rtve\.es\/play\/la-2\/ \(rtve\.es\)\nLa 2 emite cine clásico/);
+  const s1 = run.provenance!.bundle.sources.find((s) => s.id === 's1')!;
+  assert.deepEqual([s1.publisher, s1.kind, s1.httpStatus], ['rtve.es', 'official', 200]);
+  assert.equal(run.provenance!.bundle.claims.find((c) => c.id === 'c4')!.status, 'supported');
+
+  // A text fragment starts the prompt excerpt there; the request itself has no fragment.
+  const deep = scripted({ research: [cited] });
+  await runEditorialJob({ ...seeded, seedUrls: ['https://www.rtve.es/play/la-2/#:~:text=a%20partir%20de'] }, deps(deep.model));
+  assert.match(deep.calls[0].prompt, /\(rtve\.es\)\na partir de las 22:00\./);
+});
+
 test('pipeline: sources that cannot be retrieved leave too little evidence and the job is held', async () => {
   const m = scripted({ research: [research], evidence: [{ conflicts: [] }] });
   const run = await runEditorialJob(topic, deps(m.model, { fetchSource: async () => ({ status: 404, text: '' }) }));
