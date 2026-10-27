@@ -393,3 +393,12 @@ Details: [M11A-DELIVERY.md](M11A-DELIVERY.md), [m11a-editorial-review.md](../seo
 - **Open decisions:** ranking cluster, lost retired URLs, programme D-group canonical policy, accent-dropped programme slugs (127), episode URLs in the sitemap, `/sobre-nosotros` and `/avisolegal` claims.
 - **AdSense:** internal verdict NOT READY (editorial depth, not technical). No application submitted.
 - **Next:** M11-B (original editorial production), NO-GO until a named author/reviewer is available.
+
+## M11-C addendum — AI editorial operations (2026-10-27): PASS (engineering)
+
+Details: [M11C-DELIVERY.md](M11C-DELIVERY.md), [ADR 0001](../adr/0001-editorial-ai-providers-images-auctorio.md).
+
+- **Live:** release **`20261027134338`**, `gitSha dad7c7c` (PRs #94 `4ebdf49`, #95 `dad7c7c`; artifact deploy run 40505813153). Rollback target `20261027112406` (`bbaf491`).
+- **New:** Admin "Operaciones IA" with an emergency stop; fallback routing; daily USD ceiling; cover pipeline (mock provider only, blocked from publication); `/politica-editorial` now accurate.
+- **Unchanged:** automatic policy publishing is **off**. No production content writes, no live model or image calls.
+- **Next:** controlled activation (owner steps in M11C-DELIVERY.md), then M12.
