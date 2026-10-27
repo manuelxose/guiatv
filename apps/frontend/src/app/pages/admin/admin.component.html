@@ -91,10 +91,16 @@
             *ngIf="activeGroup === 'system'"
             (lastUpdatedChange)="onLastUpdated($event)"
           ></app-admin-system-section>
-          <app-admin-ai-section
-            *ngIf="activeGroup === 'ai'"
-            (lastUpdatedChange)="onLastUpdated($event)"
-          ></app-admin-ai-section>
+          <ng-container *ngIf="activeGroup === 'ai'">
+            <app-admin-ai-section
+              *ngIf="activeItem !== 'editorial'"
+              (lastUpdatedChange)="onLastUpdated($event)"
+            ></app-admin-ai-section>
+            <app-admin-editorial-section
+              *ngIf="activeItem === 'editorial'"
+              (lastUpdatedChange)="onLastUpdated($event)"
+            ></app-admin-editorial-section>
+          </ng-container>
 
         </div>
       </main>

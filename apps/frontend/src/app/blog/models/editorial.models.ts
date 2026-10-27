@@ -47,6 +47,8 @@ export interface EditorialPost {
   excerptText: string;
   contentHtml: string;
   coverImage: string;
+  /** Alt text stored with the cover (AI illustrations say what they are); absent = the title. */
+  coverAlt?: string;
   publishedAt: string;
   modifiedAt: string;
   readingMinutes: number;

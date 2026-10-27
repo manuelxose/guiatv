@@ -316,6 +316,7 @@ export class EditorialService {
       coverImage: this.normalizeCoverImage(
         rawPost?.featured_image?.source_url || rawPost?.seo?.ogImage
       ),
+      coverAlt: this.ensureString(rawPost?.featured_image?.alt_text) || undefined,
       publishedAt: String(rawPost?.date || rawPost?.publishedAt || new Date().toISOString()),
       modifiedAt: String(
         rawPost?.modified || rawPost?.updatedAt || rawPost?.date || new Date().toISOString()

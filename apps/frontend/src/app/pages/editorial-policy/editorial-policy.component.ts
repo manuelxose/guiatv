@@ -16,17 +16,46 @@ import { MetaService } from '../../services/meta.service';
         El editor responsable es Max Nova. Beatriz Olmedo y Arturo Baroja también colaboran en la
         creación y revisión de textos.</p>
       <section class="space-y-3">
-        <h2 class="text-xl font-semibold">Autoría y revisión humana</h2>
-        <p>Una nueva publicación requiere una persona responsable de su revisión. Una identidad de automatización
-          no sustituye a un editor. La aprobación debe registrar quién revisó el contenido y cuándo.</p>
-        <p>La inteligencia artificial puede ayudar a preparar borradores. Los textos asistidos deben incluir
-          fuentes externas; su publicación exige comprobar los datos y aportar utilidad para el lector.</p>
+        <h2 class="text-xl font-semibold">Contenido elaborado con inteligencia artificial</h2>
+        <p>Parte de nuestras guías la investigan, redactan y revisan agentes de inteligencia artificial de Guía TV.
+          Esos artículos se firman como «Redacción IA de Guía TV» y terminan con una nota que lo indica y da la fecha
+          en que se comprobaron sus fuentes. Un sistema de IA no ve programas ni prueba servicios, así que estos textos
+          no describen experiencias propias.</p>
+      </section>
+      <section class="space-y-3">
+        <h2 class="text-xl font-semibold">Cómo se comprueban los datos</h2>
+        <p>Cada precio, fecha, horario, canal o dato de disponibilidad de un artículo de IA debe apoyarse en una cita
+          literal de una fuente que el sistema ha descargado. Un programa, no un modelo de IA, comprueba que la cita
+          aparece en esa fuente. Los datos que no se pueden comprobar, o que se contradicen entre fuentes, se descartan
+          y no llegan al texto.</p>
+        <p>Después, un agente de IA distinto del que escribió contrasta el borrador con esas pruebas. También se
+          comprueban de forma automática los enlaces, los metadatos y que el artículo no repita otro ya publicado.
+          Un artículo que falla una comprobación no se publica; los casos dudosos, como un posible duplicado, los
+          decide una persona.</p>
+      </section>
+      <section class="space-y-3">
+        <h2 class="text-xl font-semibold">Supervisión humana</h2>
+        <p>Preparar un borrador es automático; publicarlo es una decisión aparte. Hoy ningún artículo nuevo se publica
+          sin que lo apruebe una persona identificada, y la aprobación registra quién la dio y cuándo.</p>
+        <p>Existe una vía de publicación automática para los artículos que superan todas las comprobaciones, con un
+          límite diario. Está desactivada. Si la activamos, lo indicaremos en esta página: a partir de entonces no todos
+          los artículos tendrán una revisión humana individual.</p>
       </section>
       <section class="space-y-3">
         <h2 class="text-xl font-semibold">Fuentes y actualidad</h2>
-        <p>Los precios, la disponibilidad y los horarios pueden cambiar. Las comparativas deben indicar
-          la fecha de comprobación y enlazar las condiciones o fuentes utilizadas. Las imágenes deben
-          contar con permiso de uso y la atribución que corresponda.</p>
+        <p>Preferimos las fuentes primarias, como las webs de operadores, plataformas y competiciones, y los datos de la
+          propia guía de programación de Guía TV. Los artículos enlazan las fuentes que utilizan e indican cuándo se
+          comprobaron.</p>
+        <p>Los precios, la disponibilidad y los horarios cambian. Cada dato tiene una fecha para volver a comprobarlo,
+          según lo rápido que cambie: un horario de emisión, al día siguiente; un precio o la disponibilidad en una
+          plataforma, al cabo de un mes. Un artículo de IA con datos caducados no puede publicarse.</p>
+      </section>
+      <section class="space-y-3">
+        <h2 class="text-xl font-semibold">Imágenes</h2>
+        <p>Las imágenes de terceros deben contar con permiso de uso y la atribución que corresponda. Las imágenes
+          generadas con IA son ilustraciones originales, y su texto alternativo indica que lo son. Nunca imitan
+          carteles, fotogramas, logotipos ni a personas reales, ni se presentan como imágenes auténticas de una
+          película o un programa.</p>
       </section>
       <section class="space-y-3">
         <h2 class="text-xl font-semibold">Publicidad y recomendaciones</h2>
@@ -35,6 +64,9 @@ import { MetaService } from '../../services/meta.service';
       </section>
       <section class="space-y-3">
         <h2 class="text-xl font-semibold">Correcciones y revisión del archivo</h2>
+        <p>Corregimos o retiramos un artículo cuando sus fuentes cambian o alguien nos señala un error. Cualquier
+          cambio en el texto lo devuelve a borrador hasta que vuelve a aprobarse, y guardamos las versiones anteriores
+          para poder restaurarlas.</p>
         <p>El archivo está en revisión para corregir artículos breves, fuentes insuficientes y contenidos repetidos.
           Esta política no certifica que todos los artículos anteriores hayan completado esa revisión.</p>
         <p>Para comunicar un error, envía la URL y la información que permita comprobarlo a
@@ -47,7 +79,7 @@ export class EditorialPolicyComponent {
   constructor() {
     inject(MetaService).setMetaTags({
       title: 'Política editorial | Guía TV',
-      description: 'Criterios de autoría, revisión humana, fuentes, publicidad y correcciones de los contenidos editoriales de Guía TV.',
+      description: 'Cómo se elaboran, comprueban y corrigen los contenidos de Guía TV, incluido el uso de inteligencia artificial, la supervisión humana y las fuentes.',
       canonicalUrl: '/politica-editorial',
     });
   }
