@@ -52,6 +52,8 @@ export interface EvidenceClaim {
   status?: ClaimStatus;
   /** Why it is not supported (filled by the deterministic verifier or a conflict review). */
   note?: string;
+  /** Legal references in the text that verifyBundle located around a verified quote (never set by a model). */
+  legalRefs?: string[];
 }
 
 export interface EvidenceBundle {
@@ -67,7 +69,10 @@ export interface EvidenceBundle {
 
 export interface CriticReview {
   model: string;
+  /** M11-E2b: the verdict the rubric gives the issues (criticVerdict); this is what is signed and gated. */
   verdict: 'pass' | 'revise' | 'block';
+  /** What the model itself answered, kept for the audit. */
+  modelVerdict?: 'pass' | 'revise' | 'block';
   issues: Array<{ claimId?: string; severity: 'high' | 'medium' | 'low'; message: string }>;
   bundleHash: string;
   draftHash: string;
@@ -93,9 +98,17 @@ export interface EditorialProvenance {
   backend?: string;
   /** Generated images (docs/adr/0001 Decision 2); their hashes are part of the signed attestation. */
   images?: ImageAsset[];
+  /** M11-E2b: hash of the excerpt, metaTitle and metaDescription the critic reviewed (metadataHash()); signed. */
+  metadataHash?: string;
+  /** M11-E2b: earlier candidates of this job a critic blocked for missing evidence; signed, so the block stays visible. */
+  blockedCandidates?: Array<{ draftHash: string; bundleHash: string; verdict: string }>;
   /** signProvenance() by the pipeline runner. */
   signature?: string;
 }
+
+/** The reviewed reader-facing fields outside the markdown, as the CMS stores them (trimmed). */
+export const metadataHash = (m: { excerpt?: string; metaTitle?: string; metaDescription?: string }) =>
+  hashText(JSON.stringify([m.excerpt, m.metaTitle, m.metaDescription].map((v) => String(v ?? '').trim())));
 
 /** An AI-generated picture: provenance only, the bytes live in media storage under `url`. */
 export interface ImageAsset {
@@ -188,6 +201,96 @@ export function sourceKindFor(url: string): EvidenceSourceKind {
 }
 
 /**
+ * M11-E2: a legal reference ("art. 98.1", "artículo 99", "Ley 13/2022") names a provision, it is not a figure.
+ * Its numbers may be absent from the quote, but only when the verifier places the quote inside that provision.
+ */
+const LEGAL_REF = /\b(?:art(?:[íi]culo|s?\.)\s*(\d+)(?:\.(\d+))?\b|(?:Ley(?:\s+Org[áa]nica)?|Real\s+Decreto(?:-ley)?|Decreto(?:-ley)?|Directiva(?:\s+\(UE\))?|Reglamento(?:\s+\(UE\))?)\s+(\d+\/\d{4})\b)/gi;
+interface LegalRef { key: string; numbers: string[]; article?: string; apartado?: string; id?: string }
+export function legalRefsIn(text: string): LegalRef[] {
+  return [...String(text).matchAll(LEGAL_REF)].map((m) => ({
+    key: m[3] ? `${m[0].replace(/\s+\d.*$/, '').replace(/\s+/g, ' ').toLowerCase()} ${m[3]}` : `art. ${m[1]}${m[2] ? `.${m[2]}` : ''}`,
+    numbers: numbersIn(m[0]), article: m[1], apartado: m[2], id: m[3],
+  }));
+}
+// Spanish number words, as laws write figures ("ciento cuarenta y cuatro minutos"), by grammatical slot.
+const UNIT_WORDS: Readonly<Record<string, number>> = Object.freeze({ dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9 });
+const SMALL_WORDS: Readonly<Record<string, number>> = Object.freeze({
+  diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciséis: 16, dieciseis: 16, diecisiete: 17, dieciocho: 18,
+  diecinueve: 19, veinte: 20, veintiuno: 21, veintiún: 21, veintiuna: 21, veintidós: 22, veintidos: 22, veintitrés: 23, veintitres: 23,
+  veinticuatro: 24, veinticinco: 25, veintiséis: 26, veintiseis: 26, veintisiete: 27, veintiocho: 28, veintinueve: 29,
+});
+const TENS_WORDS: Readonly<Record<string, number>> = Object.freeze({ treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90 });
+const HUNDRED_WORDS: Readonly<Record<string, number>> = Object.freeze({
+  cien: 100, ciento: 100, doscientos: 200, doscientas: 200, trescientos: 300, trescientas: 300, cuatrocientos: 400, cuatrocientas: 400,
+  quinientos: 500, quinientas: 500, seiscientos: 600, seiscientas: 600, setecientos: 700, setecientas: 700, ochocientos: 800,
+  ochocientas: 800, novecientos: 900, novecientas: 900,
+});
+// "un/uno/una" is 1 only inside a number ("treinta y un", "ciento un", "mil y una"); alone it is an article.
+const ONE_WORDS = new Set(['un', 'uno', 'una']);
+/**
+ * M11-E2b: the numbers a text spells out ("setenta y dos" → "72", "dos mil veintidós" → "2022"). Used only on verified
+ * quotes, so a claim may state in digits what its quote states in words. Strict grammar (independent review H-A): "y"
+ * joins only tens + unit, punctuation ends a number, and two numbers side by side ("dos y tres", "tres, cuatro") stay two.
+ */
+export function spelledNumbers(text: string): string[] {
+  const out: string[] = [];
+  let total = 0;
+  let current = 0;
+  // S = no number open; H/T/U = last word was hundreds/tens/units; TY = tens + "y" (or "mil y"); M = after "mil".
+  let state: 'S' | 'H' | 'T' | 'TY' | 'U' | 'M' = 'S';
+  const close = () => { if (state !== 'S') out.push(String(total + current)); total = 0; current = 0; state = 'S'; };
+  const tokens = String(text).toLowerCase().normalize('NFC').match(/[a-záéíóúüñ]+|\S/g) ?? [];
+  for (let i = 0; i < tokens.length; i++) {
+    const [word, next, previous] = [tokens[i], tokens[i + 1] ?? '', tokens[i - 1] ?? ''];
+    const fresh = state === 'S' || state === 'M';
+    const nextIsUnit = UNIT_WORDS[next] !== undefined || ONE_WORDS.has(next);
+    if (word === 'ciento' && previous === 'por') { close(); continue; } // "por ciento" is a unit, not 100
+    if (HUNDRED_WORDS[word] !== undefined && fresh) { current += HUNDRED_WORDS[word]; state = 'H'; continue; }
+    if (TENS_WORDS[word] !== undefined && (fresh || state === 'H')) { current += TENS_WORDS[word]; state = 'T'; continue; }
+    if (SMALL_WORDS[word] !== undefined && (fresh || state === 'H')) { current += SMALL_WORDS[word]; state = 'U'; continue; }
+    if (UNIT_WORDS[word] !== undefined && (fresh || state === 'H' || state === 'TY')) { current += UNIT_WORDS[word]; state = 'U'; continue; }
+    if (ONE_WORDS.has(word) && (state === 'H' || state === 'TY')) { current += 1; state = 'U'; continue; }
+    if (word === 'y' && (state === 'T' || state === 'M') && nextIsUnit) { state = 'TY'; continue; }
+    if (word === 'mil' && total === 0 && state !== 'TY') { total = (state === 'S' ? 1 : current) * 1000; current = 0; state = 'M'; continue; }
+    const wasOpen = state !== 'S';
+    close();
+    // A number word that could not continue the previous number starts the next one.
+    if (wasOpen && (HUNDRED_WORDS[word] ?? TENS_WORDS[word] ?? SMALL_WORDS[word] ?? UNIT_WORDS[word]) !== undefined || (wasOpen && word === 'mil')) i--;
+  }
+  close();
+  return out;
+}
+
+/** `text` without the spans of the references in `located`: their numbers are references, any other copy is a figure. */
+export function withoutLocatedRefs(text: string, located: Iterable<string>): string {
+  const keys = new Set(located);
+  return String(text).replace(LEGAL_REF, (span) => (keys.has(legalRefsIn(span)[0]?.key ?? '') ? ' ' : span));
+}
+/** The law a source page is: its first legal identifier (a BOE page opens with its own title). */
+const ownLaw = (raw: string) => legalRefsIn(raw).find((r) => r.id)?.key;
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/**
+ * Raw source text of a provision: from an "Artículo N." heading (capitalised: cross-references are lowercase) to the next
+ * heading, and within it from apartado "K. " to "K+1. ". Every occurrence counts, because a BOE page lists its index first.
+ */
+function provisionTexts(raw: string, article: string, apartado?: string): string[] {
+  const heading = /(?:^|\s)Art[íi]culo \d+\.\s/g;
+  const out: string[] = [];
+  for (const m of raw.matchAll(new RegExp(`(?:^|\\s)Art[íi]culo ${escapeRe(article)}\\.\\s`, 'g'))) {
+    heading.lastIndex = m.index! + m[0].length;
+    const end = heading.exec(raw)?.index ?? raw.length;
+    const body = raw.slice(m.index!, end);
+    if (!apartado) { out.push(body); continue; }
+    const start = new RegExp(`\\s${apartado}\\.\\s+\\p{Lu}`, 'u').exec(body);
+    if (!start) continue;
+    const rest = body.slice(start.index + 1);
+    const next = new RegExp(`\\s${Number(apartado) + 1}\\.\\s+\\p{Lu}`, 'u').exec(rest);
+    out.push(rest.slice(0, next?.index ?? rest.length));
+  }
+  return out;
+}
+
+/**
  * Deterministic verification against fetched source text (snapshots keyed by source id). A claim is
  * supported when a verified quote comes from an official/dataset/internal source, or from two press
  * sources on different domains; and every number the claim states appears in one of its verified quotes.
@@ -198,15 +301,30 @@ export function verifyBundle(bundle: EvidenceBundle, snapshots: ReadonlyMap<stri
   const normalized = new Map([...snapshots].map(([id, text]) => [id, normalizeForMatch(text)]));
   return assessBundle({
     ...bundle,
-    claims: bundle.claims.map((claim) => ({
-      ...claim,
-      quotes: claim.quotes.map((q) => {
+    claims: bundle.claims.map((claim) => {
+      const quotes = claim.quotes.map((q) => {
         const source = sources.get(q.sourceId);
         const text = normalized.get(q.sourceId);
         const needle = normalizeForMatch(q.quote);
         return { ...q, verified: Boolean(source?.retrievedAt && source.contentHash && text && needle.length >= MIN_QUOTE_CHARS && containsQuote(text, needle)) };
-      }),
-    })),
+      });
+      // A reference counts when one verified quote comes from that law's own page and, for an article, lies inside it.
+      // An article in a claim that also names a law must be found in that law, not in any page that has an article N.
+      const refs = legalRefsIn(claim.text);
+      const law = refs.find((r) => r.id)?.key;
+      const legalRefs = refs.filter((ref) => quotes.some((q) => {
+        const raw = q.verified ? snapshots.get(q.sourceId) : undefined;
+        if (!raw) return false;
+        if (ref.id) return ownLaw(raw) === ref.key;
+        // The verified quote itself names this article ("salvo lo previsto en el artículo 137"), and of the same law: the
+        // one the quote names, else the page's own; the claim's law, else the page's own (independent review H-B).
+        const inQuote = legalRefsIn(q.quote);
+        if (inQuote.some((r) => r.key === ref.key) && (inQuote.find((r) => r.id)?.key ?? ownLaw(raw)) === (law ?? ownLaw(raw))) return true;
+        if (law && ownLaw(raw) !== law) return false;
+        return provisionTexts(raw, ref.article!, ref.apartado).some((p) => containsQuote(normalizeForMatch(p), normalizeForMatch(q.quote)));
+      })).map((ref) => ref.key);
+      return { ...claim, quotes, legalRefs };
+    }),
   });
 }
 
@@ -227,8 +345,12 @@ export function assessBundle(bundle: EvidenceBundle): EvidenceBundle {
     const good = quotes.filter((q) => q.verified).map((q) => sources.get(q.sourceId)!);
     const primary = good.some((s) => s.kind !== 'press');
     const pressDomains = new Set(good.filter((s) => s.kind === 'press').map((s) => registrableDomain(s.url)));
-    const quotedNumbers = new Set(quotes.filter((q) => q.verified).flatMap((q) => numbersIn(q.quote)));
-    const missingNumbers = numbersIn(claim.text).filter((n) => !quotedNumbers.has(n));
+    const quotedNumbers = new Set(quotes.filter((q) => q.verified).flatMap((q) => [...numbersIn(q.quote), ...spelledNumbers(q.quote)]));
+    // A located reference's span is not a figure; the rest of the text is checked as before. Any unlocated reference fails,
+    // even when the quote happens to contain its numbers: the attribution itself is the claim.
+    const located = new Set(claim.legalRefs ?? []);
+    const unlocated = legalRefsIn(claim.text).filter((r) => !located.has(r.key));
+    const missingNumbers = numbersIn(withoutLocatedRefs(claim.text, located)).filter((n) => !quotedNumbers.has(n));
 
     let status: ClaimStatus = 'supported';
     let note: string | undefined;
@@ -241,6 +363,9 @@ export function assessBundle(bundle: EvidenceBundle): EvidenceBundle {
     } else if (!primary && pressDomains.size < 2) {
       status = 'unverified';
       note = 'solo una fuente de prensa: hace falta la fuente oficial o un segundo medio independiente';
+    } else if (unlocated.length) {
+      status = 'unverified';
+      note = `referencia legal no localizada junto a la cita: ${unlocated.map((r) => r.key).join(', ')}`;
     } else if (missingNumbers.length) {
       status = 'unverified';
       note = `cifras sin respaldo en las citas: ${missingNumbers.join(', ')}`;
@@ -267,9 +392,10 @@ function allowedNumbers(claims: EvidenceClaim[]): Set<string> {
   const out = new Set<string>();
   const madrid = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
   for (const claim of claims) {
-    numbersIn(claim.text).forEach((n) => out.add(n));
+    // A provision's numbers are not figures: they are allowed only as that reference (refNumbers).
+    numbersIn(withoutLocatedRefs(claim.text, claim.legalRefs ?? [])).forEach((n) => out.add(n));
     for (const q of claim.quotes.filter((x) => x.verified)) {
-      numbersIn(q.quote).forEach((n) => out.add(n));
+      [...numbersIn(q.quote), ...spelledNumbers(q.quote)].forEach((n) => out.add(n));
       for (const [iso] of q.quote.matchAll(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?Z/g)) {
         const parts = Object.fromEntries(madrid.formatToParts(new Date(iso)).map((p) => [p.type, p.value]));
         for (const v of [parts.year, parts.month, parts.day, parts.hour, parts.minute]) {
@@ -280,6 +406,8 @@ function allowedNumbers(claims: EvidenceClaim[]): Set<string> {
   }
   return out;
 }
+/** Numbers of `text` once the spans of references located by `claims` are removed: a reference is not a figure, a copy of its number is. */
+const figuresIn = (text: string, claims: EvidenceClaim[]) => numbersIn(withoutLocatedRefs(text, claims.flatMap((c) => c.legalRefs ?? [])));
 const stripListNumber = (unit: string) => unit.replace(/^\s*\d{1,2}[.)]\s+/, '');
 const FABRICATED_EXPERIENCE =
   /\b(?:(?:he|hemos)\s+(?:probado|testado|usado|comprobado\s+personalmente)|en\s+(?:mi|nuestra)\s+experiencia|nuestras?\s+pruebas?|personalmente|(?:entrevistamos|hemos\s+entrevistado|hablamos\s+con)\b|nos\s+(?:dijo|contó|confirmó))/i;
@@ -379,7 +507,9 @@ const linkTargets = (html: string) =>
 const attestation = (p: EditorialProvenance) =>
   [p.pipelineVersion, p.backend ?? '', p.bundleHash, p.draftHash, p.critic?.verdict ?? '', p.critic?.bundleHash ?? '', p.critic?.draftHash ?? '',
     // Appended only when present, so provenance signed before images existed still verifies.
-    ...(p.images?.length ? [p.images.map((i) => `${i.provider}:${i.sha256}:${i.url}`).join(',')] : [])].join('|');
+    ...(p.images?.length ? [p.images.map((i) => `${i.provider}:${i.sha256}:${i.url}`).join(',')] : []),
+    ...(p.metadataHash ? [`meta:${p.metadataHash}`] : []),
+    ...(p.blockedCandidates?.length ? [`blocked:${p.blockedCandidates.map((b) => `${b.draftHash}/${b.bundleHash}/${b.verdict}`).join(',')}`] : [])].join('|');
 export const signProvenance = (p: EditorialProvenance, key: string) => createHmac('sha256', key).update(attestation(p)).digest('hex');
 export function provenanceSignatureValid(p: EditorialProvenance, key: string | undefined): boolean {
   if (!key || !p.signature || !/^[0-9a-f]{64}$/.test(p.signature)) return false;
@@ -426,6 +556,10 @@ export function evaluateEvidence(post: EvidencePost, provenance: EditorialProven
 
   if (hashBundle(provenance.bundle) !== provenance.bundleHash) add('block', 'evidence-tampered', 'El paquete de evidencias no coincide con su hash');
   if (hashText(draftMarkdown) !== provenance.draftHash) add('block', 'draft-tampered', 'El borrador no coincide con su hash');
+  // M11-E2b: the excerpt and metadata must be the ones the critic reviewed (signed), not a later rewrite.
+  if (provenance.metadataHash && metadataHash({ excerpt: post.excerpt, metaTitle: post.seo?.metaTitle, metaDescription: post.seo?.metaDescription }) !== provenance.metadataHash) {
+    add('block', 'metadata-not-reviewed', 'El resumen o los metadatos no son los que revisó el crítico');
+  }
   // The published HTML is exactly the reviewed draft plus the standard disclosure: nothing added, no figure changed.
   const body = html.replace(AI_DISCLOSURE, ' ');
   if (visibleTokens(body) !== visibleTokens(visibleMarkdown(stripFences(draftMarkdown).replace(/^#\s.*$/m, '')))) {
@@ -450,8 +584,9 @@ export function evaluateEvidence(post: EvidencePost, provenance: EditorialProven
     for (const claim of cited.filter((c) => c.status !== 'supported')) {
       add('block', 'unsupported-claim', `${claim.id} (${claim.status ?? 'sin verificar'}): ${claim.note ?? claim.text}`);
     }
-    const allowed = allowedNumbers(cited.filter((c) => c.status === 'supported'));
-    const stray = numbersIn(visible).filter((n) => !allowed.has(n));
+    const supportedCited = cited.filter((c) => c.status === 'supported');
+    const allowed = allowedNumbers(supportedCited);
+    const stray = figuresIn(visible, supportedCited).filter((n) => !allowed.has(n));
     if (stray.length) add('block', 'figure-not-in-claim', `Cifras que no están en ${ids.join(', ')}: ${stray.join(', ')} («${visible.slice(0, 100)}»)`);
     if (NUMBER_WORDS.test(visible)) add('block', 'figure-in-words', `Cifra escrita con letras: «${visible.slice(0, 100)}»`);
   }
@@ -460,7 +595,7 @@ export function evaluateEvidence(post: EvidencePost, provenance: EditorialProven
   const allowedAll = allowedNumbers(usedSupported);
   for (const [field, text] of [['title', post.title], ['excerpt', post.excerpt], ['metaTitle', post.seo?.metaTitle], ['metaDescription', post.seo?.metaDescription]] as const) {
     const visible = String(text || '').replace(/<[^>]+>/g, ' ');
-    const stray = numbersIn(visible).filter((n) => !allowedAll.has(n));
+    const stray = figuresIn(visible, usedSupported).filter((n) => !allowedAll.has(n));
     if (stray.length || NUMBER_WORDS.test(visible)) add('block', 'metadata-figure-not-in-claims', `${field}: cifras sin afirmación verificada en el texto (${stray.join(', ') || 'cifra con letras'})`);
   }
   if ((post.faqItems || []).length) add('block', 'faq-not-evidenced', 'Las preguntas frecuentes no pasan por el paquete de evidencias');
@@ -545,18 +680,24 @@ export interface EditorialLimits {
   maxResearchCalls: number;
   maxSourceFetches: number;
   maxRetries: number;
+  /** Revisions after the first draft (M11-E2: each one is re-validated and re-criticised from scratch). */
   maxReviewLoops: number;
+  /** M11-E2: articles per day that may reach a publishable state (the Admin limit minus today's publications). */
   maxDailyArticles: number;
+  /** M11-E2: jobs started per day, publishable or not; bounds retries when money is not the brake. */
+  maxDailyAttempts?: number;
   maxConcurrentJobs: number;
 }
+/** M11-E2 testing profile: EDITORIAL_BUDGET=unlimited sets both USD caps to Infinity; spend is still recorded. */
 export const DEFAULT_EDITORIAL_LIMITS: Readonly<EditorialLimits> = Object.freeze({
   maxArticleUsd: 3,
   maxDailyUsd: 10,
-  maxResearchCalls: 2,
-  maxSourceFetches: 12,
+  maxResearchCalls: 3,
+  maxSourceFetches: 16,
   maxRetries: 1,
-  maxReviewLoops: 2,
+  maxReviewLoops: 5,
   maxDailyArticles: 3,
+  maxDailyAttempts: 30,
   maxConcurrentJobs: 1,
 });
 

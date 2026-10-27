@@ -2,8 +2,12 @@
 // M11-B AI editorial pipeline CLI over apps/backend/dist (run `npm run build -w apps/backend` first).
 // Nothing here writes to a database unless `save-draft`/`publish` is pointed at an API with an admin key.
 //
-//   run <topics.json> [--replay answers.json] [--mock-images] [--report <api>] [--out artifacts/m11b/runs] [--site https://guiaprogramaciontv.com]
+//   run <topics.json> [--replay answers.json] [--mock-images] [--report <api>] [--autopublish] [--out artifacts/m11b/runs] [--site https://guiaprogramaciontv.com]
 //       Research → evidence → editorial → SEO → critic → gates → cover, one run file per topic (covers in <out>/media).
+//       M11-E2: failed drafts are revised (re-research for evidence gaps), each version re-verified and re-criticised.
+//       --autopublish (needs --report, the Admin activation and EDITORIAL_POLICY_KEY): every run that passes is saved and
+//       published by policy, no person per article. EDITORIAL_BUDGET=unlimited lifts the USD caps (spend still recorded);
+//       EDITORIAL_MAX_REVISIONS (default 5) and EDITORIAL_MAX_DAILY_ATTEMPTS (default 30) keep retries bounded.
 //       Live models need Anthropic credentials; --replay feeds recorded role answers ({ "<slug>": { research: [...], ... } }).
 //       Routes: EDITORIAL_ROUTES / EDITORIAL_IMAGE_ROUTES (JSON, see docs/adr/0001); --mock-images uses the local mock.
 //       --report sends each run summary (no text, no evidence) to the Admin job list.
@@ -77,13 +81,24 @@ const positive = (name, fallback) => {
   if (!Number.isFinite(v) || v <= 0) { console.error(`${name} must be a positive number`); process.exit(2); }
   return v;
 };
-// M11-D: articles per day are set in the Admin; with --report the runner obeys that value over EDITORIAL_MAX_DAILY.
-let serverDailyLimit = null;
+const integer = (name, fallback, max) => {
+  const v = positive(name, fallback);
+  if (!Number.isInteger(v) || v > max) { console.error(`${name} must be an integer from 1 to ${max}`); process.exit(2); }
+  return v;
+};
+// M11-E2 testing profile: EDITORIAL_BUDGET=unlimited lifts both USD caps; spend is still estimated, journaled and reported.
+const BUDGET = process.env.EDITORIAL_BUDGET ?? 'capped';
+if (!['capped', 'unlimited'].includes(BUDGET)) { console.error('EDITORIAL_BUDGET must be capped or unlimited'); process.exit(2); }
+// M11-D: articles per day are set in the Admin; with --report the runner obeys that value (minus today's publications).
+let serverCapacity = null;
 const limits = () => ({
   ...evidence.DEFAULT_EDITORIAL_LIMITS,
-  maxArticleUsd: positive('EDITORIAL_MAX_ARTICLE_USD', evidence.DEFAULT_EDITORIAL_LIMITS.maxArticleUsd),
-  maxDailyUsd: positive('EDITORIAL_MAX_DAILY_USD', evidence.DEFAULT_EDITORIAL_LIMITS.maxDailyUsd),
-  maxDailyArticles: serverDailyLimit ?? positive('EDITORIAL_MAX_DAILY', evidence.DEFAULT_EDITORIAL_LIMITS.maxDailyArticles),
+  maxArticleUsd: BUDGET === 'unlimited' ? Infinity : positive('EDITORIAL_MAX_ARTICLE_USD', evidence.DEFAULT_EDITORIAL_LIMITS.maxArticleUsd),
+  maxDailyUsd: BUDGET === 'unlimited' ? Infinity : positive('EDITORIAL_MAX_DAILY_USD', evidence.DEFAULT_EDITORIAL_LIMITS.maxDailyUsd),
+  maxDailyArticles: serverCapacity ?? positive('EDITORIAL_MAX_DAILY', evidence.DEFAULT_EDITORIAL_LIMITS.maxDailyArticles),
+  // Unlimited money must not mean unlimited retries: revisions per article and jobs per day stay bounded.
+  maxReviewLoops: integer('EDITORIAL_MAX_REVISIONS', evidence.DEFAULT_EDITORIAL_LIMITS.maxReviewLoops, 10),
+  maxDailyAttempts: integer('EDITORIAL_MAX_DAILY_ATTEMPTS', evidence.DEFAULT_EDITORIAL_LIMITS.maxDailyAttempts, 100),
 });
 const today = () => new Date().toISOString().slice(0, 10);
 const runFiles = () => (existsSync(out) ? readdirSync(out).filter((f) => f.endsWith('.json')) : []);
@@ -98,6 +113,8 @@ const spentToday = () => {
   const settled = new Set(rows.filter((e) => e.kind === 'settle').map((e) => e.jobId));
   return rows.filter((e) => e.kind !== 'reserve' || !settled.has(e.jobId)).reduce((sum, e) => sum + e.usd, 0);
 };
+// M11-E2: attempts per day = jobs in the machine-wide journal (reruns included), not run files in one --out dir.
+const jobsToday = () => new Set((existsSync(spendLog()) ? readFileSync(spendLog(), 'utf8').split('\n').filter(Boolean).map(JSON.parse) : []).filter((e) => e.day === today()).map((e) => e.jobId)).size;
 const appendSpend = (row) => writeFileSync(spendLog(), `${JSON.stringify({ day: today(), at: new Date().toISOString(), ...row })}\n`, { flag: 'a' });
 // The runner may sign and publish by policy, never approve as a person or lift the emergency stop.
 for (const name of ['EDITORIAL_REVIEW_KEY', 'AUCTORIO_EDITORIAL_REVIEW_KEY']) {
@@ -124,6 +141,9 @@ if (command === 'run') {
   if (new Set(topics.map((t) => t.slug)).size !== topics.length) { console.error('duplicate topic slugs'); process.exit(2); }
   limits(); // validates the env caps before any network call (an exit with a socket open can crash Node on Windows)
   const report = arg('report') ? apiBase(arg('report')) : null;
+  // M11-E2: a run that passes every gate is saved and published by policy in the same job, with no per-article person.
+  const autopublish = process.argv.includes('--autopublish');
+  if (autopublish && (!report || replay || process.argv.includes('--mock-images'))) { console.error('--autopublish needs --report <api> and live models (no replay, no mock images)'); process.exit(2); }
   const { routes, imageRoutes } = pipeline.routesFromEnv();
   const mockImages = process.argv.includes('--mock-images');
   const images = mockImages ? [new (require(join(dist, 'infrastructure/external/MockImageModel.js')).MockImageModel)()] : [];
@@ -147,10 +167,12 @@ if (command === 'run') {
   if (report) {
     const overview = await fetch(`${report}/v2/admin/editorial/overview`, { headers: adminHeaders() }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
     const n = overview?.data?.policy?.dailyLimit;
+    const published = overview?.data?.policy?.approvalsLast24h;
     // Fail closed: an Admin that cannot be read means no run, not the env default.
-    if (!Number.isInteger(n) || n < 1) { console.error(`cannot read the Admin daily limit from ${report}`); process.exit(2); }
-    serverDailyLimit = n;
-    console.log(`daily limit from the Admin: ${n} article(s)`);
+    if (!Number.isInteger(n) || n < 1 || !Number.isInteger(published)) { console.error(`cannot read the Admin daily limit from ${report}`); process.exit(2); }
+    serverCapacity = Math.max(0, n - published);
+    if (autopublish && !overview.data.policy.active) { console.error('automatic publication is not active in the Admin (switch, activation or emergency stop): run without --autopublish'); process.exit(2); }
+    console.log(`daily limit from the Admin: ${n} article(s), ${published} published in 24 h, budget ${BUDGET}`);
   }
   const startedAt = new Date().toISOString();
   const jobId = (slug) => `${startedAt}-${slug}`;
@@ -163,11 +185,11 @@ if (command === 'run') {
     settle: (run, usd) => { persist(run); appendSpend({ kind: 'settle', jobId: jobId(run.slug), slug: run.slug, usd }); settled.set(run.slug, usd); },
   };
   const settled = new Map();
-  // Other articles started today; a rerun of the same topic does not use up the quota again.
-  const doneToday = runFiles().filter((f) => f.startsWith(today()) && !topics.some((t) => f === `${today()}-${t.slug}.json`)).length;
+  // Every job started today on this machine counts, reruns of the same topic too: with no money cap this is the brake.
+  const doneToday = jobsToday();
   // A replay is per slug, so replayed topics run one by one; live runs share one client under the batch caps.
   const runs = replay
-    ? await Promise.all(topics.map((t, i) => (i < limits().maxDailyArticles - doneToday
+    ? await Promise.all(topics.map((t, i) => (i < Math.min(limits().maxDailyArticles, limits().maxDailyAttempts - doneToday)
       ? pipeline.runEditorialJob(t, deps(t.slug), limits()).catch((e) => ({ slug: t.slug, state: 'draft', reason: e.message, findings: [], cost: {} }))
       : { slug: t.slug, state: 'blocked', reason: 'límite diario', findings: [], cost: {} })))
     : await pipeline.runEditorialBatch(topics, deps(), limits(), doneToday, spentToday(), journal);
@@ -175,7 +197,15 @@ if (command === 'run') {
     // Live jobs were persisted as they settled; replays (no spend) and jobs held before starting are written here.
     if (!settled.has(run.slug)) { persist(run); if (replay) appendSpend({ kind: 'settle', jobId: jobId(run.slug), slug: run.slug, usd: run.cost.usd ?? 0 }); }
     const blocks = run.findings.filter((f) => f.severity === 'block');
-    console.log(`${run.state.padEnd(18)} ${run.slug}  $${(run.cost.usd ?? 0).toFixed(3)}  value=${JSON.stringify(run.value ?? {})}${run.reason ? `  (${run.reason})` : ''}${run.imageFailure ? `  [sin portada: ${run.imageFailure}]` : ''}`);
+    let publication = null;
+    if (autopublish && run.state === 'approved-by-policy') {
+      publication = await publishRun(run, report, out);
+      if (publication.ok) run.state = 'published';
+      else run.reason = `publicación rechazada: ${publication.message}`.slice(0, 1000);
+      persist({ ...run, publication });
+    }
+    const tries = run.revisions ?? [];
+    console.log(`${run.state.padEnd(18)} ${run.slug}  $${(run.cost.usd ?? 0).toFixed(3)}  revisiones=${Math.max(0, tries.length - 1)} [${tries.map((r) => `${r.verdict}/${r.action}`).join(' ')}]  value=${JSON.stringify(run.value ?? {})}${run.reason ? `  (${run.reason})` : ''}${run.imageFailure ? `  [sin portada: ${run.imageFailure}]` : ''}${publication?.ok ? `  → ${publication.url}` : ''}`);
     for (const f of blocks) console.log(`   block ${f.code}: ${f.message}`);
     if (report) {
       const res = await fetch(`${report}/v2/admin/editorial/jobs`, { method: 'POST', headers: adminHeaders(), body: JSON.stringify({
@@ -183,6 +213,8 @@ if (command === 'run') {
         // The settled amount: an unresolved spend reports its whole allowance, as the journal counts it.
         backend: run.provenance?.backend ?? null, costUsd: settled.get(run.slug) ?? run.cost.usd ?? 0, costEntries: run.cost.entries ?? [],
         blockingCodes: blocks.map((f) => f.code), imageFailure: run.imageFailure ?? null,
+        revisions: Math.max(0, tries.length - 1), revisionLog: tries.map((r) => `${r.verdict}/${r.action}${r.blocking.length ? `:${r.blocking.join('+')}` : ''}`),
+        budget: BUDGET, publicUrl: publication?.ok ? publication.url : null,
       }) }).catch((e) => ({ ok: false, status: e.message }));
       if (!res.ok) console.log(`   job report FAILED ${res.status}`);
     }
@@ -215,28 +247,66 @@ if (command === 'run') {
 } else if (command === 'save-draft' || command === 'publish') {
   const run = readJson(target);
   const api = apiBase(arg('api'));
-  const headers = adminHeaders();
-  const found = await (await fetch(`${api}/v2/blog?slug=${encodeURIComponent(run.slug)}&status=all`, { headers })).json();
+  const found = await findPost(api, run.slug);
   if (command === 'save-draft') {
-    if (found[0]) { console.error(`${run.slug} already exists (${found[0].status}); a PUT would take a live guide offline. Refusing.`); process.exit(1); }
-    // M11-D: a run held only by judgements (e.g. a critic 'revise') goes to a named reviewer; any hard block stays out.
-    const hardBlocks = (run.findings ?? []).filter((f) => f.severity === 'block');
-    if (!run.draft || hardBlocks.length) { console.error(`${run.slug} is ${run.state}${hardBlocks.length ? ` (${hardBlocks.map((f) => f.code).join(', ')})` : ''}: nothing reviewable to save`); process.exit(1); }
-    // Covers first: the draft points at their content-addressed URLs, which must exist before anyone previews it.
-    for (const asset of run.provenance?.images ?? []) {
-      const bytes = readFileSync(join(resolve(target, '..'), 'media', `${asset.sha256}.${MEDIA_EXT[asset.contentType]}`));
-      const up = await fetch(`${api}/v2/admin/editorial/media/${asset.sha256}`, { method: 'POST', headers: { ...headers, 'content-type': asset.contentType }, body: bytes });
-      if (!up.ok) { console.error(`cover upload FAILED ${up.status} ${await up.text()}`); process.exit(1); }
-    }
-    const res = await fetch(`${api}/v2/blog`, { method: 'POST', headers, body: JSON.stringify({ ...run.draft, editorial: run.provenance }) });
-    console.log(`${res.ok ? 'saved draft' : `FAILED ${res.status}`} ${run.slug} ${res.ok ? (await res.json()).data.post.id : await res.text()}`);
+    if (found) { console.error(`${run.slug} already exists (${found.status}); a PUT would take a live guide offline. Refusing.`); process.exit(1); }
+    const saved = await saveDraft(run, api, resolve(target, '..'));
+    if (!saved.ok) { console.error(saved.message); process.exit(1); }
+    console.log(`saved draft ${run.slug} ${saved.id}`);
   } else {
-    if (!found[0]) { console.error(`${run.slug} is not in the CMS: save-draft first`); process.exit(1); }
-    const res = await fetch(`${api}/v2/blog/${found[0].id}/approve-by-policy`, { method: 'POST', headers: { ...headers, 'x-editorial-policy-key': process.env.EDITORIAL_POLICY_KEY || '' } });
-    console.log(`${res.ok ? 'published' : `REFUSED ${res.status}`} ${run.slug}`, res.ok ? '' : await res.text());
+    // Same path as --autopublish: only this run's own unreviewed draft (or a fresh save of it) is published by policy.
+    const res = await publishRun(run, api, resolve(target, '..'));
+    console.log(`${res.ok ? `published ${res.url}` : 'REFUSED'} ${run.slug}`, res.ok ? '' : res.message);
+    if (!res.ok) process.exitCode = 1;
   }
 } else {
   console.error('usage: editorial-agents.mjs run|verify|maintain|save-draft|publish …'); process.exit(2);
+}
+
+async function findPost(api, slug) {
+  return (await (await fetch(`${api}/v2/blog?slug=${encodeURIComponent(slug)}&status=all`, { headers: adminHeaders() })).json())[0] ?? null;
+}
+/** POST a run as a NEW draft with its provenance; covers first, so the draft never points at a missing image. */
+async function saveDraft(run, api, runDir) {
+  // M11-D: a run held only by judgements (e.g. a critic 'revise') goes to a named reviewer; any hard block stays out.
+  const hardBlocks = (run.findings ?? []).filter((f) => f.severity === 'block');
+  if (!run.draft || hardBlocks.length) return { ok: false, message: `${run.slug} is ${run.state}${hardBlocks.length ? ` (${hardBlocks.map((f) => f.code).join(', ')})` : ''}: nothing reviewable to save` };
+  for (const asset of run.provenance?.images ?? []) {
+    const bytes = readFileSync(join(runDir, 'media', `${asset.sha256}.${MEDIA_EXT[asset.contentType]}`));
+    const up = await fetch(`${api}/v2/admin/editorial/media/${asset.sha256}`, { method: 'POST', headers: { ...adminHeaders(), 'content-type': asset.contentType }, body: bytes });
+    if (!up.ok) return { ok: false, message: `cover upload FAILED ${up.status} ${await up.text()}` };
+  }
+  const res = await fetch(`${api}/v2/blog`, { method: 'POST', headers: adminHeaders(), body: JSON.stringify({ ...run.draft, editorial: run.provenance }) });
+  return res.ok ? { ok: true, id: (await res.json()).data.post.id } : { ok: false, message: `save FAILED ${res.status} ${await res.text()}` };
+}
+// A function declaration, like the helpers above: the top-level command code runs before any `const` below it exists.
+async function approveByPolicy(api, id) {
+  const res = await fetch(`${api}/v2/blog/${id}/approve-by-policy`, { method: 'POST', headers: { ...adminHeaders(), 'x-editorial-policy-key': process.env.EDITORIAL_POLICY_KEY || '' } });
+  return { ok: res.ok, message: res.ok ? '' : `${res.status} ${(await res.text()).slice(0, 800)}` };
+}
+/**
+ * M11-E2 autonomous publication of one passed run. The server re-runs every gate, the signature and the daily cap.
+ * Idempotent after a crash: only a draft of THIS run (same draft hash) that no person has reviewed is reused; any
+ * other post with the slug (published, human-reviewed, older evidence) is left alone.
+ */
+async function publishRun(run, api, runDir) {
+  const problem = pipeline.policyProviderProblem(run.provenance);
+  if (problem) return { ok: false, message: problem };
+  const found = await findPost(api, run.slug);
+  let id = null;
+  if (found) {
+    const detail = (await (await fetch(`${api}/v2/admin/editorial/posts/${found.id}`, { headers: adminHeaders() })).json().catch(() => null))?.data;
+    const same = found.status === 'draft' && detail && !detail.post.reviewedBy && detail.provenance?.critic?.draftHash === run.provenance.draftHash;
+    if (!same) return { ok: false, message: `${run.slug} ya existe (${found.status}) y no es el borrador de esta ejecución: no se toca` };
+    id = found.id;
+  }
+  if (!id) {
+    const saved = await saveDraft(run, api, runDir);
+    if (!saved.ok) return saved;
+    id = saved.id;
+  }
+  const res = await approveByPolicy(api, id);
+  return res.ok ? { ok: true, url: `${site}/guias/${run.slug}` } : res;
 }
 
 /** Re-fetch every source of a bundle; return the re-verified bundle and the claims that lost support. */

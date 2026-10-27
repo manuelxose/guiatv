@@ -15,6 +15,9 @@ import { MOCK_ADMIN_PROFILE } from '../fixtures/admin-shell-mock';
 const POLICY = {
   envEnabled: false,
   paused: false,
+  activated: false,
+  activatedAt: null,
+  activatedBy: null,
   active: false,
   pausedAt: null,
   pausedBy: null,
@@ -31,7 +34,8 @@ const HELD_POST_ID = '6ae0d88eab70f0c81c342315';
 
 const OVERVIEW = {
   policy: POLICY,
-  limits: { maxArticleUsd: 3, maxDailyUsd: 4, maxDailyArticles: 3 },
+  limits: { budget: 'capped', maxArticleUsd: 3, maxDailyUsd: 4, maxDailyArticles: 3 },
+  today: { generated: 1, published: 0, ready: 0, held: 0, rejected: 1, revisions: 2, models: {}, reasons: { 'critic-rejected': 1 } },
   routes: { research: [], evidence: [], editorial: [], seo: [], critic: [{ provider: 'anthropic', model: 'claude-opus-5-5', effort: 'high' }] },
   imageRoutes: [],
   spend: { todayUsd: 0.6732, last30dUsd: 1.4756 },
@@ -100,7 +104,7 @@ interface Captured {
   requests: Request[];
 }
 
-async function mockEditorialBackend(context: BrowserContext, captured: Captured): Promise<void> {
+async function mockEditorialBackend(context: BrowserContext, captured: Captured, overview: object = OVERVIEW): Promise<void> {
   await context.route('**/v2/**', async (route) => {
     const req = route.request();
     const url = req.url();
@@ -109,7 +113,11 @@ async function mockEditorialBackend(context: BrowserContext, captured: Captured)
     }
     if (!url.includes('/admin/editorial/')) return route.fulfill({ json: { success: true, data: [] } });
     captured.requests.push(req);
-    if (url.endsWith('/admin/editorial/overview')) return route.fulfill({ json: { success: true, data: OVERVIEW } });
+    if (url.endsWith('/admin/editorial/overview')) return route.fulfill({ json: { success: true, data: overview } });
+    if (url.endsWith('/policy/resume')) {
+      const by = req.headers()['x-editorial-reviewer'];
+      return route.fulfill({ json: { success: true, data: { policy: { ...POLICY, envEnabled: true, activated: true, active: true, activatedBy: by, activatedAt: '2026-10-27T18:00:00Z' } } } });
+    }
     if (url.includes(`/admin/editorial/posts/${HELD_POST_ID}`)) return route.fulfill({ json: { success: true, data: DETAIL } });
     if (url.endsWith('/policy/pause')) {
       const reason = req.postDataJSON()?.reason;
@@ -124,9 +132,9 @@ async function mockEditorialBackend(context: BrowserContext, captured: Captured)
   });
 }
 
-async function openEditorialSection(page: Page, context: BrowserContext, captured: Captured): Promise<void> {
+async function openEditorialSection(page: Page, context: BrowserContext, captured: Captured, overview?: object): Promise<void> {
   await page.addInitScript(() => localStorage.setItem('gtv_id_token', 'e2e-mock-editorial-admin-token'));
-  await mockEditorialBackend(context, captured);
+  await mockEditorialBackend(context, captured, overview);
   await page.goto('/admin');
   await page.locator('aside button[title="Pipeline editorial, evidencia y parada de emergencia"]').click();
   await expect(page.getByRole('heading', { name: 'Política de publicación' })).toBeVisible();
@@ -195,5 +203,35 @@ test.describe('Admin editorial operations', () => {
     await expect(page.getByText('0 / 3')).toBeVisible();
     const stored = await page.evaluate(() => JSON.stringify({ ...localStorage }) + JSON.stringify({ ...sessionStorage }));
     expect(stored).not.toContain('not-the-key');
+  });
+
+  test('M11-E2: an available but unactivated mode is activated once with the human key; today and the budget are shown', async ({ page, context }) => {
+    const captured: Captured = { requests: [] };
+    const overview = {
+      ...OVERVIEW,
+      policy: { ...POLICY, envEnabled: true, dailyLimit: 10, approvalsLast24h: 2 },
+      limits: { budget: 'unlimited', maxArticleUsd: null, maxDailyUsd: null, maxDailyArticles: 10 },
+      today: { generated: 4, published: 2, ready: 0, held: 1, rejected: 1, revisions: 5, models: { 'claude-opus-5-5': { calls: 12, inputTokens: 90000, outputTokens: 30000, usd: 0.96 } }, reasons: { 'no-distinct-value': 1 } },
+      jobs: [{ ...OVERVIEW.jobs[0], slug: 'guia-publicada', state: 'published', reason: null, blockingCodes: [], revisions: 2, revisionLog: ['revise/re-research', 'pass/pass'], budget: 'unlimited', publicUrl: 'https://guiaprogramaciontv.com/guias/guia-publicada' }],
+    };
+    await openEditorialSection(page, context, captured, overview);
+
+    await expect(page.getByText('Publicación automática: disponible, pendiente de activación por un administrador')).toBeVisible();
+    await expect(page.getByText('2 / 10')).toBeVisible();
+    await expect(page.getByText('presupuesto sin tope (modo de prueba)').first()).toBeVisible();
+    const today = page.locator('h4', { hasText: 'Hoy (UTC)' }).locator('xpath=..');
+    await expect(today.locator('dt', { hasText: 'Generados' }).locator('xpath=../dd')).toHaveText('4');
+    await expect(today.locator('dt', { hasText: 'Publicados' }).locator('xpath=../dd')).toHaveText('2');
+    await expect(today.getByText('no-distinct-value')).toBeVisible();
+    await expect(today.getByText(/claude-opus-5-5: 12 llamadas/)).toBeVisible();
+    await expect(page.getByRole('link', { name: 'guia-publicada' })).toHaveAttribute('href', 'https://guiaprogramaciontv.com/guias/guia-publicada');
+
+    await page.locator('#editorial-resume-reviewer').fill('Propietario');
+    await page.locator('#editorial-resume-key').fill('human-key');
+    await page.getByRole('button', { name: 'Activar publicación automática' }).click();
+    await expect(page.getByText(/Publicación automática: activa \(activada por Propietario el .*\)\. Sin aprobación humana por artículo\./)).toBeVisible();
+    const req = captured.requests.find((r) => r.url().endsWith('/policy/resume'));
+    expect(req?.headers()['x-editorial-review-key']).toBe('human-key');
+    await expect(page.locator('#editorial-resume-key')).toHaveCount(0);
   });
 });

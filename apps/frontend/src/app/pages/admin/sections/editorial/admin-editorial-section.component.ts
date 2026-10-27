@@ -31,7 +31,16 @@ export function policyStateText(policy: EditorialPolicyStatus): string {
     return `Publicación automática: pausada por ${who}${when}${why}${env}`;
   }
   if (!policy.envEnabled) return 'Publicación automática: desactivada (variable de entorno)';
-  return policy.active ? 'Publicación automática: activa' : 'Publicación automática: inactiva';
+  if (!policy.activated) return 'Publicación automática: disponible, pendiente de activación por un administrador';
+  if (!policy.active) return 'Publicación automática: inactiva';
+  const by = policy.activatedBy ? ` por ${policy.activatedBy}` : '';
+  const when = policy.activatedAt ? ` el ${formatDate(policy.activatedAt)}` : '';
+  return `Publicación automática: activa (activada${by}${when}). Sin aprobación humana por artículo.`;
+}
+
+/** Top rejection reasons of the day, most frequent first. */
+export function topReasons(reasons: Record<string, number>, n = 5): Array<[string, number]> {
+  return Object.entries(reasons).sort((a, b) => b[1] - a[1]).slice(0, n);
 }
 
 /** Maps pipeline/critic states onto the shared admin badge vocabulary. */
@@ -126,6 +135,8 @@ export class AdminEditorialSectionComponent implements OnInit {
     return this.overview ? policyStateText(this.overview.policy) : '';
   }
 
+  readonly topReasons = topReasons;
+
   badgeStatus(state: string | null | undefined): string {
     return STATE_BADGE[state || ''] || 'queued';
   }
@@ -216,7 +227,7 @@ export class AdminEditorialSectionComponent implements OnInit {
         },
         error: (e) => {
           this.resumeBusy = false;
-          this.resumeError = errorMessage(e, 'No se pudo reanudar la publicación automática');
+          this.resumeError = errorMessage(e, 'No se pudo activar o reanudar la publicación automática');
         },
       });
   }

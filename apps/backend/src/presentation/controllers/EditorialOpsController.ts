@@ -23,7 +23,7 @@ import { editorialCoverPreview } from '../middlewares/editorialMediaGate';
  */
 
 const db = () => BlogPostModel.db;
-const settings = () => db().collection<{ _id: string; paused?: boolean; pausedAt?: Date; pausedBy?: string; pausedReason?: string; dailyLimit?: number; dailyLimitBy?: string; dailyLimitAt?: Date }>('editorial_settings');
+const settings = () => db().collection<{ _id: string; paused?: boolean; pausedAt?: Date; pausedBy?: string; pausedReason?: string; dailyLimit?: number; dailyLimitBy?: string; dailyLimitAt?: Date; activatedAt?: Date; activatedBy?: string }>('editorial_settings');
 const audit = () => db().collection('editorial_audit');
 const jobs = () => db().collection('editorial_jobs');
 const DAY = 864e5;
@@ -36,16 +36,21 @@ const DAY = 864e5;
 export const DAILY_LIMIT = Object.freeze({ recommended: 3, min: 1, max: 10 });
 const validDailyLimit = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= DAILY_LIMIT.min && (n as number) <= DAILY_LIMIT.max;
 
-/** Automatic publication needs the deploy-time switch on AND no emergency stop from the Admin. */
+/**
+ * Automatic publication needs the deploy-time switch on, the one-time Admin activation (human key, M11-E2) and no
+ * emergency stop. The switch alone only makes the mode available: a deploy never starts publishing by itself.
+ */
 export async function editorialPolicyState() {
   const doc = await settings().findOne({ _id: 'policy' });
   const envEnabled = process.env.EDITORIAL_POLICY_PUBLISHING === 'enabled';
   const paused = Boolean(doc?.paused);
+  const activated = Boolean(doc?.activatedAt);
   // The Admin setting wins; then the deploy-time env (legacy); then the recommendation.
   const envLimit = Number(process.env.EDITORIAL_POLICY_DAILY_LIMIT);
   const dailyLimit = validDailyLimit(doc?.dailyLimit) ? doc!.dailyLimit : validDailyLimit(envLimit) ? envLimit : DAILY_LIMIT.recommended;
   return {
-    envEnabled, paused, active: envEnabled && !paused,
+    envEnabled, paused, activated, active: envEnabled && activated && !paused,
+    activatedAt: doc?.activatedAt?.toISOString() ?? null, activatedBy: doc?.activatedBy ?? null,
     pausedAt: doc?.paused ? doc.pausedAt?.toISOString() ?? null : null,
     pausedBy: doc?.paused ? doc.pausedBy ?? null : null,
     pausedReason: doc?.paused ? doc.pausedReason ?? null : null,
@@ -80,10 +85,13 @@ export class EditorialOpsController {
 
   overview = async (_req: Request, res: Response): Promise<void> => {
     const since = (ms: number) => new Date(Date.now() - ms);
-    const [policy, approvalsLast24h, recentJobs, posts, spend] = await Promise.all([
+    const today = new Date().toISOString().slice(0, 10);
+    const [policy, approvalsLast24h, recentJobs, todayJobs, posts, spend] = await Promise.all([
       editorialPolicyState(),
       db().collection('editorial_policy_approvals').countDocuments({ at: { $gte: since(DAY) } }),
       jobs().find({}, { projection: { _id: 0 } }).sort({ startedAt: -1 }).limit(50).toArray(),
+      // startedAt is the runner's ISO string, so a string range is the UTC day.
+      jobs().find({ startedAt: { $gte: today } }, { projection: { _id: 0, state: 1, revisions: 1, costUsd: 1, costEntries: 1, blockingCodes: 1 } }).toArray(),
       BlogPostModel.find({ origin: 'ai-assisted', editorial: { $exists: true } })
         .select({ title: 1, slug: 1, status: 1, reviewState: 1, reviewedBy: 1, updatedAt: 1, featuredImage: 1, editorial: 1 })
         .sort({ updatedAt: -1 }).limit(50).lean().exec(),
@@ -93,8 +101,20 @@ export class EditorialOpsController {
         { $group: { _id: { $substr: ['$startedAt', 0, 10] }, usd: { $sum: '$costUsd' } } },
       ]).toArray(),
     ]);
-    const today = new Date().toISOString().slice(0, 10);
     const { routes, imageRoutes } = routesFromEnv();
+    // The runner owns the money caps; its latest report says which budget it ran under (M11-E2 testing: unlimited).
+    const unlimited = recentJobs[0]?.budget === 'unlimited';
+    const count = (state: string) => todayJobs.filter((j) => j.state === state).length;
+    // Null-prototype maps: a stored model name such as "__proto__" must not reach Object.prototype.
+    const models: Record<string, { calls: number; inputTokens: number; outputTokens: number; usd: number }> = Object.create(null);
+    const reasons: Record<string, number> = Object.create(null);
+    for (const job of todayJobs) {
+      for (const e of job.costEntries ?? []) {
+        const m = (models[e.model] ??= { calls: 0, inputTokens: 0, outputTokens: 0, usd: 0 });
+        m.calls++; m.inputTokens += e.inputTokens; m.outputTokens += e.outputTokens; m.usd = +(m.usd + e.usd).toFixed(4);
+      }
+      for (const code of job.blockingCodes ?? []) reasons[code] = (reasons[code] ?? 0) + 1;
+    }
     res.json(successResponse({
       policy: {
         ...policy, approvalsLast24h,
@@ -102,9 +122,16 @@ export class EditorialOpsController {
         liveProviders: [...LIVE_PROVIDERS],
       },
       limits: {
-        maxArticleUsd: Number(process.env.EDITORIAL_MAX_ARTICLE_USD ?? DEFAULT_EDITORIAL_LIMITS.maxArticleUsd),
-        maxDailyUsd: Number(process.env.EDITORIAL_MAX_DAILY_USD ?? DEFAULT_EDITORIAL_LIMITS.maxDailyUsd),
+        budget: unlimited ? 'unlimited' : 'capped',
+        maxArticleUsd: unlimited ? null : Number(process.env.EDITORIAL_MAX_ARTICLE_USD ?? DEFAULT_EDITORIAL_LIMITS.maxArticleUsd),
+        maxDailyUsd: unlimited ? null : Number(process.env.EDITORIAL_MAX_DAILY_USD ?? DEFAULT_EDITORIAL_LIMITS.maxDailyUsd),
         maxDailyArticles: policy.dailyLimit,
+      },
+      // Attempts and publications are separate counts: a held or rejected attempt uses no publishing slot.
+      today: {
+        generated: todayJobs.length, published: count('published'), ready: count('approved-by-policy'),
+        held: count('verified'), rejected: count('blocked'),
+        revisions: todayJobs.reduce((sum, j) => sum + (Number(j.revisions) || 0), 0), models, reasons,
       },
       routes, imageRoutes,
       spend: {
@@ -175,11 +202,14 @@ export class EditorialOpsController {
     res.json(successResponse({ policy: await editorialPolicyState() }));
   };
 
-  /** Lifting the stop needs the editorial review key as well (router), and the env switch still decides. */
+  /**
+   * Activation (first time) or lifting the stop: needs the editorial review key as well (router), and the env switch
+   * still decides. This is an administrative switch for the mode, not an approval of any article.
+   */
   resume = async (req: Request, res: Response): Promise<void> => {
     // The reviewer name is what the key holder declares; the authenticated actor is recorded next to it.
     const by = String(req.header('x-editorial-reviewer') || '').trim().slice(0, 120) || actor(req);
-    await settings().updateOne({ _id: 'policy' }, { $set: { paused: false }, $unset: { pausedAt: 1, pausedBy: 1, pausedReason: 1 } }, { upsert: true });
+    await settings().updateOne({ _id: 'policy' }, { $set: { paused: false, activatedAt: new Date(), activatedBy: by }, $unset: { pausedAt: 1, pausedBy: 1, pausedReason: 1 } }, { upsert: true });
     await audit().insertOne({ at: new Date(), action: 'policy-resume', by, actor: actor(req) });
     res.json(successResponse({ policy: await editorialPolicyState() }));
   };
@@ -204,17 +234,26 @@ export class EditorialOpsController {
   recordJob = async (req: Request, res: Response): Promise<void> => {
     const b = req.body ?? {};
     const text = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : null);
+    const amount = (v: unknown) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : 0; };
+    const started = typeof b.startedAt === 'string' && b.startedAt.length <= 40 ? new Date(b.startedAt) : null;
     const job = {
       jobId: text(b.jobId, 160), slug: text(b.slug, 120), state: text(b.state, 40), reason: text(b.reason, 1000),
-      startedAt: text(b.startedAt, 40), backend: text(b.backend, 80), imageFailure: text(b.imageFailure, 500),
+      // Stored normalised: the overview selects a day by comparing ISO strings.
+      startedAt: started && !Number.isNaN(started.getTime()) ? started.toISOString() : null,
+      backend: text(b.backend, 80), imageFailure: text(b.imageFailure, 500),
       costUsd: Number(b.costUsd),
       costEntries: (Array.isArray(b.costEntries) ? b.costEntries : []).filter((e: unknown) => e && typeof e === 'object').slice(0, 50).map((e: Record<string, unknown>) => ({
-        role: text(e.role, 20), model: text(e.model, 80), inputTokens: Number(e.inputTokens) || 0,
-        outputTokens: Number(e.outputTokens) || 0, searches: Number(e.searches) || 0, usd: Number(e.usd) || 0,
+        role: text(e.role, 20), model: text(e.model, 80) === '__proto__' ? null : text(e.model, 80), inputTokens: amount(e.inputTokens),
+        outputTokens: amount(e.outputTokens), searches: amount(e.searches), usd: amount(e.usd),
       })),
       blockingCodes: (Array.isArray(b.blockingCodes) ? b.blockingCodes : []).slice(0, 50).map((c: unknown) => text(c, 60)),
+      // M11-E2 audit: how many revisions, what each one did, the budget mode and the public URL (if published).
+      revisions: Number.isInteger(b.revisions) && b.revisions >= 0 ? Math.min(b.revisions, 50) : 0,
+      revisionLog: (Array.isArray(b.revisionLog) ? b.revisionLog : []).slice(0, 20).map((r: unknown) => text(r, 300)),
+      budget: b.budget === 'unlimited' ? 'unlimited' : 'capped',
+      publicUrl: typeof b.publicUrl === 'string' && /^https:\/\/(?:www\.)?guiaprogramaciontv\.com\/guias\/[a-z0-9-]+$|^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?\/guias\/[a-z0-9-]+$/.test(b.publicUrl) ? b.publicUrl : null,
     };
-    if (!job.jobId || !job.slug || !job.state || !job.startedAt || Number.isNaN(Date.parse(job.startedAt)) || !Number.isFinite(job.costUsd) || job.costUsd < 0) {
+    if (!job.jobId || !job.slug || !job.state || !job.startedAt || !Number.isFinite(job.costUsd) || job.costUsd < 0) {
       throw new ValidationError('Invalid job report', [{ field: 'job', message: 'jobId, slug, state, startedAt (ISO) and costUsd >= 0 are required', value: job.jobId }]);
     }
     await jobs().createIndex({ jobId: 1 }, { unique: true });

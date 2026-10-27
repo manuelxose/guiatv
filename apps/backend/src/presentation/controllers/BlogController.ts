@@ -463,6 +463,7 @@ export class BlogController {
       const policy = await editorialPolicyState();
       if (!policy.envEnabled) throw new ForbiddenError('Policy publishing is disabled (EDITORIAL_POLICY_PUBLISHING)');
       if (policy.paused) throw new ForbiddenError(`Policy publishing is paused by the Admin emergency stop (${policy.pausedReason ?? 'no reason'})`);
+      if (!policy.activated) throw new ForbiddenError('Policy publishing has not been activated from the Admin (human review key)');
       const postId = String(req.params.id || '').trim();
       const post = await BlogPostModel.findById(postId).exec();
       if (!post) throw new NotFoundError('Editorial post not found');
@@ -515,7 +516,7 @@ export class BlogController {
       post.reviewedBy = POLICY_REVIEWER;
       post.reviewedAt = now;
       post.publishedAt = post.publishedAt || now;
-      post.reviewNotes = 'Approved by the M11-B evidence policy: every stated fact verified against its source, independent AI review passed.';
+      post.reviewNotes = 'Approved by the M11-B evidence policy: every stated fact verified against its source, independent AI review passed. Automatic certification, no per-article human review.';
       post.editorial = { ...post.editorial, state: 'published' };
       // A failed save publishes nothing, so it must not keep a slot or lock this draft out.
       await this.saveUnchanged(post).catch(async (error) => {

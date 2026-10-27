@@ -22,7 +22,7 @@ test('pipeline: a researched, verified and independently reviewed draft is appro
   assert.equal(run.cost.usd, 0.116); // 4 × (2000×4 + 800×20)/1e6 + 2 searches × 0.01
   assert.equal(run.cost.sourceFetches, 4);
   // The stored provenance re-validates on its own (what the CMS approval endpoint does).
-  assert.deepEqual(evaluateEvidence({ content: run.draft!.content, author: { name: run.draft!.authorName } }, run.provenance!, NOW), []);
+  assert.deepEqual(evaluateEvidence({ content: run.draft!.content, author: { name: run.draft!.authorName }, excerpt: run.draft!.excerpt, seo: { metaTitle: run.draft!.metaTitle, metaDescription: run.draft!.metaDescription } }, run.provenance!, NOW), []);
 });
 
 test('pipeline: seed pages are fetched for the research agent and kept as sources with their own publisher', async () => {
@@ -68,18 +68,26 @@ test('pipeline: uncited figures go back to the writer with the gate findings, th
   const run = await runEditorialJob(topic, deps(m.model));
   assert.equal(run.state, 'approved-by-policy');
   assert.equal(run.cost.draftAttempts, 2);
-  assert.equal(run.cost.reviewFailures, 1);
-  assert.match(m.calls.filter((c) => c.role === 'editorial')[1].prompt, /uncited-factual-statement/);
+  // M11-E2b: a mechanical defect is fixed before the critic, so it costs no review round.
+  assert.equal(run.cost.reviewFailures, 0);
+  assert.equal(m.calls.filter((c) => c.role === 'critic').length, 1);
+  assert.equal(run.revisions![0].gateFixes, 1);
+  assert.match(m.calls.filter((c) => c.role === 'editorial')[1].prompt, /menor cambio posible[\s\S]*uncited-factual-statement: .*Antena 3 en 2019/);
 });
 
 test('pipeline: the critic can only hold a draft, and review loops are bounded', async () => {
   const revise = { verdict: 'revise', issues: [{ severity: 'high', message: 'exagera la importancia' }] };
-  const m = scripted({ research: [research], evidence: [{ conflicts: [] }], editorial: [draft()], critic: [revise] });
+  const m = scripted({ research: [research], evidence: [{ conflicts: [] }], editorial: [draft(), draft(`${GOOD}\n\nUna versión distinta.`)], critic: [revise] });
   const run = await runEditorialJob(topic, deps(m.model), { ...DEFAULT_EDITORIAL_LIMITS, maxReviewLoops: 1 });
   assert.equal(run.state, 'blocked');
-  assert.match(run.reason!, /ciclos de revisión/);
+  assert.match(run.reason!, /ciclos de revisión \(1\)/);
   assert.equal(m.calls.filter((c) => c.role === 'critic').length, 2);
   assert.ok(run.draft, 'the last draft stays reviewable');
+  // M11-E2: the same text again is not a revision; the job stops instead of re-sending the same prompt.
+  const stuck = scripted({ research: [research], evidence: [{ conflicts: [] }], editorial: [draft()], critic: [revise] });
+  const same = await runEditorialJob(topic, deps(stuck.model));
+  assert.match(same.reason!, /sin progreso/);
+  assert.deepEqual(same.revisions!.map((r) => r.action), ['rewrite', 'abandon']);
   const blocked = scripted({ research: [research], evidence: [{ conflicts: [] }], editorial: [draft()], critic: [{ verdict: 'block', issues: [{ severity: 'high', message: 'sin valor' }] }] });
   assert.equal((await runEditorialJob(topic, deps(blocked.model))).state, 'blocked');
 });
@@ -130,9 +138,10 @@ test('idempotence: the same inputs produce the same evidence, draft hash and out
 test('batch: daily volume and concurrency limits are enforced', async () => {
   const m = scripted({ research: [research], evidence: [{ conflicts: [] }], editorial: [draft()], critic: [pass] });
   const topics = [1, 2, 3, 4].map((n) => ({ ...topic, slug: `${topic.slug}-${n}` }));
-  const runs = await runEditorialBatch(topics, deps(m.model), { ...DEFAULT_EDITORIAL_LIMITS, maxDailyArticles: 3, maxConcurrentJobs: 2 }, 1);
+  // M11-E2: 2 publishable articles left today, 3 attempts left (one used): the third topic is the attempt cap.
+  const runs = await runEditorialBatch(topics, deps(m.model), { ...DEFAULT_EDITORIAL_LIMITS, maxDailyArticles: 2, maxDailyAttempts: 4, maxConcurrentJobs: 2 }, 1);
   assert.deepEqual(runs.map((r) => r.state), ['approved-by-policy', 'approved-by-policy', 'blocked', 'blocked']);
-  assert.equal(runs.filter((r) => /límite diario/.test(r.reason ?? '')).length, 2);
+  assert.deepEqual(runs.slice(2).map((r) => r.reason), ['límite diario de 2 artículos', 'límite diario de 4 intentos']);
   assert.equal(m.peak() <= 2, true);
 });
 test('review M1: a model error holds that article only; the batch and its ledger survive', async () => {
