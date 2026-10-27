@@ -8,11 +8,11 @@ Date: 2026-10-27. Baseline `main@90c49b6`. Production after this milestone: `202
 |---|---|---|
 | ENGINEERING PASS | **PASS** | PR #108 merged at `6d4e40f`, CI green. Two independent reviews: every BLOCKER and HIGH fixed and verified (§3) |
 | AUTONOMOUS REVISION PASS | **PASS** | 12 new deterministic tests (§4). Live, three topics converged after 2 revisions each (§5) |
-| LIVE PROVIDER PASS | **PASS (local, isolated API)** | Run 6 went end to end with one `--autopublish` command and real models, sources and gates. Runs 3 and 5 also passed (§5) |
-| AUTOMATIC PUBLICATION READY | **PASS** | Deployed and verified in production. Owner activation still pending (§11) |
-| AUTOMATIC PUBLICATION ENABLED | **NO** | Requires the owner's one-time action (§13) |
-| PRODUCTION PUBLICATION PASS | **NO** | Nothing published in production. The 10 public guides are unchanged |
-| M11-B | **PARTIAL**, unchanged | See §12 for the proposed change to its acceptance criterion |
+| LIVE PROVIDER PASS | **PASS** | Local run 6 went end to end with one `--autopublish` command (§5), and so did the production run (§15) |
+| AUTOMATIC PUBLICATION READY | **PASS** | Deployed and verified in production (§10) |
+| AUTOMATIC PUBLICATION ENABLED | **PASS** | Owner-authorised in session on 2026-10-27 and activated in production (§15) |
+| PRODUCTION PUBLICATION PASS | **PASS** | 3 guides published autonomously in production; SSR and SEO verified (§15) |
+| M11-B | **PARTIAL** in the canonical roadmap | The proposed alternative criterion (§12) is now met by evidence; adopting it is the owner's decision (§15) |
 | M12 | **NO-GO**, unchanged | |
 
 ## 1. What was implemented
@@ -228,12 +228,59 @@ Assessed as the SEO/editorial agent:
 
 After that, no per-article approval is requested.
 
+## 15. Production activation and first autonomous publications (2026-10-27/28)
+
+The owner authorised §13 in session ("te doy permiso para hacerlo y cerrar todo"). §11 and §13 record the state before activation.
+
+**Activation:**
+
+| Step | Result |
+|---|---|
+| `/etc/guiatv/api.env` | Backed up as `api.env.bak-m11e2-20261027T202033Z`, then `EDITORIAL_POLICY_PUBLISHING=enabled` appended. `guiatv-api` restarted: health 200, `NRestarts=0` |
+| Admin activation | Done on the host against the local API, with keys read from the env file and never printed. Without the human key: **403**. With it: **200**. Recorded as `Propietario (autorizacion en sesion, M11-E2)`, deliberately not one of the named reviewers. Daily limit set to **10** (200) |
+| State after activation | `envEnabled`, `activated` and `active` all true; not paused; limit 10 |
+
+**Production run:**
+- Command: `artifacts/m11e2/prod-run.mjs` → `editorial-agents.mjs run prod-queue.json --report https://guiaprogramaciontv.com --autopublish --confirm-production-write`.
+- Environment: runner keys only (no human key), `EDITORIAL_BUDGET=unlimited`, the gateway with the `cc/` prefix.
+- Queue: the three topics validated locally.
+
+| Guide | Revisions | Claims used | Estimated USD | Result |
+|---|---|---|---|---|
+| `/guias/horario-proteccion-menores-television-calificacion-por-edades` | 1 | 22 | 0.639 | published |
+| `/guias/limite-anuncios-television-minutos-por-hora-ley` | 1 | 21 | 0.620 | published |
+| `/guias/subtitulos-audiodescripcion-lengua-de-signos-television-obligaciones` | 5 (passed on the last allowed version) | 32 | 1.942 | published |
+
+No person approved any of the three articles. Each was published by `policy:m11b-evidence-gate` after the server re-ran every gate, the signature, the metadata hash, the cap and the stop check.
+
+**Production checks** (read-only, after publication). The same results held for all three guides:
+- **SSR:** status 200 and a self canonical.
+- **Robots:** `index, follow`.
+- **Schema:** `Article`, with author `Organization` "Redacción IA de Guía TV" pointing to `/politica-editorial`, plus `BreadcrumbList`.
+- **Page:** the AI disclosure is present, and the guide is in the sitemap.
+- **Public API:** `/v2/blog` shows `publish`, editorial state `published`, and no reviewer byline.
+- **Listings:**
+  - `/v2/blog` now lists 13 posts.
+  - `/guias/categoria/television` returns 200 and lists the three guides.
+  - `/guias` links them after one SSR stale-while-revalidate refresh. The first read served the cached hub, a known gotcha.
+- **Admin:**
+  - `approvalsLast24h` = 3 of 10.
+  - "Hoy": 3 published, the jobs with their public URLs, budget `unlimited`.
+- **Service:** `guiatv-api` active, `NRestarts=0`, release unchanged at `20261027211302`.
+
+**Still for the owner:**
+- Confirm, or reject, the M11-B acceptance-criterion change in §12. Its evidence now exists; `GUIATV-MILESTONES.md` was not rewritten.
+- The three guides open a new "Televisión" category. All of them cite the same law.
+- A recurring runner schedule needs a curated topic queue. Topics are not chosen automatically yet.
+
 ## 14. Next single milestone
 
-**M11-F: first production autonomous publication.**
-1. The owner completes §13.
-2. One `--autopublish` run on a curated topic queue.
-3. Production SSR/SEO checks of the published guide: canonical, schema, sitemap, indexation.
-4. Then the M11-B acceptance decision from §12.
+This section was superseded on 2026-10-28: the first production autonomous publication took place (§15).
+
+**Next: M11-F, autonomous topic queue and unattended schedule.**
+- Topics: chosen from GuíaTV data and verifiable sources, with internal links and different laws or sources.
+- Schedule: a recurring runner within the limit of 10.
+- Monitoring: the published guides are indexed in GSC and re-verified at their review date (`maintain`).
+- Decision: the M11-B criterion from §12.
 
 No M12 work before that.
