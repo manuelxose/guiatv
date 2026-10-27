@@ -2,9 +2,11 @@
 // M11-B AI editorial pipeline CLI over apps/backend/dist (run `npm run build -w apps/backend` first).
 // Nothing here writes to a database unless `save-draft`/`publish` is pointed at an API with an admin key.
 //
-//   run <topics.json> [--replay answers.json] [--out artifacts/m11b/runs] [--site https://guiaprogramaciontv.com]
-//       Research → evidence → editorial → SEO → critic → gates, one run file per topic. Live models need Anthropic
-//       credentials; --replay feeds recorded role answers ({ "<slug>": { research: [...], editorial: [...], ... } }).
+//   run <topics.json> [--replay answers.json] [--mock-images] [--report <api>] [--out artifacts/m11b/runs] [--site https://guiaprogramaciontv.com]
+//       Research → evidence → editorial → SEO → critic → gates → cover, one run file per topic (covers in <out>/media).
+//       Live models need Anthropic credentials; --replay feeds recorded role answers ({ "<slug>": { research: [...], ... } }).
+//       Routes: EDITORIAL_ROUTES / EDITORIAL_IMAGE_ROUTES (JSON, see docs/adr/0001); --mock-images uses the local mock.
+//       --report sends each run summary (no text, no evidence) to the Admin job list.
 //   verify <run.json>          re-fetches every source and re-checks the evidence and publication gates (no model)
 //   maintain [--runs dir] [--site url]  freshness report: due reviews, re-verified evidence, legacy guides (no model)
 //   save-draft <run.json> --api http://127.0.0.1:4000   POST as a NEW draft with provenance (refuses existing slugs)
@@ -76,21 +78,44 @@ const positive = (name, fallback) => {
 const limits = () => ({
   ...evidence.DEFAULT_EDITORIAL_LIMITS,
   maxArticleUsd: positive('EDITORIAL_MAX_ARTICLE_USD', evidence.DEFAULT_EDITORIAL_LIMITS.maxArticleUsd),
+  maxDailyUsd: positive('EDITORIAL_MAX_DAILY_USD', evidence.DEFAULT_EDITORIAL_LIMITS.maxDailyUsd),
   maxDailyArticles: positive('EDITORIAL_MAX_DAILY', evidence.DEFAULT_EDITORIAL_LIMITS.maxDailyArticles),
 });
 const today = () => new Date().toISOString().slice(0, 10);
 const runFiles = () => (existsSync(out) ? readdirSync(out).filter((f) => f.endsWith('.json')) : []);
+// Append-only: a rerun overwrites its run file, but the money it spent stays counted for the day.
+const spendLog = () => join(out, 'spend.jsonl');
+const spentToday = () => (existsSync(spendLog()) ? readFileSync(spendLog(), 'utf8').split('\n').filter(Boolean).map(JSON.parse) : [])
+  .filter((e) => e.day === today()).reduce((sum, e) => sum + e.usd, 0);
+const MEDIA_EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
+// A production API is a production write: only with the owner's authorisation.
+function apiBase(value) {
+  const api = String(value || '').replace(/\/$/, '');
+  if (!api) { console.error('--api is required (a production API is a production write: needs the owner\'s authorisation)'); process.exit(2); }
+  if (!/^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?$/.test(api) && !process.argv.includes('--confirm-production-write')) {
+    console.error(`${api} is not local: add --confirm-production-write once the owner has authorised this write`); process.exit(2);
+  }
+  return api;
+}
+const adminHeaders = () => ({ 'content-type': 'application/json', 'x-admin-key': process.env.ANALYTICS_ADMIN_KEY || '' });
 
 if (command === 'run') {
   const topics = readJson(target);
   const replay = arg('replay') ? readJson(arg('replay')) : null;
+  const report = arg('report') ? apiBase(arg('report')) : null;
+  const { routes, imageRoutes } = pipeline.routesFromEnv();
+  const mockImages = process.argv.includes('--mock-images');
+  const images = mockImages ? [new (require(join(dist, 'infrastructure/external/MockImageModel.js')).MockImageModel)()] : [];
   const corpus = await publicCorpus();
   const deps = (slug) => ({
-    model: replay ? replayModel(structuredClone(replay[slug] ?? {}), slug) : new (require(join(dist, 'infrastructure/external/AnthropicEditorialModel.js')).AnthropicEditorialModel)(),
+    // Live adapters, one per provider with credentials; a new provider is added here once it exists (docs/adr/0001).
+    ...(replay ? { model: replayModel(structuredClone(replay[slug] ?? {}), slug) } : { models: [new (require(join(dist, 'infrastructure/external/AnthropicEditorialModel.js')).AnthropicEditorialModel)()] }),
+    routes, images, imageRoutes: mockImages && !process.env.EDITORIAL_IMAGE_ROUTES ? [{ provider: 'mock', model: 'mock-cover-1' }] : imageRoutes,
     fetchSource, internalLinkStatus, corpus, render: (md) => marked.parse(md),
     signingKey: process.env.EDITORIAL_PIPELINE_SIGNING_KEY,
   });
-  mkdirSync(out, { recursive: true });
+  mkdirSync(join(out, 'media'), { recursive: true });
+  const startedAt = new Date().toISOString();
   // Other articles started today; a rerun of the same topic does not use up the quota again.
   const doneToday = runFiles().filter((f) => f.startsWith(today()) && !topics.some((t) => f === `${today()}-${t.slug}.json`)).length;
   // A replay is per slug, so replayed topics run one by one; live runs share one client under the batch caps.
@@ -98,13 +123,23 @@ if (command === 'run') {
     ? await Promise.all(topics.map((t, i) => (i < limits().maxDailyArticles - doneToday
       ? pipeline.runEditorialJob(t, deps(t.slug), limits()).catch((e) => ({ slug: t.slug, state: 'draft', reason: e.message, findings: [], cost: {} }))
       : { slug: t.slug, state: 'blocked', reason: 'límite diario', findings: [], cost: {} })))
-    : await pipeline.runEditorialBatch(topics, deps(), limits(), doneToday);
-  for (const run of runs) {
+    : await pipeline.runEditorialBatch(topics, deps(), limits(), doneToday, spentToday());
+  for (const { media = [], ...run } of runs) {
+    for (const { asset, bytes } of media) writeFileSync(join(out, 'media', `${asset.sha256}.${MEDIA_EXT[asset.contentType]}`), bytes);
     const file = join(out, `${today()}-${run.slug}.json`);
-    writeFileSync(file, JSON.stringify({ ...run, modelBackend: replay ? 'replay' : 'anthropic' }, null, 1));
+    writeFileSync(file, JSON.stringify({ ...run, modelBackend: run.provenance?.backend ?? (replay ? 'replay' : null) }, null, 1));
+    writeFileSync(spendLog(), `${JSON.stringify({ day: today(), at: startedAt, slug: run.slug, usd: run.cost.usd ?? 0 })}\n`, { flag: 'a' });
     const blocks = run.findings.filter((f) => f.severity === 'block');
-    console.log(`${run.state.padEnd(18)} ${run.slug}  $${(run.cost.usd ?? 0).toFixed(3)}  value=${JSON.stringify(run.value ?? {})}${run.reason ? `  (${run.reason})` : ''}`);
+    console.log(`${run.state.padEnd(18)} ${run.slug}  $${(run.cost.usd ?? 0).toFixed(3)}  value=${JSON.stringify(run.value ?? {})}${run.reason ? `  (${run.reason})` : ''}${run.imageFailure ? `  [sin portada: ${run.imageFailure}]` : ''}`);
     for (const f of blocks) console.log(`   block ${f.code}: ${f.message}`);
+    if (report) {
+      const res = await fetch(`${report}/v2/admin/editorial/jobs`, { method: 'POST', headers: adminHeaders(), body: JSON.stringify({
+        jobId: `${startedAt}-${run.slug}`, slug: run.slug, state: run.state, reason: run.reason ?? null, startedAt,
+        backend: run.provenance?.backend ?? null, costUsd: run.cost.usd ?? 0, costEntries: run.cost.entries ?? [],
+        blockingCodes: blocks.map((f) => f.code), imageFailure: run.imageFailure ?? null,
+      }) }).catch((e) => ({ ok: false, status: e.message }));
+      if (!res.ok) console.log(`   job report FAILED ${res.status}`);
+    }
   }
 } else if (command === 'verify') {
   const run = readJson(target);
@@ -133,16 +168,18 @@ if (command === 'run') {
   for (const x of [...report.runs, ...report.guides]) console.log(`${x.due ? 'DUE ' : 'ok  '} ${x.nextReviewAt.slice(0, 10)} ${x.slug}${x.changedEvidence?.length ? `  changed: ${x.changedEvidence.join(', ')}` : ''}`);
 } else if (command === 'save-draft' || command === 'publish') {
   const run = readJson(target);
-  const api = (arg('api') || '').replace(/\/$/, '');
-  if (!api) { console.error('--api is required (a production API is a production write: needs the owner\'s authorisation)'); process.exit(2); }
-  if (!/^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?$/.test(api) && !process.argv.includes('--confirm-production-write')) {
-    console.error(`${api} is not local: add --confirm-production-write once the owner has authorised this write`); process.exit(2);
-  }
-  const headers = { 'content-type': 'application/json', 'x-admin-key': process.env.ANALYTICS_ADMIN_KEY || '' };
+  const api = apiBase(arg('api'));
+  const headers = adminHeaders();
   const found = await (await fetch(`${api}/v2/blog?slug=${encodeURIComponent(run.slug)}&status=all`, { headers })).json();
   if (command === 'save-draft') {
     if (found[0]) { console.error(`${run.slug} already exists (${found[0].status}); a PUT would take a live guide offline. Refusing.`); process.exit(1); }
     if (!run.draft || run.state === 'blocked') { console.error(`${run.slug} is ${run.state}: nothing reviewable to save`); process.exit(1); }
+    // Covers first: the draft points at their content-addressed URLs, which must exist before anyone previews it.
+    for (const asset of run.provenance?.images ?? []) {
+      const bytes = readFileSync(join(resolve(target, '..'), 'media', `${asset.sha256}.${MEDIA_EXT[asset.contentType]}`));
+      const up = await fetch(`${api}/v2/admin/editorial/media/${asset.sha256}`, { method: 'POST', headers: { ...headers, 'content-type': asset.contentType }, body: bytes });
+      if (!up.ok) { console.error(`cover upload FAILED ${up.status} ${await up.text()}`); process.exit(1); }
+    }
     const res = await fetch(`${api}/v2/blog`, { method: 'POST', headers, body: JSON.stringify({ ...run.draft, editorial: run.provenance }) });
     console.log(`${res.ok ? 'saved draft' : `FAILED ${res.status}`} ${run.slug} ${res.ok ? (await res.json()).data.post.id : await res.text()}`);
   } else {

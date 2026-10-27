@@ -162,9 +162,24 @@ The Admin (`/admin`, blog section) stays the only place where a person acts on e
 | CMS provenance, gated approval, policy approval (off), revisions, rollback, CLI | **Implemented** (M11-B 3/3) |
 | Provider-neutral `EditorialModel` with `provider`; per-role routes; adapter refuses misroutes; `backend` taken from the adapter; policy accepts only routed live providers | **Implemented** (this ADR's PR) |
 | Claude adapter behind that contract | **Implemented**. Not yet exercised against the live API: no key in the development environment |
-| Fallback routing | Contract (Decision 1 rules) |
-| OpenAI / DeepSeek / Kimi / other adapters | Future. Each needs verification of capabilities, prices and commercial access first |
-| Image pipeline and `ImageAsset` | Contract (Decision 2) |
-| `guiatv.editorial-job/v1` package and Auctorio adapter | Contract (Decision 3). Local runs already produce the equivalent data |
-| Admin queue, preview, approve buttons, budgets, emergency-stop flag | Plan (Decision 4). Approval is API/CLI today |
-| Autonomous production publishing | **Not activated.** Needs owner approval, `/politica-editorial` updated, and a live-model signed run |
+| Fallback routing | **Implemented** (M11-C): ordered routes per role (`DEFAULT_ROUTES`, `EDITORIAL_ROUTES` JSON), chosen once per job by `chooseRoutes` (configured adapter, priced model, web search for research); `backend` lists every provider that answered (`a+b`) |
+| Daily USD ceiling | **Implemented** (M11-C): `maxDailyUsd` / `EDITORIAL_MAX_DAILY_USD`, each job reserves its allowance; the CLI keeps an append-only `spend.jsonl` |
+| OpenAI / DeepSeek / Kimi / other adapters | Future. Each needs verification of capabilities, prices and commercial access first. A route to a provider without an adapter is skipped; an unpriced model is refused |
+| Image pipeline and `ImageAsset` | **Implemented with a mock provider** (M11-C): brief, header checks, signed asset hashes, cost, media store with WebP derivatives, Admin preview. `mock` covers are blocked from publication; no real image provider is priced or trusted (`LIVE_IMAGE_PROVIDERS` is empty) |
+| `guiatv.editorial-job/v1` package and Auctorio adapter | Contract (Decision 3). Local runs already produce the equivalent data; the receiving endpoints below exist |
+| Admin queue, preview, budgets, emergency-stop flag | **Implemented** (M11-C): Admin section "Operaciones IA". Approve buttons are not built: approval stays on the review-key API/CLI |
+| Autonomous production publishing | **Not activated.** `/politica-editorial` now describes the real process and says it is off; activation needs the owner, the env switch, a signing key, and a live-model signed run |
+
+## M11-C: the receiving surface (what Auctorio will call)
+
+All under `/v2`. Admin routes need the admin role (session) or `ANALYTICS_ADMIN_KEY`; approval routes also need the editorial review key.
+
+| Step | Endpoint | Rule |
+|---|---|---|
+| Report a run (any outcome) | `POST /admin/editorial/jobs` | Summary only: `jobId` (unique, replay = 409), slug, state, reason, startedAt, backend, cost entries, blocking codes. No text or evidence |
+| Upload a cover | `POST /admin/editorial/media/:sha256` (raw PNG/JPEG/WebP) | Re-decoded, hash must match, ≤ 10 MB; stored content-addressed with 1600/800 WebP derivatives; idempotent |
+| Save the draft | `POST /blog` with `editorial` provenance | Always a draft; existing slugs refused by the runner |
+| Publish | `POST /blog/:id/approve` (named reviewer) or `/approve-by-policy` | Both re-run every gate. Policy also needs the env switch, no Admin stop, a valid signature, only `LIVE_PROVIDERS` text and `LIVE_IMAGE_PROVIDERS` images, and one ledger row per post and draft hash (duplicates 409) |
+| Stop | `POST /admin/editorial/policy/pause` | Any admin, takes effect immediately, audited; `resume` needs the review key |
+
+**Migration plan.** (1) Auctorio gains verbatim-quote evidence and an independent critic; until then its output is a draft for a named reviewer. (2) An `AuctorioEditorialModel`/package adapter replaces `scripts/editorial-agents.mjs run` as producer and calls the endpoints above with its own `jobId`/`Idempotency-Key`. (3) Its signing key is added to GuíaTV only after a reviewed signed run; `auctorio` joins `LIVE_PROVIDERS` in code, never by configuration. (4) The local agent engine is then retired; GuíaTV keeps the gates, CMS, URLs and the switch.

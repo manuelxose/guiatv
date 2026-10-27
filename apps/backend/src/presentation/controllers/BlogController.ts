@@ -35,7 +35,9 @@ import {
   PUBLIC_EDITORIAL_FILTER,
 } from '../../application/services/EditorialReviewPolicy';
 import { EditorialProvenance, evaluateEvidence, provenanceSignatureValid } from '../../application/services/EditorialEvidence';
-import { LIVE_PROVIDERS } from '../../application/services/EditorialAgentPipeline';
+import { policyProviderProblem } from '../../application/services/EditorialAgentPipeline';
+import { editorialPolicyState } from './EditorialOpsController';
+import { generatedImageFindings } from '../../application/services/EditorialImages';
 
 const MAX_REVISIONS = 20;
 const MAX_REVISIONS_BYTES = 6 * 1024 * 1024;
@@ -66,6 +68,7 @@ interface BlogWritePayload {
   relatedMerchantKeys?: string[] | string;
   manualAffiliateOfferIds?: string[] | string;
   coverImage?: string;
+  coverAlt?: string;
   featuredImage?: string;
   metaTitle?: string;
   metaDescription?: string;
@@ -127,6 +130,7 @@ interface NormalizedBlogPayload {
   featuredImage?: {
     sourceUrl?: string;
     caption?: string;
+    alt?: string;
   };
   seo: {
     metaTitle?: string;
@@ -455,9 +459,9 @@ export class BlogController {
    */
   public approveByPolicy = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      if (process.env.EDITORIAL_POLICY_PUBLISHING !== 'enabled') {
-        throw new ForbiddenError('Policy publishing is disabled (EDITORIAL_POLICY_PUBLISHING)');
-      }
+      const policy = await editorialPolicyState();
+      if (!policy.envEnabled) throw new ForbiddenError('Policy publishing is disabled (EDITORIAL_POLICY_PUBLISHING)');
+      if (policy.paused) throw new ForbiddenError(`Policy publishing is paused by the Admin emergency stop (${policy.pausedReason ?? 'no reason'})`);
       const postId = String(req.params.id || '').trim();
       const post = await BlogPostModel.findById(postId).exec();
       if (!post) throw new NotFoundError('Editorial post not found');
@@ -467,9 +471,10 @@ export class BlogController {
         ]);
       }
       // Only provenance the pipeline runner signed, from live models: replayed or hand-made bundles need a person.
-      if (!provenanceSignatureValid(post.editorial, process.env.EDITORIAL_PIPELINE_SIGNING_KEY) || !LIVE_PROVIDERS.has(post.editorial.backend ?? '')) {
+      const providerProblem = policyProviderProblem(post.editorial);
+      if (!provenanceSignatureValid(post.editorial, process.env.EDITORIAL_PIPELINE_SIGNING_KEY) || providerProblem) {
         throw new ValidationError('Editorial quality gate failed', [
-          { field: 'editorial', message: 'Provenance is not signed by the pipeline (live models) — use the named-reviewer approval', value: postId },
+          { field: 'editorial', message: `Provenance is not signed by the pipeline with live providers${providerProblem ? ` (${providerProblem})` : ''} — use the named-reviewer approval`, value: postId },
         ]);
       }
       const dailyLimit = Number(process.env.EDITORIAL_POLICY_DAILY_LIMIT ?? 3);
@@ -481,14 +486,19 @@ export class BlogController {
           { field: 'review', message: error instanceof Error ? error.message : 'Approval rejected', value: postId },
         ]);
       }
+      if (post.status === 'publish') throw new ConflictError('Editorial post is already published');
       const findings = await this.qualityFindings(post);
       const failures = policyGateFailures(findings);
       if (failures.length) {
         throw new ValidationError('Editorial quality gate failed', failures.map((f) => ({ field: f.code, message: f.message, value: postId })));
       }
       // Append-only ledger, insert first: concurrent approvals both count, and a later PUT cannot erase one.
-      const ledger = BlogPostModel.db.collection('editorial_policy_approvals');
-      const { insertedId } = await ledger.insertOne({ postId: post._id, at: new Date() });
+      // One row per post and reviewed draft: a duplicate attempt, concurrent or later, is refused, not published twice.
+      const ledger = BlogPostModel.db.collection<{ _id: string; postId: unknown; at: Date }>('editorial_policy_approvals');
+      const { insertedId } = await ledger.insertOne({ _id: `${post._id}:${post.editorial.draftHash}`, postId: post._id, at: new Date() }).catch((error) => {
+        if (error?.code === 11000) throw new ConflictError('This draft was already published by policy once; a person must approve it again');
+        throw error;
+      });
       if (await ledger.countDocuments({ at: { $gte: new Date(Date.now() - 864e5) } }) > dailyLimit) {
         await ledger.deleteOne({ _id: insertedId });
         throw new ForbiddenError(`Policy publishing limit reached (${dailyLimit} in 24 h)`);
@@ -528,7 +538,7 @@ export class BlogController {
       // It stays public only as exactly what was approved: a policy approval needs the policy switch still on,
       // and AI text whose facts are past their review date comes back as a draft.
       const expired = Date.parse(snap.editorial?.nextReviewAt || '') < Date.now();
-      const policyOff = String(snap.reviewedBy || '').startsWith('policy:') && process.env.EDITORIAL_POLICY_PUBLISHING !== 'enabled';
+      const policyOff = String(snap.reviewedBy || '').startsWith('policy:') && !(await editorialPolicyState()).active;
       const keepReview = snap.status === 'publish' && snap.reviewState === 'approved' && !expired && !policyOff;
       post.set({
         ...snap,
@@ -554,6 +564,7 @@ export class BlogController {
     const plain = post.toObject();
     return [
       ...(plain.editorial ? evaluateEvidence(plain, plain.editorial) : []),
+      ...generatedImageFindings(plain),
       ...evaluateEditorialQuality(plain, {
         others: publicPosts.map((other) => ({ slug: String(other.slug), content: other.content })),
         unpublishedSlugs: unpublished.map((other) => String(other.slug)),
@@ -676,6 +687,7 @@ export class BlogController {
           post.image?.url ||
           '',
         caption: post.featuredImage?.caption || '',
+        alt_text: post.featuredImage?.alt || '',
       },
       seo: post.seo,
       contentType: post.contentType || 'guide',
@@ -735,6 +747,7 @@ export class BlogController {
       featured_image: {
         source_url: post.featuredImage?.sourceUrl || post.seo?.ogImage || '',
         caption: post.featuredImage?.caption || '',
+        alt_text: post.featuredImage?.alt || '',
       },
       seo: post.seo,
       contentType: post.contentType || 'guide',
@@ -845,7 +858,11 @@ export class BlogController {
       relatedMerchantKeys,
       manualAffiliateOfferIds,
       featuredImage: featuredImageSource
-        ? { sourceUrl: featuredImageSource }
+        ? {
+          sourceUrl: featuredImageSource,
+          // Kept only while the cover is the same picture it describes.
+          alt: this.resolveOptionalString(payload.coverAlt, featuredImageSource === existing?.featuredImage?.sourceUrl ? existing?.featuredImage?.alt : undefined),
+        }
         : undefined,
       seo: {
         metaTitle,
@@ -868,6 +885,8 @@ export class BlogController {
     const valid = typeof p === 'object' && origin === 'ai-assisted'
       && typeof p.pipelineVersion === 'string' && typeof p.bundleHash === 'string' && typeof p.draftHash === 'string'
       && typeof p.draftMarkdown === 'string' && Array.isArray(p.bundle?.claims) && Array.isArray(p.bundle?.sources)
+      && (p.images === undefined || (Array.isArray(p.images) && p.images.every((i) => i && typeof i === 'object'
+        && ['url', 'sha256', 'provider', 'model', 'altText', 'rights', 'assetId'].every((k) => typeof (i as unknown as Record<string, unknown>)[k] === 'string'))))
       && JSON.stringify(p).length <= MAX_PROVENANCE_BYTES;
     if (!valid) {
       throw new ValidationError('Invalid editorial provenance', [

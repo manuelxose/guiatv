@@ -22,8 +22,12 @@ import {
   stripClaimMarkers,
   ValueSignals,
   verifyBundle,
+  IMAGE_PRICES,
+  ImageAsset,
+  MODEL_PRICES,
 } from './EditorialEvidence';
 import { EditorialFinding, evaluateEditorialQuality, policyGateFailures } from './EditorialReviewPolicy';
+import { coverAsset, coverRequest, ImageModel, imageProblems, ImageRoute } from './EditorialImages';
 
 /**
  * M11-B editorial workflow: research → evidence → editorial → SEO → independent critic → publisher gates.
@@ -34,19 +38,74 @@ import { EditorialFinding, evaluateEditorialQuality, policyGateFailures } from '
 export const PIPELINE_VERSION = 'm11b-1';
 export type EditorialRole = 'research' | 'evidence' | 'editorial' | 'seo' | 'critic';
 
+export interface ModelRoute { provider: string; model: string; effort: 'low' | 'medium' | 'high' }
+/** Per role, in order of preference: primary first, then fallbacks. */
+export type RouteTable = Readonly<Record<EditorialRole, readonly ModelRoute[]>>;
+const ROLES: readonly EditorialRole[] = ['research', 'evidence', 'editorial', 'seo', 'critic'];
+
 /**
  * Role routing (docs/adr/0001): strong models where facts are decided, a cheap one for mechanical metadata.
  * A route names its provider; an adapter refuses routes for another provider, so nothing is silently re-routed.
  */
-export const ROLE_MODELS: Readonly<Record<EditorialRole, { provider: string; model: string; effort: 'low' | 'medium' | 'high' }>> = Object.freeze({
-  research: { provider: 'anthropic', model: 'claude-opus-5-5', effort: 'high' },
-  evidence: { provider: 'anthropic', model: 'claude-opus-5-5', effort: 'high' },
-  editorial: { provider: 'anthropic', model: 'claude-opus-5-5', effort: 'medium' },
-  seo: { provider: 'anthropic', model: 'claude-haiku-5-5', effort: 'low' },
-  critic: { provider: 'anthropic', model: 'claude-opus-5-5', effort: 'high' },
+export const DEFAULT_ROUTES: RouteTable = Object.freeze({
+  research: [{ provider: 'anthropic', model: 'claude-opus-5-5', effort: 'high' }],
+  evidence: [{ provider: 'anthropic', model: 'claude-opus-5-5', effort: 'high' }],
+  editorial: [{ provider: 'anthropic', model: 'claude-opus-5-5', effort: 'medium' }],
+  seo: [{ provider: 'anthropic', model: 'claude-haiku-5-5', effort: 'low' }, { provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low' }],
+  critic: [{ provider: 'anthropic', model: 'claude-opus-5-5', effort: 'high' }],
 });
-/** Live providers whose signed provenance may be approved by policy: the routed ones (never 'replay' or test models). */
-export const LIVE_PROVIDERS: ReadonlySet<string> = new Set(Object.values(ROLE_MODELS).map((r) => r.provider));
+/** No real image provider is verified yet (prices, terms): covers need an explicit route, e.g. the local mock. */
+export const DEFAULT_IMAGE_ROUTES: readonly ImageRoute[] = Object.freeze([]);
+
+/** Providers with a real adapter in this codebase. Policy approval trusts signed provenance only from these. */
+export const LIVE_PROVIDERS: ReadonlySet<string> = new Set(['anthropic']);
+export const LIVE_IMAGE_PROVIDERS: ReadonlySet<string> = new Set<string>();
+
+/**
+ * Why provenance may not publish by policy (null = it may): every text provider that answered, and every
+ * image provider, must be live. Replayed, scripted and mock output always needs a named reviewer.
+ */
+export function policyProviderProblem(p: Pick<EditorialProvenance, 'backend' | 'images'>): string | null {
+  const text = String(p.backend ?? '').split('+');
+  if (!text.every((provider) => LIVE_PROVIDERS.has(provider))) return `proveedor de texto no verificado: ${p.backend ?? 'ninguno'}`;
+  const image = (p.images ?? []).find((i) => !LIVE_IMAGE_PROVIDERS.has(i.provider));
+  return image ? `proveedor de imagen no verificado: ${image.provider}` : null;
+}
+
+/**
+ * EDITORIAL_ROUTES / EDITORIAL_IMAGE_ROUTES (JSON) override the defaults. Every route must name a priced model,
+ * so a configuration typo stops the CLI or the Admin view instead of running an unpriced model.
+ */
+export function routesFromEnv(env: NodeJS.ProcessEnv = process.env): { routes: RouteTable; imageRoutes: readonly ImageRoute[] } {
+  const routes = env.EDITORIAL_ROUTES ? { ...DEFAULT_ROUTES, ...JSON.parse(env.EDITORIAL_ROUTES) } as RouteTable : DEFAULT_ROUTES;
+  const imageRoutes = env.EDITORIAL_IMAGE_ROUTES ? JSON.parse(env.EDITORIAL_IMAGE_ROUTES) as ImageRoute[] : DEFAULT_IMAGE_ROUTES;
+  for (const role of ROLES) {
+    const list = routes[role];
+    if (!Array.isArray(list) || !list.length) throw new Error(`EDITORIAL_ROUTES.${role}: at least one route`);
+    for (const r of list) {
+      if (!r.provider || !MODEL_PRICES[r.model] || !['low', 'medium', 'high'].includes(r.effort)) throw new Error(`EDITORIAL_ROUTES.${role}: invalid or unpriced route ${JSON.stringify(r)}`);
+    }
+  }
+  for (const r of imageRoutes) if (!r.provider || IMAGE_PRICES[r.model] === undefined) throw new Error(`EDITORIAL_IMAGE_ROUTES: unpriced route ${JSON.stringify(r)}`);
+  return { routes, imageRoutes };
+}
+
+type Chosen = Record<EditorialRole, { route: ModelRoute; model: EditorialModel }>;
+/**
+ * Fallback = the first route, in order, whose provider has a configured adapter, whose model is priced and,
+ * for research, whose adapter can search the web. Chosen once per job: a failure later holds the job.
+ */
+export function chooseRoutes(table: RouteTable, models: readonly EditorialModel[]): Chosen {
+  const chosen = {} as Chosen;
+  for (const role of ROLES) {
+    const pick = table[role]
+      .map((route) => ({ route, model: models.find((m) => m.provider === route.provider) }))
+      .find(({ route, model }) => model && MODEL_PRICES[route.model] && (role !== 'research' || model.webSearch));
+    if (!pick) throw new Error(`${role}: ninguna ruta disponible${role === 'research' ? ' con búsqueda web' : ''}`);
+    chosen[role] = pick as Chosen[EditorialRole];
+  }
+  return chosen;
+}
 
 export interface ModelCall {
   role: EditorialRole;
@@ -68,6 +127,8 @@ export interface ModelResult {
 export interface EditorialModel {
   /** Who answers: recorded as the provenance backend ('anthropic', 'replay', …). */
   readonly provider: string;
+  /** Can retrieve web pages itself (server tools); research routes require it. */
+  readonly webSearch?: boolean;
   call(request: ModelCall): Promise<ModelResult>;
 }
 
@@ -85,7 +146,14 @@ export interface EditorialTopic {
 }
 
 export interface EditorialDeps {
-  model: EditorialModel;
+  /** One adapter answering every primary route (replay, tests)… */
+  model?: EditorialModel;
+  /** …or configured adapters, routed by provider through `routes` with fallbacks. */
+  models?: readonly EditorialModel[];
+  routes?: RouteTable;
+  /** Cover images: configured image adapters and their routes. No adapter or no route = no cover. */
+  images?: readonly ImageModel[];
+  imageRoutes?: readonly ImageRoute[];
   fetchSource: (url: string) => Promise<{ status: number; text: string }>;
   /** HTTP status of an internal path on the live site, without following redirects. */
   internalLinkStatus: (path: string) => Promise<number>;
@@ -114,6 +182,8 @@ export interface CmsDraft {
   canonicalUrl: string;
   authorName: string;
   authorId: string;
+  coverImage?: string;
+  coverAlt?: string;
 }
 
 export interface EditorialRun {
@@ -125,6 +195,10 @@ export interface EditorialRun {
   findings: EditorialFinding[];
   value?: ValueSignals;
   cost: CostSummary;
+  /** Generated originals for the media store (not serialised into the run file). */
+  media?: Array<{ asset: ImageAsset; bytes: Buffer }>;
+  /** Why the article has no cover; the text goes on without one. */
+  imageFailure?: string;
 }
 
 // ---- prompts & schemas --------------------------------------------------------------------------
@@ -193,14 +267,21 @@ export async function runEditorialJob(topic: EditorialTopic, deps: EditorialDeps
   const now = deps.now ?? (() => new Date());
   const ledger = new CostLedger(limits);
   const run: EditorialRun = { slug: topic.slug, state: 'draft', findings: [], cost: ledger.summary };
+  const table = deps.routes ?? DEFAULT_ROUTES;
+  let chosen: Chosen;
   const ask = async <T>(role: EditorialRole, system: string, prompt: string, schema: Record<string, unknown>, webSearches?: number): Promise<T> => {
-    const { provider, model, effort } = ROLE_MODELS[role];
-    const result = await deps.model.call({ role, provider, model, effort, system, prompt, schema, webSearches });
+    const { route: { provider, model, effort }, model: adapter } = chosen[role];
+    const result = await adapter.call({ role, provider, model, effort, system, prompt, schema, webSearches });
     ledger.charge(role, model, result.usage, result.searches ?? 0);
     return result.json as T;
   };
 
   try {
+    chosen = deps.models
+      ? chooseRoutes(table, deps.models)
+      : Object.fromEntries(ROLES.map((role) => [role, { route: table[role][0], model: deps.model! }])) as Chosen;
+    // Provenance names every provider that answered, so a mixed route cannot pass as a single live one.
+    const backend = [...new Set(ROLES.map((role) => chosen[role].model.provider))].sort().join('+');
     // Internal data first: the research agent may only quote what GuíaTV actually serves.
     const snapshots = new Map<string, string>();
     const retrieval = new Map<string, { retrievedAt?: string; contentHash?: string; httpStatus: number }>();
@@ -291,12 +372,12 @@ Extensión: la que pida el tema, sin inflarla.${feedback ? `\n\nBorrador anterio
         'Eres el crítico independiente. No escribiste este texto. Lo contrastas solo con el paquete de evidencias: cualquier dato no respaldado, matiz perdido, conclusión exagerada, recomendación sin criterio explicado, relleno, tono de IA genérico o aporte nulo frente a una ficha de catálogo es un problema. Pass solo si publicarías el texto tal cual.',
         `Afirmaciones verificadas:\n${claimDigest(usable)}\n\nAfirmaciones descartadas:\n${bundle.claims.filter((c) => c.status !== 'supported').map((c) => `- ${c.id} (${c.status}): ${c.text}`).join('\n') || '(ninguna)'}\n\nBorrador:\n${draft.markdown}`,
         CRITIC_SCHEMA);
-      const critic: CriticReview = { model: ROLE_MODELS.critic.model, verdict: verdict.verdict, issues: verdict.issues, bundleHash, draftHash, reviewedAt: now().toISOString() };
+      const critic: CriticReview = { model: chosen.critic.route.model, verdict: verdict.verdict, issues: verdict.issues, bundleHash, draftHash, reviewedAt: now().toISOString() };
 
       const provenance: EditorialProvenance = {
         pipelineVersion: PIPELINE_VERSION, state: 'draft', bundle, bundleHash, draftMarkdown: draft.markdown, draftHash, critic, cost: ledger.summary,
         lastVerifiedAt: verifiedOn.toISOString(), nextReviewAt: nextReviewAt(bundle, draft.markdown)?.toISOString(), version: 1,
-        backend: deps.model.provider,
+        backend,
       };
       if (deps.signingKey) provenance.signature = signProvenance(provenance, deps.signingKey);
       const cms: CmsDraft = {
@@ -305,12 +386,17 @@ Extensión: la que pida el tema, sin inflarla.${feedback ? `\n\nBorrador anterio
         metaTitle: draft.metaTitle, metaDescription: draft.metaDescription, canonicalUrl: `/guias/${topic.slug}`,
         authorName: AI_AUTHOR.name, authorId: AI_AUTHOR.id,
       };
-      const findings = await publisherFindings(cms, provenance, deps, taken, verifiedOn);
+      let findings = await publisherFindings(cms, provenance, deps, taken, verifiedOn);
       Object.assign(run, { draft: cms, provenance, findings, value: measureValue(draft.markdown, bundle) });
 
       if (verdict.verdict === 'block') return finish(run, 'blocked', 'el crítico bloqueó el borrador');
       const blocking = findings.filter((f) => f.severity === 'block');
       if (verdict.verdict === 'pass' && !blocking.length) {
+        // Only a text that passed gets a cover, so a rejected draft never spends on images.
+        if (await addCover(run, cms, provenance, topic, deps, ledger, verifiedOn)) {
+          if (deps.signingKey) provenance.signature = signProvenance(provenance, deps.signingKey);
+          findings = run.findings = await publisherFindings(cms, provenance, deps, taken, verifiedOn);
+        }
         const pending = policyGateFailures(findings);
         return finish(run, pending.length ? 'verified' : 'approved-by-policy', pending.length ? `requiere confirmación: ${pending.map((f) => f.code).join(', ')}` : undefined);
       }
@@ -323,6 +409,33 @@ Extensión: la que pida el tema, sin inflarla.${feedback ? `\n\nBorrador anterio
     if (error instanceof EditorialBudgetExceeded) return finish(run, 'blocked', `límite: ${error.message}`);
     // A refusal, truncation or network error holds this article; the batch and its ledger survive.
     return finish(run, 'blocked', `error: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Cover image for a passed text. Any failure (no priced route, budget, outage, a bad file) leaves the article
+ * without a cover and records why; it never blocks or changes the text. Returns whether a cover was added.
+ */
+async function addCover(run: EditorialRun, cms: CmsDraft, provenance: EditorialProvenance, topic: EditorialTopic, deps: EditorialDeps, ledger: CostLedger, now: Date): Promise<boolean> {
+  const route = (deps.imageRoutes ?? DEFAULT_IMAGE_ROUTES).find((r) => deps.images?.some((m) => m.provider === r.provider));
+  if (!route) return false;
+  try {
+    const request = coverRequest({ title: cms.title, categories: topic.categories }, route.model);
+    const price = ledger.imagePrice(route.model); // refuses unpriced or over-budget before the provider is called
+    const result = await deps.images!.find((m) => m.provider === route.provider)!.generate(request);
+    ledger.chargeImage(route.model);
+    const problems = imageProblems(result, request);
+    if (result.provider !== route.provider) problems.push(`respondió ${result.provider}, se pidió ${route.provider}`);
+    if (problems.length) throw new Error(problems.join('; '));
+    const asset = coverAsset(result, request, cms.title, price, now.toISOString());
+    provenance.images = [asset];
+    cms.coverImage = asset.url;
+    cms.coverAlt = asset.altText;
+    run.media = [{ asset, bytes: result.bytes }];
+    return true;
+  } catch (error) {
+    run.imageFailure = error instanceof Error ? error.message : String(error);
+    return false;
   }
 }
 
@@ -342,6 +455,7 @@ async function publisherFindings(cms: CmsDraft, provenance: EditorialProvenance,
   const post = {
     ...cms, categories: cms.categories.map((name) => ({ name, slug: name })),
     author: { name: cms.authorName, id: cms.authorId }, seo: { metaTitle: cms.metaTitle, metaDescription: cms.metaDescription },
+    featuredImage: cms.coverImage ? { sourceUrl: cms.coverImage, alt: cms.coverAlt } : undefined,
   };
   const findings = [
     ...evaluateEvidence(post, provenance, now),
@@ -357,20 +471,33 @@ async function publisherFindings(cms: CmsDraft, provenance: EditorialProvenance,
 }
 
 /**
- * Daily volume and concurrency caps around runEditorialJob. `doneToday` = runs already started today
- * (the CLI counts them from its run log), so a rerun cannot exceed the day's budget.
+ * Daily volume, spend and concurrency caps around runEditorialJob. `doneToday` = runs already started today
+ * and `spentToday` = USD already spent today (the CLI reads both from its logs), so a rerun cannot exceed them.
  */
-export async function runEditorialBatch(topics: EditorialTopic[], deps: EditorialDeps, limits: EditorialLimits = DEFAULT_EDITORIAL_LIMITS, doneToday = 0): Promise<EditorialRun[]> {
+export async function runEditorialBatch(topics: EditorialTopic[], deps: EditorialDeps, limits: EditorialLimits = DEFAULT_EDITORIAL_LIMITS, doneToday = 0, spentToday = 0): Promise<EditorialRun[]> {
+  const held = (t: EditorialTopic, reason: string): EditorialRun => ({ slug: t.slug, state: 'blocked', reason, findings: [], cost: new CostLedger(limits).summary });
   const allowed = topics.slice(0, Math.max(0, limits.maxDailyArticles - doneToday));
-  const skipped = topics.slice(allowed.length).map((t): EditorialRun => ({
-    slug: t.slug, state: 'blocked', reason: `límite diario de ${limits.maxDailyArticles} artículos`, findings: [], cost: new CostLedger(limits).summary,
-  }));
+  const skipped = topics.slice(allowed.length).map((t) => held(t, `límite diario de ${limits.maxDailyArticles} artículos`));
   const results: EditorialRun[] = new Array(allowed.length);
   let next = 0;
+  // Each job reserves its whole allowance up front, so concurrent jobs cannot together pass the daily ceiling.
+  let committed = spentToday;
+  const running = new Set<Promise<void>>();
   const worker = async () => {
     while (next < allowed.length) {
       const i = next++;
-      results[i] = await runEditorialJob(allowed[i], deps, limits);
+      // Running jobs give back what they did not spend: wait for them before holding or under-funding a topic.
+      while (limits.maxDailyUsd - committed < limits.maxArticleUsd && running.size) await Promise.race(running);
+      const allowance = Math.min(limits.maxArticleUsd, limits.maxDailyUsd - committed);
+      if (allowance <= 0) { results[i] = held(allowed[i], `límite diario de ${limits.maxDailyUsd} USD`); continue; }
+      committed += allowance;
+      const job: Promise<void> = runEditorialJob(allowed[i], deps, { ...limits, maxArticleUsd: allowance }).then((run) => {
+        results[i] = run;
+        committed += run.cost.usd - allowance;
+        running.delete(job);
+      });
+      running.add(job);
+      await job;
     }
   };
   await Promise.all(Array.from({ length: Math.max(1, Math.min(limits.maxConcurrentJobs, allowed.length)) }, worker));

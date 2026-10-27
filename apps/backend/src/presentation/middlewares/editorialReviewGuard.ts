@@ -32,3 +32,13 @@ export const editorialReviewGuard = (
   }
   next();
 };
+
+/** Only the human review key: an automated identity must not be able to undo a person's emergency stop. */
+export const humanEditorialReviewGuard = (req: Request, _res: Response, next: NextFunction): void => {
+  const humanReviewKey = String(process.env.EDITORIAL_REVIEW_KEY || '').trim();
+  const provided = String(req.header('x-editorial-review-key') || '').trim();
+  if (!humanReviewKey || !provided || !equalSecret(provided, humanReviewKey)) {
+    throw new ForbiddenError('Invalid human editorial review key');
+  }
+  next();
+};

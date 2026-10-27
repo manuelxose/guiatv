@@ -81,6 +81,7 @@ export interface IBlogPostDocument {
   featuredImage?: {
     sourceUrl?: string;
     caption?: string;
+    alt?: string;
   };
   author?: {
     name?: string;
@@ -184,6 +185,7 @@ const BlogPostSchema = new Schema<IBlogPostDocument>(
     featuredImage: {
       sourceUrl: { type: String, trim: true },
       caption: { type: String, trim: true },
+      alt: { type: String, trim: true },
     },
     author: {
       name: { type: String, trim: true },
