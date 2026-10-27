@@ -501,7 +501,9 @@ export function evaluateEvidence(post: EvidencePost, provenance: EditorialProven
   else if (critic.bundleHash !== provenance.bundleHash || critic.draftHash !== provenance.draftHash) {
     add('block', 'critic-stale', 'La revisión independiente es de otra versión del borrador o de las evidencias');
   } else if (critic.verdict !== 'pass') {
-    add('block', 'critic-rejected', `La revisión independiente pide ${critic.verdict}: ${critic.issues.map((i) => i.message).join(' | ').slice(0, 300)}`);
+    // M11-D: a 'revise' is a judgement a named reviewer may take on (acknowledged at approval); a 'block' is final.
+    // Either way policy publication refuses it.
+    add(critic.verdict === 'revise' ? 'human' : 'block', 'critic-rejected', `La revisión independiente pide ${critic.verdict}: ${critic.issues.map((i) => i.message).join(' | ').slice(0, 300)}`);
   }
   return findings;
 }
