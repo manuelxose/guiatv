@@ -341,10 +341,12 @@ Si un dato no aparece literal en una fuente consultada, no lo incluyas. Ids de a
     if (!research?.claims?.length) return { ...run, state: 'blocked', reason: 'la investigación no devolvió afirmaciones' };
 
     const fixedIds = new Set([...topic.internalSources, ...seeds].map((s) => s.id));
+    // A seed relisted under another id/publisher would count twice in the value gate; an unfetched seed would block approval.
+    const seedPages = new Set(seeds.map((s) => s.url.split('#')[0]));
     const sources = [
       ...topic.internalSources.map((s) => ({ id: s.id, url: s.url, publisher: 'GuíaTV' })),
-      ...seeds,
-      ...research.sources.filter((s) => /^https?:\/\//.test(s.url) && !fixedIds.has(s.id)),
+      ...seeds.filter((s) => snapshots.has(s.id)),
+      ...research.sources.filter((s) => /^https?:\/\//.test(s.url) && !fixedIds.has(s.id) && !seedPages.has(s.url.split('#')[0])),
     ];
     for (const s of sources) await fetchOnce(s.id, s.url);
     let bundle: EvidenceBundle = {

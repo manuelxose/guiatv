@@ -40,6 +40,11 @@ test('pipeline: seed pages are fetched for the research agent and kept as source
   const deep = scripted({ research: [cited] });
   await runEditorialJob({ ...seeded, seedUrls: ['https://www.rtve.es/play/la-2/#:~:text=a%20partir%20de'] }, deps(deep.model));
   assert.match(deep.calls[0].prompt, /\(rtve\.es\)\na partir de las 22:00\./);
+
+  // A dead seed stays out of the bundle; research relisting a seed page under another id does not add a publisher.
+  const relisted = { ...cited, sources: [...cited.sources, { id: 'x1', url: 'https://www.rtve.es/play/la-2/', publisher: 'RTVE' }] };
+  const both = await runEditorialJob({ ...seeded, seedUrls: [...seeded.seedUrls, 'https://www.rtve.es/no-existe/'] }, deps(scripted({ research: [relisted], evidence: [{ conflicts: [] }], editorial: [draft()], critic: [pass] }).model));
+  assert.deepEqual(both.provenance!.bundle.sources.map((s) => s.id), ['g1', 's1', 'p1', 'p2']);
 });
 
 test('pipeline: sources that cannot be retrieved leave too little evidence and the job is held', async () => {
