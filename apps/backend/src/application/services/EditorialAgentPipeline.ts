@@ -129,7 +129,14 @@ export interface EditorialModel {
   readonly provider: string;
   /** Can retrieve web pages itself (server tools); research routes require it. */
   readonly webSearch?: boolean;
+  /** Output cap of one request: the ledger needs this much headroom before it lets a call start. */
+  readonly maxOutputTokens?: number;
   call(request: ModelCall): Promise<ModelResult>;
+}
+
+/** A failed call whose billed usage is known; any other error leaves the job's spend unresolved. */
+export class ModelCallFailed extends Error {
+  constructor(message: string, readonly usage: ModelResult['usage'], readonly searches = 0) { super(message); }
 }
 
 export interface EditorialTopic {
@@ -271,7 +278,16 @@ export async function runEditorialJob(topic: EditorialTopic, deps: EditorialDeps
   let chosen: Chosen;
   const ask = async <T>(role: EditorialRole, system: string, prompt: string, schema: Record<string, unknown>, webSearches?: number): Promise<T> => {
     const { route: { provider, model, effort }, model: adapter } = chosen[role];
-    const result = await adapter.call({ role, provider, model, effort, system, prompt, schema, webSearches });
+    ledger.assertHeadroom(model, adapter.maxOutputTokens ?? 0);
+    let result: ModelResult;
+    try {
+      result = await adapter.call({ role, provider, model, effort, system, prompt, schema, webSearches });
+    } catch (error) {
+      // A failed call can still be billed: charge what is known, otherwise the batch keeps the whole allowance.
+      if (error instanceof ModelCallFailed) ledger.charge(role, model, error.usage, error.searches);
+      else ledger.summary.unresolved = true;
+      throw error;
+    }
     ledger.charge(role, model, result.usage, result.searches ?? 0);
     return result.json as T;
   };
@@ -470,11 +486,18 @@ async function publisherFindings(cms: CmsDraft, provenance: EditorialProvenance,
   return findings;
 }
 
+/** M11-D: durable spend. `reserve` runs before a job may spend, `settle` once it ended; both must persist synchronously. */
+export interface SpendJournal {
+  reserve(slug: string, allowanceUsd: number): void;
+  /** `usd` is what the day must count: the real cost, or the whole allowance when the spend is unresolved. */
+  settle(run: EditorialRun, usd: number): void;
+}
+
 /**
  * Daily volume, spend and concurrency caps around runEditorialJob. `doneToday` = runs already started today
- * and `spentToday` = USD already spent today (the CLI reads both from its logs), so a rerun cannot exceed them.
+ * and `spentToday` = USD already spent or reserved today (the CLI reads both from its logs), so a rerun cannot exceed them.
  */
-export async function runEditorialBatch(topics: EditorialTopic[], deps: EditorialDeps, limits: EditorialLimits = DEFAULT_EDITORIAL_LIMITS, doneToday = 0, spentToday = 0): Promise<EditorialRun[]> {
+export async function runEditorialBatch(topics: EditorialTopic[], deps: EditorialDeps, limits: EditorialLimits = DEFAULT_EDITORIAL_LIMITS, doneToday = 0, spentToday = 0, journal?: SpendJournal): Promise<EditorialRun[]> {
   const held = (t: EditorialTopic, reason: string): EditorialRun => ({ slug: t.slug, state: 'blocked', reason, findings: [], cost: new CostLedger(limits).summary });
   const allowed = topics.slice(0, Math.max(0, limits.maxDailyArticles - doneToday));
   const skipped = topics.slice(allowed.length).map((t) => held(t, `límite diario de ${limits.maxDailyArticles} artículos`));
@@ -491,9 +514,12 @@ export async function runEditorialBatch(topics: EditorialTopic[], deps: Editoria
       const allowance = Math.min(limits.maxArticleUsd, limits.maxDailyUsd - committed);
       if (allowance <= 0) { results[i] = held(allowed[i], `límite diario de ${limits.maxDailyUsd} USD`); continue; }
       committed += allowance;
+      journal?.reserve(allowed[i].slug, allowance);
       const job: Promise<void> = runEditorialJob(allowed[i], deps, { ...limits, maxArticleUsd: allowance }).then((run) => {
         results[i] = run;
-        committed += run.cost.usd - allowance;
+        const usd = run.cost.unresolved ? Math.max(allowance, run.cost.usd) : run.cost.usd;
+        journal?.settle(run, usd);
+        committed += usd - allowance;
         running.delete(job);
       });
       running.add(job);

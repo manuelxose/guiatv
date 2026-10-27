@@ -547,7 +547,11 @@ export const DEFAULT_EDITORIAL_LIMITS: Readonly<EditorialLimits> = Object.freeze
 });
 
 export interface CostEntry { role: string; model: string; inputTokens: number; outputTokens: number; searches: number; usd: number }
-export interface CostSummary { entries: CostEntry[]; usd: number; inputTokens: number; outputTokens: number; sourceFetches: number; draftAttempts: number; reviewFailures: number }
+export interface CostSummary {
+  entries: CostEntry[]; usd: number; inputTokens: number; outputTokens: number; sourceFetches: number; draftAttempts: number; reviewFailures: number;
+  /** A call failed without reporting its usage: the real spend is unknown, so it counts as the whole allowance. */
+  unresolved?: boolean;
+}
 
 export class EditorialBudgetExceeded extends Error {}
 
@@ -561,6 +565,19 @@ export class CostLedger {
     if (!price) throw new EditorialBudgetExceeded(`modelo sin precio conocido: ${model}`);
     const usd = (usage.input_tokens * price[0] + usage.output_tokens * price[1]) / 1e6 + searches * WEB_SEARCH_USD;
     return this.record({ role, model, inputTokens: usage.input_tokens, outputTokens: usage.output_tokens, searches, usd: +usd.toFixed(6) });
+  }
+
+  /**
+   * Refuses a call the article could not pay for if it used its whole output cap.
+   * shortcut: one request's output only (not input, nor paused server-tool turns); bound those if a call ever overshoots.
+   */
+  assertHeadroom(model: string, maxOutputTokens: number): void {
+    const price = MODEL_PRICES[model];
+    if (!price) throw new EditorialBudgetExceeded(`modelo sin precio conocido: ${model}`);
+    const worst = (maxOutputTokens * price[1]) / 1e6;
+    if (this.summary.usd + worst > this.limits.maxArticleUsd) {
+      throw new EditorialBudgetExceeded(`sin margen para otra llamada a ${model} (${worst.toFixed(2)} USD) dentro del límite ${this.limits.maxArticleUsd}`);
+    }
   }
 
   /** An image costs a flat price per picture; an unpriced image model is refused before it is called. */

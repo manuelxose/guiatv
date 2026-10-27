@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
 import {
-  chooseRoutes, DEFAULT_ROUTES, EditorialModel, policyProviderProblem, RouteTable, routesFromEnv, runEditorialBatch, runEditorialJob,
+  chooseRoutes, DEFAULT_ROUTES, EditorialModel, ModelCallFailed, policyProviderProblem, RouteTable, routesFromEnv, runEditorialBatch, runEditorialJob,
 } from './EditorialAgentPipeline';
 import { DEFAULT_EDITORIAL_LIMITS, evaluateEvidence, provenanceSignatureValid } from './EditorialEvidence';
 import { coverUrl, ImageModel, imageInfo } from './EditorialImages';
@@ -65,6 +65,30 @@ test('cost: the daily USD ceiling holds jobs once the day is spent, concurrent j
   assert.match(tight[2].reason!, /límite: coste/);
   const exhausted = await runEditorialBatch([topic], deps(scripted(script()).model), limits, 0, 1);
   assert.equal(exhausted[0].reason, 'límite diario de 1 USD');
+});
+
+test('M11-D cost: every job is journaled before it spends; failed calls are charged or keep the whole allowance', async () => {
+  const limits = { ...DEFAULT_EDITORIAL_LIMITS, maxDailyUsd: 2, maxArticleUsd: 0.5 };
+  const rows: string[] = [];
+  const journal = { reserve: (slug: string, usd: number) => rows.push(`reserve ${slug} ${usd}`), settle: (run: { slug: string }, usd: number) => rows.push(`settle ${run.slug} ${usd}`) };
+  const ok = scripted(script());
+  const billed: EditorialModel = { provider: 'anthropic', webSearch: true, async call(r) {
+    if (r.role === 'editorial') throw new ModelCallFailed('truncated', { input_tokens: 10_000, output_tokens: 5_000 });
+    return ok.model.call(r);
+  } };
+  const [charged] = await runEditorialBatch([topic], { ...deps(billed) }, limits, 0, 0, journal);
+  assert.equal(charged.state, 'blocked');
+  assert.ok(charged.cost.entries.some((e) => e.role === 'editorial' && e.usd > 0), 'the billed failure is in the ledger');
+  assert.ok(!charged.cost.unresolved);
+  const cut: EditorialModel = { provider: 'anthropic', webSearch: true, async call(r) { if (r.role === 'editorial') throw new Error('socket hang up'); return scripted(script()).model.call(r); } };
+  const [lost] = await runEditorialBatch([{ ...topic, slug: 'cut' }], deps(cut), limits, 0, 0, journal);
+  assert.equal(lost.cost.unresolved, true);
+  assert.deepEqual(rows, [`reserve ${topic.slug} 0.5`, `settle ${topic.slug} ${charged.cost.usd}`, 'reserve cut 0.5', 'settle cut 0.5']);
+  // Headroom: a call that could overrun the article cap with its full output is never started.
+  const big: EditorialModel = { ...scripted(script()).model, provider: 'anthropic', webSearch: true, maxOutputTokens: 32_000 };
+  const capped = await runEditorialJob(topic, deps(big), { ...DEFAULT_EDITORIAL_LIMITS, maxArticleUsd: 0.5 });
+  assert.match(capped.reason!, /sin margen para otra llamada/);
+  assert.equal(capped.cost.entries.length, 0);
 });
 
 test('images: a mock cover runs end to end, is signed and costed, but can never be published', async () => {

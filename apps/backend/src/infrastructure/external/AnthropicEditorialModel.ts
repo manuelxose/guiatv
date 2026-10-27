@@ -1,5 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { EditorialModel, ModelCall, ModelResult } from '../../application/services/EditorialAgentPipeline';
+import { ModelCallFailed, type EditorialModel, type ModelCall, type ModelResult } from '../../application/services/EditorialAgentPipeline';
+
+const MAX_OUTPUT_TOKENS = 32000;
 
 /**
  * EditorialModel over the Claude Messages API. Research gets web search and fetch (server tools, so
@@ -9,6 +11,7 @@ import type { EditorialModel, ModelCall, ModelResult } from '../../application/s
 export class AnthropicEditorialModel implements EditorialModel {
   readonly provider = 'anthropic';
   readonly webSearch = true;
+  readonly maxOutputTokens = MAX_OUTPUT_TOKENS;
   private readonly client: Pick<Anthropic, 'messages'>;
 
   constructor(options: { apiKey?: string; maxRetries?: number; client?: Pick<Anthropic, 'messages'> } = {}) {
@@ -27,12 +30,14 @@ export class AnthropicEditorialModel implements EditorialModel {
     }];
     const usage = { input_tokens: 0, output_tokens: 0 };
     let searches = 0;
+    // Every failure after a billed turn carries what was billed, so the ledger can charge it.
+    const fail = (message: string) => new ModelCallFailed(`${request.role}: ${message}`, usage, searches);
 
     // Server tools can pause a long turn; resume it a bounded number of times.
     for (let turn = 0; turn < 4; turn++) {
       const message = await this.client.messages.stream({
         model: request.model,
-        max_tokens: 32000,
+        max_tokens: MAX_OUTPUT_TOKENS,
         system: request.system,
         messages,
         output_config: research ? { effort: request.effort } : { effort: request.effort, format: { type: 'json_schema', schema: request.schema } },
@@ -42,7 +47,11 @@ export class AnthropicEditorialModel implements EditorialModel {
             { type: 'web_fetch_20260209', name: 'web_fetch', max_uses: request.webSearches! * 2 },
           ] as Anthropic.ToolUnion[] }
           : {}),
-      }).finalMessage();
+      }).finalMessage().catch((error: unknown) => {
+        // An HTTP error response is not billed; a stream cut mid-answer may be, so it stays unresolved.
+        if (error instanceof Anthropic.APIError && typeof error.status === 'number') throw fail(error.message);
+        throw error;
+      });
 
       usage.input_tokens += message.usage.input_tokens + (message.usage.cache_creation_input_tokens ?? 0) + (message.usage.cache_read_input_tokens ?? 0);
       usage.output_tokens += message.usage.output_tokens;
@@ -52,12 +61,16 @@ export class AnthropicEditorialModel implements EditorialModel {
         messages.push({ role: 'assistant', content: message.content });
         continue;
       }
-      if (message.stop_reason === 'refusal') throw new Error(`${request.role}: the model declined (${message.stop_details?.category ?? 'sin categoría'})`);
-      if (message.stop_reason === 'max_tokens') throw new Error(`${request.role}: answer truncated at max_tokens`);
+      if (message.stop_reason === 'refusal') throw fail(`the model declined (${message.stop_details?.category ?? 'sin categoría'})`);
+      if (message.stop_reason === 'max_tokens') throw fail('answer truncated at max_tokens');
       const text = message.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('\n');
-      return { json: parseJson(text, research), usage, searches };
+      try {
+        return { json: parseJson(text, research), usage, searches };
+      } catch (error) {
+        throw fail(error instanceof Error ? error.message : String(error));
+      }
     }
-    throw new Error(`${request.role}: too many paused turns`);
+    throw fail('too many paused turns');
   }
 }
 

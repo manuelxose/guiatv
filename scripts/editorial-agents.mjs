@@ -11,9 +11,10 @@
 //   maintain [--runs dir] [--site url]  freshness report: due reviews, re-verified evidence, legacy guides (no model)
 //   save-draft <run.json> --api http://127.0.0.1:4000   POST as a NEW draft with provenance (refuses existing slugs)
 //   publish <run.json> --api ...   policy approval; the API refuses unless EDITORIAL_POLICY_PUBLISHING=enabled
-// Secrets (ANTHROPIC_API_KEY, ANALYTICS_ADMIN_KEY, EDITORIAL_REVIEW_KEY) come from the environment and are never printed.
+// Secrets (ANTHROPIC_API_KEY, ANALYTICS_ADMIN_KEY, EDITORIAL_PIPELINE_SIGNING_KEY, EDITORIAL_POLICY_KEY) come from the
+// environment and are never printed. The human EDITORIAL_REVIEW_KEY must not be here: the runner refuses to start with it.
 import { createRequire } from 'node:module';
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { marked } from 'marked';
 
@@ -84,9 +85,19 @@ const limits = () => ({
 const today = () => new Date().toISOString().slice(0, 10);
 const runFiles = () => (existsSync(out) ? readdirSync(out).filter((f) => f.endsWith('.json')) : []);
 // Append-only: a rerun overwrites its run file, but the money it spent stays counted for the day.
+// M11-D: a job writes `reserve` (its whole allowance) before it may spend and `settle` when it ends, so a job
+// that never settled (crash, kill) keeps counting its whole allowance. Rows without `kind` are pre-M11-D spends.
 const spendLog = () => join(out, 'spend.jsonl');
-const spentToday = () => (existsSync(spendLog()) ? readFileSync(spendLog(), 'utf8').split('\n').filter(Boolean).map(JSON.parse) : [])
-  .filter((e) => e.day === today()).reduce((sum, e) => sum + e.usd, 0);
+const spentToday = () => {
+  const rows = (existsSync(spendLog()) ? readFileSync(spendLog(), 'utf8').split('\n').filter(Boolean).map(JSON.parse) : []).filter((e) => e.day === today());
+  const settled = new Set(rows.filter((e) => e.kind === 'settle').map((e) => e.jobId));
+  return rows.filter((e) => e.kind !== 'reserve' || !settled.has(e.jobId)).reduce((sum, e) => sum + e.usd, 0);
+};
+const appendSpend = (row) => writeFileSync(spendLog(), `${JSON.stringify({ day: today(), at: new Date().toISOString(), ...row })}\n`, { flag: 'a' });
+// The runner may sign and publish by policy, never approve as a person or lift the emergency stop.
+if (['run', 'save-draft', 'publish'].includes(command) && process.env.EDITORIAL_REVIEW_KEY) {
+  console.error('EDITORIAL_REVIEW_KEY is the human reviewer key and must not be in the runner environment; publish uses EDITORIAL_POLICY_KEY'); process.exit(2);
+}
 const MEDIA_EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
 // A production API is a production write: only with the owner's authorisation.
 function apiBase(value) {
@@ -115,7 +126,24 @@ if (command === 'run') {
     signingKey: process.env.EDITORIAL_PIPELINE_SIGNING_KEY,
   });
   mkdirSync(join(out, 'media'), { recursive: true });
+  // One runner at a time per output dir: two processes would each read the same day's spend and both spend it.
+  // A crash leaves the lock: whoever removes it checks spend.jsonl first (unsettled reserves stay counted anyway).
+  const lock = join(out, 'run.lock');
+  try { writeFileSync(lock, `${process.pid} ${new Date().toISOString()}\n`, { flag: 'wx' }); } catch {
+    console.error(`${lock} exists: another run is active or one crashed. Check spend.jsonl, then remove the lock.`); process.exit(3);
+  }
+  process.on('exit', () => { try { unlinkSync(lock); } catch { /* already gone */ } });
   const startedAt = new Date().toISOString();
+  const jobId = (slug) => `${startedAt}-${slug}`;
+  const persist = ({ media = [], ...run }) => {
+    for (const { asset, bytes } of media) writeFileSync(join(out, 'media', `${asset.sha256}.${MEDIA_EXT[asset.contentType]}`), bytes);
+    writeFileSync(join(out, `${today()}-${run.slug}.json`), JSON.stringify({ ...run, modelBackend: run.provenance?.backend ?? (replay ? 'replay' : null) }, null, 1));
+  };
+  const journal = {
+    reserve: (slug, usd) => appendSpend({ kind: 'reserve', jobId: jobId(slug), slug, usd }),
+    settle: (run, usd) => { persist(run); appendSpend({ kind: 'settle', jobId: jobId(run.slug), slug: run.slug, usd }); settled.set(run.slug, usd); },
+  };
+  const settled = new Map();
   // Other articles started today; a rerun of the same topic does not use up the quota again.
   const doneToday = runFiles().filter((f) => f.startsWith(today()) && !topics.some((t) => f === `${today()}-${t.slug}.json`)).length;
   // A replay is per slug, so replayed topics run one by one; live runs share one client under the batch caps.
@@ -123,19 +151,18 @@ if (command === 'run') {
     ? await Promise.all(topics.map((t, i) => (i < limits().maxDailyArticles - doneToday
       ? pipeline.runEditorialJob(t, deps(t.slug), limits()).catch((e) => ({ slug: t.slug, state: 'draft', reason: e.message, findings: [], cost: {} }))
       : { slug: t.slug, state: 'blocked', reason: 'límite diario', findings: [], cost: {} })))
-    : await pipeline.runEditorialBatch(topics, deps(), limits(), doneToday, spentToday());
-  for (const { media = [], ...run } of runs) {
-    for (const { asset, bytes } of media) writeFileSync(join(out, 'media', `${asset.sha256}.${MEDIA_EXT[asset.contentType]}`), bytes);
-    const file = join(out, `${today()}-${run.slug}.json`);
-    writeFileSync(file, JSON.stringify({ ...run, modelBackend: run.provenance?.backend ?? (replay ? 'replay' : null) }, null, 1));
-    writeFileSync(spendLog(), `${JSON.stringify({ day: today(), at: startedAt, slug: run.slug, usd: run.cost.usd ?? 0 })}\n`, { flag: 'a' });
+    : await pipeline.runEditorialBatch(topics, deps(), limits(), doneToday, spentToday(), journal);
+  for (const run of runs) {
+    // Live jobs were persisted as they settled; replays (no spend) and jobs held before starting are written here.
+    if (!settled.has(run.slug)) { persist(run); if (replay) appendSpend({ kind: 'settle', jobId: jobId(run.slug), slug: run.slug, usd: run.cost.usd ?? 0 }); }
     const blocks = run.findings.filter((f) => f.severity === 'block');
     console.log(`${run.state.padEnd(18)} ${run.slug}  $${(run.cost.usd ?? 0).toFixed(3)}  value=${JSON.stringify(run.value ?? {})}${run.reason ? `  (${run.reason})` : ''}${run.imageFailure ? `  [sin portada: ${run.imageFailure}]` : ''}`);
     for (const f of blocks) console.log(`   block ${f.code}: ${f.message}`);
     if (report) {
       const res = await fetch(`${report}/v2/admin/editorial/jobs`, { method: 'POST', headers: adminHeaders(), body: JSON.stringify({
-        jobId: `${startedAt}-${run.slug}`, slug: run.slug, state: run.state, reason: run.reason ?? null, startedAt,
-        backend: run.provenance?.backend ?? null, costUsd: run.cost.usd ?? 0, costEntries: run.cost.entries ?? [],
+        jobId: jobId(run.slug), slug: run.slug, state: run.state, reason: run.reason ?? null, startedAt,
+        // The settled amount: an unresolved spend reports its whole allowance, as the journal counts it.
+        backend: run.provenance?.backend ?? null, costUsd: settled.get(run.slug) ?? run.cost.usd ?? 0, costEntries: run.cost.entries ?? [],
         blockingCodes: blocks.map((f) => f.code), imageFailure: run.imageFailure ?? null,
       }) }).catch((e) => ({ ok: false, status: e.message }));
       if (!res.ok) console.log(`   job report FAILED ${res.status}`);
@@ -184,7 +211,7 @@ if (command === 'run') {
     console.log(`${res.ok ? 'saved draft' : `FAILED ${res.status}`} ${run.slug} ${res.ok ? (await res.json()).data.post.id : await res.text()}`);
   } else {
     if (!found[0]) { console.error(`${run.slug} is not in the CMS: save-draft first`); process.exit(1); }
-    const res = await fetch(`${api}/v2/blog/${found[0].id}/approve-by-policy`, { method: 'POST', headers: { ...headers, 'x-editorial-review-key': process.env.EDITORIAL_REVIEW_KEY || '' } });
+    const res = await fetch(`${api}/v2/blog/${found[0].id}/approve-by-policy`, { method: 'POST', headers: { ...headers, 'x-editorial-policy-key': process.env.EDITORIAL_POLICY_KEY || '' } });
     console.log(`${res.ok ? 'published' : `REFUSED ${res.status}`} ${run.slug}`, res.ok ? '' : await res.text());
   }
 } else {
