@@ -54,6 +54,25 @@ test('M11-B CMS: evidence gate, policy approval, versioning and rollback', { ski
     process.env.EDITORIAL_PIPELINE_SIGNING_KEY = 'another-key';
     assert.ok(fields(await call(controller.approveByPolicy, { params: { id } })).includes('editorial'));
     process.env.EDITORIAL_PIPELINE_SIGNING_KEY = KEY;
+
+    // M12 gate review: an edit that lands while an approval runs its gates makes the approval fail, and frees its policy slot.
+    const racedId = await aiPost('el-padrino-carrera');
+    const gates = (controller as any).qualityFindings.bind(controller);
+    (controller as any).qualityFindings = async (post: unknown) => {
+      const findings = await gates(post);
+      await call(controller.updatePost, { params: { id: racedId }, body: { status: 'draft', title: 'El Padrino en La 2, versión cambiada' } });
+      return findings;
+    };
+    try {
+      assert.match(String((await call(controller.approveByPolicy, { params: { id: racedId } })).error), /changed while this request ran/);
+    } finally {
+      delete (controller as any).qualityFindings;
+    }
+    const raced = (await BlogPostModel.findById(racedId).lean())!;
+    assert.equal(raced.status, 'draft');
+    assert.equal(raced.title, 'El Padrino en La 2, versión cambiada');
+    assert.equal(await BlogPostModel.db.collection('editorial_policy_approvals').countDocuments({ postId: raced._id }), 0);
+
     const approved = await call(controller.approveByPolicy, { params: { id } });
     assert.equal(approved.code, 200, JSON.stringify(approved.error));
     assert.equal(approved.body.data.post.status, 'publish');
@@ -95,6 +114,21 @@ test('M11-B CMS: evidence gate, policy approval, versioning and rollback', { ski
     assert.ok(!taken.some((f: string) => f.endsWith('critic-rejected')), JSON.stringify(taken));
     const vetoed = await aiPost('el-padrino-vetado', { verdict: 'block', issues: [{ severity: 'high', message: 'inventa' }] });
     assert.ok(fields(await call(controller.approvePost, { params: { id: vetoed }, body: { reviewer: 'Revisora Prueba', acknowledge: 'unverified-claims,critic-rejected' } })).includes('critic-rejected'));
+
+    // M12 gate review: the admin key cannot drop the provenance or relabel the post to escape the critic.
+    for (const body of [{ status: 'draft', origin: 'human' }, { status: 'draft', editorial: null }]) {
+      assert.ok(fields(await call(controller.updatePost, { params: { id: vetoed }, body })).includes('origin'), JSON.stringify(body));
+    }
+    // A verdict edited after signing ('block' → 'revise' or 'pass'), signed or not, blocks while the server holds the key.
+    const ack = { reviewer: 'Revisora Prueba', acknowledge: 'unverified-claims,critic-rejected,provenance-unsigned' };
+    await BlogPostModel.updateOne({ _id: vetoed }, { 'editorial.critic.verdict': 'revise' });
+    assert.ok(fields(await call(controller.approvePost, { params: { id: vetoed }, body: ack })).includes('provenance-signature-invalid'));
+    await BlogPostModel.updateOne({ _id: vetoed }, { 'editorial.critic.verdict': 'pass', $unset: { 'editorial.signature': 1 } });
+    assert.ok(fields(await call(controller.approvePost, { params: { id: vetoed }, body: ack })).includes('provenance-signature-invalid'));
+    // Without a key nothing can be attested: a person must acknowledge that.
+    delete process.env.EDITORIAL_PIPELINE_SIGNING_KEY;
+    assert.ok(fields(await call(controller.approvePost, { params: { id: vetoed }, body: { reviewer: 'Revisora Prueba' } })).includes('acknowledge:provenance-unsigned'));
+    process.env.EDITORIAL_PIPELINE_SIGNING_KEY = KEY;
 
     // A near-identical twin of a public guide is a block; the policy path never acknowledges judgements.
     assert.ok(fields(await call(controller.approveByPolicy, { params: { id: await aiPost('el-padrino-copia') } })).includes('near-identical'));

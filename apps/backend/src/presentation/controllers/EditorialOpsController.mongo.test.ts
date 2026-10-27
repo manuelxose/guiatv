@@ -101,11 +101,11 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     assert.match(String((await call(blog.approveByPolicy, { params: { id: coverId } })).error?.details?.[0]?.message), /imagen no verificado: mock/);
     const human = await call(blog.approvePost, { params: { id: coverId }, body: { reviewer: 'Revisora Prueba', acknowledge: 'unverified-claims' } });
     assert.ok((human.error?.details ?? []).some((d: { field: string }) => d.field === 'mock-image'), 'a person cannot publish a test image either');
-    // Dropping the provenance does not launder the picture: generated files need their own record.
+    // Dropping the provenance to launder the picture is refused outright (M12 gate review).
     const laundered = await call(blog.updatePost, { params: { id: coverId }, body: { status: 'draft', origin: 'human', editorial: null } });
-    assert.equal(laundered.code, 200, JSON.stringify(laundered.error));
-    const relabelled = await call(blog.approvePost, { params: { id: coverId }, body: { reviewer: 'Revisora Prueba' } });
-    assert.ok((relabelled.error?.details ?? []).some((d: { field: string }) => d.field === 'generated-image-unverified'), JSON.stringify(relabelled.error?.details));
+    assert.equal(laundered.error?.details?.[0]?.field, 'origin', JSON.stringify(laundered));
+    const relabelled = await call(blog.approvePost, { params: { id: coverId }, body: { reviewer: 'Revisora Prueba', acknowledge: 'unverified-claims' } });
+    assert.ok((relabelled.error?.details ?? []).some((d: { field: string }) => d.field === 'mock-image'), JSON.stringify(relabelled.error?.details));
     assert.equal((await call(blog.createPost, { body: { ...withCover.draft, slug: 'mal-formado', editorial: { ...withCover.provenance, images: [{}] } } })).error?.name, 'ValidationError');
     assert.equal((await call(ops.post, { params: { id: 'not-an-id' } })).error?.name, 'NotFoundError');
 
@@ -121,9 +121,9 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     assert.equal(overview.policy.signingKeyConfigured, true);
     assert.equal(overview.spend.todayUsd, 0.42);
     assert.deepEqual(overview.jobs.map((j: { jobId: string }) => j.jobId), [job.jobId]);
-    // The relabelled post left the AI list with its provenance.
-    assert.deepEqual(overview.posts.map((p: { slug: string }) => p.slug), ['el-padrino-m11c']);
-    assert.deepEqual(overview.posts[0].claims, { supported: 4, conflicting: 0, unverified: 1 });
+    // The cover post could not be relabelled, so it stays in the AI list with its provenance.
+    assert.deepEqual(overview.posts.map((p: { slug: string }) => p.slug), ['el-padrino-portada', 'el-padrino-m11c']);
+    assert.deepEqual(overview.posts[1].claims, { supported: 4, conflicting: 0, unverified: 1 });
     assert.equal(overview.routes.research[0].provider, 'anthropic');
 
     // Router authorization over HTTP: no session, a non-admin session, and resume without the review key.

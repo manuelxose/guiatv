@@ -198,6 +198,8 @@ const BlogPostSchema = new Schema<IBlogPostDocument>(
   {
     timestamps: true,
     collection: 'blog_posts',
+    // An approval must save exactly the version its gates read: a concurrent edit makes the save fail.
+    optimisticConcurrency: true,
   }
 );
 

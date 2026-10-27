@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import {
   BlogAffiliatePlacementMode,
   BlogContentType,
@@ -34,7 +35,7 @@ import {
   policyGateFailures,
   PUBLIC_EDITORIAL_FILTER,
 } from '../../application/services/EditorialReviewPolicy';
-import { EditorialProvenance, evaluateEvidence, provenanceSignatureValid } from '../../application/services/EditorialEvidence';
+import { EditorialProvenance, evaluateEvidence, provenanceSignatureFindings, provenanceSignatureValid } from '../../application/services/EditorialEvidence';
 import { policyProviderProblem } from '../../application/services/EditorialAgentPipeline';
 import { editorialPolicyState } from './EditorialOpsController';
 import { generatedImageFindings } from '../../application/services/EditorialImages';
@@ -388,7 +389,7 @@ export class BlogController {
       existing.publishedAt = normalized.publishedAt;
       existing.author = normalized.author;
 
-      await existing.save();
+      await this.saveUnchanged(existing);
       await this.invalidatePublicReads();
 
       res.status(200).json(
@@ -444,7 +445,7 @@ export class BlogController {
       post.reviewedAt = approval.reviewedAt;
       post.publishedAt = approval.publishedAt;
       post.reviewNotes = String(req.body?.notes || '').trim() || undefined;
-      await post.save();
+      await this.saveUnchanged(post);
       await this.invalidatePublicReads();
 
       res.status(200).json(successResponse({ post: this.mapPost(post.toObject()), qualityFindings: findings }));
@@ -516,7 +517,11 @@ export class BlogController {
       post.publishedAt = post.publishedAt || now;
       post.reviewNotes = 'Approved by the M11-B evidence policy: every stated fact verified against its source, independent AI review passed.';
       post.editorial = { ...post.editorial, state: 'published' };
-      await post.save();
+      // A failed save publishes nothing, so it must not keep a slot or lock this draft out.
+      await this.saveUnchanged(post).catch(async (error) => {
+        await ledger.deleteOne({ _id: insertedId });
+        throw error;
+      });
       await this.invalidatePublicReads();
       res.status(200).json(successResponse({ post: this.mapPost(post.toObject()), qualityFindings: findings }));
     } catch (error) {
@@ -551,13 +556,23 @@ export class BlogController {
         reviewedBy: keepReview ? snap.reviewedBy : undefined, reviewedAt: keepReview ? snap.reviewedAt : undefined,
         reviewNotes: `Restored revision ${version} by ${String(req.header('x-editorial-reviewer') || 'unnamed operator').trim()}`,
       });
-      await post.save();
+      await this.saveUnchanged(post);
       await this.invalidatePublicReads();
       res.status(200).json(successResponse({ post: this.mapPost(post.toObject()), restored: version }));
     } catch (error) {
       next(error);
     }
   };
+
+  /** Saves only if nobody wrote the post since it was read (optimisticConcurrency on the schema). */
+  private async saveUnchanged(post: InstanceType<typeof BlogPostModel>): Promise<void> {
+    try {
+      await post.save();
+    } catch (error) {
+      if (error instanceof mongoose.Error.VersionError) throw new ConflictError('The post changed while this request ran; read it again');
+      throw error;
+    }
+  }
 
   /** Existing CMS gate plus, for posts with M11-B provenance, the evidence gate. */
   private async qualityFindings(post: InstanceType<typeof BlogPostModel>) {
@@ -568,7 +583,9 @@ export class BlogController {
     ]);
     const plain = post.toObject();
     return [
-      ...(plain.editorial ? evaluateEvidence(plain, plain.editorial) : []),
+      ...(plain.editorial
+        ? [...evaluateEvidence(plain, plain.editorial), ...provenanceSignatureFindings(plain.editorial, process.env.EDITORIAL_PIPELINE_SIGNING_KEY)]
+        : []),
       ...generatedImageFindings(plain),
       ...evaluateEditorialQuality(plain, {
         others: publicPosts.map((other) => ({ slug: String(other.slug), content: other.content })),
@@ -784,6 +801,12 @@ export class BlogController {
 
     const status = this.normalizeStatus(payload.status, existing?.status);
     const origin = this.normalizeOrigin(payload.origin, existing?.origin);
+    // A pipeline post keeps its origin and provenance: dropping either would also drop the evidence gate and the critic verdict.
+    if (existing?.editorial && (origin !== 'ai-assisted' || payload.editorial === null)) {
+      throw new ValidationError('An ai-assisted post keeps its origin and provenance', [
+        { field: 'origin', message: 'Create a new post instead of relabelling AI text or removing its evidence', value: payload.origin },
+      ]);
+    }
     const excerpt = this.resolveOptionalString(payload.excerpt, existing?.excerpt);
     const rawContent = this.resolveOptionalString(payload.content, existing?.content);
     const content = rawContent === undefined ? undefined : canonicalizeInternalLinks(rawContent);

@@ -25,6 +25,8 @@ export const MOCK_ADMIN_PROFILE = {
 };
 
 export async function mockAdminShellBackend(context: BrowserContext): Promise<void> {
+  // index.html preloads channel icons from the backend's storage, which a fresh checkout does not have.
+  await context.route('**/storage/channel_icons/**', (route) => route.fulfill({ status: 204 }));
   await context.route('**/v2/**', async (route) => {
     const url = route.request().url();
     if (route.request().method() === 'GET' && url.includes('/user/profile')) {
