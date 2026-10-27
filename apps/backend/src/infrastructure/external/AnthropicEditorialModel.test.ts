@@ -43,6 +43,18 @@ test('anthropic model: refusals and truncation stop the job', async () => {
   assert.throws(() => parseJson('sin json', true), /no JSON/);
 });
 
+test('M11-D: a gateway prefix is applied on the wire only, and another answering model is refused', async () => {
+  const f = fake([{ ...reply('end_turn', '{"verdict":"pass","issues":[]}'), model: 'claude-opus-5-5' }]);
+  const ok = await new AnthropicEditorialModel({ client: f.client, modelPrefix: 'cc/' }).call(call());
+  assert.equal(f.sent[0].model, 'cc/claude-opus-5-5');
+  assert.deepEqual(ok.json, { verdict: 'pass', issues: [] });
+  const swapped = fake([{ ...reply('end_turn', '{}'), model: 'kimi-k2' }]);
+  const err = await new AnthropicEditorialModel({ client: swapped.client, modelPrefix: 'cc/' }).call(call()).catch((e) => e);
+  assert.ok(err instanceof ModelCallFailed);
+  assert.match(err.message, /answered by kimi-k2, routed to claude-opus-5-5/);
+  assert.deepEqual(err.usage, { input_tokens: 110, output_tokens: 50 }, 'the swapped answer is still charged');
+});
+
 test('M11-D: a failed call reports the usage it was billed; a broken stream does not pretend to know it', async () => {
   const truncated = await new AnthropicEditorialModel({ client: fake([reply('max_tokens', '{"a"')]).client }).call(call()).catch((e) => e);
   assert.ok(truncated instanceof ModelCallFailed);
