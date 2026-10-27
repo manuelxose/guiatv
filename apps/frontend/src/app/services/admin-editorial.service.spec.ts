@@ -57,4 +57,16 @@ describe('AdminEditorialService', () => {
     expect(calls[0].options?.headers?.get('x-editorial-review-key')).toBe('k3y');
     expect(calls[0].options?.headers?.get('x-editorial-reviewer')).toBe('Ana');
   });
+
+  it('setDailyLimit posts the number and sends the review key as a header only', async () => {
+    const calls: Call[] = [];
+    const service = createService({ success: true, data: { policy: { dailyLimit: 4 } } }, calls);
+
+    const policy = await firstValueFrom(service.setDailyLimit(4, 'k3y', 'Ana'));
+
+    expect(policy.dailyLimit).toBe(4);
+    expect(calls[0].url).toMatch(/\/admin\/editorial\/policy\/daily-limit$/);
+    expect(calls[0].body).toEqual({ dailyLimit: 4 });
+    expect(calls[0].options?.headers?.get('x-editorial-review-key')).toBe('k3y');
+  });
 });

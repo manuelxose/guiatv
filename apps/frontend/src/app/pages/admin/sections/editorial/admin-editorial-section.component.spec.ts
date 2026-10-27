@@ -9,6 +9,8 @@ const BASE: EditorialPolicyStatus = {
   pausedBy: null,
   pausedReason: null,
   dailyLimit: 3,
+  dailyLimitBy: null,
+  dailyLimitRange: { recommended: 3, min: 1, max: 10 },
   approvalsLast24h: 0,
   signingKeyConfigured: true,
   liveProviders: [],

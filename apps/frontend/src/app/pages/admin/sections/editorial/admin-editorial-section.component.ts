@@ -90,6 +90,12 @@ export class AdminEditorialSectionComponent implements OnInit {
   resumeBusy = false;
   resumeError = '';
 
+  limitValue: number | null = null;
+  limitKey = '';
+  limitReviewer = '';
+  limitBusy = false;
+  limitError = '';
+
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(AdminEditorialService);
 
@@ -211,6 +217,31 @@ export class AdminEditorialSectionComponent implements OnInit {
         error: (e) => {
           this.resumeBusy = false;
           this.resumeError = errorMessage(e, 'No se pudo reanudar la publicación automática');
+        },
+      });
+  }
+
+  saveDailyLimit(): void {
+    const value = this.limitValue;
+    const key = this.limitKey;
+    const reviewer = this.limitReviewer.trim();
+    if (value === null || !key || !reviewer) return;
+    this.limitBusy = true;
+    this.limitError = '';
+    // The key is never stored: cleared from the form whatever the outcome.
+    this.limitKey = '';
+    this.service
+      .setDailyLimit(value, key, reviewer)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (policy) => {
+          if (this.overview) this.overview = { ...this.overview, policy, limits: { ...this.overview.limits, maxDailyArticles: policy.dailyLimit } };
+          this.limitBusy = false;
+          this.limitValue = null;
+        },
+        error: (e) => {
+          this.limitBusy = false;
+          this.limitError = errorMessage(e, 'No se pudo cambiar el límite diario');
         },
       });
   }

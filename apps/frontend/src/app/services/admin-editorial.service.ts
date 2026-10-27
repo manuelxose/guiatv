@@ -21,6 +21,8 @@ export interface EditorialPolicyStatus {
   pausedBy: string | null;
   pausedReason: string | null;
   dailyLimit: number;
+  dailyLimitBy: string | null;
+  dailyLimitRange: { recommended: number; min: number; max: number };
   approvalsLast24h: number;
   signingKeyConfigured: boolean;
   liveProviders: string[];
@@ -160,6 +162,14 @@ export class AdminEditorialService {
     const headers = new HttpHeaders({ 'x-editorial-review-key': reviewKey, 'x-editorial-reviewer': reviewer });
     return this.http
       .post<ApiResponse<{ policy: EditorialPolicyStatus }>>(`${this.baseUrl}/policy/resume`, {}, { headers })
+      .pipe(map((resp) => resp.data.policy));
+  }
+
+  /** Articles per day (runs and policy publications); needs the review key, like resume. */
+  setDailyLimit(dailyLimit: number, reviewKey: string, reviewer: string): Observable<EditorialPolicyStatus> {
+    const headers = new HttpHeaders({ 'x-editorial-review-key': reviewKey, 'x-editorial-reviewer': reviewer });
+    return this.http
+      .post<ApiResponse<{ policy: EditorialPolicyStatus }>>(`${this.baseUrl}/policy/daily-limit`, { dailyLimit }, { headers })
       .pipe(map((resp) => resp.data.policy));
   }
 }

@@ -77,11 +77,13 @@ const positive = (name, fallback) => {
   if (!Number.isFinite(v) || v <= 0) { console.error(`${name} must be a positive number`); process.exit(2); }
   return v;
 };
+// M11-D: articles per day are set in the Admin; with --report the runner obeys that value over EDITORIAL_MAX_DAILY.
+let serverDailyLimit = null;
 const limits = () => ({
   ...evidence.DEFAULT_EDITORIAL_LIMITS,
   maxArticleUsd: positive('EDITORIAL_MAX_ARTICLE_USD', evidence.DEFAULT_EDITORIAL_LIMITS.maxArticleUsd),
   maxDailyUsd: positive('EDITORIAL_MAX_DAILY_USD', evidence.DEFAULT_EDITORIAL_LIMITS.maxDailyUsd),
-  maxDailyArticles: positive('EDITORIAL_MAX_DAILY', evidence.DEFAULT_EDITORIAL_LIMITS.maxDailyArticles),
+  maxDailyArticles: serverDailyLimit ?? positive('EDITORIAL_MAX_DAILY', evidence.DEFAULT_EDITORIAL_LIMITS.maxDailyArticles),
 });
 const today = () => new Date().toISOString().slice(0, 10);
 const runFiles = () => (existsSync(out) ? readdirSync(out).filter((f) => f.endsWith('.json')) : []);
@@ -118,6 +120,9 @@ const adminHeaders = () => ({ 'content-type': 'application/json', 'x-admin-key':
 if (command === 'run') {
   const topics = readJson(target);
   const replay = arg('replay') ? readJson(arg('replay')) : null;
+  // Job ids and the journal are per slug: a repeated slug would let one settle cancel two reserves.
+  if (new Set(topics.map((t) => t.slug)).size !== topics.length) { console.error('duplicate topic slugs'); process.exit(2); }
+  limits(); // validates the env caps before any network call (an exit with a socket open can crash Node on Windows)
   const report = arg('report') ? apiBase(arg('report')) : null;
   const { routes, imageRoutes } = pipeline.routesFromEnv();
   const mockImages = process.argv.includes('--mock-images');
@@ -130,8 +135,6 @@ if (command === 'run') {
     fetchSource, internalLinkStatus, corpus, render: (md) => marked.parse(md),
     signingKey: process.env.EDITORIAL_PIPELINE_SIGNING_KEY,
   });
-  // Job ids and the journal are per slug: a repeated slug would let one settle cancel two reserves.
-  if (new Set(topics.map((t) => t.slug)).size !== topics.length) { console.error('duplicate topic slugs'); process.exit(2); }
   mkdirSync(join(out, 'media'), { recursive: true });
   mkdirSync(spendDir, { recursive: true });
   // One runner at a time: two processes would each read the same day's spend and both spend it.
@@ -141,6 +144,14 @@ if (command === 'run') {
     console.error(`${lock} exists: another run is active or one crashed. Check spend.jsonl, then remove the lock.`); process.exit(3);
   }
   process.on('exit', () => { try { unlinkSync(lock); } catch { /* already gone */ } });
+  if (report) {
+    const overview = await fetch(`${report}/v2/admin/editorial/overview`, { headers: adminHeaders() }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const n = overview?.data?.policy?.dailyLimit;
+    // Fail closed: an Admin that cannot be read means no run, not the env default.
+    if (!Number.isInteger(n) || n < 1) { console.error(`cannot read the Admin daily limit from ${report}`); process.exit(2); }
+    serverDailyLimit = n;
+    console.log(`daily limit from the Admin: ${n} article(s)`);
+  }
   const startedAt = new Date().toISOString();
   const jobId = (slug) => `${startedAt}-${slug}`;
   const persist = ({ media = [], ...run }) => {
@@ -208,7 +219,9 @@ if (command === 'run') {
   const found = await (await fetch(`${api}/v2/blog?slug=${encodeURIComponent(run.slug)}&status=all`, { headers })).json();
   if (command === 'save-draft') {
     if (found[0]) { console.error(`${run.slug} already exists (${found[0].status}); a PUT would take a live guide offline. Refusing.`); process.exit(1); }
-    if (!run.draft || run.state === 'blocked') { console.error(`${run.slug} is ${run.state}: nothing reviewable to save`); process.exit(1); }
+    // M11-D: a run held only by judgements (e.g. a critic 'revise') goes to a named reviewer; any hard block stays out.
+    const hardBlocks = (run.findings ?? []).filter((f) => f.severity === 'block');
+    if (!run.draft || hardBlocks.length) { console.error(`${run.slug} is ${run.state}${hardBlocks.length ? ` (${hardBlocks.map((f) => f.code).join(', ')})` : ''}: nothing reviewable to save`); process.exit(1); }
     // Covers first: the draft points at their content-addressed URLs, which must exist before anyone previews it.
     for (const asset of run.provenance?.images ?? []) {
       const bytes = readFileSync(join(resolve(target, '..'), 'media', `${asset.sha256}.${MEDIA_EXT[asset.contentType]}`));
