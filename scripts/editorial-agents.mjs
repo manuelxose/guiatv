@@ -16,6 +16,7 @@
 import { createRequire } from 'node:module';
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { marked } from 'marked';
 
 const require = createRequire(import.meta.url);
@@ -88,7 +89,7 @@ const runFiles = () => (existsSync(out) ? readdirSync(out).filter((f) => f.endsW
 // M11-D: a job writes `reserve` (its whole allowance) before it may spend and `settle` when it ends, so a job
 // that never settled (crash, kill) keeps counting its whole allowance. Rows without `kind` are pre-M11-D spends.
 // One journal and lock per machine, whatever --out says, so two output dirs cannot each spend the day's ceiling.
-const spendDir = resolve(process.env.EDITORIAL_SPEND_DIR || 'artifacts/m11b/runs');
+const spendDir = resolve(process.env.EDITORIAL_SPEND_DIR || fileURLToPath(new URL('../artifacts/m11b/runs', import.meta.url)));
 const spendLog = () => join(spendDir, 'spend.jsonl');
 const spentToday = () => {
   const rows = (existsSync(spendLog()) ? readFileSync(spendLog(), 'utf8').split('\n').filter(Boolean).map(JSON.parse) : []).filter((e) => e.day === today());
