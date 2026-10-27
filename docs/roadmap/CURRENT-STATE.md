@@ -402,3 +402,12 @@ Details: [M11C-DELIVERY.md](M11C-DELIVERY.md), [ADR 0001](../adr/0001-editorial-
 - **New:** Admin "Operaciones IA" with an emergency stop; fallback routing; daily USD ceiling; cover pipeline (mock provider only, blocked from publication); `/politica-editorial` now accurate.
 - **Unchanged:** automatic policy publishing is **off**. No production content writes, no live model or image calls.
 - **Next:** controlled activation (owner steps in M11C-DELIVERY.md), then M12.
+
+## M12 entry gate (2026-10-27): M12 NO-GO
+
+Details: [M12-ENTRY-GATE.md](M12-ENTRY-GATE.md).
+
+- **Decision:** M12 stays NO-GO. M10 is partial, M11-B is unmet (0 AI articles published by a named reviewer), and there is no index-level kill switch, batch cap, per-URL gate or GSC baseline.
+- **Fixed (independent review, two HIGH):** the runner's admin key could relabel or strip provenance, or forge the critic verdict, so a critic `block` became approvable; approvals saved without a version check, so a concurrent edit went public. Provenance is now locked, signatures are checked on both approval paths, and `BlogPost` uses optimistic concurrency.
+- **Admin E2E:** new `admin-editorial.spec.ts`; `admin-shell` repaired. Admin Playwright specs are not run in CI.
+- **Held draft** `6ae0d88e…`: still private and unacknowledged; it expires with the 2026-10-28 programmes unless a named reviewer acts.

@@ -385,6 +385,18 @@ export function provenanceSignatureValid(p: EditorialProvenance, key: string | u
   if (!key || !p.signature || !/^[0-9a-f]{64}$/.test(p.signature)) return false;
   return timingSafeEqual(Buffer.from(signProvenance(p, key), 'hex'), Buffer.from(p.signature, 'hex'));
 }
+/**
+ * The critic verdict is only as trustworthy as its signature. Where the server holds the key, an unsigned or broken
+ * signature blocks (otherwise a hand-written provenance could turn a critic 'block' into one acknowledgement);
+ * without a key (development) nothing can be verified, so a person must say so.
+ */
+export function provenanceSignatureFindings(p: EditorialProvenance, key: string | undefined): EditorialFinding[] {
+  if (!key) return [{ severity: 'human', code: 'provenance-unsigned', message: 'Sin clave de firma en el servidor: el veredicto del crítico no está atestiguado' }];
+  if (!provenanceSignatureValid(p, key)) {
+    return [{ severity: 'block', code: 'provenance-signature-invalid', message: 'Procedencia sin firma válida del pipeline: el veredicto o las evidencias no están atestiguados' }];
+  }
+  return [];
+}
 
 interface EvidencePost {
   content?: string;

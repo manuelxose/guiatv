@@ -81,10 +81,13 @@ test.describe('Admin shell', () => {
       expect(after!.width).toBeLessThan(before!.width - 40);
     }).toPass({ timeout: 5000 });
 
+    // The content column animates its offset after the sidebar does: poll until both have settled.
     const main = page.locator('main');
-    const asideAfter = await aside.boundingBox();
-    const mainAfter = await main.boundingBox();
-    expect(asideAfter!.x + asideAfter!.width).toBeLessThanOrEqual(mainAfter!.x + 1);
+    await expect(async () => {
+      const asideAfter = await aside.boundingBox();
+      const mainAfter = await main.boundingBox();
+      expect(asideAfter!.x + asideAfter!.width).toBeLessThanOrEqual(mainAfter!.x + 1);
+    }).toPass({ timeout: 5000 });
   });
 
   test('mobile (390x844): drawer opens/closes via the trigger and Escape, traps focus, and restores it on close', async ({
