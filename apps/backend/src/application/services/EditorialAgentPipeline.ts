@@ -210,6 +210,8 @@ export interface EditorialRun {
   revisions?: RevisionRecord[];
   /** Sources the research named that could not be read (left out of the evidence). */
   droppedSources?: string[];
+  /** M11-E2b: candidates a critic blocked for missing evidence, kept as they were; their signature is never reused. */
+  blockedCandidates?: Array<{ draftHash: string; bundleHash: string; critic: CriticReview; signature?: string }>;
 }
 
 export interface RevisionRecord {
@@ -218,7 +220,7 @@ export interface RevisionRecord {
   verdict: CriticReview['verdict'];
   issues: number;
   blocking: string[];
-  action: 'pass' | 'block' | 'rewrite' | 're-research' | 'abandon';
+  action: 'pass' | 'block' | 'new-candidate' | 'rewrite' | 're-research' | 'abandon';
   /** The excerpt and metadata were rewritten for this version (the reviewed text was not). */
   repaired?: 'metadata';
   /** Local edits made for deterministic gate defects before the critic saw this version. */
@@ -565,8 +567,22 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
         revision.blocking = blocking.map((f) => f.code);
       }
 
-      // A critic 'block' is final for this candidate: its draft and signed provenance are kept as they are.
-      if (verdict.verdict === 'block') { revision.action = 'block'; return finish(run, 'blocked', 'el crítico bloqueó el borrador'); }
+      // Discarded claims the critic points at, by claimId or named in its message ("c1, c2 están descartadas").
+      const discarded = bundle.claims.filter((c) => c.status !== 'supported');
+      const evidenceIssues = verdict.issues.filter((i) => (i.claimId && !usable.some((c) => c.id === i.claimId))
+        || discarded.some((c) => new RegExp(`(?<![\\w-])${c.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w-])`).test(i.message)));
+      // A critic 'block' is final for this candidate: its draft and signed provenance are kept as they are. When the block
+      // is about missing evidence and research is left, a NEW candidate starts from new evidence and a new critic review.
+      if (verdict.verdict === 'block') {
+        revision.action = 'block';
+        if (!evidenceIssues.length || loop >= limits.maxReviewLoops || researchCalls >= limits.maxResearchCalls) return finish(run, 'blocked', 'el crítico bloqueó el borrador');
+        run.blockedCandidates = [...(run.blockedCandidates ?? []), { draftHash, bundleHash, critic, signature: provenance.signature }];
+        revision.action = 'new-candidate';
+        await reResearch(evidenceIssues.map((i) => `- ${i.claimId ? `${i.claimId}: ` : ''}${i.message}`).join('\n'));
+        previous = '';
+        feedback = '';
+        continue;
+      }
       if (verdict.verdict === 'pass' && !blocking.length) {
         // Only a text that passed gets a cover, so a rejected draft never spends on images.
         if (await addCover(run, cms, provenance, topic, deps, ledger, verifiedOn)) {
@@ -582,10 +598,9 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
       previous = draft.markdown;
       feedback = [...verdict.issues.map((i) => `- (${i.severity}) ${i.claimId ? `${i.claimId}: ` : ''}${i.message}`), ...blocking.map((f) => `- (gate) ${f.code}: ${f.message}`)].join('\n');
       // Missing evidence is fixed by research, not by rewording: the writer can only use verified claims.
-      const known = new Set(usable.map((c) => c.id));
       const gaps = [
         ...blocking.filter((f) => EVIDENCE_GAPS.has(f.code)).map((f) => `- ${f.code}: ${f.message}`),
-        ...verdict.issues.filter((i) => i.claimId && !known.has(i.claimId)).map((i) => `- ${i.claimId}: ${i.message}`),
+        ...evidenceIssues.map((i) => `- ${i.claimId ? `${i.claimId}: ` : ''}${i.message}`),
       ];
       if (loop < limits.maxReviewLoops && gaps.length && researchCalls < limits.maxResearchCalls) {
         revision.action = 're-research';

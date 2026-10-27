@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { criticVerdict, EDITORIAL_RUBRIC, EditorialModel, EditorialTopic, runEditorialBatch, runEditorialJob } from './EditorialAgentPipeline';
-import { DEFAULT_EDITORIAL_LIMITS, EvidenceBundle, evaluateEvidence, hashText, verifyBundle } from './EditorialEvidence';
+import { DEFAULT_EDITORIAL_LIMITS, EvidenceBundle, evaluateEvidence, hashText, spelledNumbers, verifyBundle } from './EditorialEvidence';
 import { deps, draft, GOOD, NOW, pass, research, scripted, topic } from './EditorialAgentPipeline.fixtures';
 
 const BOE_URL = 'https://www.boe.es/buscar/act.php?id=BOE-A-2022-11311';
@@ -34,7 +34,8 @@ test('M11-E2 legal references: a provision is located around the quote, never as
     { id: 'wrong-law', text: 'La Ley 14/2022 obliga a calificar por edades', quote: 'calificarán por edades los contenidos que emitan' },
     // "artículo 98." inside art. 99 is a lowercase cross-reference, not the heading of art. 98.
     { id: 'cross-reference', text: 'Hay franjas de protección reforzada (art. 98)', quote: 'Se establecen tres franjas horarias de protección reforzada' },
-    { id: 'figure', text: 'Hay 3 franjas de protección reforzada (art. 99)', quote: 'Se establecen tres franjas horarias de protección reforzada' },
+    // "tres" in the quote backs a 3, never a 4.
+    { id: 'figure', text: 'Hay 4 franjas de protección reforzada (art. 99)', quote: 'Se establecen tres franjas horarias de protección reforzada' },
     // A model cannot declare a reference located: verifyBundle recomputes it.
     { id: 'forged', text: 'Deben calificar por edades (art. 99)', quote: 'calificarán por edades los contenidos que emitan', legalRefs: ['art. 99'] },
     // Review H1: a figure equal to the reference number is still a figure.
@@ -52,7 +53,7 @@ test('M11-E2 legal references: a provision is located around the quote, never as
     assert.equal(by[id].status, 'unverified', id);
     assert.match(by[id].note!, /referencia legal no localizada/, id);
   }
-  assert.deepEqual([by.figure.status, by.figure.note, by.figure.legalRefs], ['unverified', 'cifras sin respaldo en las citas: 3', ['art. 99']], 'a real figure still needs its quote');
+  assert.deepEqual([by.figure.status, by.figure.note, by.figure.legalRefs], ['unverified', 'cifras sin respaldo en las citas: 4', ['art. 99']], 'a real figure still needs its quote');
 });
 
 const legalTopic: EditorialTopic = {
@@ -170,6 +171,41 @@ test('M11-E2b rubric: writer and critic share one standard, and the verdict foll
   const sloppy = scripted({ research: [research], evidence: [{ conflicts: [] }], editorial: [draft(`${GOOD}\n\nTambién la emitió Antena 3 en 2019.`), draft()], critic: [pass] });
   await runEditorialJob(topic, deps(sloppy.model));
   assert.doesNotMatch(sloppy.calls.find((c) => c.role === 'critic')!.prompt, /2019/);
+});
+
+test('M11-E2b spelled figures (live run 4): a law writes "ciento cuarenta y cuatro minutos"; the claim may say 144, nothing else', () => {
+  assert.deepEqual(spelledNumbers('a) Máximo de ciento cuarenta y cuatro minutos entre las 6:00 y las 18:00 horas.'), ['144']);
+  assert.deepEqual(spelledNumbers('setenta y dos minutos; dos mil veintidós; el veinte por ciento; una vez; treinta y los demás'), ['72', '2022', '20', '30']);
+  const ads = 'Artículo 137. Límite cuantitativo. 1. Podrán emitir con estos límites: a) Máximo de ciento cuarenta y cuatro minutos entre las 6:00 y las 18:00 horas. '
+    + 'Artículo 142. Servicios a petición. 1. Tienen derecho a emitir comunicaciones comerciales, salvo lo previsto en el artículo 137.';
+  const b: EvidenceBundle = { ...bundleOf([]), sources: [{ ...bundleOf([]).sources[0], contentHash: hashText(ads) }], claims: [
+    { id: 'spelled', text: 'Como máximo 144 minutos de publicidad entre las 6:00 y las 18:00 (art. 137)', volatility: 'stable', quotes: [{ sourceId: 's1', quote: 'Máximo de ciento cuarenta y cuatro minutos entre las 6:00 y las 18:00 horas' }] },
+    { id: 'wrong-figure', text: 'Como máximo 145 minutos entre las 6:00 y las 18:00', volatility: 'stable', quotes: [{ sourceId: 's1', quote: 'Máximo de ciento cuarenta y cuatro minutos entre las 6:00 y las 18:00 horas' }] },
+    // The quote itself names the provision: located, even though it lies in art. 142.
+    { id: 'named-in-quote', text: 'A los servicios a petición no se les aplica el artículo 137 (art. 142)', volatility: 'stable', quotes: [{ sourceId: 's1', quote: 'salvo lo previsto en el artículo 137' }] },
+  ] };
+  const by = Object.fromEntries(verifyBundle(b, new Map([['s1', ads]])).claims.map((c) => [c.id, c]));
+  assert.equal(by.spelled.status, 'supported', by.spelled.note);
+  assert.deepEqual([by['wrong-figure'].status, by['wrong-figure'].note], ['unverified', 'cifras sin respaldo en las citas: 145']);
+  assert.deepEqual([by['named-in-quote'].status, by['named-in-quote'].legalRefs], ['supported', ['art. 137', 'art. 142']]);
+});
+
+test('M11-E2b recoverable block (live run 4): a critic block over discarded evidence starts a new candidate; the blocked one is kept', async () => {
+  const more = {
+    researchQuestions: [], sources: [],
+    claims: [{ id: 'c1', text: 'La sesión de cine clásico de los martes se llama Días de cine clásico', volatility: 'stable', quotes: [{ sourceId: 'r1', quote: 'en la sesión "Días de cine clásico"' }] }],
+  };
+  // No claimId: the critic names the discarded claim in its message, as the live critic did.
+  const block = { verdict: 'block', issues: [{ severity: 'high', message: 'Sin c5 descartada el artículo no responde a la intención: verificarla antes de reescribir.' }] };
+  const m = scripted({ research: [research, more], evidence: [{ conflicts: [] }], editorial: [draft(), draft(`${GOOD}\n\nLa franja se llama Días de cine clásico [[r2-c1]].`)], critic: [block, pass] });
+  const run = await runEditorialJob(topic, deps(m.model, { signingKey: 'k' }));
+  assert.equal(run.state, 'approved-by-policy', JSON.stringify(run.findings));
+  assert.deepEqual(run.revisions!.map((r) => [r.verdict, r.action]), [['block', 'new-candidate'], ['pass', 'pass']]);
+  const [blocked] = run.blockedCandidates!;
+  assert.deepEqual([blocked.critic.verdict, blocked.draftHash], ['block', run.revisions![0].draftHash]);
+  assert.notEqual(blocked.signature, run.provenance!.signature, 'the blocked signature is never reused');
+  assert.equal(m.calls.filter((c) => c.role === 'research').length, 2);
+  // Without evidence in question, a block stays final (see the retry-policy test).
 });
 
 test('M11-E2 failed retrieval: an unreadable page is dropped from the evidence and recorded, instead of blocking every draft', async () => {

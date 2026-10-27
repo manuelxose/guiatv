@@ -204,6 +204,38 @@ export function legalRefsIn(text: string): LegalRef[] {
     numbers: numbersIn(m[0]), article: m[1], apartado: m[2], id: m[3],
   }));
 }
+// Spanish number words, as laws write figures ("ciento cuarenta y cuatro minutos"). "un/una/uno" are left out: articles.
+const NUMBER_WORD_VALUES: Readonly<Record<string, number>> = Object.freeze({
+  dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, trece: 13,
+  catorce: 14, quince: 15, dieciséis: 16, dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19, veinte: 20,
+  veintiuno: 21, veintiún: 21, veintidós: 22, veintidos: 22, veintitrés: 23, veintitres: 23, veinticuatro: 24, veinticinco: 25,
+  veintiséis: 26, veintiseis: 26, veintisiete: 27, veintiocho: 28, veintinueve: 29, treinta: 30, cuarenta: 40, cincuenta: 50,
+  sesenta: 60, setenta: 70, ochenta: 80, noventa: 90, cien: 100, ciento: 100, doscientos: 200, doscientas: 200, trescientos: 300,
+  trescientas: 300, cuatrocientos: 400, cuatrocientas: 400, quinientos: 500, quinientas: 500, seiscientos: 600, seiscientas: 600,
+  setecientos: 700, setecientas: 700, ochocientos: 800, ochocientas: 800, novecientos: 900, novecientas: 900,
+});
+/**
+ * M11-E2b: the numbers a text spells out ("setenta y dos" → "72", "dos mil veintidós" → "2022"). Used only on verified
+ * quotes, so a claim may state in digits what its quote states in words; nothing else is relaxed.
+ */
+export function spelledNumbers(text: string): string[] {
+  const out: string[] = [];
+  let total = 0;
+  let current = 0;
+  let open = false;
+  let previous = '';
+  const close = () => { if (open) out.push(String(total + current)); total = 0; current = 0; open = false; };
+  for (const word of String(text).toLowerCase().normalize('NFC').split(/[^a-záéíóúüñ]+/).filter(Boolean)) {
+    if (word === 'ciento' && previous === 'por') { previous = word; continue; } // "por ciento" is a unit, not 100
+    if (NUMBER_WORD_VALUES[word] !== undefined) { current += NUMBER_WORD_VALUES[word]; open = true; }
+    else if (word === 'mil') { total += (open && current ? current : 1) * 1000; current = 0; open = true; }
+    else if (!(word === 'y' && open)) close();
+    previous = word;
+  }
+  close();
+  return out;
+}
+
 /** `text` without the spans of the references in `located`: their numbers are references, any other copy is a figure. */
 export function withoutLocatedRefs(text: string, located: Iterable<string>): string {
   const keys = new Set(located);
@@ -258,6 +290,8 @@ export function verifyBundle(bundle: EvidenceBundle, snapshots: ReadonlyMap<stri
       const legalRefs = refs.filter((ref) => quotes.some((q) => {
         const raw = q.verified ? snapshots.get(q.sourceId) : undefined;
         if (!raw) return false;
+        // The verified quote itself names this provision ("salvo lo previsto en el artículo 137"): the source says it.
+        if (legalRefsIn(q.quote).some((r) => r.key === ref.key)) return true;
         if (ref.id) return ownLaw(raw) === ref.key;
         if (law && ownLaw(raw) !== law) return false;
         return provisionTexts(raw, ref.article!, ref.apartado).some((p) => containsQuote(normalizeForMatch(p), normalizeForMatch(q.quote)));
@@ -284,7 +318,7 @@ export function assessBundle(bundle: EvidenceBundle): EvidenceBundle {
     const good = quotes.filter((q) => q.verified).map((q) => sources.get(q.sourceId)!);
     const primary = good.some((s) => s.kind !== 'press');
     const pressDomains = new Set(good.filter((s) => s.kind === 'press').map((s) => registrableDomain(s.url)));
-    const quotedNumbers = new Set(quotes.filter((q) => q.verified).flatMap((q) => numbersIn(q.quote)));
+    const quotedNumbers = new Set(quotes.filter((q) => q.verified).flatMap((q) => [...numbersIn(q.quote), ...spelledNumbers(q.quote)]));
     // A located reference's span is not a figure; the rest of the text is checked as before. Any unlocated reference fails,
     // even when the quote happens to contain its numbers: the attribution itself is the claim.
     const located = new Set(claim.legalRefs ?? []);
@@ -334,7 +368,7 @@ function allowedNumbers(claims: EvidenceClaim[]): Set<string> {
     // A provision's numbers are not figures: they are allowed only as that reference (refNumbers).
     numbersIn(withoutLocatedRefs(claim.text, claim.legalRefs ?? [])).forEach((n) => out.add(n));
     for (const q of claim.quotes.filter((x) => x.verified)) {
-      numbersIn(q.quote).forEach((n) => out.add(n));
+      [...numbersIn(q.quote), ...spelledNumbers(q.quote)].forEach((n) => out.add(n));
       for (const [iso] of q.quote.matchAll(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?Z/g)) {
         const parts = Object.fromEntries(madrid.formatToParts(new Date(iso)).map((p) => [p.type, p.value]));
         for (const v of [parts.year, parts.month, parts.day, parts.hour, parts.minute]) {
