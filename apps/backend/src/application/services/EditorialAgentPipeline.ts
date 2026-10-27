@@ -16,6 +16,7 @@ import {
   hashBundle,
   hashText,
   measureValue,
+  metadataHash,
   nextReviewAt,
   signProvenance,
   sourceKindFor,
@@ -263,12 +264,13 @@ const CRITIC_SEVERITY = `Gravedad de cada problema:
 Veredicto: block solo si el tema o la evidencia no permiten un artículo útil y veraz; revise si hay algún problema high o medium; pass si solo quedan problemas low o ninguno. Señala cada problema una vez, con la frase concreta y cómo corregirla.`;
 
 /**
- * The verdict follows the rubric from the issues the critic reports: any high or medium issue means revise, even if the
- * model said pass; only low issues means pass, even if it said revise. A model 'block' is always kept.
+ * The stricter of the model's verdict and the rubric applied to its issues: a high or medium issue means revise even if the
+ * model said pass. Severities can only tighten the verdict, never loosen it (independent review H-C).
  */
 export function criticVerdict(answer: { verdict: CriticReview['verdict']; issues: CriticReview['issues'] }): CriticReview['verdict'] {
-  if (answer.verdict === 'block') return 'block';
-  return answer.issues.some((i) => i.severity === 'high' || i.severity === 'medium') ? 'revise' : 'pass';
+  const order = ['pass', 'revise', 'block'] as const;
+  const bySeverity = answer.issues.some((i) => i.severity === 'high' || i.severity === 'medium') ? 'revise' : 'pass';
+  return order[Math.max(order.indexOf(answer.verdict), order.indexOf(bySeverity))];
 }
 
 // ---- prompts & schemas --------------------------------------------------------------------------
@@ -486,6 +488,9 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
         pipelineVersion: PIPELINE_VERSION, state: 'draft', bundle, bundleHash: hashBundle(bundle), draftMarkdown: d.markdown, draftHash: hashText(d.markdown),
         ...(critic ? { critic } : {}), cost: ledger.summary,
         lastVerifiedAt: verifiedOn.toISOString(), nextReviewAt: nextReviewAt(bundle, d.markdown)?.toISOString(), version: 1, backend,
+        // Signed with the verdict: the reviewed excerpt/metadata, and every candidate a critic blocked in this job.
+        metadataHash: metadataHash(d),
+        ...(run.blockedCandidates?.length ? { blockedCandidates: run.blockedCandidates.map((b) => ({ draftHash: b.draftHash, bundleHash: b.bundleHash, verdict: b.critic.verdict })) } : {}),
       };
       const cms: CmsDraft = {
         title: d.title, slug: topic.slug, status: 'draft', origin: 'ai-assisted', excerpt: d.excerpt, content: html,
@@ -545,37 +550,35 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
 
       const answer = await ask<{ verdict: CriticReview['verdict']; issues: CriticReview['issues'] }>('critic',
         `Eres el crítico independiente. No escribiste este texto. Lo contrastas solo con el paquete de evidencias.\n${EDITORIAL_RUBRIC}\n${CRITIC_SEVERITY}`,
-        `Intención del lector: ${topic.intent}\n\nAfirmaciones verificadas:\n${claimDigest(usable)}\n\nAfirmaciones descartadas:\n${bundle.claims.filter((c) => c.status !== 'supported').map((c) => `- ${c.id} (${c.status}): ${c.text}`).join('\n') || '(ninguna)'}\n\nBorrador:\n${draft.markdown}`,
+        `Intención del lector: ${topic.intent}\n\nAfirmaciones verificadas:\n${claimDigest(usable)}\n\nAfirmaciones descartadas:\n${bundle.claims.filter((c) => c.status !== 'supported').map((c) => `- ${c.id} (${c.status}): ${c.text}`).join('\n') || '(ninguna)'}
+${run.blockedCandidates?.length ? `\nUn candidato anterior de este artículo se bloqueó por falta de evidencias. Comprueba que este borrador resuelve esos problemas; si no, vuelve a bloquearlo:\n${run.blockedCandidates.flatMap((b) => b.critic.issues).map((i) => `- (${i.severity}) ${i.message}`).join('\n')}\n` : ''}
+Resumen: ${draft.excerpt}\nmetaTitle: ${draft.metaTitle}\nmetaDescription: ${draft.metaDescription}\n(El resumen y los metadatos se publican con el texto: revísalos con el mismo criterio.)\n\nBorrador:\n${draft.markdown}`,
         CRITIC_SCHEMA);
       const critic: CriticReview = { model: chosen.critic.route.model, verdict: criticVerdict(answer), modelVerdict: answer.verdict, issues: answer.issues, bundleHash, draftHash, reviewedAt: now().toISOString() };
       const verdict = critic;
 
       const { provenance, cms } = assemble(draft, verifiedOn, critic);
       if (deps.signingKey) provenance.signature = signProvenance(provenance, deps.signingKey);
+      // The excerpt and metadata are reviewed and signed with the text (metadataHash), so nothing rewrites them after this.
       let findings = await publisherFindings(cms, provenance, deps, taken, verifiedOn);
       Object.assign(run, { draft: cms, provenance, findings, value: measureValue(draft.markdown, bundle) });
-      let blocking = findings.filter((f) => f.severity === 'block');
+      const blocking = findings.filter((f) => f.severity === 'block');
       const revision: RevisionRecord = { attempt: loop, draftHash, verdict: verdict.verdict, issues: verdict.issues.length, blocking: blocking.map((f) => f.code), action: 'pass', gateFixes, ...(repaired ? { repaired } : {}) };
       run.revisions.push(revision);
-      // A passed text held only by a figure in its excerpt or metadata: repair those fields, not the reviewed text.
-      if (verdict.verdict === 'pass' && blocking.length && blocking.every((f) => f.code === 'metadata-figure-not-in-claims' && !/^title:/.test(f.message))) {
-        const fixed = await repairMetadata(draft, blocking.map((f) => f.message));
-        Object.assign(cms, { excerpt: fixed.excerpt, metaTitle: fixed.metaTitle, metaDescription: fixed.metaDescription });
-        findings = run.findings = await publisherFindings(cms, provenance, deps, taken, verifiedOn);
-        blocking = findings.filter((f) => f.severity === 'block');
-        revision.repaired = 'metadata';
-        revision.blocking = blocking.map((f) => f.code);
-      }
 
       // Discarded claims the critic points at, by claimId or named in its message ("c1, c2 están descartadas").
       const discarded = bundle.claims.filter((c) => c.status !== 'supported');
-      const evidenceIssues = verdict.issues.filter((i) => (i.claimId && !usable.some((c) => c.id === i.claimId))
-        || discarded.some((c) => new RegExp(`(?<![\\w-])${c.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w-])`).test(i.message)));
-      // A critic 'block' is final for this candidate: its draft and signed provenance are kept as they are. When the block
-      // is about missing evidence and research is left, a NEW candidate starts from new evidence and a new critic review.
+      const isEvidenceIssue = (i: CriticReview['issues'][number]) => Boolean(i.claimId && !usable.some((c) => c.id === i.claimId))
+        || discarded.some((c) => new RegExp(`(?<![\\w-])${c.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w-])`).test(i.message));
+      const evidenceIssues = verdict.issues.filter(isEvidenceIssue);
+      // A critic 'block' is final for this candidate: its draft and signed provenance are kept as they are. Only a block whose
+      // every serious issue is missing evidence (review M-A), with research left, starts a NEW candidate from new evidence;
+      // the next critic is told about the block and the block stays in the signed provenance.
       if (verdict.verdict === 'block') {
         revision.action = 'block';
-        if (!evidenceIssues.length || loop >= limits.maxReviewLoops || researchCalls >= limits.maxResearchCalls) return finish(run, 'blocked', 'el crítico bloqueó el borrador');
+        const serious = verdict.issues.filter((i) => i.severity !== 'low');
+        const recoverable = serious.length > 0 && serious.every(isEvidenceIssue);
+        if (!recoverable || loop >= limits.maxReviewLoops || researchCalls >= limits.maxResearchCalls) return finish(run, 'blocked', 'el crítico bloqueó el borrador');
         run.blockedCandidates = [...(run.blockedCandidates ?? []), { draftHash, bundleHash, critic, signature: provenance.signature }];
         revision.action = 'new-candidate';
         await reResearch(evidenceIssues.map((i) => `- ${i.claimId ? `${i.claimId}: ` : ''}${i.message}`).join('\n'));

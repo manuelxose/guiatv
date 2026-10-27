@@ -22,7 +22,7 @@ test('pipeline: a researched, verified and independently reviewed draft is appro
   assert.equal(run.cost.usd, 0.116); // 4 × (2000×4 + 800×20)/1e6 + 2 searches × 0.01
   assert.equal(run.cost.sourceFetches, 4);
   // The stored provenance re-validates on its own (what the CMS approval endpoint does).
-  assert.deepEqual(evaluateEvidence({ content: run.draft!.content, author: { name: run.draft!.authorName } }, run.provenance!, NOW), []);
+  assert.deepEqual(evaluateEvidence({ content: run.draft!.content, author: { name: run.draft!.authorName }, excerpt: run.draft!.excerpt, seo: { metaTitle: run.draft!.metaTitle, metaDescription: run.draft!.metaDescription } }, run.provenance!, NOW), []);
 });
 
 test('pipeline: seed pages are fetched for the research agent and kept as sources with their own publisher', async () => {

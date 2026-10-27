@@ -98,9 +98,17 @@ export interface EditorialProvenance {
   backend?: string;
   /** Generated images (docs/adr/0001 Decision 2); their hashes are part of the signed attestation. */
   images?: ImageAsset[];
+  /** M11-E2b: hash of the excerpt, metaTitle and metaDescription the critic reviewed (metadataHash()); signed. */
+  metadataHash?: string;
+  /** M11-E2b: earlier candidates of this job a critic blocked for missing evidence; signed, so the block stays visible. */
+  blockedCandidates?: Array<{ draftHash: string; bundleHash: string; verdict: string }>;
   /** signProvenance() by the pipeline runner. */
   signature?: string;
 }
+
+/** The reviewed reader-facing fields outside the markdown, as the CMS stores them (trimmed). */
+export const metadataHash = (m: { excerpt?: string; metaTitle?: string; metaDescription?: string }) =>
+  hashText(JSON.stringify([m.excerpt, m.metaTitle, m.metaDescription].map((v) => String(v ?? '').trim())));
 
 /** An AI-generated picture: provenance only, the bytes live in media storage under `url`. */
 export interface ImageAsset {
@@ -204,33 +212,50 @@ export function legalRefsIn(text: string): LegalRef[] {
     numbers: numbersIn(m[0]), article: m[1], apartado: m[2], id: m[3],
   }));
 }
-// Spanish number words, as laws write figures ("ciento cuarenta y cuatro minutos"). "un/una/uno" are left out: articles.
-const NUMBER_WORD_VALUES: Readonly<Record<string, number>> = Object.freeze({
-  dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, trece: 13,
-  catorce: 14, quince: 15, dieciséis: 16, dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19, veinte: 20,
-  veintiuno: 21, veintiún: 21, veintidós: 22, veintidos: 22, veintitrés: 23, veintitres: 23, veinticuatro: 24, veinticinco: 25,
-  veintiséis: 26, veintiseis: 26, veintisiete: 27, veintiocho: 28, veintinueve: 29, treinta: 30, cuarenta: 40, cincuenta: 50,
-  sesenta: 60, setenta: 70, ochenta: 80, noventa: 90, cien: 100, ciento: 100, doscientos: 200, doscientas: 200, trescientos: 300,
-  trescientas: 300, cuatrocientos: 400, cuatrocientas: 400, quinientos: 500, quinientas: 500, seiscientos: 600, seiscientas: 600,
-  setecientos: 700, setecientas: 700, ochocientos: 800, ochocientas: 800, novecientos: 900, novecientas: 900,
+// Spanish number words, as laws write figures ("ciento cuarenta y cuatro minutos"), by grammatical slot.
+const UNIT_WORDS: Readonly<Record<string, number>> = Object.freeze({ dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9 });
+const SMALL_WORDS: Readonly<Record<string, number>> = Object.freeze({
+  diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciséis: 16, dieciseis: 16, diecisiete: 17, dieciocho: 18,
+  diecinueve: 19, veinte: 20, veintiuno: 21, veintiún: 21, veintiuna: 21, veintidós: 22, veintidos: 22, veintitrés: 23, veintitres: 23,
+  veinticuatro: 24, veinticinco: 25, veintiséis: 26, veintiseis: 26, veintisiete: 27, veintiocho: 28, veintinueve: 29,
 });
+const TENS_WORDS: Readonly<Record<string, number>> = Object.freeze({ treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90 });
+const HUNDRED_WORDS: Readonly<Record<string, number>> = Object.freeze({
+  cien: 100, ciento: 100, doscientos: 200, doscientas: 200, trescientos: 300, trescientas: 300, cuatrocientos: 400, cuatrocientas: 400,
+  quinientos: 500, quinientas: 500, seiscientos: 600, seiscientas: 600, setecientos: 700, setecientas: 700, ochocientos: 800,
+  ochocientas: 800, novecientos: 900, novecientas: 900,
+});
+// "un/uno/una" is 1 only inside a number ("treinta y un", "ciento un", "mil y una"); alone it is an article.
+const ONE_WORDS = new Set(['un', 'uno', 'una']);
 /**
  * M11-E2b: the numbers a text spells out ("setenta y dos" → "72", "dos mil veintidós" → "2022"). Used only on verified
- * quotes, so a claim may state in digits what its quote states in words; nothing else is relaxed.
+ * quotes, so a claim may state in digits what its quote states in words. Strict grammar (independent review H-A): "y"
+ * joins only tens + unit, punctuation ends a number, and two numbers side by side ("dos y tres", "tres, cuatro") stay two.
  */
 export function spelledNumbers(text: string): string[] {
   const out: string[] = [];
   let total = 0;
   let current = 0;
-  let open = false;
-  let previous = '';
-  const close = () => { if (open) out.push(String(total + current)); total = 0; current = 0; open = false; };
-  for (const word of String(text).toLowerCase().normalize('NFC').split(/[^a-záéíóúüñ]+/).filter(Boolean)) {
-    if (word === 'ciento' && previous === 'por') { previous = word; continue; } // "por ciento" is a unit, not 100
-    if (NUMBER_WORD_VALUES[word] !== undefined) { current += NUMBER_WORD_VALUES[word]; open = true; }
-    else if (word === 'mil') { total += (open && current ? current : 1) * 1000; current = 0; open = true; }
-    else if (!(word === 'y' && open)) close();
-    previous = word;
+  // S = no number open; H/T/U = last word was hundreds/tens/units; TY = tens + "y" (or "mil y"); M = after "mil".
+  let state: 'S' | 'H' | 'T' | 'TY' | 'U' | 'M' = 'S';
+  const close = () => { if (state !== 'S') out.push(String(total + current)); total = 0; current = 0; state = 'S'; };
+  const tokens = String(text).toLowerCase().normalize('NFC').match(/[a-záéíóúüñ]+|\S/g) ?? [];
+  for (let i = 0; i < tokens.length; i++) {
+    const [word, next, previous] = [tokens[i], tokens[i + 1] ?? '', tokens[i - 1] ?? ''];
+    const fresh = state === 'S' || state === 'M';
+    const nextIsUnit = UNIT_WORDS[next] !== undefined || ONE_WORDS.has(next);
+    if (word === 'ciento' && previous === 'por') { close(); continue; } // "por ciento" is a unit, not 100
+    if (HUNDRED_WORDS[word] !== undefined && fresh) { current += HUNDRED_WORDS[word]; state = 'H'; continue; }
+    if (TENS_WORDS[word] !== undefined && (fresh || state === 'H')) { current += TENS_WORDS[word]; state = 'T'; continue; }
+    if (SMALL_WORDS[word] !== undefined && (fresh || state === 'H')) { current += SMALL_WORDS[word]; state = 'U'; continue; }
+    if (UNIT_WORDS[word] !== undefined && (fresh || state === 'H' || state === 'TY')) { current += UNIT_WORDS[word]; state = 'U'; continue; }
+    if (ONE_WORDS.has(word) && (state === 'H' || state === 'TY')) { current += 1; state = 'U'; continue; }
+    if (word === 'y' && (state === 'T' || state === 'M') && nextIsUnit) { state = 'TY'; continue; }
+    if (word === 'mil' && total === 0 && state !== 'TY') { total = (state === 'S' ? 1 : current) * 1000; current = 0; state = 'M'; continue; }
+    const wasOpen = state !== 'S';
+    close();
+    // A number word that could not continue the previous number starts the next one.
+    if (wasOpen && (HUNDRED_WORDS[word] ?? TENS_WORDS[word] ?? SMALL_WORDS[word] ?? UNIT_WORDS[word]) !== undefined || (wasOpen && word === 'mil')) i--;
   }
   close();
   return out;
@@ -290,9 +315,11 @@ export function verifyBundle(bundle: EvidenceBundle, snapshots: ReadonlyMap<stri
       const legalRefs = refs.filter((ref) => quotes.some((q) => {
         const raw = q.verified ? snapshots.get(q.sourceId) : undefined;
         if (!raw) return false;
-        // The verified quote itself names this provision ("salvo lo previsto en el artículo 137"): the source says it.
-        if (legalRefsIn(q.quote).some((r) => r.key === ref.key)) return true;
         if (ref.id) return ownLaw(raw) === ref.key;
+        // The verified quote itself names this article ("salvo lo previsto en el artículo 137"), and of the same law: the
+        // one the quote names, else the page's own; the claim's law, else the page's own (independent review H-B).
+        const inQuote = legalRefsIn(q.quote);
+        if (inQuote.some((r) => r.key === ref.key) && (inQuote.find((r) => r.id)?.key ?? ownLaw(raw)) === (law ?? ownLaw(raw))) return true;
         if (law && ownLaw(raw) !== law) return false;
         return provisionTexts(raw, ref.article!, ref.apartado).some((p) => containsQuote(normalizeForMatch(p), normalizeForMatch(q.quote)));
       })).map((ref) => ref.key);
@@ -480,7 +507,9 @@ const linkTargets = (html: string) =>
 const attestation = (p: EditorialProvenance) =>
   [p.pipelineVersion, p.backend ?? '', p.bundleHash, p.draftHash, p.critic?.verdict ?? '', p.critic?.bundleHash ?? '', p.critic?.draftHash ?? '',
     // Appended only when present, so provenance signed before images existed still verifies.
-    ...(p.images?.length ? [p.images.map((i) => `${i.provider}:${i.sha256}:${i.url}`).join(',')] : [])].join('|');
+    ...(p.images?.length ? [p.images.map((i) => `${i.provider}:${i.sha256}:${i.url}`).join(',')] : []),
+    ...(p.metadataHash ? [`meta:${p.metadataHash}`] : []),
+    ...(p.blockedCandidates?.length ? [`blocked:${p.blockedCandidates.map((b) => `${b.draftHash}/${b.bundleHash}/${b.verdict}`).join(',')}`] : [])].join('|');
 export const signProvenance = (p: EditorialProvenance, key: string) => createHmac('sha256', key).update(attestation(p)).digest('hex');
 export function provenanceSignatureValid(p: EditorialProvenance, key: string | undefined): boolean {
   if (!key || !p.signature || !/^[0-9a-f]{64}$/.test(p.signature)) return false;
@@ -527,6 +556,10 @@ export function evaluateEvidence(post: EvidencePost, provenance: EditorialProven
 
   if (hashBundle(provenance.bundle) !== provenance.bundleHash) add('block', 'evidence-tampered', 'El paquete de evidencias no coincide con su hash');
   if (hashText(draftMarkdown) !== provenance.draftHash) add('block', 'draft-tampered', 'El borrador no coincide con su hash');
+  // M11-E2b: the excerpt and metadata must be the ones the critic reviewed (signed), not a later rewrite.
+  if (provenance.metadataHash && metadataHash({ excerpt: post.excerpt, metaTitle: post.seo?.metaTitle, metaDescription: post.seo?.metaDescription }) !== provenance.metadataHash) {
+    add('block', 'metadata-not-reviewed', 'El resumen o los metadatos no son los que revisó el crítico');
+  }
   // The published HTML is exactly the reviewed draft plus the standard disclosure: nothing added, no figure changed.
   const body = html.replace(AI_DISCLOSURE, ' ');
   if (visibleTokens(body) !== visibleTokens(visibleMarkdown(stripFences(draftMarkdown).replace(/^#\s.*$/m, '')))) {

@@ -117,7 +117,7 @@ test('M11-E2 revise loop: an unsupported claim sends the job back to research, a
   assert.equal(run.provenance!.critic!.draftHash, hashText(second));
   assert.equal(run.provenance!.critic!.bundleHash, run.provenance!.bundleHash);
   assert.notEqual(run.revisions![0].draftHash, run.provenance!.draftHash);
-  assert.deepEqual(evaluateEvidence({ content: run.draft!.content, author: { name: run.draft!.authorName } }, run.provenance!, NOW), []);
+  assert.deepEqual(evaluateEvidence({ content: run.draft!.content, author: { name: run.draft!.authorName }, excerpt: run.draft!.excerpt, seo: { metaTitle: run.draft!.metaTitle, metaDescription: run.draft!.metaDescription } }, run.provenance!, NOW), []);
   // The critic never sees its previous findings or the writer's instructions: each round is an independent review.
   for (const c of m.calls.filter((x) => x.role === 'critic')) assert.doesNotMatch(c.prompt, /c5 no está verificada|Reglas: markdown/);
 });
@@ -155,14 +155,18 @@ test('M11-E2 SEO repair: a passed text held only by a figure in its excerpt gets
 });
 
 test('M11-E2b rubric: writer and critic share one standard, and the verdict follows the severities the critic reports', async () => {
-  assert.equal(criticVerdict({ verdict: 'revise', issues: [{ severity: 'low', message: 'orden' }] }), 'pass', 'only polish left');
+  // Severities only tighten (review H-C): a model 'revise' is never turned into a pass.
+  assert.equal(criticVerdict({ verdict: 'revise', issues: [{ severity: 'low', message: 'c3 no está respaldada' }] }), 'revise');
+  assert.equal(criticVerdict({ verdict: 'revise', issues: [] }), 'revise');
   assert.equal(criticVerdict({ verdict: 'pass', issues: [{ severity: 'medium', message: 'inferencia' }] }), 'revise', 'a medium issue is never waved through');
+  assert.equal(criticVerdict({ verdict: 'pass', issues: [{ severity: 'low', message: 'orden' }] }), 'pass');
   assert.equal(criticVerdict({ verdict: 'block', issues: [] }), 'block');
-  const lowOnly = { verdict: 'revise', issues: [{ severity: 'low', message: 'podría ordenar mejor las secciones' }] };
-  const m = scripted({ research: [research], evidence: [{ conflicts: [] }], editorial: [draft()], critic: [lowOnly] });
+  const misgraded = { verdict: 'pass', issues: [{ severity: 'high', message: 'la hora no está en c1' }] };
+  const m = scripted({ research: [research], evidence: [{ conflicts: [] }], editorial: [draft(), draft(`${GOOD}\n\nUna versión distinta.`)], critic: [misgraded, pass] });
   const run = await runEditorialJob(topic, deps(m.model));
   assert.equal(run.state, 'approved-by-policy');
-  assert.deepEqual([run.provenance!.critic!.verdict, run.provenance!.critic!.modelVerdict], ['pass', 'revise'], 'both are kept for the audit');
+  assert.deepEqual(run.revisions!.map((r) => r.verdict), ['revise', 'pass'], 'the high issue held the first version although the model said pass');
+  assert.deepEqual([run.provenance!.critic!.verdict, run.provenance!.critic!.modelVerdict], ['pass', 'pass']);
   const [writer] = m.calls.filter((c) => c.role === 'editorial');
   const [critic] = m.calls.filter((c) => c.role === 'critic');
   assert.ok(writer.system.includes(EDITORIAL_RUBRIC) && critic.system.includes(EDITORIAL_RUBRIC), 'the same rubric on both sides');
@@ -176,18 +180,29 @@ test('M11-E2b rubric: writer and critic share one standard, and the verdict foll
 test('M11-E2b spelled figures (live run 4): a law writes "ciento cuarenta y cuatro minutos"; the claim may say 144, nothing else', () => {
   assert.deepEqual(spelledNumbers('a) Máximo de ciento cuarenta y cuatro minutos entre las 6:00 y las 18:00 horas.'), ['144']);
   assert.deepEqual(spelledNumbers('setenta y dos minutos; dos mil veintidós; el veinte por ciento; una vez; treinta y los demás'), ['72', '2022', '20', '30']);
-  const ads = 'Artículo 137. Límite cuantitativo. 1. Podrán emitir con estos límites: a) Máximo de ciento cuarenta y cuatro minutos entre las 6:00 y las 18:00 horas. '
-    + 'Artículo 142. Servicios a petición. 1. Tienen derecho a emitir comunicaciones comerciales, salvo lo previsto en el artículo 137.';
+  // Review H-A: separate numbers stay separate; "un/una" counts only inside a number.
+  for (const [text, expected] of [
+    ['entre dos y tres horas', ['2', '3']], ['los apartados dos y tres', ['2', '3']], ['tres, cuatro y cinco', ['3', '4', '5']],
+    ['tiene dos. Tres canales más', ['2', '3']], ['treinta y un días', ['31']], ['ciento un canales', ['101']],
+    ['dos mil tres mil', ['2003', '1000']], ['mil y una noches', ['1001']], ['un canal y una cadena', []], ['veinte treinta', ['20', '30']],
+  ] as const) assert.deepEqual(spelledNumbers(text), expected, text);
+  const ads = 'Ley 13/2022, de 7 de julio. Artículo 137. Límite cuantitativo. 1. Podrán emitir con estos límites: a) Máximo de ciento cuarenta y cuatro minutos entre las 6:00 y las 18:00 horas. '
+    + 'Artículo 142. Servicios a petición. 1. Conforme al artículo 7 de la Ley 7/2010 los prestadores deberán informar. 2. Tienen derecho a emitir comunicaciones comerciales, salvo lo previsto en el artículo 137.';
   const b: EvidenceBundle = { ...bundleOf([]), sources: [{ ...bundleOf([]).sources[0], contentHash: hashText(ads) }], claims: [
     { id: 'spelled', text: 'Como máximo 144 minutos de publicidad entre las 6:00 y las 18:00 (art. 137)', volatility: 'stable', quotes: [{ sourceId: 's1', quote: 'Máximo de ciento cuarenta y cuatro minutos entre las 6:00 y las 18:00 horas' }] },
     { id: 'wrong-figure', text: 'Como máximo 145 minutos entre las 6:00 y las 18:00', volatility: 'stable', quotes: [{ sourceId: 's1', quote: 'Máximo de ciento cuarenta y cuatro minutos entre las 6:00 y las 18:00 horas' }] },
     // The quote itself names the provision: located, even though it lies in art. 142.
     { id: 'named-in-quote', text: 'A los servicios a petición no se les aplica el artículo 137 (art. 142)', volatility: 'stable', quotes: [{ sourceId: 's1', quote: 'salvo lo previsto en el artículo 137' }] },
+    // Review H-B: an article the quote names for another law is not that article of the claim's law, and a law the quote
+    // merely cites is not the page's law.
+    { id: 'other-law-article', text: 'El artículo 7 de la Ley 13/2022 obliga a informar a los prestadores', volatility: 'stable', quotes: [{ sourceId: 's1', quote: 'Conforme al artículo 7 de la Ley 7/2010 los prestadores deberán informar' }] },
+    { id: 'cited-law', text: 'La Ley 7/2010 obliga a los prestadores a informar', volatility: 'stable', quotes: [{ sourceId: 's1', quote: 'Conforme al artículo 7 de la Ley 7/2010 los prestadores deberán informar' }] },
   ] };
   const by = Object.fromEntries(verifyBundle(b, new Map([['s1', ads]])).claims.map((c) => [c.id, c]));
   assert.equal(by.spelled.status, 'supported', by.spelled.note);
   assert.deepEqual([by['wrong-figure'].status, by['wrong-figure'].note], ['unverified', 'cifras sin respaldo en las citas: 145']);
   assert.deepEqual([by['named-in-quote'].status, by['named-in-quote'].legalRefs], ['supported', ['art. 137', 'art. 142']]);
+  for (const id of ['other-law-article', 'cited-law']) assert.equal(by[id].status, 'unverified', id);
 });
 
 test('M11-E2b recoverable block (live run 4): a critic block over discarded evidence starts a new candidate; the blocked one is kept', async () => {
@@ -205,7 +220,22 @@ test('M11-E2b recoverable block (live run 4): a critic block over discarded evid
   assert.deepEqual([blocked.critic.verdict, blocked.draftHash], ['block', run.revisions![0].draftHash]);
   assert.notEqual(blocked.signature, run.provenance!.signature, 'the blocked signature is never reused');
   assert.equal(m.calls.filter((c) => c.role === 'research').length, 2);
-  // Without evidence in question, a block stays final (see the retry-policy test).
+  // The block stays visible: signed into the final provenance, and told to the next critic.
+  assert.deepEqual(run.provenance!.blockedCandidates, [{ draftHash: blocked.draftHash, bundleHash: blocked.bundleHash, verdict: 'block' }]);
+  assert.match(m.calls.filter((c) => c.role === 'critic')[1].prompt, /candidato anterior[\s\S]*Sin c5 descartada/);
+  // Review M-A: a block with any serious non-evidence issue stays final, even if it also names a discarded claim.
+  const mixed = { verdict: 'block', issues: [{ severity: 'high', message: 'Riesgo de difamación.' }, { severity: 'high', message: 'Además c5 está descartada.' }] };
+  const final = await runEditorialJob(topic, deps(scripted({ research: [research, more], evidence: [{ conflicts: [] }], editorial: [draft()], critic: [mixed] }).model));
+  assert.deepEqual([final.state, final.revisions!.map((r) => r.action)], ['blocked', ['block']]);
+});
+
+test('M11-E2b metadata are reviewed and signed (review M-B): an excerpt changed after the critic blocks publication', async () => {
+  const m = scripted({ research: [research], evidence: [{ conflicts: [] }], editorial: [draft()], critic: [pass] });
+  const run = await runEditorialJob(topic, deps(m.model));
+  assert.match(m.calls.find((c) => c.role === 'critic')!.prompt, /Resumen: Cuándo emite La 2[\s\S]*metaDescription: /);
+  const post = { content: run.draft!.content, author: { name: run.draft!.authorName }, excerpt: run.draft!.excerpt, seo: { metaTitle: run.draft!.metaTitle, metaDescription: run.draft!.metaDescription } };
+  assert.deepEqual(evaluateEvidence(post, run.provenance!, NOW), []);
+  assert.deepEqual(evaluateEvidence({ ...post, excerpt: 'Gratis y en exclusiva: El Padrino en La 2.' }, run.provenance!, NOW).map((f) => f.code), ['metadata-not-reviewed']);
 });
 
 test('M11-E2 failed retrieval: an unreadable page is dropped from the evidence and recorded, instead of blocking every draft', async () => {
