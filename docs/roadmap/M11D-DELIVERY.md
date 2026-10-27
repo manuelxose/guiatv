@@ -204,3 +204,23 @@ Neither canary article passed the independent critic within `maxReviewLoops` (2,
 
 ## 11. Next milestone
 First, close M11-D's open gates: the owner actions in §8, then the live canary and the supervised publication (no new code expected). After that comes **M12: Controlled programmatic SEO**, which depends on M09, M10 and M11-B and is still NO-GO in `GUIATV-MILESTONES.md`. M12 has not started.
+
+## 12. Follow-up (2026-10-27, owner-directed)
+- **PR #99** (`5c332c0`): runner reaches Claude through the subscription gateway (`ANTHROPIC_MODEL_PREFIX=cc/`) and refuses an answer from any other model.
+- **PR #100** (`e4f212a`), deployed as **`20261027175818`** (deploy run 40545738035; `release.json` `gitSha e4f212a`; API active, `NRestarts=0`):
+  - **Articles per day are set from the Admin at any time.**
+    - Stored in `editorial_settings.dailyLimit` (1..10, recommended **3**).
+    - Set with `POST /v2/admin/editorial/policy/daily-limit`, which needs the human review key and is audited.
+    - The limit governs policy publications and, with `--report`, pipeline runs. If the runner cannot read the Admin, it does not run.
+    - USD caps stay as a non-binding estimate (subscription billing).
+  - **Critic.** A `revise` is a `human` finding that a named reviewer must acknowledge. A `block` stays final. Policy publication refuses both.
+- **Production checks:**
+  - `/`, `/guias`, `/politica-editorial` and `/sitemap.xml` return 200.
+  - A draft cover returns 404, and the Admin without a key returns 401.
+  - The daily limit is 3, and setting it with the runner's policy key returns 403.
+  - 10 public posts, unchanged.
+- **Canary draft saved for review:** `cine-en-abierto-tdt-miercoles-28-octubre-2026`, post `6ae0d88eab70f0c81c342315`.
+  - Status `draft` / `unreviewed`. Signed with the server key, backend `anthropic`.
+  - Findings `human:critic-rejected` and `human:unverified-claims`.
+  - Policy approval returns 403. The public API returns 0 items and `/guias/<slug>` returns 404.
+- **PUBLICATION PASS** now waits only for the named reviewer: read the Admin detail, then `approve` with the human key, acknowledging `critic-rejected,unverified-claims` if accepted. There is no cover (no trusted image provider). The programmes air on 28 Oct, so the article is time-bound.
