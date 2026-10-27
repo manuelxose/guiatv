@@ -15,7 +15,7 @@ function fake(replies: unknown[]) {
   const client = { messages: { stream: (body: any) => { sent.push(structuredClone(body)); return { finalMessage: async () => replies.shift() }; } } };
   return { client: client as unknown as Pick<Anthropic, 'messages'>, sent };
 }
-const call = (over: Partial<ModelCall> = {}): ModelCall => ({ role: 'critic', model: 'claude-opus-5-5', effort: 'high', system: 's', prompt: 'p', schema: { type: 'object' }, ...over });
+const call = (over: Partial<ModelCall> = {}): ModelCall => ({ role: 'critic', provider: 'anthropic', model: 'claude-opus-5-5', effort: 'high', system: 's', prompt: 'p', schema: { type: 'object' }, ...over });
 
 test('anthropic model: structured output for review roles, usage summed', async () => {
   const f = fake([reply('end_turn', '{"verdict":"pass","issues":[]}')]);
@@ -38,5 +38,7 @@ test('anthropic model: research uses web tools, resumes paused turns and reads t
 test('anthropic model: refusals and truncation stop the job', async () => {
   await assert.rejects(new AnthropicEditorialModel({ client: fake([reply('refusal', '')]).client }).call(call()), /declined \(cyber\)/);
   await assert.rejects(new AnthropicEditorialModel({ client: fake([reply('max_tokens', '{"a"')]).client }).call(call()), /truncated/);
+  // A role routed to another provider is refused before any API call, never answered by Claude instead.
+  await assert.rejects(new AnthropicEditorialModel({ client: fake([]).client }).call(call({ provider: 'openai' })), /routed to openai/);
   assert.throws(() => parseJson('sin json', true), /no JSON/);
 });

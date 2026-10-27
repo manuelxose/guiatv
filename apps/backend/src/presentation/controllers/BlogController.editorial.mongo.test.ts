@@ -22,9 +22,10 @@ const call = (handler: (req: any, res: any, next: any) => Promise<void>, req: { 
 
 /** A real pipeline run (scripted model, offline sources) turned into the CMS write payload. */
 const KEY = 'test-pipeline-signing-key';
-async function aiPost(slug: string, critic: object = pass, backend = 'anthropic') {
-  const m = scripted({ research: [research], evidence: [{ conflicts: [] }], editorial: [draft(LONG)], critic: [critic] });
-  const run = await runEditorialJob({ ...topic, slug }, deps(m.model, { now: () => new Date(), backend, signingKey: KEY }), { maxArticleUsd: 3, maxResearchCalls: 1, maxSourceFetches: 12, maxRetries: 0, maxReviewLoops: 0, maxDailyArticles: 3, maxConcurrentJobs: 1 });
+// The scripted model stands in for a live provider here; the signature, not the label, is what the gate trusts.
+async function aiPost(slug: string, critic: object = pass, provider = 'anthropic') {
+  const m = scripted({ research: [research], evidence: [{ conflicts: [] }], editorial: [draft(LONG)], critic: [critic] }, undefined, provider);
+  const run = await runEditorialJob({ ...topic, slug }, deps(m.model, { now: () => new Date(), signingKey: KEY }), { maxArticleUsd: 3, maxResearchCalls: 1, maxSourceFetches: 12, maxRetries: 0, maxReviewLoops: 0, maxDailyArticles: 3, maxConcurrentJobs: 1 });
   assert.ok(run.draft && run.provenance);
   const created = await call(controller.createPost, { body: { ...run.draft, editorial: run.provenance } });
   assert.equal(created.code, 201, String(created.error));

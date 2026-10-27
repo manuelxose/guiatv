@@ -35,6 +35,7 @@ import {
   PUBLIC_EDITORIAL_FILTER,
 } from '../../application/services/EditorialReviewPolicy';
 import { EditorialProvenance, evaluateEvidence, provenanceSignatureValid } from '../../application/services/EditorialEvidence';
+import { LIVE_PROVIDERS } from '../../application/services/EditorialAgentPipeline';
 
 const MAX_REVISIONS = 20;
 const MAX_REVISIONS_BYTES = 6 * 1024 * 1024;
@@ -466,7 +467,7 @@ export class BlogController {
         ]);
       }
       // Only provenance the pipeline runner signed, from live models: replayed or hand-made bundles need a person.
-      if (!provenanceSignatureValid(post.editorial, process.env.EDITORIAL_PIPELINE_SIGNING_KEY) || post.editorial.backend !== 'anthropic') {
+      if (!provenanceSignatureValid(post.editorial, process.env.EDITORIAL_PIPELINE_SIGNING_KEY) || !LIVE_PROVIDERS.has(post.editorial.backend ?? '')) {
         throw new ValidationError('Editorial quality gate failed', [
           { field: 'editorial', message: 'Provenance is not signed by the pipeline (live models) — use the named-reviewer approval', value: postId },
         ]);
