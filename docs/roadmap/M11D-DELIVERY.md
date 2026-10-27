@@ -6,8 +6,8 @@ Date: 2026-10-27. Scope: M11-D only.
 | State | Result |
 |---|---|
 | ENGINEERING PASS | **PASS**. Released as `20261027160344` @ `c06a09b`. The three activation blockers are closed, the real CLI was exercised, and an independent review found nothing left at HIGH or above |
-| LIVE CANARY PASS | **PASS (execution)**. One signed job ran with real Claude through the owner's subscription gateway. The pipeline worked end to end and the gates **held the article** (critic `revise` after 3 loops; one source 404). $0.80 at list price (§5) |
-| PUBLICATION PASS | **BLOCKED**. The canary produced no publishable article. Nothing was published |
+| LIVE CANARY PASS | **PASS (execution)**. Two signed jobs ran (second one signed with the production key and reported to the production Admin) with real Claude through the owner's subscription gateway. The pipeline worked end to end and the gates **held the article** (critic `revise` after 3 drafts each). $0.80 + $0.67 at list price (§5) |
+| PUBLICATION PASS | **BLOCKED**. No canary draft passed the critic, so none could be saved for review. Nothing was published. Owner decision needed (§8.3) |
 | AUTOMATION READY | **NO**. A canary article that passes the gates, a supervised publication, the policy-page update and a server `EDITORIAL_POLICY_KEY` are still missing |
 | AUTOMATION ENABLED | **NO**. `EDITORIAL_POLICY_PUBLISHING` was not changed |
 
@@ -104,8 +104,38 @@ Date: 2026-10-27. Scope: M11-D only.
 - **Spend journal:** `reserve` $3, then `settle` $0.802401. The lock was released.
 - The run file is in `artifacts/m11d/runs/` (untracked).
 
+### Server keys and second canary (2026-10-27, owner-authorised)
+**Server keys.**
+- Production `/etc/guiatv/api.env` had `ANALYTICS_ADMIN_KEY` and `EDITORIAL_REVIEW_KEY`, but no signing key or policy key.
+- I backed it up to `api.env.bak-m11d-<ts>`, then appended two new random keys, sent over stdin and never printed:
+  - `EDITORIAL_PIPELINE_SIGNING_KEY`
+  - `EDITORIAL_POLICY_KEY`
+- I restarted `guiatv-api`: active, `NRestarts=0`, health 200.
+- Runner copies are in `~/.guiatv/runner.env`, outside Git.
+- `release.json` read over SSH: `20261027160344` / `c06a09b`.
+
+**Checks after the restart.**
+- The Admin shows `signingKeyConfigured true`.
+- `approve-by-policy` with the policy key returns **403** "Policy publishing is disabled".
+- `policy/resume` with the policy key returns **403**.
+
+**Second canary.**
+- Topic `cine-en-abierto-tdt-miercoles-28-octubre-2026`, with 3 live internal sources: *Ocean's 13*, *La trampa*, *La protectora*.
+- Run with `--report` to production.
+- First run, daily cap $3: $0.80 had already been spent, so the job was **held before any call** ("sin margen…", settled $0). The fail-closed headroom worked as designed.
+- Rerun, daily cap $4, still $3 per job: **blocked** after 3 drafts. The critic asked for `revise` (7 medium/low issues on nuances, e.g. "heredera consentida" states as fact what the synopsis only implies).
+  - All 3 sources were retrieved.
+  - Claims: 14 in total, 7 supported.
+  - Findings: block `critic-rejected`, human `unverified-claims`.
+  - Draft: "Robos o guardaespaldas: tres películas y cómo elegir entre ellas", about 435 words.
+  - Signature valid with the **server** key.
+  - $0.673; 60,343 input and 21,852 output tokens.
+- The production Admin shows both jobs with their costs, today's spend of $0.6732, 0 AI posts, and policy off.
+
 ## 6. Article, review and publication
-The canary article was blocked by the gates, so it was neither saved to the CMS nor reviewed, and nothing was published. Production content is unchanged.
+Neither canary article passed the independent critic within `maxReviewLoops` (2, so 3 drafts). `save-draft` refuses blocked runs, so nothing reached the CMS, nothing was reviewed, and nothing was published. Production content is unchanged.
+
+**Finding.** The pipeline works, but with this critic ("pass only if you would publish it as is") it does not converge within 2 revision loops. Whether to change that is an owner decision; the options are in §8.
 
 ## 7. Security findings
 | Sev | Finding | Status |
@@ -121,11 +151,13 @@ The canary article was blocked by the gates, so it was neither saved to the CMS 
 | LOW | Title and meta are not in the signed attestation | Accepted: the runner holds the signing key anyway; the content is bound to `draftHash` |
 
 ## 8. Owner actions
-1. Runner credentials: the subscription gateway with `ANTHROPIC_MODEL_PREFIX=cc/` (after PR #99), plus the **server's** `EDITORIAL_PIPELINE_SIGNING_KEY` and `ANALYTICS_ADMIN_KEY`. Without them, `save-draft` and the Admin's "signed" check cannot work.
-2. Generate `EDITORIAL_POLICY_KEY`, different from every other key. Set it on the server and in the runner. Keep `EDITORIAL_REVIEW_KEY` on the server and with the human reviewer only.
-3. Run the canary again on a topic whose internal sources are all live (the 27–28 Oct topic had one programme that has since gone):
-   `EDITORIAL_MAX_ARTICLE_USD=3 EDITORIAL_MAX_DAILY_USD=3 EDITORIAL_MAX_DAILY=1 node scripts/editorial-agents.mjs run topics.json --report <api> --confirm-production-write`
-4. If the run passes, `save-draft`. A named reviewer then reads the Admin detail view and approves with `approve` (the human key). The cover stays mock or none: `LIVE_IMAGE_PROVIDERS` is empty, so the article is published without a cover or held.
+1. Done: runner credentials (subscription gateway with `cc/`, plus the server's signing key and admin key in `~/.guiatv/runner.env`).
+2. Done: `EDITORIAL_POLICY_KEY` is on the server and in the runner. `EDITORIAL_REVIEW_KEY` stays on the server and with the human reviewer only.
+3. **Decide how a critic-rejected draft can reach a person.** Pick one:
+   - (a) Raise `maxReviewLoops` (more cost per article).
+   - (b) Let `save-draft` store a run blocked only by `critic-rejected` as a draft for human review. Policy publication would stay impossible, because the critic finding blocks it.
+   - (c) Keep the current gates and accept a low yield.
+4. When a run passes, or after (b), run `save-draft`. A named reviewer then reads the Admin detail view and approves with `approve` (the human key). The cover stays mock or none: `LIVE_IMAGE_PROVIDERS` is empty, so the article is published without a cover or held.
 
 ## 9. Release
 - PR **#97**, branch `m11d-activation`, head `e6dab8b`. Commits:
