@@ -1,5 +1,6 @@
 import {
   AI_AUTHOR,
+  aiDisclosure,
   CostLedger,
   CostSummary,
   CriticReview,
@@ -16,6 +17,7 @@ import {
   hashText,
   measureValue,
   nextReviewAt,
+  signProvenance,
   sourceKindFor,
   stripClaimMarkers,
   ValueSignals,
@@ -82,6 +84,10 @@ export interface EditorialDeps {
   /** Publicly approved posts: duplication and link targets. */
   corpus: Array<{ slug: string; content?: string }>;
   now?: () => Date;
+  /** Recorded in the provenance: 'anthropic' for live models, 'replay' for recorded answers. */
+  backend?: string;
+  /** EDITORIAL_PIPELINE_SIGNING_KEY: without it the provenance is unsigned and only a person can approve it. */
+  signingKey?: string;
 }
 
 export interface CmsDraft {
@@ -172,9 +178,6 @@ export function metadataProblems(d: { title: string; metaTitle: string; metaDesc
   return out;
 }
 
-export const aiDisclosure = (verifiedOn: Date) =>
-  `<p data-ai-disclosure><em>Artículo investigado, redactado y revisado por agentes de inteligencia artificial de GuíaTV a partir de las fuentes enlazadas, comprobadas el ${verifiedOn.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Madrid' })}. No contiene pruebas ni experiencias propias. Consulta nuestra <a href="/politica-editorial">política editorial</a>.</em></p>`;
-
 
 // ---- the workflow ------------------------------------------------------------------------------
 
@@ -251,6 +254,7 @@ Si un dato no aparece literal en una fuente consultada, no lo incluyas. Ids de a
     const taken = new Set(deps.corpus.map((p) => p.slug));
     const sourceList = bundle.sources.filter((s) => s.retrievedAt).map((s) => `- ${s.id}: ${s.url} (${s.publisher})`).join('\n');
     let feedback = '';
+    let previous = '';
     for (let loop = 0; loop <= limits.maxReviewLoops; loop++) {
       ledger.count('draftAttempts');
       let draft = await ask<{ title: string; excerpt: string; metaTitle: string; metaDescription: string; markdown: string }>('editorial',
@@ -258,7 +262,7 @@ Si un dato no aparece literal en una fuente consultada, no lo incluyas. Ids de a
         `Tema: ${topic.topic}\nIntención: ${topic.intent}\n\nSolo puedes usar estas afirmaciones verificadas:\n${claimDigest(usable)}\n\nFuentes que puedes enlazar:\n${sourceList}
 \nReglas: markdown con un único "# título"; cada frase, fila de tabla o elemento de lista que dé una cifra, fecha, hora, precio, canal o disponibilidad termina con su marcador [[cN]] (o [[c1,c2]]) antes del punto.
 Nada factual sin marcador. Enlaza las fuentes con su URL exacta. Enlaces internos solo a rutas de guiaprogramaciontv.com que aparezcan en los datos propios. Sin sección de preguntas frecuentes.
-Extensión: la que pida el tema, sin inflarla.${feedback ? `\n\nCorrige estos problemas de la revisión anterior:\n${feedback}` : ''}`,
+Extensión: la que pida el tema, sin inflarla.${feedback ? `\n\nBorrador anterior:\n${previous}\n\nCorrige estos problemas de la revisión anterior y conserva el resto:\n${feedback}` : ''}`,
         DRAFT_SCHEMA);
 
       const metaIssues = metadataProblems(draft, topic.slug, taken);
@@ -284,7 +288,9 @@ Extensión: la que pida el tema, sin inflarla.${feedback ? `\n\nCorrige estos pr
       const provenance: EditorialProvenance = {
         pipelineVersion: PIPELINE_VERSION, state: 'draft', bundle, bundleHash, draftMarkdown: draft.markdown, draftHash, critic, cost: ledger.summary,
         lastVerifiedAt: verifiedOn.toISOString(), nextReviewAt: nextReviewAt(bundle, draft.markdown)?.toISOString(), version: 1,
+        backend: deps.backend ?? 'anthropic',
       };
+      if (deps.signingKey) provenance.signature = signProvenance(provenance, deps.signingKey);
       const cms: CmsDraft = {
         title: draft.title, slug: topic.slug, status: 'draft', origin: 'ai-assisted', excerpt: draft.excerpt, content: html,
         categories: topic.categories, contentType: 'guide', evergreen: topic.volatility === 'stable', targetQuery: topic.intent,
@@ -301,12 +307,14 @@ Extensión: la que pida el tema, sin inflarla.${feedback ? `\n\nCorrige estos pr
         return finish(run, pending.length ? 'verified' : 'approved-by-policy', pending.length ? `requiere confirmación: ${pending.map((f) => f.code).join(', ')}` : undefined);
       }
       ledger.count('reviewFailures');
+      previous = draft.markdown;
       feedback = [...verdict.issues.map((i) => `- (${i.severity}) ${i.claimId ? `${i.claimId}: ` : ''}${i.message}`), ...blocking.map((f) => `- (gate) ${f.code}: ${f.message}`)].join('\n');
     }
     return finish(run, 'blocked', 'agotados los ciclos de revisión');
   } catch (error) {
     if (error instanceof EditorialBudgetExceeded) return finish(run, 'blocked', `límite: ${error.message}`);
-    throw error;
+    // A refusal, truncation or network error holds this article; the batch and its ledger survive.
+    return finish(run, 'blocked', `error: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

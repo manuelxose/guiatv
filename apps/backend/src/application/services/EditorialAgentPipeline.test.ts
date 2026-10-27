@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { runEditorialBatch, runEditorialJob } from './EditorialAgentPipeline';
+import { EditorialModel, runEditorialBatch, runEditorialJob } from './EditorialAgentPipeline';
 import { DEFAULT_EDITORIAL_LIMITS, evaluateEvidence } from './EditorialEvidence';
 import { deps, draft, GOOD, NOW, pass, research, scripted, topic } from './EditorialAgentPipeline.fixtures';
 
@@ -112,4 +112,10 @@ test('batch: daily volume and concurrency limits are enforced', async () => {
   assert.deepEqual(runs.map((r) => r.state), ['approved-by-policy', 'approved-by-policy', 'blocked', 'blocked']);
   assert.equal(runs.filter((r) => /límite diario/.test(r.reason ?? '')).length, 2);
   assert.equal(m.peak() <= 2, true);
+});
+test('review M1: a model error holds that article only; the batch and its ledger survive', async () => {
+  const flaky: EditorialModel = { async call(req) { if (req.role === 'editorial') throw new Error('refused'); return scripted({ research: [research], evidence: [{ conflicts: [] }] }).model.call(req); } };
+  const runs = await runEditorialBatch([topic, { ...topic, slug: `${topic.slug}-2` }], deps(flaky));
+  assert.deepEqual(runs.map((r) => [r.state, r.reason]), [['blocked', 'error: refused'], ['blocked', 'error: refused']]);
+  assert.equal(runs[0].cost.entries.length, 2, 'research and evidence calls stay on the ledger');
 });
