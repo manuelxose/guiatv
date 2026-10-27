@@ -407,6 +407,7 @@ Details: [M11C-DELIVERY.md](M11C-DELIVERY.md), [ADR 0001](../adr/0001-editorial-
 
 Details: [M12-ENTRY-GATE.md](M12-ENTRY-GATE.md).
 
+- **Live:** release **`20261027190631`**, `gitSha 267fb02` (PR #104; deploy run 40556508906; API/SSR `NRestarts=0`). Rollback target `20261027175818` (`e4f212a`).
 - **Decision:** M12 stays NO-GO. M10 is partial, M11-B is unmet (0 AI articles published by a named reviewer), and there is no index-level kill switch, batch cap, per-URL gate or GSC baseline.
 - **Fixed (independent review, two HIGH):** the runner's admin key could relabel or strip provenance, or forge the critic verdict, so a critic `block` became approvable; approvals saved without a version check, so a concurrent edit went public. Provenance is now locked, signatures are checked on both approval paths, and `BlogPost` uses optimistic concurrency.
 - **Admin E2E:** new `admin-editorial.spec.ts`; `admin-shell` repaired. Admin Playwright specs are not run in CI.

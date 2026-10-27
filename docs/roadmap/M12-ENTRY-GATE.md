@@ -73,6 +73,18 @@ M12 row: *Controlled programmatic SEO · Depends M09, M10, M11-B · Acceptance: 
 | Playwright `admin-affiliate` | 1/3 pass. Desktop: channel-icon 404 console errors (same local-storage cause, own mock not changed). **Mobile: 18 px horizontal overflow** in Monetización (not editorial; recorded, not fixed) |
 | Admin Playwright in CI | **none**: only `playwright.entity.config.ts` runs (seo-regression, after merge). These specs are local-only |
 
+## Release
+- PR **#104** (head `9ed0043`): PR CI green (backend, frontend, verify; the Mongo editorial tests ran, 0 fail, 1 skip for Redis; ops 30/30). Squash-merged as **`267fb02`** with `--match-head-commit`.
+- Main CI on `267fb02`: Build/test run 40556484358 green, SEO regression run 40556484310 green.
+- Deploy: `deploy-artifact.yml` run 40556508906 succeeded (no lockfile change). Live release **`20261027190631`**; `release.json` `gitSha 267fb02…` read over SSH; `guiatv-api` and `guiatv-ssr` active, `NRestarts=0`. Rollback target `20261027175818` (`e4f212a`).
+- Production smoke checks:
+  - `/`, `/guias`, `/politica-editorial`, `/sitemap.xml`, `/v2/health`: 200.
+  - Held draft: `/guias/<slug>` and `/v2/blog/<slug>` 404, and absent from `/v2/blog`, which still shows 10 public posts.
+  - `/v2/admin/editorial/overview` without credentials: 401.
+  - `/storage/editorial/…` and `/storage/%65ditorial/…`: 404.
+  - Sample guide and `/programas/black-rose`: 200.
+- No env, flag, credential or content change. Policy publishing is still off.
+
 ## 7. Skills and agents
 - Orchestrator (Opus 5.5): context recovery, fixes, tests, E2E, docs, release.
 - Independent security/concurrency reviewer (general-purpose, read-only): review, then re-review of the fixes (found the unsigned-provenance gap, fixed before merge).
