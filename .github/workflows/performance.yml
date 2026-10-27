@@ -5,8 +5,36 @@ on:
   push:
     branches: [main]
 
+# A newer push to the same PR makes the running check obsolete; main keeps every run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  verify:
+  # Docs-only changes (docs/, artifacts/, *.md) skip the heavy jobs; `verify` still reports, so the
+  # required check (docs/ops/main-ruleset.json) never stays "Expected".
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          # Unknown base (new branch, force push): treat as code, never skip by accident.
+          if ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then echo "code=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          files=$(git diff --name-only "$BASE" "$GITHUB_SHA")
+          code=$(printf '%s\n' "$files" | grep -Ev '^(docs/|artifacts/)|\.md$' | grep -c . || true)
+          echo "code=$([ "$code" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+  backend:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     # ponytail: pinned for its 6.8 kernel. mongod 8.x refuses to start on kernels 6.19–7.0.13
     # (SERVER-121912), and ubuntu-24.04 runners moved to 7.0.0 on 2026-10-18. Return to
     # ubuntu-latest once the runner kernel is >= 7.0.14 or a fixed mongo:8.0 image ships.
@@ -27,12 +55,41 @@ jobs:
           cache: npm
       - run: npm ci --legacy-peer-deps
       - run: npm run lint:backend
-      - run: npm run lint:frontend
       - run: npm run test:backend
       - run: npm run test:deploy
       - run: npm run test:ops
+
+  frontend:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      TZ: Europe/Madrid
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --legacy-peer-deps
+      - run: npm run lint:frontend
       - name: Install the Playwright Chromium used by Karma
         run: npx playwright install --with-deps chromium
       - run: npm run test:frontend
       - name: Production build with Angular bundle budgets
         run: npm run build
+
+  # The one required check: green only if both halves passed, or were skipped for a docs-only change.
+  verify:
+    needs: [changes, backend, frontend]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: |
+          echo "changes=${{ needs.changes.result }} code=${{ needs.changes.outputs.code }} backend=${{ needs.backend.result }} frontend=${{ needs.frontend.result }}"
+          [ "${{ needs.changes.result }}" = success ] || exit 1
+          if [ "${{ needs.changes.outputs.code }}" = true ]; then
+            [ "${{ needs.backend.result }}" = success ] && [ "${{ needs.frontend.result }}" = success ]
+          fi
