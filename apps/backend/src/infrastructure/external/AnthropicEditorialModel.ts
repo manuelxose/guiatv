@@ -13,10 +13,13 @@ export class AnthropicEditorialModel implements EditorialModel {
   readonly webSearch = true;
   readonly maxOutputTokens = MAX_OUTPUT_TOKENS;
   private readonly client: Pick<Anthropic, 'messages'>;
+  /** Gateway model namespace (e.g. `cc/` for the owner's subscription gateway); routes, prices and provenance keep the canonical id. */
+  private readonly modelPrefix: string;
 
-  constructor(options: { apiKey?: string; maxRetries?: number; client?: Pick<Anthropic, 'messages'> } = {}) {
+  constructor(options: { apiKey?: string; maxRetries?: number; client?: Pick<Anthropic, 'messages'>; modelPrefix?: string } = {}) {
     // Zero-arg resolution (ANTHROPIC_API_KEY, auth token, `ant auth login` profile) unless a key is injected.
     this.client = options.client ?? new Anthropic({ ...(options.apiKey ? { apiKey: options.apiKey } : {}), maxRetries: options.maxRetries ?? 1 });
+    this.modelPrefix = options.modelPrefix ?? process.env.ANTHROPIC_MODEL_PREFIX ?? '';
   }
 
   async call(request: ModelCall): Promise<ModelResult> {
@@ -36,7 +39,7 @@ export class AnthropicEditorialModel implements EditorialModel {
     // Server tools can pause a long turn; resume it a bounded number of times.
     for (let turn = 0; turn < 4; turn++) {
       const message = await this.client.messages.stream({
-        model: request.model,
+        model: `${this.modelPrefix}${request.model}`,
         max_tokens: MAX_OUTPUT_TOKENS,
         system: request.system,
         messages,
@@ -56,6 +59,8 @@ export class AnthropicEditorialModel implements EditorialModel {
       usage.input_tokens += message.usage.input_tokens + (message.usage.cache_creation_input_tokens ?? 0) + (message.usage.cache_read_input_tokens ?? 0);
       usage.output_tokens += message.usage.output_tokens;
       searches += message.usage.server_tool_use?.web_search_requests ?? 0;
+      // A gateway must not answer with another model than the routed one: provenance and prices name it.
+      if (message.model && !message.model.startsWith(request.model)) throw fail(`answered by ${message.model}, routed to ${request.model}`);
 
       if (message.stop_reason === 'pause_turn') {
         messages.push({ role: 'assistant', content: message.content });
