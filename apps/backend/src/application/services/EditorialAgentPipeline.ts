@@ -313,14 +313,25 @@ export async function runEditorialJob(topic: EditorialTopic, deps: EditorialDeps
     for (const s of topic.internalSources) await fetchOnce(s.id, s.url);
     const internalText = topic.internalSources.filter((s) => snapshots.has(s.id))
       .map((s) => `### ${s.id} ${s.url}\n${clip(snapshots.get(s.id)!, 6000)}`).join('\n\n');
+    // M11-E: seed pages are read here, not left to server tools a gateway may not run; publisher = host, never 'GuíaTV'.
+    const seeds = (topic.seedUrls ?? []).map((url, i) => ({ id: `s${i + 1}`, url, publisher: new URL(url).hostname.replace(/^www\./, '') }));
+    for (const s of seeds) await fetchOnce(s.id, s.url.split('#')[0]);
+    // A text fragment (#:~:text=…) points the prompt at the right part of a long page; quotes are still checked against all of it.
+    const from = (s: { id: string; url: string }) => {
+      const f = /#:~:text=([^&,]+)/.exec(s.url);
+      return Math.max(0, f ? snapshots.get(s.id)!.indexOf(decodeURIComponent(f[1])) : 0);
+    };
+    const seedText = seeds.filter((s) => snapshots.has(s.id))
+      .map((s) => `### ${s.id} ${s.url} (${s.publisher})\n${clip(snapshots.get(s.id)!.slice(from(s)), 12000)}`).join('\n\n');
 
     // 1. Research: sources, verbatim quotes, candidate claims.
     let research: { researchQuestions: string[]; sources: Array<{ id: string; url: string; publisher: string }>; claims: EvidenceClaim[] } | undefined;
     for (let attempt = 0; attempt < limits.maxResearchCalls && !research?.claims?.length; attempt++) {
       research = await ask('research',
         `${STYLE}\nEres el agente de investigación. Buscas fuentes primarias (webs oficiales de operadores, plataformas, competiciones, organismos) y, solo si no existen, prensa de referencia. No uses agregadores de dudosa procedencia ni copies artículos.`,
-        `Tema: ${topic.topic}\nIntención del lector: ${topic.intent}\nVolatilidad: ${topic.volatility}\n${topic.notes ? `Notas: ${topic.notes}\n` : ''}${topic.seedUrls?.length ? `Revisa primero: ${topic.seedUrls.join(', ')}\n` : ''}
+        `Tema: ${topic.topic}\nIntención del lector: ${topic.intent}\nVolatilidad: ${topic.volatility}\n${topic.notes ? `Notas: ${topic.notes}\n` : ''}
 Datos propios de GuíaTV (fuentes internas con su id; cítalos con ese id):\n${internalText || '(ninguno)'}
+${seedText ? `\nFuentes primarias ya descargadas (cítalas con su id; las citas se comprueban contra este texto):\n${seedText}\n` : ''}
 
 Devuelve preguntas de investigación, fuentes (id corto, URL exacta que hayas consultado, editor) y afirmaciones atómicas.
 Cada afirmación lleva 1-3 citas literales, copiadas carácter a carácter de la fuente (12-200 caracteres, sin parafrasear) que la prueban, incluidas todas sus cifras.
@@ -329,10 +340,13 @@ Si un dato no aparece literal en una fuente consultada, no lo incluyas. Ids de a
     }
     if (!research?.claims?.length) return { ...run, state: 'blocked', reason: 'la investigación no devolvió afirmaciones' };
 
-    const internalIds = new Set(topic.internalSources.map((s) => s.id));
+    const fixedIds = new Set([...topic.internalSources, ...seeds].map((s) => s.id));
+    // A seed relisted under another id/publisher would count twice in the value gate; an unfetched seed would block approval.
+    const seedPages = new Set(seeds.map((s) => s.url.split('#')[0]));
     const sources = [
       ...topic.internalSources.map((s) => ({ id: s.id, url: s.url, publisher: 'GuíaTV' })),
-      ...research.sources.filter((s) => /^https?:\/\//.test(s.url) && !internalIds.has(s.id)),
+      ...seeds.filter((s) => snapshots.has(s.id)),
+      ...research.sources.filter((s) => /^https?:\/\//.test(s.url) && !fixedIds.has(s.id) && !seedPages.has(s.url.split('#')[0])),
     ];
     for (const s of sources) await fetchOnce(s.id, s.url);
     let bundle: EvidenceBundle = {
