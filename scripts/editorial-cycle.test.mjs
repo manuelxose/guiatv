@@ -40,7 +40,7 @@ const fresh = () => mkdtempSync(join(tmpdir(), 'm11f-cycle-'));
 const queued = (id, over = {}) => ({
   id, title: `Tema ${id}`, intent: `intención ${id}`, category: 'Streaming', sourceCandidates: [], sourceFamilies: [], score: 50, scoreExplanation: [], freshUntil: null,
   duplicateCheck: { maxSimilarity: 0, closest: null }, createdAt: '2026-10-28T00:00:00Z', updatedAt: '2026-10-28T00:00:00Z', state: 'queued', attempts: 0,
-  topic: { slug: id, topic: `Tema ${id}`, intent: `intención ${id}`, volatility: 'stable', categories: ['Streaming'], internalSources: [], seedUrls: [] }, ...over,
+  topic: { slug: id, topic: `Tema ${id}`, intent: `intención ${id}`, volatility: 'stable', categories: ['Streaming'], internalSources: [], seedUrls: ['https://www.boe.es/a', 'https://www.cnmc.es/b'] }, ...over,
 });
 
 test('emergency stop or inactive policy: the cycle writes nothing and calls no model', async () => {

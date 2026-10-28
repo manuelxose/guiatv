@@ -480,7 +480,7 @@ async function discover(q, corpus, report) {
     let targets = [];
     if (!reasons.length) {
       seeds = await queueLib.checkSeeds(p, fetchSource);
-      if (!seeds.some((s) => s.ok)) reasons = [`insufficient-evidence: ${seeds.map((s) => `${s.url} ${s.note}`).join('; ')}`];
+      if (queueLib.seedPublishers(seeds.filter((s) => s.ok).map((s) => s.url)) < 2) reasons = [`insufficient-evidence: menos de dos entidades editoras verificadas (${seeds.map((s) => `${s.url} ${s.note}`).join('; ')})`];
     }
     const accepted = { ...p, seedUrls: seeds.filter((s) => s.ok).map((s) => s.url) };
     if (!reasons.length) targets = await linkTargetsFor(`${p.title} ${p.topic} ${p.intent}`, inventory, p.slug);
