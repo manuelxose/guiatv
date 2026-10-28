@@ -20,6 +20,8 @@
 //   maintain [--runs dir] [--site url] [--report <api> --apply]  freshness report: due reviews, re-verified evidence,
 //       legacy guides (no model). M11-F: with --report, guides published by the policy are re-verified from the API;
 //       --apply regenerates a guide whose evidence changed and publishes the new revision through revise-by-policy.
+//   enrich <slug> --report <api> [--note "…"] [--links /a,/b] [--seeds url#:~:text=…]  M11-G: one re-certified revision of
+//       a policy-published guide with GuíaTV's own facts and verified internal links (revise-by-policy, daily cap applies).
 //   save-draft <run.json> --api http://127.0.0.1:4000   POST as a NEW draft with provenance (refuses existing slugs)
 //   publish <run.json> --api ...   policy approval; the API refuses unless EDITORIAL_POLICY_PUBLISHING=enabled
 // Secrets (ANTHROPIC_API_KEY, ANALYTICS_ADMIN_KEY, EDITORIAL_PIPELINE_SIGNING_KEY, EDITORIAL_POLICY_KEY) come from the
@@ -132,7 +134,7 @@ const jobsToday = () => new Set((existsSync(spendLog()) ? readFileSync(spendLog(
 const appendSpend = (row) => writeFileSync(spendLog(), `${JSON.stringify({ day: today(), at: new Date().toISOString(), ...row })}\n`, { flag: 'a' });
 // The runner may sign and publish by policy, never approve as a person or lift the emergency stop.
 for (const name of ['EDITORIAL_REVIEW_KEY', 'AUCTORIO_EDITORIAL_REVIEW_KEY']) {
-  if (['run', 'save-draft', 'publish', 'cycle', 'discover', 'maintain'].includes(command) && process.env[name]) {
+  if (['run', 'save-draft', 'publish', 'cycle', 'discover', 'maintain', 'enrich'].includes(command) && process.env[name]) {
     console.error(`${name} is a reviewer key and must not be in the runner environment; publish uses EDITORIAL_POLICY_KEY`); process.exit(2);
   }
 }
@@ -207,6 +209,19 @@ if (command === 'run') {
   writeFileSync(resolve('artifacts/m11b/freshness.json'), JSON.stringify(report, null, 1));
   for (const x of [...report.runs, ...report.guides]) console.log(`${x.due ? 'DUE ' : 'ok  '} ${x.nextReviewAt.slice(0, 10)} ${x.slug}${x.changedEvidence?.length ? `  changed: ${x.changedEvidence.join(', ')}` : ''}`);
   for (const x of report.published) console.log(`${x.result.padEnd(20)} ${x.slug}${x.note ? `  (${x.note})` : ''}`);
+} else if (command === 'enrich') {
+  // M11-G: one versioned, re-certified revision of a guide the policy published, to add verified GuíaTV context and
+  // relevant internal links. Same path as maintenance: the published version stays unless every gate passes.
+  limits();
+  const api = apiBase(arg('report'));
+  acquireLock();
+  const policy = await adminPolicy(api);
+  if (!policy?.active) { console.error('automatic publication is not active in the Admin (switch, activation or emergency stop)'); process.exit(2); }
+  if (serverCapacity < 1) { console.error('the Admin daily limit is used up'); process.exit(2); }
+  const list = (name) => String(arg(name, '')).split(',').map((s) => s.trim()).filter(Boolean);
+  const res = await enrichPublished(api, target, { note: arg('note', ''), links: list('links'), seeds: list('seeds'), corpus: await publicCorpus() });
+  console.log(`${res.state}${res.reason ? `: ${res.reason}` : ''}`);
+  if (res.state !== 'updated') process.exitCode = 1;
 } else if (command === 'save-draft' || command === 'publish') {
   const run = readJson(target);
   const api = apiBase(arg('api'));
@@ -223,7 +238,7 @@ if (command === 'run') {
     if (!res.ok) process.exitCode = 1;
   }
 } else {
-  console.error('usage: editorial-agents.mjs run|cycle|discover|verify|maintain|save-draft|publish …'); process.exit(2);
+  console.error('usage: editorial-agents.mjs run|cycle|discover|verify|maintain|enrich|save-draft|publish …'); process.exit(2);
 }
 
 // Function declarations only below: the command code above runs before any top-level `const` here would exist.
@@ -483,7 +498,8 @@ async function discover(q, corpus, report) {
       if (queueLib.seedPublishers(seeds.filter((s) => s.ok).map((s) => s.url)) < 2) reasons = [`insufficient-evidence: menos de dos entidades editoras verificadas (${seeds.map((s) => `${s.url} ${s.note}`).join('; ')})`];
     }
     const accepted = { ...p, seedUrls: seeds.filter((s) => s.ok).map((s) => s.url) };
-    if (!reasons.length) targets = await linkTargetsFor(`${p.title} ${p.topic} ${p.intent}`, inventory, p.slug);
+    const own = firstPartySources(`${p.title} ${p.topic} ${p.intent}`);
+    if (!reasons.length) targets = await linkTargetsFor(`${p.title} ${p.topic} ${p.intent}`, inventory, p.slug, own.length ? [channelsHub()] : []);
     const scored = reasons.length ? { score: 0, explanation: [] }
       : queueLib.scoreProposal(accepted, { ...ctx, seeds, linkTargets: targets.length, publishedCategories: corpus.flatMap((c) => c.categories) });
     const at = new Date().toISOString();
@@ -493,7 +509,7 @@ async function discover(q, corpus, report) {
       score: scored.score, scoreExplanation: [...scored.explanation, ...seeds.map((s) => `semilla ${s.ok ? 'verificada' : 'descartada'}: ${s.url} (${s.note})`)],
       freshUntil: p.freshUntil ?? null, duplicateCheck: queueLib.closestCoverage(p, ctx), createdAt: at, updatedAt: at,
       state: reasons.length ? 'rejected' : 'queued', ...(reasons.length ? { reason: reasons.join('; ').slice(0, 1000) } : {}), attempts: 0,
-      topic: { ...queueLib.topicFor(accepted), linkTargets: targets }, whyDistinct: p.whyDistinct ?? null,
+      topic: { ...queueLib.topicFor(accepted, own), linkTargets: targets }, whyDistinct: p.whyDistinct ?? null,
     });
     (reasons.length ? summary.rejected : summary.queued).push(`${p.slug}${reasons.length ? ` → ${reasons[0]}` : ` (${scored.score})`}`);
     // Saved after each one: a crash during the seed checks keeps what was already screened.
@@ -546,7 +562,38 @@ function inventoryText(inventory) {
   return `- Secciones: ${of('sección').map((t) => t.path).join(', ')}\n- Canales con ficha y parrilla (${of('canal').length}): ${of('canal').map((t) => t.name).join(', ')}\n- Guías publicadas: ${of('guía').length}`;
 }
 function plainText(s) { return ` ${String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9ñ]+/g, ' ')} `; }
-async function linkTargetsFor(text, inventory, selfSlug) {
+/**
+ * M11-G: GuíaTV's own facts (GET /v2/editorial/facts) as an internal source for topics about broadcast TV. Only the
+ * curated TDT line-up: football broadcasters are inferred from the EPG, and EPG film metadata is not reliable.
+ */
+function firstPartySources(text) {
+  return /\b(?:tele|televisi[oó]n|tdt|canal(?:es)?|cadenas?|emisi[oó]n|parrilla|grabar)\b/i.test(text)
+    ? [{ id: 'gtv-tdt', url: `${site}/v2/editorial/facts?kind=channels&group=tdt&format=text` }] : [];
+}
+async function enrichPublished(api, slug, { note, links, seeds, corpus }) {
+  const found = await findPost(api, slug).catch(() => null);
+  const detail = found && (await fetch(`${api}/v2/admin/editorial/posts/${found.id}`, { headers: adminHeaders() }).then((r) => (r.ok ? r.json() : null)).catch(() => null))?.data;
+  if (detail?.post?.reviewedBy !== 'policy:m11b-evidence-gate') return { state: 'refused', reason: 'solo guías publicadas por la política (las demás las revisa una persona)' };
+  const published = detail.provenance?.critic?.draftHash;
+  const run = published && latestRunFor(slug, published);
+  if (!run) return { state: 'refused', reason: 'sin el fichero de ejecución de la versión publicada' };
+  const topic = maintenanceTopic(run, [], []);
+  topic.notes = `Revisión de una guía ya publicada para hacerla más útil. ${note} Conserva los datos verificados que siguen valiendo y el enfoque.`.trim();
+  const text = `${run.draft.title} ${topic.topic} ${topic.intent}`;
+  for (const s of firstPartySources(text)) if (!topic.internalSources.some((x) => x.url === s.url)) topic.internalSources.push(s);
+  // A seed with a text fragment replaces the same page, so one page is never two sources.
+  for (const s of seeds) topic.seedUrls = [...topic.seedUrls.filter((u) => u.split('#')[0] !== s.split('#')[0]), s];
+  const inventory = await siteInventory(corpus);
+  const extra = links.map((path) => inventory.find((t) => t.path === path) ?? { path, label: path.split('/').filter(Boolean).join(' ').replace(/-/g, ' ') });
+  topic.linkTargets = await verifiedTargets([...new Map([...topic.linkTargets, ...extra.map(({ path, label }) => ({ path, label }))].map((t) => [t.path, t])).values()]);
+  const [res] = await runTopics([topic], {
+    report: api, autopublish: true, corpus: corpus.filter((x) => x.slug !== slug),
+    publish: (next) => reviseRun(next, api, found.id, published),
+  });
+  return res;
+}
+function channelsHub() { return { path: '/canales', label: 'canales de televisión y su programación' }; }
+async function linkTargetsFor(text, inventory, selfSlug, always = []) {
   const words = queueLib.topicTokens(text);
   const scored = [];
   for (const t of inventory) {
@@ -559,7 +606,7 @@ async function linkTargetsFor(text, inventory, selfSlug) {
   }
   scored.sort((a, b) => b.s - a.s);
   const picked = [...scored.filter((t) => t.kind === 'canal').slice(0, 3), ...scored.filter((t) => t.kind !== 'canal').slice(0, 4)];
-  return verifiedTargets(picked.map(({ path, label }) => ({ path, label })));
+  return verifiedTargets([...always, ...picked.filter((t) => !always.some((a) => a.path === t.path)).map(({ path, label }) => ({ path, label }))]);
 }
 /** 200 without a redirect, a self-referencing canonical and no noindex: only such pages are offered to the writer. */
 async function verifiedTargets(targets) {

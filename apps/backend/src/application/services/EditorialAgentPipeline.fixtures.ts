@@ -47,6 +47,7 @@ export const draft = (markdown = GOOD) => ({
   metaTitle: 'El Padrino en La 2 esta semana',
   metaDescription: 'La 2 emite El Padrino el martes en su franja de cine clásico: horario, ficha y por qué verla en abierto.',
   markdown,
+  distinctValue: { readerBenefit: 'Une el pase de La 2 que publica GuíaTV con el palmarés verificado en dos editores, para decidir si verla en abierto esta semana.', claimIds: ['c1', 'c3'] },
 });
 export const pass = { verdict: 'pass', issues: [] };
 

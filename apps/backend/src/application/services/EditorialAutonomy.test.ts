@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { criticVerdict, EDITORIAL_RUBRIC, EditorialModel, EditorialTopic, runEditorialBatch, runEditorialJob } from './EditorialAgentPipeline';
-import { DEFAULT_EDITORIAL_LIMITS, EvidenceBundle, evaluateEvidence, hashText, spelledNumbers, verifyBundle } from './EditorialEvidence';
+import { DEFAULT_EDITORIAL_LIMITS, EvidenceBundle, evaluateEvidence, hashText, provenanceSignatureValid, spelledNumbers, verifyBundle } from './EditorialEvidence';
 import { deps, draft, GOOD, NOW, pass, research, scripted, topic } from './EditorialAgentPipeline.fixtures';
 
 const BOE_URL = 'https://www.boe.es/buscar/act.php?id=BOE-A-2022-11311';
@@ -83,6 +83,7 @@ const legalDraft = (markdown = LEGAL_MD) => ({
   title: 'Calificación por edades en la televisión: qué obliga la ley', excerpt: 'Qué obliga la ley a las televisiones sobre la calificación por edades.',
   metaTitle: 'Calificación por edades en televisión',
   metaDescription: 'Qué obliga la ley a las televisiones sobre la calificación por edades y quién vigila la protección del menor.', markdown,
+  distinctValue: { readerBenefit: 'Pone en una tabla la obligación legal del BOE junto a quién vigila su cumplimiento según la CNMC.', claimIds: ['c1', 'c3'] },
 });
 const legalDeps = (model: EditorialModel) => deps(model, { fetchSource: async (url) => (PAGES[url] ? { status: 200, text: PAGES[url] } : { status: 404, text: '' }) });
 
@@ -94,6 +95,32 @@ test('M11-E2 regression (M11-E live block): article numbers next to verified BOE
   // A reference's numbers are not figures: "98.1" as a quantity next to the reference itself is still refused (review H1).
   const misuse = await runEditorialJob(legalTopic, legalDeps(scripted({ research: [legalResearch], evidence: [{ conflicts: [] }], editorial: [legalDraft(`${LEGAL_MD}\n| Calificar 98.1 programas (art. 98.1) [[c1]] | [BOE](${BOE_URL}) |`)], critic: [pass] }).model), { ...DEFAULT_EDITORIAL_LIMITS, maxReviewLoops: 0 });
   assert.ok(misuse.findings.some((f) => f.code === 'figure-not-in-claim' && /: 98\.1 /.test(f.message)), JSON.stringify(misuse.findings));
+});
+
+test('M11-G distinct value: stated, proven by cited claims, signed, and required from this pipeline version on', async () => {
+  const once = (draftAnswer: unknown) => runEditorialJob(legalTopic, legalDeps(scripted({ research: [legalResearch], evidence: [{ conflicts: [] }], editorial: [draftAnswer], critic: [pass] }).model), { ...DEFAULT_EDITORIAL_LIMITS, maxReviewLoops: 0 });
+  const { distinctValue: _omit, ...without } = legalDraft();
+  const missing = await once(without);
+  assert.notEqual(missing.state, 'approved-by-policy');
+  assert.ok(missing.findings.some((f) => f.code === 'distinct-value-missing'), JSON.stringify(missing.findings));
+  // A benefit "proven" by a claim the text never states, or a generic one-liner, is refused.
+  for (const distinctValue of [{ readerBenefit: legalDraft().distinctValue.readerBenefit, claimIds: ['c1', 'c9'] }, { readerBenefit: 'Guía útil y completa.', claimIds: ['c1'] }]) {
+    const run = await once({ ...legalDraft(), distinctValue });
+    assert.ok(run.findings.some((f) => f.code === 'distinct-value-unsupported'), JSON.stringify(distinctValue));
+  }
+  // The critic is shown the claimed value and told to test it.
+  const m = scripted({ research: [legalResearch], evidence: [{ conflicts: [] }], editorial: [legalDraft()], critic: [pass] });
+  const ok = await runEditorialJob(legalTopic, { ...legalDeps(m.model), signingKey: 'k'.repeat(32) });
+  assert.equal(ok.state, 'approved-by-policy', JSON.stringify(ok.findings));
+  assert.match(m.calls.find((c) => c.role === 'critic')!.prompt, /Valor diferencial que declara el redactor: «Pone en una tabla/);
+  assert.deepEqual(ok.provenance!.distinctValue, legalDraft().distinctValue);
+  // Signed: rewording the claimed value afterwards breaks the attestation.
+  assert.ok(provenanceSignatureValid(ok.provenance!, 'k'.repeat(32)));
+  assert.ok(!provenanceSignatureValid({ ...ok.provenance!, distinctValue: { readerBenefit: 'Otro valor inventado después de la revisión del crítico.', claimIds: ['c1'] } }, 'k'.repeat(32)));
+  // Provenance from before M11-G (already published guides) is not retroactively blocked.
+  const legacy = { ...ok.provenance!, pipelineVersion: 'm11e2-1' };
+  delete legacy.distinctValue;
+  assert.ok(!evaluateEvidence({ content: ok.draft!.content }, legacy, NOW).some((f) => /^distinct-value/.test(f.code)));
 });
 
 test('M11-E2 revise loop: an unsupported claim sends the job back to research, and the new version is re-verified and re-criticised', async () => {
