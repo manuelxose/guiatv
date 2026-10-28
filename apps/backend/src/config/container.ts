@@ -1,4 +1,5 @@
 import { LegacyEnrichmentService } from '../application/services/LegacyEnrichmentService';
+import type { ProgrammeDisposition } from '../application/services/ProgrammeSeoPolicy';
 import { logger } from '../shared/utils/logger';
 import { connectMongoDB, mongoose as mongooseInstance } from './mongodb';
 import { ensureMongoCollectionsAndIndexes } from '../infrastructure/database/initializeMongoCollections';
@@ -728,7 +729,7 @@ export class Container {
       this.has('tmdbService') ? this.get('tmdbService') : undefined,
       this.has('footballQueryService') ? this.get('footballQueryService') : undefined,
       this.get('tvReadQueryService'),
-      (slug) => this.get<{ programSlugResolves(slug: string): Promise<boolean> }>('catalogService').programSlugResolves(slug)
+      (slug) => this.get<{ programSlugDisposition(slug: string): Promise<ProgrammeDisposition | null> }>('catalogService').programSlugDisposition(slug)
     );
     this.dependencies.set('sitemapController', sitemapController);
 

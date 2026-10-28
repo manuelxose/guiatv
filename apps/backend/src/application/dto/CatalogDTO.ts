@@ -1,4 +1,5 @@
 import type { EntityBroadcast } from '../services/EntityBroadcastService';
+import type { ProgrammeSeo } from '../services/ProgrammeSeoPolicy';
 
 export type CatalogSource = 'program' | 'tmdb';
 export type CatalogContentType = 'movie' | 'series' | 'program';
@@ -181,6 +182,8 @@ export interface CatalogDetailDTO extends CatalogItemDTO {
    * fetch them via `GET /catalog/:catalogId/enrichment`. Absent (not `false`)
    * on a response that already carries the full payload. */
   enrichmentPending?: boolean;
+  /** M09-B, `/programas/:slug` lookups only: the canonical and robots the page declares. */
+  seo?: ProgrammeSeo;
 }
 
 /** Secondary, deferrable detail data: never required to render the main

@@ -55,6 +55,7 @@ import { measureTiming } from '@/shared/utils/performanceTiming';
 import { logger } from '@/shared/utils/logger';
 import { titleIdentityKey } from '@/domain/services/contentIdentity';
 import { airingDetailSlug, buildDetailPath, episodeWorkTitle, inferContentType, normalizeToken, programDetailPath, slugify, slugifyTitle } from '@/domain/services/detailPath';
+import { programmeCanonicalSlug, programmeDisposition, programmeSeo, type ProgrammeDisposition } from './ProgrammeSeoPolicy';
 
 export interface CatalogQueryParams {
   userId?: string;
@@ -342,8 +343,12 @@ export class CatalogService {
     // hit TMDB/the DB.
     const inFlightKey = `${contentType}:${slug}:${userId || 'anon'}`;
     const existing = this.inFlightSlugLookups.get(inFlightKey);
+    const finish = async (detail: CatalogDetailDTO) => {
+      const enriched = await this.withLegacyEnrichment(detail, slug);
+      return contentType === 'program' ? { ...enriched, seo: programmeSeo(slug, enriched) } : enriched;
+    };
     if (existing) {
-      return existing.then((detail) => this.withLegacyEnrichment(detail, slug));
+      return existing.then(finish);
     }
 
     const lookupPromise = this.resolveBySlug(
@@ -356,7 +361,7 @@ export class CatalogService {
       this.inFlightSlugLookups.delete(inFlightKey);
     });
     this.inFlightSlugLookups.set(inFlightKey, lookupPromise);
-    return lookupPromise.then((detail) => this.withLegacyEnrichment(detail, slug));
+    return lookupPromise.then(finish);
   }
 
   private buildSlugNotFoundCacheKey(
@@ -480,14 +485,22 @@ export class CatalogService {
    * programme, so the sitemap can list only URLs that answer 200.
    */
   async programSlugResolves(slug: string): Promise<boolean> {
+    return (await this.programSlugDisposition(slug)) !== null;
+  }
+
+  /** M09-B: the page's ProgrammeSeoPolicy disposition, from the same row `/programas/:slug` loads; null = the page 404s. */
+  async programSlugDisposition(slug: string): Promise<ProgrammeDisposition | null> {
     const searchText = String(slug || '').replace(/-/g, ' ').trim();
-    if (!searchText) return false;
+    if (!searchText) return null;
     const found =
       (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getTodayYYYYMMDD())) ??
       (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getTomorrowYYYYMMDD()));
     // The page then loads the item by id (getProgramDetail -> getItem), which answers 404 for an item that is not
     // consumer-visible. The lookup does not apply that rule, so apply it here (same row, no extra query).
-    return Boolean(found) && isConsumerVisibleTvReadItem(found as TvReadItemDTO);
+    if (!found || !isConsumerVisibleTvReadItem(found as TvReadItemDTO)) return null;
+    const p = (found as TvReadItemDTO).program;
+    // A TMDB item's page shows the TMDB overview, but any TMDB id already decides the disposition before the synopsis.
+    return programmeDisposition(programmeCanonicalSlug(slug, p.title), { title: p.title, workPath: p.workPath, tmdbId: p.tmdbId, synopsis: cleanEpgDescription(p.description) });
   }
 
   /**
@@ -495,8 +508,8 @@ export class CatalogService {
    * visible airing that carries the same TMDB id (a homonymous programme is not this work). At most two candidate slugs.
    */
   private async resolveProgrammePath(tmdbId: number, contentType: CatalogContentType, airings: CatalogAiringDTO[]): Promise<string | undefined> {
-    // Legacy `slugify` on purpose: /programas URLs keep it (the sitemap and airingDetailSlug('program') use it).
-    const slugs = [...new Set(airings.map((airing) => slugify(airing.title)).filter((slug) => slug !== 'sin-titulo'))].slice(0, 2);
+    // The canonical programme slug (accents folded, M09-B), as the sitemap and airingDetailSlug('program') build it.
+    const slugs = [...new Set(airings.map((airing) => slugifyTitle(airing.title)).filter((slug) => slug !== 'sin-titulo'))].slice(0, 2);
     // On the request path: every lookup runs at once; the page's own order (today, then tomorrow) is kept in the result.
     const today = DateUtils.getTodayYYYYMMDD();
     const tomorrow = DateUtils.getTomorrowYYYYMMDD();

@@ -22,7 +22,7 @@ import {
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router } from '@angular/router';
-import { slugify } from 'src/app/utils/utils';
+import { slugifyTitle } from 'src/app/utils/catalog';
 import {
   diffHour,
   getHoraInicio,
@@ -329,7 +329,7 @@ export class BannerComponent
 
   public getContentUrl(): string {
     if (!this.bannerData?.title?.value) return '';
-    const slug = slugify(this.bannerData.title.value);
+    const slug = slugifyTitle(this.bannerData.title.value);
     if (this.isMovieData(this.data)) {
       return `/peliculas/${slug}`;
     }
@@ -467,7 +467,7 @@ export class BannerComponent
     if (!this.bannerData) return;
 
     const titleValue = this.bannerData.title?.value || 'unknown';
-    const slug = slugify(titleValue);
+    const slug = slugifyTitle(titleValue);
     
     if (this.isMovieData(this.data)) {
       this.router.navigate(['/peliculas', slug], {

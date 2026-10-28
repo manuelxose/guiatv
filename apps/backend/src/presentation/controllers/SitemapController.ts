@@ -5,7 +5,9 @@ import { BlogPostModel } from '../../infrastructure/database/models/BlogPost.mod
 import { TMDBService } from '../../infrastructure/external/TMDBService';
 import { ChannelType } from '../../domain/entities/Channel';
 import { FootballQueryService } from '../../application/sports/services/FootballQueryService';
-import { buildLegacyProgramSlug, normalizeTvToken, channelPagePath } from '../../shared/utils/tvMetadata';
+import { normalizeTvToken, channelPagePath } from '../../shared/utils/tvMetadata';
+import { slugifyTitle } from '../../domain/services/detailPath';
+import { programmePolicyApplies, type ProgrammeDisposition } from '../../application/services/ProgrammeSeoPolicy';
 import { TvReadQueryService } from '../../application/services/TvReadQueryService';
 import { PUBLIC_EDITORIAL_FILTER } from '../../application/services/EditorialReviewPolicy';
 import { logger } from '../../shared/utils/logger';
@@ -78,8 +80,8 @@ export class SitemapController {
       TvReadQueryService,
       'getChannels' | 'getIndexableProgramSitemapRows'
     >,
-    /** Same lookup the `/programas/:slug` page uses; when bound, slugs that would answer 404 stay out of the sitemap. */
-    private readonly programSlugResolves?: (slug: string) => Promise<boolean>
+    /** Same lookup the `/programas/:slug` page uses: null (the page 404s) or its M09-B disposition. */
+    private readonly programSlugDisposition?: (slug: string) => Promise<ProgrammeDisposition | null>
   ) {}
 
   /* ------------------------------------------------------------------ */
@@ -314,12 +316,12 @@ export class SitemapController {
       // made it a future date).
       const lastChanged = new Map<string, number>();
       for (const row of rows) {
-        const slug = buildLegacyProgramSlug(row.title);
-        if (!slug) continue;
+        const slug = slugifyTitle(row.title);
+        if (slug === 'sin-titulo') continue;
         const changed = row.updatedAt ? new Date(row.updatedAt).getTime() : NaN;
         lastChanged.set(slug, Math.max(lastChanged.get(slug) ?? -Infinity, Number.isNaN(changed) ? -Infinity : changed));
       }
-      const resolvable = await this.filterResolvable([...lastChanged.keys()]);
+      const resolvable = await this.filterEligible([...lastChanged.keys()]);
       for (const [slug, changed] of lastChanged) {
         if (!resolvable.has(slug)) continue;
         urls.push({
@@ -342,10 +344,11 @@ export class SitemapController {
     const allPrograms = [...programsToday, ...programsTomorrow];
 
     for (const program of allPrograms) {
-      // Only include TMDB-enriched programs (not ephemeral EPG-only)
+      // Only include TMDB-enriched programs (not ephemeral EPG-only). M09-B: with no page lookup there is no
+      // disposition, and a TMDB-matched programme is never `standalone`, so the policy keeps it out.
       if (!program.tmdbId) continue;
-      const slug = buildLegacyProgramSlug(program.title);
-      if (!slug || seenSlugs.has(slug)) continue;
+      const slug = slugifyTitle(program.title);
+      if (slug === 'sin-titulo' || seenSlugs.has(slug) || programmePolicyApplies(slug)) continue;
       seenSlugs.add(slug);
       // The repository rows carry no change time; the airing start is not one.
       urls.push({
@@ -357,15 +360,19 @@ export class SitemapController {
     return this.renderUrlset(urls);
   }
 
-  /** Bounded parallel check; a lookup failure propagates so a database outage never caches a truncated sitemap. */
-  private async filterResolvable(slugs: string[]): Promise<Set<string>> {
-    if (!this.programSlugResolves) return new Set(slugs);
+  /**
+   * Slugs whose page resolves and, where the M09-B policy applies, is `standalone` (ProgrammeSeoPolicy). Bounded
+   * parallel check; a lookup failure propagates so a database outage never caches a truncated sitemap.
+   */
+  private async filterEligible(slugs: string[]): Promise<Set<string>> {
+    if (!this.programSlugDisposition) return new Set(slugs.filter((slug) => !programmePolicyApplies(slug)));
     const ok = new Set<string>();
     const queue = [...slugs];
     await Promise.all(Array.from({ length: 8 }, async () => {
       for (let slug = queue.shift(); slug !== undefined; slug = queue.shift()) {
         try {
-          if (await this.programSlugResolves!(slug)) ok.add(slug);
+          const disposition = await this.programSlugDisposition!(slug);
+          if (disposition && (disposition === 'standalone' || !programmePolicyApplies(slug))) ok.add(slug);
         } catch (error) {
           queue.length = 0; // stop the other workers: the build fails as a whole
           throw error;

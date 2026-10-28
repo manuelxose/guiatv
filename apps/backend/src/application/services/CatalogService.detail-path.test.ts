@@ -33,9 +33,9 @@ test('film and series airings link to their known airing instead of guessing a w
   assert.equal(programDetailPath('source/unsafe?#'), '/contenido/program:source%2Funsafe%3F%23');
 });
 
-test('programme airings use known ids while their legacy indexed slug is retained', () => {
+test('programme airings use known ids and the folded slug (M09-B); the legacy slug still resolves (below)', () => {
   assert.deepEqual(paths('España directo', 'Magacín'), ['/contenido/program:airing-1', '/contenido/program:airing-1']);
-  assert.equal(airingDetailSlug('program', 'España directo'), 'espaa-directo');
+  assert.equal(airingDetailSlug('program', 'España directo'), 'espana-directo');
 });
 
 // QA on this change: with no TMDB match the slug falls back to the TV read model, which must accept every slug
@@ -52,6 +52,7 @@ test('the TV read slug fallback resolves the slugs airing links now use', async 
     assert.equal((await find('el sueno', 'el-sueno'))?.id, 'Él Sueño');
     assert.equal((await find('serie local', 'serie-local'))?.id, 'Serie Local T1 E3');
     assert.equal((await find('espaa directo', 'espaa-directo'))?.id, 'España directo');
+    assert.equal((await find('espana directo', 'espana-directo'))?.id, 'España directo');
     assert.equal(await find('otro titulo', 'otro-titulo'), null);
   } finally {
     Object.assign(TVReadAiringModel, original);

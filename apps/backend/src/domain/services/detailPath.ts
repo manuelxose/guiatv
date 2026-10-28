@@ -23,8 +23,8 @@ export function slugify(text: string): string {
  * TMDB search text derived from the slug and leaves detail pages
  * unresolvable for accented Spanish titles. This variant keeps the base
  * letter ("último" -> "ultimo") so generated detail URLs and slug lookups
- * resolve. Program/EPG URLs intentionally keep the legacy slugifier to
- * preserve already-indexed public URLs.
+ * resolve. Since M09-B programme URLs use it too; their legacy slug still
+ * resolves and declares this one as canonical (ProgrammeSeoPolicy).
  */
 export function slugifyTitle(text: string): string {
   return slugify(String(text || '').normalize('NFD').replace(/[̀-ͯ]/g, ''));
@@ -53,12 +53,12 @@ export function episodeWorkTitle(title: string): string | null {
 }
 
 /**
- * Detail slug for an EPG airing. Programmes keep the legacy slug (indexed URLs); films and series use the slug
- * their detail pages resolve (accents folded), and a series airing titled with an explicit season/episode marker
- * ("Friends T3 E1 …") links to the work, not to an episode URL that 404s.
+ * Detail slug for an EPG airing, accents folded (M09-B: programmes too; their legacy slug still resolves). A series
+ * airing titled with an explicit season/episode marker ("Friends T3 E1 …") links to the work, not to an episode URL
+ * that 404s.
  */
 export function airingDetailSlug(contentType: DetailContentType, title: string): string {
-  if (contentType === 'program') return slugify(title);
+  if (contentType === 'program') return slugifyTitle(title);
   return slugifyTitle((contentType === 'series' && episodeWorkTitle(title)) || title);
 }
 

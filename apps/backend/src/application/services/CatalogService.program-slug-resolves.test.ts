@@ -40,6 +40,17 @@ test('a hit the detail read would reject (suppressed or generic) does not resolv
   assert.equal(await generic.programSlugResolves('magnolia'), false);
 });
 
+test('M09-B: the sitemap gets the disposition of the row the page loads', async () => {
+  const row = (program: Record<string, unknown>) => service(async () => ({ ...visible, program: { titleResolutionState: 'resolved', ...program } }));
+  const words = Array.from({ length: 25 }, (_, i) => `palabra${i}`).join(' ');
+  assert.equal(await row({ title: 'Gladiator', tmdbId: 98, workPath: '/peliculas/gladiator' }).programSlugDisposition('gladiator'), 'work');
+  assert.equal(await row({ title: 'Furia', tmdbId: 5 }).programSlugDisposition('furia'), 'ambiguous');
+  assert.equal(await row({ title: 'Fallen T1 E3', tmdbId: 5, workPath: '/series/fallen' }).programSlugDisposition('fallen-t1-e3'), 'episode');
+  assert.equal(await row({ title: 'Cómicos nuestros', description: words }).programSlugDisposition('cmicos-nuestros'), 'standalone');
+  assert.equal(await row({ title: 'Deportes', description: 'Deportes.' }).programSlugDisposition('deportes'), 'thin');
+  assert.equal(await service(async () => null).programSlugDisposition('x'), null);
+});
+
 test('database failures are not swallowed as "missing"', async () => {
   const s = service(async () => { throw new Error('mongo down'); });
   await assert.rejects(s.programSlugResolves('x-y'), /mongo down/);
