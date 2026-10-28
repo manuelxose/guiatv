@@ -46,7 +46,7 @@ Medido desde fuera, a través de Cloudflare, con UA Googlebot; la contraprueba s
 | # | Señal | Observación | Clasificación |
 |---|---|---|---|
 | 1 | `http://` apex | 301 → `https://…/` en un salto | Configuración correcta |
-| 2 | `http://www` | 301 → `https://www` → 301 → apex (2 saltos: Cloudflare «Always Use HTTPS» actúa antes que el origen) | Correcta pero mejorable (§17); sin bucles |
+| 2 | `http://www` | Antes: 301 → `https://www` → 301 → apex (2 saltos: Cloudflare «Always Use HTTPS» actuaba antes que el origen). **Corregido el 2026-10-28** con la regla de Cloudflare `m09c_www_to_apex` (§14): un solo 301 a `https://` apex, con ruta y query | **Corregido** |
 | 3 | `https://www` | 301 → apex | Correcta |
 | 4 | TLS | Let's Encrypt `guiaprogramaciontv.com` sirve apex y www | Correcta |
 | 5 | HSTS | Solo aparecía en los 301 y en el sitemap. **Faltaba en toda respuesta 200 HTML, API y estáticos**: en nginx 1.24, un `add_header` dentro de un `location` anula los del `server` | **Defecto confirmado → corregido** |
@@ -241,6 +241,12 @@ No se usaron los agentes A–D por separado. La forense, la implementación y la
    - `PROGRAMME_SEO_POLICY=on` intacto;
    - la tarea `GuiaTV\EditorialCycle` está `Ready`, última ejecución a las 17:00 con resultado 0, próxima a las 20:00.
 
+7. Cloudflare (2026-10-28, autorizado por el propietario): regla Single Redirect `m09c_www_to_apex` en la fase `http_request_dynamic_redirect`, creada con `scripts/cf-www-redirect.mjs apply` (token en `~/.guiatv/cloudflare.env`). La zona no tenía reglas de redirección previas.
+   - Expresión: host `www.guiaprogramaciontv.com`, excepto `/.well-known/acme-challenge/`.
+   - Acción: 301 a `https://guiaprogramaciontv.com` + ruta, conservando la query.
+   - Verificado desde fuera: `http://www/`, `http://www/peliculas/cenicienta?utm=x&a=1`, `https://www/deportes/futbol` y `http://www/v2/health` llegan en un solo 301 a la URL apex correspondiente y después 200. ACME en www y en apex se sirve por HTTP sin redirección. Apex, API y sitemap sin cambios.
+   - «Always Use HTTPS» no interfiere y sigue activa.
+
 M11-E2 y M11-F no se tocaron: descubrimiento, publicación automática, límite de 10 al día, presupuesto, telemetría, crítico, parada de emergencia y procedencia siguen igual. Enlaces internos editoriales: las 14 guías publicadas tienen 0 enlaces `http://` o `www` y 48 enlaces relativos, que se resuelven en el origen `https://`. Hoy ninguno apunta a una ficha de obra.
 
 **Rollback** (ejecutar en `contabo`):
@@ -252,6 +258,8 @@ sudo sed -i 's/^WORK_SEO_POLICY=.*/WORK_SEO_POLICY=off/' /etc/guiatv/api.env && 
 sudo cp -p /etc/guiatv/api.env.bak-m09c-20261028T183308Z /etc/guiatv/api.env && sudo systemctl restart guiatv-api
 # HSTS en nginx:
 sudo cp -p /etc/nginx/guiatv.conf.bak-m09c-20261028T183731Z /etc/nginx/sites-available/guiatv.conf && sudo nginx -t && sudo systemctl reload nginx
+# Redirección www en un salto (Cloudflare): borra solo la regla m09c_www_to_apex.
+node scripts/cf-www-redirect.mjs rollback   # en local, con ~/.guiatv/cloudflare.env
 # Código: la release anterior sigue en /var/www/guiatv/releases/20261028185153 (procedimiento de rollback habitual).
 ```
 
@@ -316,9 +324,7 @@ No se asegura que Google haya cambiado nada: la portada sigue elegida como `http
   - no hay interruptor de indexación por lotes;
   - Google aún no ha validado nada de M09.
   - M09-C no cambia esa evaluación.
-- **Mejoras menores fuera del repo:**
-  - `http://www` hace 2 saltos porque Cloudflare «Always Use HTTPS» actúa antes que el origen. Una regla de redirección en Cloudflare (`http://www/*` → `https://guiaprogramaciontv.com/$1`) lo dejaría en uno;
-  - preload de HSTS: solo si el propietario lo decide.
+- **Mejora menor fuera del repo:** preload de HSTS, solo si el propietario lo decide.
 
 ## 18. Siguiente hito recomendado
 
