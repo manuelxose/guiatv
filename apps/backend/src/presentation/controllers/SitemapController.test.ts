@@ -271,9 +271,46 @@ test('sitemap-programs.xml uses the public TV read model instead of repository-o
   await controller.getProgramsSitemap(req, res, (() => {}) as any);
 
   assert.match(getSentXml(), /\/programas\/resolvable-programme/);
-  assert.match(getSentXml(), /\/programas\/el-ltimo-pase/);
-  assert.doesNotMatch(getSentXml(), /\/programas\/el-ultimo-pase/);
+  // M09-B: the canonical programme slug folds accents.
+  assert.match(getSentXml(), /\/programas\/el-ultimo-pase/);
+  assert.doesNotMatch(getSentXml(), /\/programas\/el-ltimo-pase/);
   assert.doesNotMatch(getSentXml(), /raw-programme-that-cannot-resolve/);
+});
+
+test('M09-B: with the programme policy applied only standalone pages stay in the sitemap (canary: only its cohort)', async () => {
+  const rows = [
+    ...Array.from({ length: 300 }, (_, i) => ({ title: `Programa ${i}`, start: '2026-08-31T21:00:00.000Z' })),
+    { title: 'Desmontando la ciudad', start: '2026-08-31T21:00:00.000Z' },
+    { title: 'Ruta 66 T1 E2', start: '2026-08-31T21:00:00.000Z' },
+  ];
+  const tvReadQueryService = { getChannels: async () => ({ channels: [], meta: {} }), getIndexableProgramSitemapRows: async () => rows } as any;
+  const dispositions: Record<string, 'standalone' | 'episode'> = { 'desmontando-la-ciudad': 'standalone', 'ruta-66-t1-e2': 'episode' };
+  const controller = new SitemapController({} as any, {} as any, undefined, undefined, tvReadQueryService, async (slug) => dispositions[slug] ?? 'work');
+  const build = async (env: Record<string, string | undefined>) => {
+    const saved = { p: process.env.PROGRAMME_SEO_POLICY, c: process.env.PROGRAMME_SEO_CANARY_PERCENT };
+    Object.assign(process.env, env);
+    for (const [k, v] of Object.entries(env)) if (v === undefined) delete process.env[k];
+    try {
+      invalidateSitemapCache();
+      const { req, res, getSentXml } = fakeReqRes();
+      await controller.getProgramsSitemap(req, res, (() => {}) as any);
+      return getSentXml();
+    } finally {
+      for (const [k, v] of [['PROGRAMME_SEO_POLICY', saved.p], ['PROGRAMME_SEO_CANARY_PERCENT', saved.c]] as const) {
+        if (v === undefined) delete process.env[k]; else process.env[k] = v;
+      }
+      invalidateSitemapCache();
+    }
+  };
+  const count = (xml: string) => (xml.match(/<url>/g) || []).length;
+  assert.equal(count(await build({ PROGRAMME_SEO_POLICY: undefined })), 302, 'off: every resolvable page, as before');
+  const on = await build({ PROGRAMME_SEO_POLICY: 'on' });
+  assert.equal(count(on), 1);
+  assert.match(on, /\/programas\/desmontando-la-ciudad</);
+  assert.match(on, /^<\?xml[\s\S]*<urlset[\s\S]*<\/urlset>/);
+  const canary = count(await build({ PROGRAMME_SEO_POLICY: 'canary', PROGRAMME_SEO_CANARY_PERCENT: '10' }));
+  assert.ok(canary > 240 && canary < 295, `10% canary removes ~10%: ${canary}`);
+  assert.equal(count(await build({ PROGRAMME_SEO_POLICY: 'canary', PROGRAMME_SEO_CANARY_PERCENT: '0' })), 302, 'invalid percent = off');
 });
 
 test('M09: sitemap-programs.xml lists only slugs the /programas/:slug resolver answers, and a lookup failure is not cached', async () => {
@@ -290,7 +327,7 @@ test('M09: sitemap-programs.xml lists only slugs the /programas/:slug resolver a
   const asked: string[] = [];
   let failing = false;
   const controller = new SitemapController({} as any, {} as any, undefined, undefined, tvReadQueryService,
-    async (slug) => { asked.push(slug); if (failing) throw new Error('db down'); return slug === 'resolvable'; });
+    async (slug) => { asked.push(slug); if (failing) throw new Error('db down'); return slug === 'resolvable' ? 'standalone' : null; });
 
   const first = fakeReqRes();
   await controller.getProgramsSitemap(first.req, first.res, (() => {}) as any);
@@ -314,7 +351,7 @@ test('M09: a failing rebuild serves the last good sitemap, retries later, and st
   let calls = 0;
   let failing = false;
   const controller = new SitemapController({} as any, {} as any, undefined, undefined, tvReadQueryService,
-    async () => { calls++; await new Promise((r) => setImmediate(r)); if (failing) throw new Error('db down'); return true; });
+    async () => { calls++; await new Promise((r) => setImmediate(r)); if (failing) throw new Error('db down'); return 'standalone'; });
 
   const ok = fakeReqRes();
   await controller.getProgramsSitemap(ok.req, ok.res, (() => {}) as any);
@@ -474,10 +511,10 @@ test('sitemap lastmod is a real change date: never in the future, absent when un
   await controller.getProgramsSitemap(programs.req, programs.res, (() => {}) as any);
   const xml = programs.getSentXml();
   const entry = (slug: string) => new RegExp(`/programas/${slug}</loc>\\n(\\s*<lastmod>([^<]+)</lastmod>)?`).exec(xml);
-  assert.equal(entry('maana-estreno')?.[2], '2026-10-19', 'newest change among the rows of that page');
+  assert.equal(entry('manana-estreno')?.[2], '2026-10-19', 'newest change among the rows of that page');
   assert.equal(entry('reloj-adelantado')?.[2], today, 'a future change time is clamped to today');
   assert.equal(entry('sin-fecha-de-cambio')?.[1], undefined, 'unknown change time: no lastmod');
-  assert.equal(xml.match(/\/programas\/maana-estreno</g)?.length, 1);
+  assert.equal(xml.match(/\/programas\/manana-estreno</g)?.length, 1);
 
   invalidateSitemapCache();
   const statics = fakeReqRes();
@@ -507,3 +544,4 @@ test('sitemap-blog.xml dates listings by their newest post and leaves out the re
     invalidateSitemapCache();
   }
 });
+

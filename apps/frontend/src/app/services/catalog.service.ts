@@ -71,6 +71,8 @@ export interface CatalogItem {
   workPath?: string;
   /** M10, TMDB work detail: `/programas/:slug` broadcast page of this same work (absent unless proven by the API). */
   programmePath?: string;
+  /** M09-B, `/programas/:slug` only: the canonical path and robots the page declares (backend ProgrammeSeoPolicy). */
+  seo?: { canonicalPath: string; robots?: string; disposition?: string; applied?: boolean };
   subtitle?: string;
   synopsis?: string;
   image?: string;

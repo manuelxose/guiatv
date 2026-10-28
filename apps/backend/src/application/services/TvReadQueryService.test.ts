@@ -311,8 +311,10 @@ test('program sitemap rows exclude slugs that the indexed resolver cannot search
 
   const result = await service.getIndexableProgramSitemapRows(['20260831', '20260901']);
 
+  // M09-B: the folded slug "tandem-t4-e6" is searchable (token "tandem"); the legacy "tndem-t4-e6" was not.
   assert.deepEqual(result.map((row) => row.title), [
     'The Gentlemen: Los señores de la mafia',
+    'Tándem T4 E6',
   ]);
 });
 

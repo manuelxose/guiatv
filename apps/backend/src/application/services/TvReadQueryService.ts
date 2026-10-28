@@ -4,10 +4,9 @@ import { DateUtils } from '@/shared/utils/dateUtils';
 import { NotFoundError } from '@/shared/errors';
 import { l1Cache } from '@/infrastructure/cache/L1Cache';
 import { addTiming, measureTiming, setCacheTiming } from '@/shared/utils/performanceTiming';
-import { programDetailPath } from '@/domain/services/detailPath';
+import { programDetailPath, slugifyTitle } from '@/domain/services/detailPath';
 import {
   buildChannelIdentityMetadata,
-  buildLegacyProgramSlug,
   buildSearchTokens,
   getGuideGroupSortOrder,
   inferTimeWindow,
@@ -1009,7 +1008,7 @@ export class TvReadQueryService {
     return rows.flatMap((row) => {
       const title = String(row.program?.title || '').trim();
       const start = row.airing?.start;
-      const slug = buildLegacyProgramSlug(title);
+      const slug = slugifyTitle(title);
       const lookupTokens = buildSearchTokens([slug.replace(/-/g, ' ')])
         .filter((token) => !token.includes(' ') && !token.includes('_') && token.length >= 3);
       const indexedTokens = new Set(row.searchTokens || []);

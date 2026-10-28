@@ -740,8 +740,15 @@ export class CatalogDetailComponent implements OnInit, OnDestroy {
     return this.router.url.split(/[?#]/)[0];
   }
 
+  /** M09-B: a `/programas/` page declares the canonical its API payload names (folded slug or verified work page). */
+  private seoCanonicalPath(item: CatalogItem): string {
+    const declared = item.seo?.canonicalPath;
+    const own = this.canonicalPath();
+    return own.startsWith('/programas/') && declared && /^\/(programas|peliculas|series)\/[a-z0-9_]+(?:-[a-z0-9_]+)*$/.test(declared) ? declared : own;
+  }
+
   private applyMeta(item: CatalogItem): void {
-    const canonicalUrl = this.canonicalPath();
+    const canonicalUrl = this.seoCanonicalPath(item);
     const description =
       item.synopsis ||
       this.buildMetaDescription(item) ||
@@ -753,7 +760,7 @@ export class CatalogDetailComponent implements OnInit, OnDestroy {
       image: item.backdrop || item.image,
       canonicalUrl,
       type: 'article',
-      robots: canonicalUrl.startsWith('/contenido/') ? 'noindex, follow' : catalogRobotsPolicy(item),
+      robots: canonicalUrl.startsWith('/contenido/') || item.seo?.robots === 'noindex, follow' ? 'noindex, follow' : catalogRobotsPolicy(item),
     });
   }
 
@@ -791,8 +798,8 @@ export class CatalogDetailComponent implements OnInit, OnDestroy {
     const baseUrl = 'https://guiaprogramaciontv.com';
     const schemas: object[] = [generateBreadcrumbSchema(this.breadcrumbItems, baseUrl)];
 
-    // The generators assume /series/ or /peliculas/ + slug; the page's URL is its canonical (see canonicalPath).
-    const url = `${baseUrl}${this.canonicalPath()}`;
+    // The generators assume /series/ or /peliculas/ + slug; the entity's URL is the page's declared canonical.
+    const url = `${baseUrl}${this.seoCanonicalPath(item)}`;
     if (item.contentType === 'series') {
       schemas.unshift({ ...generateTVSeriesSchema(item, baseUrl), url });
     } else if (item.contentType === 'movie') {
