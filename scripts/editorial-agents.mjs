@@ -212,13 +212,17 @@ if (command === 'run') {
 } else if (command === 'enrich') {
   // M11-G: one versioned, re-certified revision of a guide the policy published, to add verified GuíaTV context and
   // relevant internal links. Same path as maintenance: the published version stays unless every gate passes.
+  // Validated before any network call (an exit with a socket open can crash Node on Windows).
   limits();
+  const list = (name) => String(arg(name, '')).split(',').map((s) => s.trim()).filter(Boolean);
+  if (!target || target.startsWith('--')) { console.error('usage: enrich <slug> --report <api>'); process.exit(2); }
+  if (list('links').some((p) => !/^\/(?!\/)[\w\-/]*$/.test(p))) { console.error('--links takes site paths such as /canales'); process.exit(2); }
+  if (list('seeds').some((u) => !/^https:\/\//.test(u))) { console.error('--seeds takes https URLs'); process.exit(2); }
   const api = apiBase(arg('report'));
   acquireLock();
   const policy = await adminPolicy(api);
   if (!policy?.active) { console.error('automatic publication is not active in the Admin (switch, activation or emergency stop)'); process.exit(2); }
   if (serverCapacity < 1) { console.error('the Admin daily limit is used up'); process.exit(2); }
-  const list = (name) => String(arg(name, '')).split(',').map((s) => s.trim()).filter(Boolean);
   const res = await enrichPublished(api, target, { note: arg('note', ''), links: list('links'), seeds: list('seeds'), corpus: await publicCorpus() });
   console.log(`${res.state}${res.reason ? `: ${res.reason}` : ''}`);
   if (res.state !== 'updated') process.exitCode = 1;
@@ -499,7 +503,7 @@ async function discover(q, corpus, report) {
     }
     const accepted = { ...p, seedUrls: seeds.filter((s) => s.ok).map((s) => s.url) };
     const own = firstPartySources(`${p.title} ${p.topic} ${p.intent}`);
-    if (!reasons.length) targets = await linkTargetsFor(`${p.title} ${p.topic} ${p.intent}`, inventory, p.slug, own.length ? [channelsHub()] : []);
+    if (!reasons.length) targets = await linkTargetsFor(`${p.title} ${p.topic} ${p.intent}`, inventory, p.slug);
     const scored = reasons.length ? { score: 0, explanation: [] }
       : queueLib.scoreProposal(accepted, { ...ctx, seeds, linkTargets: targets.length, publishedCategories: corpus.flatMap((c) => c.categories) });
     const at = new Date().toISOString();
@@ -567,7 +571,9 @@ function plainText(s) { return ` ${String(s).toLowerCase().normalize('NFD').repl
  * curated TDT line-up: football broadcasters are inferred from the EPG, and EPG film metadata is not reliable.
  */
 function firstPartySources(text) {
-  return /\b(?:tele|televisi[oó]n|tdt|canal(?:es)?|cadenas?|emisi[oó]n|parrilla|grabar)\b/i.test(text)
+  // Broadcast TV, not TV sets ("tele 4K"), radio chains or motor-racing grids. The line-up is context only: it never
+  // counts as the article's own value (EditorialEvidence LINEUP_FACTS), so a loose match costs tokens, not quality.
+  return /\b(?:tdt|televisi[oó]n(?:es)?|tele|canales de (?:la )?(?:tele|televisi[oó]n|tdt)|sintonizar)\b(?!\s*(?:4k|8k|oled|qled|led|smart|barata|port[aá]til))/i.test(text)
     ? [{ id: 'gtv-tdt', url: `${site}/v2/editorial/facts?kind=channels&group=tdt&format=text` }] : [];
 }
 async function enrichPublished(api, slug, { note, links, seeds, corpus }) {

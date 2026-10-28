@@ -457,14 +457,21 @@ export interface ValueSignals {
   claimsUsed: number;
 }
 
+/** M11-G: GuíaTV's channel line-up says which channels it covers: context and navigation, not value of its own. */
+const LINEUP_FACTS = /\/v2\/editorial\/facts\?(?:[^#]*&)?kind=channels(?:&|#|$)/;
+/** M11-G: a broadcast slot from GuíaTV's guide; it expires, so it can only be stated as tv-schedule evidence. */
+const SCHEDULE_FACTS = /\/v2\/editorial\/facts\?(?:[^#]*&)?kind=schedule(?:&|#|$)/;
+const valueBearingInternal = (s: EvidenceSource | undefined) => s?.kind === 'internal' && !LINEUP_FACTS.test(s.url);
+
 export function measureValue(markdown: string, bundle: EvidenceBundle): ValueSignals {
   const used = new Set(markerIds(markdown));
   const sources = new Map(bundle.sources.map((s) => [s.id, s]));
   const usedClaims = bundle.claims.filter((c) => used.has(c.id) && c.status === 'supported');
   const verifiedSources = usedClaims.flatMap((c) => c.quotes.filter((q) => q.verified).map((q) => sources.get(q.sourceId))).filter(Boolean) as EvidenceSource[];
   return {
-    internalClaims: usedClaims.filter((c) => c.quotes.some((q) => q.verified && sources.get(q.sourceId)?.kind === 'internal')).length,
-    publishers: new Set(verifiedSources.map((s) => s.publisher.toLowerCase())).size,
+    internalClaims: usedClaims.filter((c) => c.quotes.some((q) => q.verified && valueBearingInternal(sources.get(q.sourceId)))).length,
+    // GuíaTV aggregates third-party guides: it is never a second publisher confirming another (M11-G).
+    publishers: new Set(verifiedSources.filter((s) => s.kind !== 'internal').map((s) => s.publisher.toLowerCase())).size,
     tables: (stripFences(markdown).match(/^\s*\|\s*:?-{3,}/gm) ?? []).length,
     claimsUsed: usedClaims.length,
   };
@@ -655,8 +662,16 @@ export function evaluateEvidence(post: EvidencePost, provenance: EditorialProven
   } else {
     const ids = Array.isArray(dv.claimIds) ? dv.claimIds : [];
     const unproven = ids.filter((id) => !usedSupported.some((c) => c.id === id));
-    if (String(dv.readerBenefit ?? '').trim().length < 40 || !ids.length || unproven.length) {
-      add('block', 'distinct-value-unsupported', `El valor declarado no es concreto o no lo prueban afirmaciones citadas en el texto${unproven.length ? ` (${unproven.join(', ')})` : ''}`);
+    // The proof itself must carry value: GuíaTV data other than the line-up, or verified claims of two publishers.
+    const proof = usedSupported.filter((c) => ids.includes(c.id)).flatMap((c) => c.quotes.filter((q) => q.verified).map((q) => sources.get(q.sourceId)));
+    const carriesValue = proof.some(valueBearingInternal) || new Set(proof.filter((s) => s && s.kind !== 'internal').map((s) => s!.publisher.toLowerCase())).size >= 2;
+    if (String(dv.readerBenefit ?? '').trim().length < 40 || !ids.length || unproven.length || !carriesValue) {
+      add('block', 'distinct-value-unsupported', `El valor declarado no es concreto o no lo prueban afirmaciones citadas en el texto (datos propios de GuíaTV o dos editores)${unproven.length ? `: ${unproven.join(', ')}` : ''}`);
+    }
+  }
+  for (const claim of usedSupported) {
+    if (claim.volatility !== 'tv-schedule' && claim.quotes.some((q) => q.verified && SCHEDULE_FACTS.test(sources.get(q.sourceId)?.url ?? ''))) {
+      add('block', 'schedule-fact-not-dated', `${claim.id}: un horario de la parrilla caduca y no puede darse como dato ${claim.volatility}`);
     }
   }
   if (words(prose) < 1) add('block', 'empty-draft', 'Borrador vacío');

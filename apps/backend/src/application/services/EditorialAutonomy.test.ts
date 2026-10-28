@@ -123,6 +123,41 @@ test('M11-G distinct value: stated, proven by cited claims, signed, and required
   assert.ok(!evaluateEvidence({ content: ok.draft!.content }, legacy, NOW).some((f) => /^distinct-value/.test(f.code)));
 });
 
+test('M11-G: the channel line-up is context, not value, GuíaTV is no second publisher, and a broadcast slot is never stable', async () => {
+  const LINEUP = 'https://guiaprogramaciontv.com/v2/editorial/facts?kind=channels&group=tdt&format=text';
+  const SLOTS = 'https://guiaprogramaciontv.com/v2/editorial/facts?kind=schedule&channel=la_1&date=2026-10-27&format=text';
+  const pages: Record<string, string> = {
+    ...PAGES,
+    [LINEUP]: 'GuíaTV publica la programación de los canales de la TDT nacional, entre ellos Antena 3, La 1.',
+    [SLOTS]: 'La 1 emite «Telediario» el martes, 27 de octubre de 2026 de 15:00 a 15:45 (hora peninsular).',
+  };
+  const job = (source: string, claim: Record<string, unknown>, line: string) => runEditorialJob(
+    { ...legalTopic, internalSources: [{ id: 'g1', url: source }], seedUrls: [BOE_URL] },
+    deps(scripted({
+      research: [{ researchQuestions: ['?'], sources: [], claims: [
+        { id: 'c1', text: 'Las televisiones deben calificar por edades lo que emiten', volatility: 'stable', quotes: [{ sourceId: 's1', quote: 'calificarán por edades los contenidos que emitan' }] },
+        { id: 'c3', text: 'La calificación debe verse toda la emisión', volatility: 'stable', quotes: [{ sourceId: 's1', quote: 'La calificación se mostrará de forma visible durante toda la emisión' }] },
+        { id: 'c2', ...claim },
+      ] }],
+      evidence: [{ conflicts: [] }], critic: [pass],
+      editorial: [{ ...legalDraft(['# Calificación por edades en la televisión: qué obliga la ley', '', 'Las televisiones deben calificar por edades lo que emiten [[c1]] y mostrarlo toda la emisión [[c3]].', '', line].join('\n')),
+        distinctValue: { readerBenefit: 'Junta la obligación del BOE con la programación de la TDT que publica GuíaTV para el lector.', claimIds: ['c1', 'c2'] } }],
+    }).model, { fetchSource: async (url) => (pages[url] ? { status: 200, text: pages[url] } : { status: 404, text: '' }) }),
+    { ...DEFAULT_EDITORIAL_LIMITS, maxReviewLoops: 0 },
+  );
+  // One BOE claim plus the line-up: no own value, one publisher (GuíaTV is not a second one).
+  const lineup = await job(LINEUP, { text: 'GuíaTV publica la programación de los canales de la TDT nacional', volatility: 'stable', quotes: [{ sourceId: 'g1', quote: 'GuíaTV publica la programación de los canales de la TDT nacional' }] },
+    'GuíaTV publica la programación de los canales de la TDT nacional [[c2]].');
+  assert.deepEqual([lineup.value?.internalClaims, lineup.value?.publishers], [0, 1]);
+  for (const code of ['no-distinct-value', 'distinct-value-unsupported']) assert.ok(lineup.findings.some((f) => f.code === code), `${code}: ${JSON.stringify(lineup.findings)}`);
+  assert.notEqual(lineup.state, 'approved-by-policy');
+  // A slot from the guide counts as GuíaTV data, but stated as a stable fact it is refused.
+  const slot = await job(SLOTS, { text: 'La 1 emite Telediario el 27 de octubre de 2026 de 15:00 a 15:45', volatility: 'stable', quotes: [{ sourceId: 'g1', quote: 'La 1 emite «Telediario» el martes, 27 de octubre de 2026 de 15:00 a 15:45' }] },
+    'La 1 emite el Telediario el 27 de octubre de 2026 de 15:00 a 15:45 [[c2]].');
+  assert.equal(slot.value?.internalClaims, 1);
+  assert.ok(slot.findings.some((f) => f.code === 'schedule-fact-not-dated'), JSON.stringify(slot.findings));
+});
+
 test('M11-E2 revise loop: an unsupported claim sends the job back to research, and the new version is re-verified and re-criticised', async () => {
   const more = {
     researchQuestions: [], sources: [{ id: 'r1', url: 'https://www.rtve.es/play/la-2/', publisher: 'RTVE' }],

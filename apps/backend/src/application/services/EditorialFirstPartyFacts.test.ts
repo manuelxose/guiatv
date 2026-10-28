@@ -75,7 +75,8 @@ test('channel facts: registry channels only, with the sitemap URL; heuristic cha
     { ...airing('d', 'W', '2026-10-25T10:00:00Z', '2026-10-25T11:00:00Z'), channel: { id: 'tv3', name: 'TV3', group: 'autonomico' } },
   ];
   const facts = buildChannelFacts(rows, 'tdt');
-  assert.equal(facts[0].statement, 'GuíaTV publica la programación de 2 canales de la TDT nacional: Antena 3, La 1');
+  assert.equal(facts[0].statement, 'GuíaTV publica la programación de los canales de la TDT nacional, entre ellos Antena 3, La 1');
+  assert.ok(facts.every((f) => !/https?:/.test(f.statement)), 'no linkable URL in the citable text');
   assert.ok(!facts.some((f) => f.entityId === 'tv3'), 'other groups are not mixed in');
   const local = facts.find((f) => f.entityId === 'local_x')!;
   assert.deepEqual([local.eligible, local.verification], [false, 'heuristic']);

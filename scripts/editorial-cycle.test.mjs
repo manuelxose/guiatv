@@ -24,9 +24,9 @@ await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const base = `http://127.0.0.1:${server.address().port}`;
 test.after(() => server.close());
 
-function cycle(dir, env = {}, command = 'cycle') {
+function cycle(dir, env = {}, command = 'cycle', target = []) {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, ['scripts/editorial-agents.mjs', command, '--report', base, '--site', base, '--out', join(dir, 'out')], {
+    const child = spawn(process.execPath, ['scripts/editorial-agents.mjs', command, ...target, '--report', base, '--site', base, '--out', join(dir, 'out')], {
       env: { ...process.env, EDITORIAL_SPEND_DIR: dir, EDITORIAL_REVIEW_KEY: '', AUCTORIO_EDITORIAL_REVIEW_KEY: '', ANTHROPIC_BASE_URL: base, ANTHROPIC_API_KEY: 'test', ANTHROPIC_AUTH_TOKEN: '', EDITORIAL_BUDGET: 'unlimited', ...env },
     });
     let output = '';
@@ -115,12 +115,14 @@ test('provider outage: discovery fails quietly and an empty queue ends the cycle
 
 test('M11-G enrich: refuses the reviewer key and the stopped policy; a failed same-day revision keeps the live run file', async () => {
   const dir = fresh();
-  assert.equal((await cycle(dir, { EDITORIAL_REVIEW_KEY: 'human-key' }, 'enrich')).code, 2);
+  assert.match((await cycle(dir, { EDITORIAL_REVIEW_KEY: 'human-key' }, 'enrich', ['guia-viva'])).output, /EDITORIAL_REVIEW_KEY is a reviewer key/);
+  assert.match((await cycle(dir, {}, 'enrich', ['guia-viva', '--links', 'https://evil.example/x'])).output, /--links takes site paths/);
   Object.assign(policy, { active: false });
   const before = seen.length;
-  const stopped = await cycle(dir, {}, 'enrich');
+  const stopped = await cycle(dir, {}, 'enrich', ['guia-viva']);
   Object.assign(policy, { active: true });
   assert.equal(stopped.code, 2, stopped.output);
+  assert.match(stopped.output, /automatic publication is not active/);
   assert.ok(!seen.slice(before).some((s) => s.startsWith('POST /v1/messages')), 'no model call while stopped');
 
   // The live version's run file of today, then a revision of the same slug that fails (gateway down).

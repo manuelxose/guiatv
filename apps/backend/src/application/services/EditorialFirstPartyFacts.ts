@@ -58,7 +58,8 @@ export function buildChannelFacts(rows: Row[], group: string): EditorialFact[] {
     const url = channelUrl(c);
     return {
       id: `channel:${id}`, entityType: 'channel', entityId: id, canonicalUrl: url,
-      statement: `${c.name} es uno de los canales de ${GROUP_LABEL[group] ?? group} cuya programación publica GuíaTV en ${url}`,
+      // No URL in the text: a writer would link it, and only runner-verified pages may be linked.
+      statement: `${c.name} es uno de los canales de ${GROUP_LABEL[group] ?? group} cuya programación publica GuíaTV`,
       provenance: { publisher: 'GuíaTV', dataset: 'catálogo de canales de GuíaTV', upstream: upstreamOf(list) },
       recordedAt: iso(list.map((r) => iso(r.updatedAt)).sort().pop()), verification: curated ? 'registry' : 'heuristic', freshness: 'fresh',
       eligible: curated && Boolean(url), ...(curated ? {} : { reason: 'canal clasificado por heurística, no por el registro curado' }), relatedEntities: [],
@@ -69,7 +70,8 @@ export function buildChannelFacts(rows: Row[], group: string): EditorialFact[] {
   const names = eligible.map((f) => byId.get(f.entityId)![0].channel!.name);
   return [{
     id: `lineup:${group}`, entityType: 'channel-lineup', entityId: group, canonicalUrl: `${SITE}/canales`,
-    statement: `GuíaTV publica la programación de ${eligible.length} canales de ${GROUP_LABEL[group] ?? group}: ${names.join(', ')}`,
+    // No count: it follows which channels have airings today, so a number written into a guide would drift.
+    statement: `GuíaTV publica la programación de los canales de ${GROUP_LABEL[group] ?? group}, entre ellos ${names.join(', ')}`,
     provenance: { publisher: 'GuíaTV', dataset: 'catálogo de canales de GuíaTV', upstream: upstreamOf(rows) },
     recordedAt: eligible.map((f) => f.recordedAt).filter(Boolean).sort().pop() ?? null, verification: 'registry', freshness: 'fresh', eligible: true, relatedEntities: [],
   }, ...channels];
@@ -81,7 +83,9 @@ export function buildChannelFacts(rows: Row[], group: string): EditorialFact[] {
  * channel (contradictory feeds): an uncertain slot is never stated as a fact.
  */
 export function buildScheduleFacts(rows: Row[], day: string, now: Date): EditorialFact[] {
-  const slots = rows.filter((r) => r.airing?.start && iso(r.airing.start) && madridDay(r.airing.start) === day)
+  // One row per airing id: the same airing can be stored under two feed days.
+  const slots = [...new Map(rows.filter((r) => r.airing?.start && iso(r.airing.start) && madridDay(r.airing.start) === day)
+    .map((r, i) => [r.airing!.id ?? `#${i}`, r] as const)).values()]
     .sort((a, b) => Date.parse(a.airing!.start) - Date.parse(b.airing!.start));
   const titleKey = (r: Row) => String(r.program?.normalizedTitle ?? r.program?.title ?? '').trim().toLowerCase();
   const span = (r: Row) => [Date.parse(r.airing!.start), Date.parse(r.airing!.end ?? r.airing!.start) || Date.parse(r.airing!.start)];
@@ -132,7 +136,8 @@ const compact = (ymd: string, add = 0) => new Date(Date.parse(`${ymd}T00:00:00Z`
 export async function loadEditorialFacts(query: FactsQuery, now = new Date()): Promise<{ query: FactsQuery; generatedAt: string; facts: EditorialFact[] }> {
   const today = madridDay(now);
   const facts = query.kind === 'channels'
-    ? buildChannelFacts(await TVReadAiringModel.find({ date: compact(today), 'channel.group': query.group }, PROJECTION).lean().exec() as Row[], query.group)
+    // The whole EPG window, not one day, so one feed's outage for a channel does not change the citable line-up.
+    ? buildChannelFacts(await TVReadAiringModel.find({ date: { $in: [-1, 0, 1, 2].map((d) => compact(today, d)) }, 'channel.group': query.group }, { channel: 1, 'sourceProvenance.schedule': 1, updatedAt: 1 }).lean().exec() as Row[], query.group)
     // Rows are stored per UTC-ish feed day: read the neighbours and keep the slots whose local day matches.
     : buildScheduleFacts(await TVReadAiringModel.find({ 'channel.id': query.channel, date: { $in: [compact(query.day, -1), compact(query.day), compact(query.day, 1)] } }, PROJECTION).lean().exec() as Row[], query.day, now);
   return { query, generatedAt: now.toISOString(), facts };
@@ -141,12 +146,22 @@ export async function loadEditorialFacts(query: FactsQuery, now = new Date()): P
 /** Text the research agent reads and quotes from: provenance header, then one eligible statement per line. */
 export function factsAsText(result: { query: FactsQuery; generatedAt: string; facts: EditorialFact[] }): string {
   const ok = result.facts.filter((f) => f.eligible);
-  const upstream = [...new Set(ok.flatMap((f) => f.provenance.upstream))].map((u) => new URL(u).hostname);
+  const upstream = [...new Set(ok.flatMap((f) => f.provenance.upstream).map((u) => { try { return new URL(u).hostname; } catch { return u; } }))];
+  // Only stable wording before the facts: a quote must still be found when maintenance re-reads this page later.
   return [
-    `Datos propios de GuíaTV (${result.query.kind === 'channels' ? 'catálogo de canales' : 'guía de programación'}), generados el ${result.generatedAt}. Horas en hora peninsular española (${FACTS_TIMEZONE}).`,
+    `Datos propios de GuíaTV (${result.query.kind === 'channels' ? 'catálogo de canales' : 'guía de programación'}). Horas en hora peninsular española (${FACTS_TIMEZONE}).`,
     `Origen de la programación: guías XMLTV de ${upstream.join(', ') || 'ninguna'}; GuíaTV las agrega, no las produce la cadena. Solo se listan datos vigentes, refrescados y sin contradicción.`,
     '',
     ...(ok.length ? ok.map((f) => `${f.statement}.`) : ['(ningún dato vigente)']),
     '',
+    `[Generado el ${result.generatedAt}; esta línea no es un dato citable.]`,
+    '',
   ].join('\n');
+}
+
+/** Public JSON: eligible facts only; withheld ones are counted by reason, never shown (titles hidden for quality stay hidden). */
+export function publicFacts(result: { query: FactsQuery; generatedAt: string; facts: EditorialFact[] }) {
+  const withheld: Record<string, number> = {};
+  for (const f of result.facts) if (!f.eligible) withheld[f.reason ?? 'no elegible'] = (withheld[f.reason ?? 'no elegible'] ?? 0) + 1;
+  return { query: result.query, generatedAt: result.generatedAt, facts: result.facts.filter((f) => f.eligible), withheld };
 }

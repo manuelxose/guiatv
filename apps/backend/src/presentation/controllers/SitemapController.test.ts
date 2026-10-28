@@ -354,14 +354,28 @@ test('M09/M11-G: sitemap index lastmod is the newest lastmod inside each child, 
   try {
     const xml = await index();
     assert.match(xml, /sitemap-blog\.xml<\/loc>\s*<lastmod>2026-10-27<\/lastmod>/);
-    // The programs child cannot build with these fakes: no lastmod rather than a guessed one.
-    assert.match(xml, /<sitemap>\s*<loc>[^<]+sitemap-programs\.xml<\/loc>\s*<\/sitemap>/);
+    // Schedule-driven children would claim "today" every day: no lastmod rather than an inaccurate one.
+    for (const child of ['static', 'channels', 'programs']) assert.match(xml, new RegExp(`<sitemap>\\s*<loc>[^<]+sitemap-${child}\\.xml</loc>\\s*</sitemap>`));
 
     // A guide publish invalidates only blog + index; the next index read carries the new date.
     posts = [...posts, { slug: 'hoy', updatedAt: new Date('2026-10-28T10:40:00Z'), categories: [] }];
     assert.match(await index(), /sitemap-blog\.xml<\/loc>\s*<lastmod>2026-10-27<\/lastmod>/, 'cached until invalidated');
     invalidateSitemapCache(['blog', 'index']);
     assert.match(await index(), /sitemap-blog\.xml<\/loc>\s*<lastmod>2026-10-28<\/lastmod>/);
+
+    // A build already running when a guide goes live answers its request but is not cached over the new state.
+    invalidateSitemapCache();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const before = posts.filter((p: any) => p.slug !== 'hoy');
+    (Model as any).find = () => ({ select: () => ({ lean: () => ({ exec: async () => { await gate; return before; } }) }) });
+    const slow = index();
+    await new Promise((r) => setTimeout(r, 5));
+    invalidateSitemapCache(['blog', 'index']); // 'hoy' goes live while the slow build still reads the old list
+    release();
+    assert.match(await slow, /sitemap-blog\.xml<\/loc>\s*<lastmod>2026-10-27<\/lastmod>/);
+    (Model as any).find = () => ({ select: () => ({ lean: () => ({ exec: async () => posts }) }) });
+    assert.match(await index(), /sitemap-blog\.xml<\/loc>\s*<lastmod>2026-10-28<\/lastmod>/, 'the stale build was not cached');
   } finally {
     (Model as any).find = originalFind;
     invalidateSitemapCache();

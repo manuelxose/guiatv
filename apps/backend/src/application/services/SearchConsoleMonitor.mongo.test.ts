@@ -129,6 +129,7 @@ test('Search Console monitor stores genuine observations only', { skip: !process
     await t.test('classification uses Google\'s structured fields, never a missing value as a negative', () => {
       const base = { inspectedAt: NOW, error: null };
       assert.equal(classifyInspection(null), 'insufficient-evidence');
+      assert.equal(classifyInspection({ ...base, verdict: null, coverageState: null }), 'insufficient-evidence', 'an empty answer is not a state');
       assert.equal(classifyInspection({ ...base, error: 'HTTP 500' }), 'insufficient-evidence');
       assert.equal(classifyInspection({ ...base, verdict: 'PASS' }), 'indexed');
       assert.equal(classifyInspection({ ...base, verdict: 'FAIL', indexingState: 'BLOCKED_BY_META_TAG' }), 'blocked');

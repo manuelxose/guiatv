@@ -61,8 +61,9 @@ const FETCH_FAILURES = new Set(['SOFT_404', 'BLOCKED_ROBOTS_TXT', 'NOT_FOUND', '
  * when Google says so or names a sitemap or a referring page; no inspection, or an error, is not a state.
  */
 export function classifyInspection(i: Record<string, any> | null | undefined): GscIndexClass {
-  if (!i || i.error || !i.inspectedAt) return 'insufficient-evidence';
-  if (i.verdict === 'PASS') return 'indexed';
+  // An empty answer (no verdict, no coverage) says nothing about the URL.
+  if (!i || i.error || !i.inspectedAt || (!i.verdict && !i.coverageState)) return 'insufficient-evidence';
+  if (i.verdict === 'PASS' || i.verdict === 'PARTIAL') return 'indexed';
   if (i.robotsTxtState === 'DISALLOWED' || /^BLOCKED_BY_/.test(String(i.indexingState ?? ''))) return 'blocked';
   if (FETCH_FAILURES.has(String(i.pageFetchState ?? ''))) return 'fetch-error';
   if (i.googleCanonical && i.userCanonical && i.googleCanonical !== i.userCanonical) return 'alternate-canonical';
@@ -143,6 +144,7 @@ export async function runSearchConsoleMonitor(options: SearchConsoleMonitorOptio
 
     // The URL Inspection API reports Google's indexed copy; it does not live-crawl the page.
     await inspections().createIndex({ url: 1 }, { unique: true });
+    await history().createIndex({ url: 1, inspectedAt: 1 });
     const guides = await BlogPostModel.find(PUBLIC_EDITORIAL_FILTER).select({ slug: 1 }).sort({ publishedAt: -1 }).lean().exec();
     const fresh = new Set((await inspections().find({ error: null, $or: [
       { inspectedAt: { $gt: new Date(now.getTime() - DAY) } },
@@ -159,7 +161,8 @@ export async function runSearchConsoleMonitor(options: SearchConsoleMonitorOptio
           referringUrls: r.referringUrls ?? [], crawledAs: r.crawledAs ?? null, error: null,
         };
         await inspections().updateOne({ url }, { $set: observed }, { upsert: true });
-        await history().insertOne({ ...observed, classification: classifyInspection(observed) });
+        // Best effort: a failed snapshot must not turn the saved inspection into an error (and cost a re-inspection).
+        await history().insertOne({ ...observed, classification: classifyInspection(observed) }).catch(() => undefined);
         run.inspected++;
       } catch (error) {
         if (error instanceof GscHttpError && (error.status === 403 || error.status === 429 || error.status === 401)) throw error;
@@ -238,7 +241,7 @@ export async function searchConsoleOverview(now = new Date()) {
     summary: {
       byClassification: count((r) => r.classification),
       byAge: count((r) => r.ageBand),
-      byPublicationDay: count((r) => (r.publishedAt ? new Date(r.publishedAt).toISOString().slice(0, 10) : 'desconocida')),
+      byPublicationDay: count((r) => (r.ageDays === null ? 'desconocida' : new Date(r.publishedAt as Date).toISOString().slice(0, 10))),
       byCategory: count((r) => r.categories[0] ?? 'sin categoría'),
       byStrategy: count((r) => r.strategy),
       byFirstPartyData: count((r) => (r.firstPartyData ? 'con datos propios' : 'sin datos propios')),

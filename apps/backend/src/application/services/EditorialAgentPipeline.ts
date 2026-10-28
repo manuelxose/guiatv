@@ -234,7 +234,7 @@ export interface RevisionRecord {
   gateFixes?: number;
 }
 /** Gate findings that mean the evidence is short, so another rewrite of the same claims cannot fix them. */
-const EVIDENCE_GAPS = new Set(['unsupported-claim', 'no-distinct-value']);
+const EVIDENCE_GAPS = new Set(['unsupported-claim', 'no-distinct-value', 'schedule-fact-not-dated']);
 /** M11-E2b: gate findings the writer or the SEO agent can fix with a local edit, before the critic sees the draft. */
 const WRITER_FIXABLE = new Set([
   'uncited-factual-statement', 'figure-not-in-claim', 'figure-in-words', 'metadata-figure-not-in-claims', 'invalid-metadata',

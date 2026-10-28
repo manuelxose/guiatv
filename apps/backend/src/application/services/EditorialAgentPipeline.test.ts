@@ -10,7 +10,7 @@ test('pipeline: a researched, verified and independently reviewed draft is appro
   assert.equal(run.state, 'approved-by-policy', JSON.stringify(run.findings));
   assert.deepEqual(run.findings.filter((f) => f.severity !== 'warn').map((f) => f.code), ['unverified-claims']);
   assert.equal(run.provenance!.bundle.claims.find((c) => c.id === 'c5')!.status, 'unverified', 'a quote absent from its source is dropped');
-  assert.deepEqual(run.value, { internalClaims: 1, publishers: 4, tables: 0, claimsUsed: 4 });
+  assert.deepEqual(run.value, { internalClaims: 1, publishers: 3, tables: 0, claimsUsed: 4 }, 'GuíaTV is not one of the publishers (M11-G)');
   assert.equal(run.draft!.authorName, 'Redacción IA de Guía TV');
   assert.match(run.draft!.content, /data-ai-disclosure/);
   assert.doesNotMatch(run.draft!.content, /\[\[c/);

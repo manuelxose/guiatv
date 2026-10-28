@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { factsAsText, loadEditorialFacts, parseFactsQuery } from '../../application/services/EditorialFirstPartyFacts';
+import { factsAsText, loadEditorialFacts, parseFactsQuery, publicFacts } from '../../application/services/EditorialFirstPartyFacts';
 
 /**
  * M11-G GET /v2/editorial/facts: GuíaTV's own data as citable facts for the editorial pipeline (an internal source).
@@ -13,6 +13,6 @@ export async function editorialFactsHandler(req: Request, res: Response, next: N
     const result = await loadEditorialFacts(query);
     res.set('Cache-Control', 'public, max-age=300');
     if (req.query.format === 'text') res.type('text/plain; charset=utf-8').send(factsAsText(result));
-    else res.json({ success: true, data: result });
+    else res.json({ success: true, data: publicFacts(result) });
   } catch (error) { next(error); }
 }
