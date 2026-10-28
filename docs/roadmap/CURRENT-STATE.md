@@ -412,3 +412,9 @@ Details: [M12-ENTRY-GATE.md](M12-ENTRY-GATE.md).
 - **Fixed (independent review, two HIGH):** the runner's admin key could relabel or strip provenance, or forge the critic verdict, so a critic `block` became approvable; approvals saved without a version check, so a concurrent edit went public. Provenance is now locked, signatures are checked on both approval paths, and `BlogPost` uses optimistic concurrency.
 - **Admin E2E:** new `admin-editorial.spec.ts`; `admin-shell` repaired. Admin Playwright specs are not run in CI.
 - **Held draft** `6ae0d88e…`: still private and unacknowledged; it expires with the 2026-10-28 programmes unless a named reviewer acts.
+
+## M11-F addendum — autonomous editorial operations (2026-10-28): ACTIVE
+- **Live:** release **`20261028111735`**, `gitSha e7aaf2b` (PR #111). Runner on the owner PC at `main@16f5037` (#112, #113 runner-only). Rollback target `20261027211302`.
+- **Running:** Windows task `GuiaTV\EditorialCycle` (08–20 h every 3 h, 1 topic per cycle) → maintenance, discovery when the queue is low, certified publication by policy; Admin cap 10/day, server-enforced. `GSC_MONITOR_ENABLED=true` (backup `api.env.bak-m11f-20261028T102056Z`).
+- **Evidence:** 1 guide published autonomously from a discovered topic (`/guias/descargar-series-netflix-grabar-tele-copia-privada`); 1 canary article correctly held; 3 policy guides re-verified unchanged. Search Console: 13 guides inspected, **0 indexed**, no Search Analytics rows yet.
+- **Roadmap:** M11-B PARTIAL (owner's revised criterion met; M04-B unmet). M12 NO-GO. Details: [M11F-DELIVERY.md](M11F-DELIVERY.md).
