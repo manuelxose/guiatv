@@ -303,7 +303,7 @@ async function runTopics(topics, { report, autopublish, replay = null, corpus, p
   const jobId = (slug) => `${startedAt}-${slug}`;
   const persist = ({ media = [], ...run }) => {
     for (const { asset, bytes } of media) writeFileSync(join(out, 'media', `${asset.sha256}.${MEDIA_EXT[asset.contentType]}`), bytes);
-    writeFileSync(join(out, `${today()}-${run.slug}.json`), JSON.stringify({ ...run, modelBackend: run.provenance?.backend ?? (replay ? 'replay' : null) }, null, 1));
+    writeFileSync(runFileFor(run, startedAt), JSON.stringify({ ...run, modelBackend: run.provenance?.backend ?? (replay ? 'replay' : null) }, null, 1));
   };
   const journal = {
     reserve: (slug, usd) => appendSpend({ kind: 'reserve', jobId: jobId(slug), slug, usd }),
@@ -696,6 +696,20 @@ async function maintainPublished(api, { apply, max, force = false, corpus }) {
     }
   }
   return results;
+}
+/**
+ * A rerun overwrites its day's run file, except the file of a version that went live: a same-day revision (maintenance,
+ * enrich) writes beside it, so a revision that fails certification never loses the provenance of the published guide.
+ */
+function runFileFor(run, startedAt) {
+  const base = join(out, `${today()}-${run.slug}.json`);
+  try {
+    const prev = JSON.parse(readFileSync(base, 'utf8'));
+    if (['published', 'updated'].includes(prev.state) && prev.provenance?.draftHash !== run.provenance?.draftHash) {
+      return join(out, `${today()}-${startedAt.replace(/[^0-9]/g, '').slice(8, 14)}-${run.slug}.json`);
+    }
+  } catch { /* no file yet, or unreadable: the base name */ }
+  return base;
 }
 function latestRunFor(slug, draftHash) {
   const files = runFiles().filter((f) => f.endsWith(`-${slug}.json`)).sort().reverse();

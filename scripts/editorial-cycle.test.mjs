@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -110,6 +110,39 @@ test('provider outage: discovery fails quietly and an empty queue ends the cycle
   const log = lastCycle(dir);
   assert.match(log.discovery.error, /gateway down|500/);
   assert.equal(log.result, 'no-eligible-topics');
+  rmSync(dir, { recursive: true });
+});
+
+test('M11-G enrich: refuses the reviewer key and the stopped policy; a failed same-day revision keeps the live run file', async () => {
+  const dir = fresh();
+  assert.equal((await cycle(dir, { EDITORIAL_REVIEW_KEY: 'human-key' }, 'enrich')).code, 2);
+  Object.assign(policy, { active: false });
+  const before = seen.length;
+  const stopped = await cycle(dir, {}, 'enrich');
+  Object.assign(policy, { active: true });
+  assert.equal(stopped.code, 2, stopped.output);
+  assert.ok(!seen.slice(before).some((s) => s.startsWith('POST /v1/messages')), 'no model call while stopped');
+
+  // The live version's run file of today, then a revision of the same slug that fails (gateway down).
+  const out = join(dir, 'out');
+  const day = new Date().toISOString().slice(0, 10);
+  const live = JSON.stringify({ slug: 'guia-viva', state: 'updated', provenance: { draftHash: 'live' } });
+  writeFileSync(join(dir, 'topics.json'), JSON.stringify([queued('guia-viva').topic]));
+  mkdirSync(out, { recursive: true });
+  writeFileSync(join(out, `${day}-guia-viva.json`), live);
+  const r = await new Promise((resolve) => {
+    const child = spawn(process.execPath, ['scripts/editorial-agents.mjs', 'run', join(dir, 'topics.json'), '--out', out, '--site', base], {
+      env: { ...process.env, EDITORIAL_SPEND_DIR: dir, EDITORIAL_REVIEW_KEY: '', AUCTORIO_EDITORIAL_REVIEW_KEY: '', ANTHROPIC_BASE_URL: base, ANTHROPIC_API_KEY: 'test', ANTHROPIC_AUTH_TOKEN: '', EDITORIAL_BUDGET: 'unlimited' },
+    });
+    let output = '';
+    child.stdout.on('data', (d) => (output += d));
+    child.stderr.on('data', (d) => (output += d));
+    child.on('exit', (code) => resolve({ code, output }));
+  });
+  assert.equal(readFileSync(join(out, `${day}-guia-viva.json`), 'utf8'), live, r.output);
+  const beside = readdirSync(out).filter((f) => f.endsWith('-guia-viva.json') && f !== `${day}-guia-viva.json`);
+  assert.equal(beside.length, 1, r.output);
+  assert.equal(JSON.parse(readFileSync(join(out, beside[0]), 'utf8')).state, 'blocked');
   rmSync(dir, { recursive: true });
 });
 
