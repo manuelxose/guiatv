@@ -16,8 +16,12 @@ const DAY = 864e5;
 // Inspection quota is 2000/day and 600/min per property; sequential calls stay far below the per-minute cap.
 const MAX_INSPECTIONS_PER_RUN = 500;
 
+// M11-G: an indexed URL is re-inspected weekly, any other daily; each inspection is also kept as a history snapshot.
+const INDEXED_RECHECK_MS = 7 * DAY;
+
 const db = () => BlogPostModel.db;
 const inspections = () => db().collection('editorial_gsc_inspections');
+const history = () => db().collection('editorial_gsc_inspection_history');
 const performance = () => db().collection('editorial_gsc_performance');
 const runs = () => db().collection('editorial_gsc_runs');
 
@@ -47,6 +51,26 @@ export interface SearchConsoleMonitorOptions {
 class MissingCredentials extends Error {}
 class GscHttpError extends Error {
   constructor(readonly status: number, message: string) { super(message); }
+}
+
+export type GscIndexClass = 'indexed' | 'blocked' | 'fetch-error' | 'alternate-canonical' | 'crawled-not-indexed' | 'discovered-not-indexed' | 'not-discovered' | 'insufficient-evidence';
+const FETCH_FAILURES = new Set(['SOFT_404', 'BLOCKED_ROBOTS_TXT', 'NOT_FOUND', 'ACCESS_DENIED', 'SERVER_ERROR', 'REDIRECT_ERROR', 'ACCESS_FORBIDDEN', 'BLOCKED_4XX', 'INTERNAL_CRAWL_ERROR', 'INVALID_URL']);
+
+/**
+ * Normalised state from Google's answer; the raw coverage text is always kept next to it. Discovery is only claimed
+ * when Google says so or names a sitemap or a referring page; no inspection, or an error, is not a state.
+ */
+export function classifyInspection(i: Record<string, any> | null | undefined): GscIndexClass {
+  if (!i || i.error || !i.inspectedAt) return 'insufficient-evidence';
+  if (i.verdict === 'PASS') return 'indexed';
+  if (i.robotsTxtState === 'DISALLOWED' || /^BLOCKED_BY_/.test(String(i.indexingState ?? ''))) return 'blocked';
+  if (FETCH_FAILURES.has(String(i.pageFetchState ?? ''))) return 'fetch-error';
+  if (i.googleCanonical && i.userCanonical && i.googleCanonical !== i.userCanonical) return 'alternate-canonical';
+  // Google's own wording (Spanish or English) wins over the structured fields it sometimes leaves empty.
+  const coverage = String(i.coverageState ?? '');
+  if (i.lastCrawlTime || /crawled|rastreada/i.test(coverage)) return 'crawled-not-indexed';
+  if ((i.sitemaps ?? []).length || (i.referringUrls ?? []).length || /discovered|descubierta/i.test(coverage)) return 'discovered-not-indexed';
+  return 'not-discovered';
 }
 
 export const gscSiteUrl = () => (process.env.GSC_SITE_URL || ORIGIN).trim().replace(/\/+$/, '');
@@ -120,16 +144,22 @@ export async function runSearchConsoleMonitor(options: SearchConsoleMonitorOptio
     // The URL Inspection API reports Google's indexed copy; it does not live-crawl the page.
     await inspections().createIndex({ url: 1 }, { unique: true });
     const guides = await BlogPostModel.find(PUBLIC_EDITORIAL_FILTER).select({ slug: 1 }).sort({ publishedAt: -1 }).lean().exec();
-    const fresh = new Set((await inspections().find({ inspectedAt: { $gt: new Date(now.getTime() - DAY) }, error: null }, { projection: { url: 1 } }).toArray()).map((d) => d.url));
+    const fresh = new Set((await inspections().find({ error: null, $or: [
+      { inspectedAt: { $gt: new Date(now.getTime() - DAY) } },
+      { verdict: 'PASS', inspectedAt: { $gt: new Date(now.getTime() - INDEXED_RECHECK_MS) } },
+    ] }, { projection: { url: 1 } }).toArray()).map((d) => d.url));
     for (const url of guides.filter((g) => g.slug).map((g) => guideUrl(String(g.slug)))) {
       if (fresh.has(url) || run.inspected + run.inspectionErrors >= MAX_INSPECTIONS_PER_RUN) { run.skipped++; continue; }
       try {
         const r = (await post(`${API}/v1/urlInspection/index:inspect`, { inspectionUrl: url, siteUrl, languageCode: 'es' })).inspectionResult?.indexStatusResult ?? {};
-        await inspections().updateOne({ url }, { $set: {
+        const observed = {
           url, inspectedAt: now, verdict: r.verdict ?? null, coverageState: r.coverageState ?? null, indexingState: r.indexingState ?? null,
           robotsTxtState: r.robotsTxtState ?? null, pageFetchState: r.pageFetchState ?? null, lastCrawlTime: r.lastCrawlTime ?? null,
-          googleCanonical: r.googleCanonical ?? null, userCanonical: r.userCanonical ?? null, sitemaps: r.sitemap ?? [], error: null,
-        } }, { upsert: true });
+          googleCanonical: r.googleCanonical ?? null, userCanonical: r.userCanonical ?? null, sitemaps: r.sitemap ?? [],
+          referringUrls: r.referringUrls ?? [], crawledAs: r.crawledAs ?? null, error: null,
+        };
+        await inspections().updateOne({ url }, { $set: observed }, { upsert: true });
+        await history().insertOne({ ...observed, classification: classifyInspection(observed) });
         run.inspected++;
       } catch (error) {
         if (error instanceof GscHttpError && (error.status === 403 || error.status === 429 || error.status === 401)) throw error;
@@ -154,7 +184,7 @@ export async function runSearchConsoleMonitor(options: SearchConsoleMonitorOptio
 /** Admin view: what we serve (public guide, 200, index,follow, in sitemap) vs what Google reports. */
 export async function searchConsoleOverview(now = new Date()) {
   const windowStart = isoDay(now.getTime() - (GSC_WINDOW_DAYS - 1) * DAY);
-  const guides = await BlogPostModel.find(PUBLIC_EDITORIAL_FILTER).select({ slug: 1, title: 1 }).sort({ publishedAt: -1 }).limit(100).lean().exec();
+  const guides = await BlogPostModel.find(PUBLIC_EDITORIAL_FILTER).select({ slug: 1, title: 1, publishedAt: 1, updatedAt: 1, categories: 1, 'editorial.pipelineVersion': 1, 'editorial.bundle.sources.kind': 1 }).sort({ publishedAt: -1 }).limit(100).lean().exec();
   const urls = guides.filter((g) => g.slug).map((g) => guideUrl(String(g.slug)));
   const pageRows = { query: null, date: { $gte: windowStart } };
   const [lastRun, inspected, perf, siteDays] = await Promise.all([
@@ -168,17 +198,24 @@ export async function searchConsoleOverview(now = new Date()) {
   ]);
   const byUrl = new Map(inspected.map((i) => [i.url, i]));
   const perfByUrl = new Map(perf.map((p) => [p._id, p]));
-  return {
-    enabled: /^(1|true|yes|on)$/i.test((process.env.GSC_MONITOR_ENABLED || '').trim()),
-    windowDays: GSC_WINDOW_DAYS,
-    lastRun,
-    baseline: { days: siteDays.length, complete: siteDays.length >= GSC_WINDOW_DAYS },
-    guides: guides.filter((g) => g.slug).map((g) => {
+  const days = (at: unknown) => { const t = at ? new Date(at as string).getTime() : NaN; return Number.isFinite(t) ? Math.floor((now.getTime() - t) / DAY) : null; };
+  // Checkpoints, not a verdict: Google needs days to weeks to crawl a new URL on a low-authority site.
+  const ageBand = (d: number | null) => (d === null ? 'desconocida' : d <= 7 ? '0-7 días' : d <= 14 ? '8-14 días' : d <= 28 ? '15-28 días' : 'más de 28 días');
+  const rows = guides.filter((g) => g.slug).map((g) => {
       const url = guideUrl(String(g.slug));
       const i = byUrl.get(url);
       const p = perfByUrl.get(url);
+      const editorial = (g as { editorial?: { pipelineVersion?: string; bundle?: { sources?: Array<{ kind?: string }> } } }).editorial;
+      const ageDays = days(g.publishedAt);
       return {
         slug: g.slug, title: g.title, url,
+        publishedAt: g.publishedAt ?? null, lastUpdatedAt: g.updatedAt ?? null, ageDays, ageBand: ageBand(ageDays),
+        categories: ((g as { categories?: Array<{ name?: string }> }).categories ?? []).map((c) => c?.name).filter(Boolean),
+        // Editorial source strategy: who wrote it and whether GuíaTV's own data is among its evidence.
+        strategy: editorial?.pipelineVersion ? 'pipeline' : 'manual',
+        firstPartyData: Boolean(editorial?.bundle?.sources?.some((s) => s.kind === 'internal')),
+        classification: classifyInspection(i),
+        daysSinceCrawl: days(i?.lastCrawlTime),
         inspection: i ? {
           inspectedAt: i.inspectedAt ?? null, verdict: i.verdict ?? null, coverageState: i.coverageState ?? null,
           indexed: i.verdict === 'PASS', lastCrawlTime: i.lastCrawlTime ?? null, googleCanonical: i.googleCanonical ?? null,
@@ -191,6 +228,21 @@ export async function searchConsoleOverview(now = new Date()) {
           days: p.days.length, baselineComplete: p.days.length >= GSC_WINDOW_DAYS, preliminary: Boolean(p.preliminary),
         } : null,
       };
-    }),
+    });
+  const count = (key: (r: (typeof rows)[number]) => string) => rows.reduce<Record<string, number>>((acc, r) => ({ ...acc, [key(r)]: (acc[key(r)] ?? 0) + 1 }), {});
+  return {
+    enabled: /^(1|true|yes|on)$/i.test((process.env.GSC_MONITOR_ENABLED || '').trim()),
+    windowDays: GSC_WINDOW_DAYS,
+    lastRun,
+    baseline: { days: siteDays.length, complete: siteDays.length >= GSC_WINDOW_DAYS },
+    summary: {
+      byClassification: count((r) => r.classification),
+      byAge: count((r) => r.ageBand),
+      byPublicationDay: count((r) => (r.publishedAt ? new Date(r.publishedAt).toISOString().slice(0, 10) : 'desconocida')),
+      byCategory: count((r) => r.categories[0] ?? 'sin categoría'),
+      byStrategy: count((r) => r.strategy),
+      byFirstPartyData: count((r) => (r.firstPartyData ? 'con datos propios' : 'sin datos propios')),
+    },
+    guides: rows,
   };
 }
