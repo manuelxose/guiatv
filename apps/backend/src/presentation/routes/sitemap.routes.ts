@@ -16,6 +16,9 @@ export const createSitemapRoutes = (controller: SitemapController): Router => {
   router.get('/sitemap-programs.xml', (req, res, next) => {
     void controller.getProgramsSitemap(req, res, next);
   });
+  router.get('/sitemap-works.xml', (req, res, next) => {
+    void controller.getWorksSitemap(req, res, next);
+  });
   router.get('/sitemap-blog.xml', (req, res, next) => {
     void controller.getBlogSitemap(req, res, next);
   });

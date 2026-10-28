@@ -81,7 +81,9 @@ export class SitemapController {
       'getChannels' | 'getIndexableProgramSitemapRows'
     >,
     /** Same lookup the `/programas/:slug` page uses: null (the page 404s) or its M09-B disposition. */
-    private readonly programSlugDisposition?: (slug: string) => Promise<ProgrammeDisposition | null>
+    private readonly programSlugDisposition?: (slug: string) => Promise<ProgrammeDisposition | null>,
+    /** M09-C: indexable `/peliculas|/series` paths (WorkSeoPolicy.indexableWorkPaths); empty while the policy is off. */
+    private readonly workPaths?: () => Promise<string[]>
   ) {}
 
   /* ------------------------------------------------------------------ */
@@ -116,6 +118,14 @@ export class SitemapController {
   async getProgramsSitemap(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const xml = await this.getCached('programs', () => this.buildProgramsSitemap());
+      this.sendXml(res, xml);
+    } catch (error) { next(error); }
+  }
+
+  /** GET /sitemap-works.xml */
+  async getWorksSitemap(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const xml = await this.getCached('works', () => this.buildWorksSitemap());
       this.sendXml(res, xml);
     } catch (error) { next(error); }
   }
@@ -210,6 +220,10 @@ export class SitemapController {
       ['sitemap-programs.xml', 'programs', () => this.buildProgramsSitemap()],
       ['sitemap-blog.xml', 'blog', () => this.buildBlogSitemap()],
     ];
+    // Search Console rejects an empty urlset: the works child is listed only once it has a URL. A failed build fails the
+    // index too (served from its last good copy), so a database blip never caches an index without the works child.
+    const works = await this.getCached('works', () => this.buildWorksSitemap());
+    if (works.includes('<url>')) subs.push(['sitemap-works.xml', 'works', () => this.buildWorksSitemap()]);
 
     const lines: string[] = [
       '<?xml version="1.0" encoding="UTF-8"?>',
@@ -380,6 +394,15 @@ export class SitemapController {
       }
     }));
     return ok;
+  }
+
+  /**
+   * M09-C: work pages are evergreen: no lastmod (the catalogue's refresh time is not a content change) and no
+   * dependency on today's schedule.
+   */
+  private async buildWorksSitemap(): Promise<string> {
+    const paths = this.workPaths ? await this.workPaths() : [];
+    return this.renderUrlset(paths.map((loc) => ({ loc, changefreq: 'weekly' as const, priority: 0.6 })));
   }
 
   private async buildBlogSitemap(): Promise<string> {

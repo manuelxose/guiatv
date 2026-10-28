@@ -8,7 +8,8 @@
  *   thin        no TMDB identity and under 20 words of description: noindex, follow
  *   standalone  anything else: self-canonical, indexable
  *
- * Only `standalone` is a sitemap candidate. The canonical slug folds accents ("último" -> "ultimo"); the legacy slug
+ * M09-C: a `work` page whose target work page is not indexable (WorkSeoPolicy) keeps its own canonical and gets
+ * `noindex, follow` instead. Only `standalone` is a sitemap candidate. The canonical slug folds accents ("último" -> "ultimo"); the legacy slug
  * that dropped them still resolves and declares the folded one as canonical (no redirect: both serve the same row).
  *
  *   PROGRAMME_SEO_POLICY=off|canary|on        off (default) = pre-M09-B signals, except the folded canonical slug
@@ -48,17 +49,22 @@ export function programmeDisposition(slug: string, p: { title: string; workPath?
 
 /** Whether the policy applies to a canonical programme slug; an invalid canary percentage applies it nowhere. */
 export function programmePolicyApplies(slug: string, env: NodeJS.ProcessEnv = process.env): boolean {
-  const mode = env.PROGRAMME_SEO_POLICY;
+  return cohortApplies(slug, env.PROGRAMME_SEO_POLICY, env.PROGRAMME_SEO_CANARY_PERCENT);
+}
+
+/** off|canary|on switch shared with the M09-C work policy: `on` everywhere, `canary` for a stable hash cohort of slugs. */
+export function cohortApplies(slug: string, mode: string | undefined, canaryPercent: string | undefined): boolean {
   if (mode === 'on') return true;
   if (mode !== 'canary') return false;
-  const percent = Number(env.PROGRAMME_SEO_CANARY_PERCENT);
+  const percent = Number(canaryPercent);
   if (!Number.isInteger(percent) || percent < 1 || percent > 100) return false;
   return createHash('sha256').update(slug).digest().readUInt16BE(0) % 100 < percent;
 }
 
 export function programmeSeo(
   requestedSlug: string,
-  page: { title: string; workPath?: string; tmdbId?: number; synopsis?: string },
+  /** `workIndexable`: M09-C verdict on the work page (undefined = not evaluated, the M09-B canonical stands). */
+  page: { title: string; workPath?: string; tmdbId?: number; synopsis?: string; workIndexable?: boolean },
   env: NodeJS.ProcessEnv = process.env,
   /** false when the folded slug loads another title ("Último" vs "Ultimo"): the page keeps its own slug. */
   fold = true
@@ -68,6 +74,9 @@ export function programmeSeo(
   const disposition = programmeDisposition(slug, page);
   const applied = programmePolicyApplies(slug, env);
   if (!applied) return { disposition, applied, canonicalPath: self };
+  // M09-C: a canonical must not point at a `noindex` page. A work page that fails its own gate leaves this duplicate
+  // self-canonical and out of the index, like a thin page, until the work page qualifies.
+  if (disposition === 'work' && page.workIndexable === false) return { disposition, applied, canonicalPath: self, robots: 'noindex, follow' };
   if (disposition === 'work') return { disposition, applied, canonicalPath: page.workPath! };
   if (disposition === 'episode' || disposition === 'thin') return { disposition, applied, canonicalPath: self, robots: 'noindex, follow' };
   return { disposition, applied, canonicalPath: self };

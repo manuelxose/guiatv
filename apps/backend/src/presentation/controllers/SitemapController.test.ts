@@ -545,3 +545,53 @@ test('sitemap-blog.xml dates listings by their newest post and leaves out the re
   }
 });
 
+
+test('M09-C: indexable work pages get their own child, listed in the index only when it has URLs', async () => {
+  const tvReadQueryService = { getChannels: async () => ({ channels: [], meta: {} }), getIndexableProgramSitemapRows: async () => [] } as any;
+  const xmlOf = async (controller: SitemapController, call: 'getWorksSitemap' | 'getSitemapIndex') => {
+    const { req, res, getSentXml } = fakeReqRes();
+    await controller[call](req, res, (() => {}) as any);
+    return getSentXml();
+  };
+  const Model = (await import('../../infrastructure/database/models/BlogPost.model')).BlogPostModel;
+  const originalFind = Model.find;
+  (Model as any).find = () => ({ select: () => ({ lean: () => ({ exec: async () => [] }) }) });
+  try {
+    invalidateSitemapCache();
+    clearSitemapLastGood();
+    const off = new SitemapController({} as any, {} as any, undefined, undefined, tvReadQueryService, async () => null, async () => []);
+    assert.doesNotMatch(await xmlOf(off, 'getSitemapIndex'), /sitemap-works/);
+    invalidateSitemapCache();
+    const on = new SitemapController({} as any, {} as any, undefined, undefined, tvReadQueryService, async () => null, async () => ['/peliculas/cenicienta', '/series/la-promesa']);
+    const works = await xmlOf(on, 'getWorksSitemap');
+    assert.match(works, /<loc>https:\/\/guiaprogramaciontv\.com\/peliculas\/cenicienta<\/loc>/);
+    assert.match(works, /<loc>https:\/\/guiaprogramaciontv\.com\/series\/la-promesa<\/loc>/);
+    assert.doesNotMatch(works, /<lastmod>/, 'evergreen: no lastmod without a real content change');
+    assert.match(await xmlOf(on, 'getSitemapIndex'), /<loc>https:\/\/guiaprogramaciontv\.com\/sitemap-works\.xml<\/loc>/);
+  } finally {
+    (Model as any).find = originalFind;
+    invalidateSitemapCache();
+    clearSitemapLastGood();
+  }
+});
+
+test('M09-C: a failed works build fails the index instead of caching it without the works child', async () => {
+  const tvReadQueryService = { getChannels: async () => ({ channels: [], meta: {} }), getIndexableProgramSitemapRows: async () => [] } as any;
+  const Model = (await import('../../infrastructure/database/models/BlogPost.model')).BlogPostModel;
+  const originalFind = Model.find;
+  (Model as any).find = () => ({ select: () => ({ lean: () => ({ exec: async () => [] }) }) });
+  try {
+    invalidateSitemapCache();
+    clearSitemapLastGood();
+    const failing = new SitemapController({} as any, {} as any, undefined, undefined, tvReadQueryService, async () => null, async () => { throw new Error('mongo down'); });
+    const { req, res, getSentXml } = fakeReqRes();
+    let failed: unknown;
+    await failing.getSitemapIndex(req, res, ((e: unknown) => { failed = e; }) as any);
+    assert.ok(failed instanceof Error);
+    assert.equal(getSentXml(), '');
+  } finally {
+    (Model as any).find = originalFind;
+    invalidateSitemapCache();
+    clearSitemapLastGood();
+  }
+});

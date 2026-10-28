@@ -729,7 +729,8 @@ export class Container {
       this.has('tmdbService') ? this.get('tmdbService') : undefined,
       this.has('footballQueryService') ? this.get('footballQueryService') : undefined,
       this.get('tvReadQueryService'),
-      (slug) => this.get<{ programSlugDisposition(slug: string): Promise<ProgrammeDisposition | null> }>('catalogService').programSlugDisposition(slug)
+      (slug) => this.get<{ programSlugDisposition(slug: string): Promise<ProgrammeDisposition | null> }>('catalogService').programSlugDisposition(slug),
+      async () => (await import('../application/services/WorkSeoPolicy')).indexableWorkPaths()
     );
     this.dependencies.set('sitemapController', sitemapController);
 
