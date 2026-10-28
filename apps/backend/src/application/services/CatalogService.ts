@@ -56,7 +56,7 @@ import { logger } from '@/shared/utils/logger';
 import { titleIdentityKey } from '@/domain/services/contentIdentity';
 import { airingDetailSlug, buildDetailPath, episodeWorkTitle, inferContentType, normalizeToken, programDetailPath, slugify, slugifyTitle } from '@/domain/services/detailPath';
 import { programmeCanonicalSlug, programmeDisposition, programmeSeo, type ProgrammeDisposition } from './ProgrammeSeoPolicy';
-import { readWorkRows, workPolicyApplies, workSeo } from './WorkSeoPolicy';
+import { readWorkSeo, workPolicyApplies } from './WorkSeoPolicy';
 
 export interface CatalogQueryParams {
   userId?: string;
@@ -350,7 +350,7 @@ export class CatalogService {
         // M09-C: a TMDB work page's robots come from its identity and content, not from today's airings. A daily
         // serial resolved through the TV read model is a programme payload and keeps its own rule.
         if (enriched.source !== 'tmdb' || !enriched.tmdbId || !workPolicyApplies(slug)) return enriched;
-        return { ...enriched, seo: workSeo(contentType, slug, enriched.tmdbId, await readWorkRows(slug), (enriched.airings?.length ?? 0) > 0) };
+        return { ...enriched, seo: await readWorkSeo(contentType, slug, enriched.tmdbId, (enriched.airings?.length ?? 0) > 0) };
       }
       const folded = programmeCanonicalSlug(slug, enriched.title);
       // Two titles can fold to one slug ("Último", "Ultimo"): never declare a URL that loads another programme.
@@ -375,14 +375,14 @@ export class CatalogService {
   }
 
   /**
-   * M09-C: whether the work page a programme would canonicalise to is indexable, on its stable content (a broadcast
-   * that only this airing proves is not counted); undefined when there is no work path or the work policy does not
+   * M09-C: whether the work page a programme would canonicalise to is indexable, on its stable content (the transient
+   * `airing` state is not counted; M09-D's recorded broadcast is, as it never expires); undefined when there is no work path or the work policy does not
    * apply to it (the M09-B canonical then stands). A catalogue read failure throws, as on the work page itself.
    */
   private async workPathIndexable(p: { workPath?: string; tmdbId?: number }): Promise<boolean | undefined> {
     const m = /^\/(peliculas|series)\/([a-z0-9]+(?:-[a-z0-9]+)*)$/.exec(p.workPath ?? '');
     if (!m || !p.tmdbId || !workPolicyApplies(m[2])) return undefined;
-    return workSeo(m[1] === 'peliculas' ? 'movie' : 'series', m[2], p.tmdbId, await readWorkRows(m[2])).disposition === 'indexable';
+    return (await readWorkSeo(m[1] === 'peliculas' ? 'movie' : 'series', m[2], p.tmdbId)).disposition === 'indexable';
   }
 
   private buildSlugNotFoundCacheKey(

@@ -36,6 +36,34 @@ test('M09-C: low-value works stay noindex, follow', () => {
   assert.equal(workContentPasses(row({ directors: [], castSummary: [{}, {}, {}] }), 'movie'), true);
 });
 
+test('M09-D: a verified film is indexable with upcoming broadcasts and stays so when they end', () => {
+  assert.equal(workSeo('movie', 'cenicienta', 150689, [row()], true).disposition, 'indexable');
+  assert.equal(workSeo('movie', 'cenicienta', 150689, [row()], false).robots, undefined);
+});
+
+test('M09-D: a complete record with a short synopsis is indexable on a recorded broadcast, never on the EPG of the day', () => {
+  const SHORT = 'Indiana Jones vuelve en 1957 a buscar una calavera de cristal, perseguido por agentes soviéticos que quieren su poder.'.padEnd(200, '.');
+  const shortFilm = row({ synopsis: SHORT });
+  const shortSeries = row({ tmdbType: 'tv', title: 'La promesa', normalizedTitle: 'la promesa', synopsis: SHORT, year: undefined, runtimeMinutes: undefined });
+  // GuíaTV broadcast it once (any date): indexable with or without a current airing.
+  assert.equal(workSeo('movie', 'cenicienta', 150689, [shortFilm], false, true).disposition, 'indexable');
+  assert.equal(workSeo('series', 'la-promesa', 150689, [shortSeries], false, true).disposition, 'indexable');
+  // Never broadcast: the short text alone is not enough; a current airing only gives the transient `airing`.
+  assert.equal(workSeo('movie', 'cenicienta', 150689, [shortFilm]).robots, 'noindex, follow');
+  assert.equal(workSeo('movie', 'cenicienta', 150689, [shortFilm], true).disposition, 'airing');
+  // Below Phase 3B's thin line, or any other gap, a broadcast record does not help.
+  for (const over of [{ synopsis: SHORT.slice(0, 149) }, { synopsis: SHORT, lastEnrichedAt: undefined }, { synopsis: SHORT, tmdbGenres: [] },
+    { synopsis: SHORT, posterPath: undefined }, { synopsis: SHORT, directors: [] }, { synopsis: SHORT, runtimeMinutes: undefined }] as Partial<WorkRow>[]) {
+    assert.equal(workSeo('movie', 'cenicienta', 150689, [row(over)], false, true).disposition, 'thin', JSON.stringify(over).slice(0, 80));
+  }
+  // Boundaries: 150 is the short tier's floor, 300 needs no broadcast record.
+  assert.equal(workSeo('movie', 'cenicienta', 150689, [row({ synopsis: 'x'.repeat(150) })], false, true).disposition, 'indexable');
+  assert.equal(workSeo('movie', 'cenicienta', 150689, [row({ synopsis: 'x'.repeat(299) })]).disposition, 'thin');
+  assert.equal(workSeo('movie', 'cenicienta', 150689, [row({ synopsis: 'x'.repeat(300) })]).disposition, 'indexable');
+  // ...and never proves an identity: a namesake keeps the page noindex.
+  assert.equal(workSeo('movie', 'cenicienta', 150689, [shortFilm, row({ tmdbId: 11224 })], true, true).disposition, 'ambiguous');
+});
+
 test('M09-C: different works with the same title are never merged; a wrong association is rejected', () => {
   const remake = row({ tmdbId: 11224, year: '1950' });
   assert.equal(workDisposition('cenicienta', 150689, 'movie', [row(), remake]), 'ambiguous');
