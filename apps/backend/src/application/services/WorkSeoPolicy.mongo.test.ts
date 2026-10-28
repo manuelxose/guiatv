@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
 import { MediaCatalogModel } from '@/infrastructure/database/models/MediaCatalogEntry.model';
 import { TVReadAiringModel } from '@/infrastructure/database/models/TVReadAiring.model';
-import { indexableWorkPaths, readWorkRows, readWorkSeo, workSeo } from './WorkSeoPolicy';
+import { indexableWorkPaths, indexableWorks, readWorkRows, readWorkSeo, workSeo } from './WorkSeoPolicy';
 
 const mongoUri = process.env.TEST_MONGO_URI;
 const SYNOPSIS = 'Una joven huérfana vive con su madrastra y sus dos hermanastras, que la tratan como a una criada. '.repeat(4);
@@ -40,6 +40,11 @@ test('M09-C: sitemap work paths = indexable, aired at least once (any date), in 
     const on = await indexableWorkPaths({ WORK_SEO_POLICY: 'on' } as NodeJS.ProcessEnv);
     assert.deepEqual(on, ['/peliculas/corta-emitida', '/peliculas/cenicienta', '/series/la-promesa'].sort());
     assert.deepEqual(await indexableWorkPaths({} as NodeJS.ProcessEnv), [], 'off: nothing');
+    // M10-B: the related-works rail reads the same set, with each work's own identity and genres.
+    const works = await indexableWorks({ WORK_SEO_POLICY: 'on' } as NodeJS.ProcessEnv);
+    assert.deepEqual(works.map((w) => w.path), on);
+    assert.deepEqual(works.find((w) => w.path === '/peliculas/cenicienta'),
+      { kind: 'movie', tmdbId: 1, path: '/peliculas/cenicienta', title: 'Cenicienta', genreIds: [1], posterPath: '/abc12.jpg', year: '2015', rating: undefined });
     assert.deepEqual(await indexableWorkPaths({ WORK_SEO_POLICY: 'canary', WORK_SEO_CANARY_PERCENT: 'x' } as NodeJS.ProcessEnv), [], 'invalid canary: nothing');
 
     // The page's verdict on the same rows agrees with the sitemap.

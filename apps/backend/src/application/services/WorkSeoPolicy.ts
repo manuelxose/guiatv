@@ -121,14 +121,31 @@ export async function readWorkSeo(contentType: 'movie' | 'series', slug: string,
   return workSeo(contentType, slug, tmdbId, rows, hasAirings, everAired);
 }
 
+/** M10-B: an indexable work of the sitemap set, with what a related-works card needs. */
+export interface IndexableWork {
+  kind: 'movie' | 'tv';
+  tmdbId: number;
+  path: string;
+  title: string;
+  genreIds: number[];
+  posterPath?: string;
+  year?: string;
+  rating?: number;
+}
+
 /**
  * Sitemap work paths: indexable (same rule and rows as the page), inside the policy cohort, and broadcast at least once
  * on a channel GuíaTV tracks (`tv_read_airings` keeps the history). Throws on a database failure.
  */
 export async function indexableWorkPaths(env: NodeJS.ProcessEnv = process.env): Promise<string[]> {
+  return (await indexableWorks(env)).map((w) => w.path);
+}
+
+/** The works behind `indexableWorkPaths`, one per path, sorted by path. Throws on a database failure. */
+export async function indexableWorks(env: NodeJS.ProcessEnv = process.env): Promise<IndexableWork[]> {
   if (!['on', 'canary'].includes(env.WORK_SEO_POLICY ?? '')) return [];
   const [rows, aired] = await Promise.all([
-    MediaCatalogModel.find({ tmdbId: { $type: 'number' } }).select(ROW_FIELDS).lean<WorkRow[]>().exec(),
+    MediaCatalogModel.find({ tmdbId: { $type: 'number' } }).select({ ...ROW_FIELDS, rating: 1 }).lean<Array<WorkRow & { rating?: number }>>().exec(),
     TVReadAiringModel.aggregate<{ _id: { id: number; c: string } }>([
       { $match: { 'program.tmdbId': { $type: 'number' }, 'program.editorialCategory': { $in: Object.values(CATEGORY) } } },
       { $group: { _id: { id: '$program.tmdbId', c: '$program.editorialCategory' } } },
@@ -137,14 +154,20 @@ export async function indexableWorkPaths(env: NodeJS.ProcessEnv = process.env): 
   const airedKeys = new Set(aired.map((a) => `${a._id.c === 'Cine' ? 'movie' : 'tv'}:${a._id.id}`));
   const byKey = new Map<string, WorkRow[]>();
   for (const r of rows) (byKey.get(r.normalizedTitle ?? '') ?? byKey.set(r.normalizedTitle ?? '', []).get(r.normalizedTitle ?? '')!).push(r);
-  const paths = new Set<string>();
+  const works = new Map<string, IndexableWork>();
   for (const r of rows) {
     const kind = r.tmdbType;
     if ((kind !== 'movie' && kind !== 'tv') || !airedKeys.has(`${kind}:${r.tmdbId}`)) continue;
     const slug = slugifyTitle(r.title ?? '');
     if (slug === 'sin-titulo' || !workPolicyApplies(slug, env)) continue;
     if (workDisposition(slug, r.tmdbId as number, kind, byKey.get(slugLookupKey(slug)) ?? [], false, true) !== 'indexable') continue;
-    paths.add(buildDetailPath(kind === 'movie' ? 'movie' : 'series', slug));
+    const path = buildDetailPath(kind === 'movie' ? 'movie' : 'series', slug);
+    if (works.has(path)) continue;
+    works.set(path, {
+      kind, tmdbId: r.tmdbId as number, path, title: r.title ?? '',
+      genreIds: (r.tmdbGenres ?? []).map((g) => (g as { id?: unknown }).id).filter((id): id is number => typeof id === 'number'),
+      posterPath: r.posterPath ?? undefined, year: r.year ?? undefined, rating: typeof r.rating === 'number' ? r.rating : undefined,
+    });
   }
-  return [...paths].sort();
+  return [...works.values()].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 }

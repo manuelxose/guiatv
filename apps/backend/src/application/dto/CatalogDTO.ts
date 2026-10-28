@@ -121,7 +121,11 @@ export interface CatalogItemDTO {
   detailPath: string;
   /** M10, programme-sourced items only: the verified work page of this airing (absent unless proven). */
   workPath?: string;
-  /** M10, TMDB work detail only: the `/programas/:slug` broadcast page resolving to this same TMDB id (absent unless proven). */
+  /**
+   * M10, TMDB work detail: the `/programas/:slug` broadcast page resolving to this same TMDB id (absent unless proven, and
+   * since M10-B absent when that page declares this work page canonical). M10-B, programme airing detail: the
+   * programme's own page when it is indexed under its own URL (`standalone`).
+   */
   programmePath?: string;
   subtitle?: string;
   synopsis?: string;

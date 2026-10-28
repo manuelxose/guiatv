@@ -49,3 +49,37 @@ test('checks at most two distinct programme slugs per work', async () => {
     assert.deepEqual([...new Set(lookups)], ['a', 'b']);
   } finally { cache.destroy(); }
 });
+
+test('M10-B: no link to a programme page that declares this work page as its canonical; an unverified one keeps its link', async () => {
+  const twin = { ...item('Gladiator', 98, 'Cine'), program: { ...item('Gladiator', 98, 'Cine').program, workPath: '/peliculas/gladiator' } };
+  const { service, cache } = serviceWith({ gladiator: twin, 'modern-family': item('Modern Family', 1421, 'Series') });
+  const before = process.env.PROGRAMME_SEO_POLICY;
+  process.env.PROGRAMME_SEO_POLICY = 'on';
+  try {
+    assert.equal(await (service as any).resolveProgrammePath(98, 'movie', [airing('Gladiator')]), undefined, 'canonical is the work page itself');
+    // Identity unverified (no workPath): the programme page is self-canonical (noindex, follow) and stays a schedule link.
+    assert.equal(await (service as any).resolveProgrammePath(1421, 'series', [airing('Modern Family')]), '/programas/modern-family');
+  } finally {
+    if (before === undefined) delete process.env.PROGRAMME_SEO_POLICY; else process.env.PROGRAMME_SEO_POLICY = before;
+    cache.destroy();
+  }
+});
+
+test('M10-B: the related rail of a work page links only the indexable set, under each work\'s canonical path', async () => {
+  const { RelatedWorkGraph } = await import('./RelatedWorks');
+  const set = [1, 2, 3].map((id) => ({ kind: 'movie' as const, tmdbId: id, path: `/peliculas/obra-${id}`, title: `Obra ${id}`, genreIds: [18], posterPath: '/p.jpg', year: '2001', rating: 7 }));
+  const graph = new RelatedWorkGraph(set);
+  const cache = new InMemoryCache();
+  const providers = { getMovieProviders: async () => null, getTVProviders: async () => null };
+  const tmdb = { getImageUrl: (p: string | null) => (p ? `https://image.tmdb.org/t/p/w500${p}` : undefined) };
+  const service = new CatalogService({} as any, cache, tmdb as any, providers as any, {} as any, {} as any, undefined, undefined, { get: async () => graph });
+  const empty = new CatalogService({} as any, cache, tmdb as any, providers as any, {} as any, {} as any, undefined, undefined, { get: async () => undefined });
+  try {
+    const related = await (service as any).loadRelatedForTmdb({ id: 1, genres: [{ id: 18, name: 'Drama' }] }, 'movie');
+    assert.deepEqual(related.map((r: any) => [r.detailPath, r.slug, r.tmdbId, r.contentType, r.releaseYear]),
+      [['/peliculas/obra-2', 'obra-2', 2, 'movie', 2001], ['/peliculas/obra-3', 'obra-3', 3, 'movie', 2001]].sort((a, b) => related.findIndex((r: any) => r.tmdbId === a[2]) - related.findIndex((r: any) => r.tmdbId === b[2])));
+    assert.ok(related.every((r: any) => r.image === 'https://image.tmdb.org/t/p/w500/p.jpg'));
+    // The set could not be read: no rail, never TMDB's unverified popular list.
+    assert.deepEqual(await (empty as any).loadRelatedForTmdb({ id: 1, genres: [] }, 'movie'), []);
+  } finally { cache.destroy(); }
+});

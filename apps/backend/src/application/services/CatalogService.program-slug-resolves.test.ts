@@ -55,3 +55,24 @@ test('database failures are not swallowed as "missing"', async () => {
   const s = service(async () => { throw new Error('mongo down'); });
   await assert.rejects(s.programSlugResolves('x-y'), /mongo down/);
 });
+
+test('M10-B: an airing links its programme page only when that page is standalone (indexed, in the sitemap) for the same title', async () => {
+  const words = Array.from({ length: 25 }, (_, i) => `palabra${i}`).join(' ');
+  const row = (program: Record<string, unknown>) => service(async () => ({ ...visible, program: { titleResolutionState: 'resolved', ...program } })) as any;
+  const before = process.env.PROGRAMME_SEO_POLICY;
+  process.env.PROGRAMME_SEO_POLICY = 'on';
+  try {
+    assert.equal(await row({ title: 'Cómicos nuestros', description: words }).standaloneProgrammePath('Cómicos nuestros'), '/programas/comicos-nuestros');
+    // Thin, TMDB-matched (unverified or twin) and episode pages are noindex or canonicalised elsewhere: no link.
+    assert.equal(await row({ title: 'Deportes', description: 'Deportes.' }).standaloneProgrammePath('Deportes'), undefined);
+    assert.equal(await row({ title: 'Modern Family', tmdbId: 1421, description: words }).standaloneProgrammePath('Modern Family'), undefined);
+    assert.equal(await row({ title: 'Fallen T1 E3', description: words }).standaloneProgrammePath('Fallen T1 E3'), undefined);
+    // The slug loads another title ("Papá" vs "Papa"): never link a page about something else.
+    assert.equal(await row({ title: 'Papa', description: words }).standaloneProgrammePath('Papá'), undefined);
+    assert.equal(await service(async () => null as unknown).programSlugResolves('x'), false);
+    delete process.env.PROGRAMME_SEO_POLICY;
+    assert.equal(await row({ title: 'Cómicos nuestros', description: words }).standaloneProgrammePath('Cómicos nuestros'), undefined, 'policy off: no disposition, no link');
+  } finally {
+    if (before === undefined) delete process.env.PROGRAMME_SEO_POLICY; else process.env.PROGRAMME_SEO_POLICY = before;
+  }
+});

@@ -33,7 +33,7 @@ jobs:
       - run: node --test apps/frontend/scripts/ssr-cache.test.mjs apps/frontend/scripts/ssr-canonical.test.mjs apps/frontend/scripts/entity-canary-verify.test.mjs
       - run: node scripts/seo-crawl.mjs --self-check && node scripts/seo-link-graph.mjs --self-check
       - run: npm run build:frontend
-      - run: node --test apps/frontend/scripts/entity-read-ssr.test.mjs apps/frontend/scripts/legacy-enrichment-ssr.test.mjs
+      - run: node --test apps/frontend/scripts/entity-read-ssr.test.mjs apps/frontend/scripts/legacy-enrichment-ssr.test.mjs apps/frontend/scripts/m10b-links-ssr.test.mjs
       - run: npm run seo:ssr-resilience
       # Phase 3D: the entity page in desktop and mobile Chromium against the real SSR bundle (fake API, no database).
       - run: npx playwright install --with-deps chromium
