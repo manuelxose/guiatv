@@ -76,3 +76,18 @@ test('M10-B: an airing links its programme page only when that page is standalon
     if (before === undefined) delete process.env.PROGRAMME_SEO_POLICY; else process.env.PROGRAMME_SEO_POLICY = before;
   }
 });
+
+test('M10-B: the airing → programme lookup is cached per title, misses included', async () => {
+  let lookups = 0;
+  const s = service(async () => { lookups++; return null; }) as any;
+  const before = process.env.PROGRAMME_SEO_POLICY;
+  process.env.PROGRAMME_SEO_POLICY = 'on';
+  try {
+    assert.equal(await s.standaloneProgrammePath('Sin página'), undefined);
+    const first = lookups;
+    assert.equal(await s.standaloneProgrammePath('Sin página'), undefined);
+    assert.equal(lookups, first, 'second render: no database lookup');
+  } finally {
+    if (before === undefined) delete process.env.PROGRAMME_SEO_POLICY; else process.env.PROGRAMME_SEO_POLICY = before;
+  }
+});

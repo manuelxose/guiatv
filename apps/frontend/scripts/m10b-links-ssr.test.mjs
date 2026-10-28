@@ -24,7 +24,7 @@ test('M10-B: Modern Family. The unverified programme page is noindex, follow wit
       title: 'Modern Family', catalogId: 'program:20261028_comedy_central_x', detailPath: '/contenido/program:20261028_comedy_central_x' }],
     seo: { disposition: 'ambiguous', applied: true, canonicalPath: '/programas/modern-family', robots: 'noindex, follow' } };
   const work = { ...base, catalogId: 'tmdb:tv:1421', source: 'tmdb', contentType: 'series', title: 'Modern Family', slug: 'modern-family', detailPath: '/series/modern-family',
-    tmdbId: 1421, enrichmentPending: true, programmePath: '/programas/modern-family', seo: { disposition: 'indexable', applied: true, canonicalPath: '/series/modern-family' } };
+    tmdbId: 1421, enrichmentPending: true, seo: { disposition: 'indexable', applied: true, canonicalPath: '/series/modern-family' } };
   await withSsr(['/programas/modern-family', '/series/modern-family'], {
     '/v2/catalog/slug/program/modern-family': programme,
     '/v2/catalog/slug/series/modern-family': work,
@@ -47,7 +47,7 @@ test('M10-B: Modern Family. The unverified programme page is noindex, follow wit
     assert.deepEqual(canonical(wh), ['https://guiaprogramaciontv.com/series/modern-family']);
     // The rail is server-rendered from the API's verified works, never from a popular-titles query.
     assert.ok(hrefs(wh).includes('/series/malcolm') && hrefs(wh).includes('/series/friends'), hrefs(wh).join(' '));
-    assert.ok(hrefs(wh).includes('/programas/modern-family'), 'schedule link to the self-canonical programme page kept');
+    assert.ok(!hrefs(wh).includes('/programas/modern-family'), 'no link asserting the unverified identity');
   });
 });
 

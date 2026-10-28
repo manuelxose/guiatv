@@ -533,9 +533,17 @@ export class CatalogService {
   private async standaloneProgrammePath(title: string): Promise<string | undefined> {
     const slug = slugifyTitle(title);
     if (slug === 'sin-titulo' || !programmePolicyApplies(slug)) return undefined;
+    // Airing pages are crawled heavily: one lookup per title per 10 minutes, misses included (bounded map).
+    const hit = this.standalonePaths.get(title);
+    if (hit && hit.until > Date.now()) return hit.path;
     const page = await this.programSlugPage(slug);
-    return page?.disposition === 'standalone' && page.title === title ? `/programas/${slug}` : undefined;
+    const path = page?.disposition === 'standalone' && page.title === title ? `/programas/${slug}` : undefined;
+    if (this.standalonePaths.size >= 5000) this.standalonePaths.clear();
+    this.standalonePaths.set(title, { path, until: Date.now() + 10 * 60_000 });
+    return path;
   }
+
+  private readonly standalonePaths = new Map<string, { path?: string; until: number }>();
 
   private async programSlugPage(slug: string): Promise<{ title: string; disposition: ProgrammeDisposition } | null> {
     const searchText = String(slug || '').replace(/-/g, ' ').trim();
@@ -574,7 +582,8 @@ export class CatalogService {
     // non-canonical URL that leads back here); the work page lists the same broadcasts under #emisiones.
     const p = match.item.program;
     const seo = programmeSeo(match.slug, { ...p, workIndexable: await this.workPathIndexable(p) });
-    return seo.canonicalPath === `/programas/${match.slug}` ? seo.canonicalPath : undefined;
+    // An unverified identity (`ambiguous`) is not linked as this work's schedule either: the anchor would assert it.
+    return seo.canonicalPath === `/programas/${match.slug}` && !(seo.applied && seo.disposition === 'ambiguous') ? seo.canonicalPath : undefined;
   }
 
   private async cacheSlugNotFound(negativeCacheKey: string): Promise<void> {

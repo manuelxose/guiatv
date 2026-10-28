@@ -50,15 +50,15 @@ test('checks at most two distinct programme slugs per work', async () => {
   } finally { cache.destroy(); }
 });
 
-test('M10-B: no link to a programme page that declares this work page as its canonical; an unverified one keeps its link', async () => {
+test('M10-B: no link to a programme page that declares this work page as its canonical, nor to an unverified one', async () => {
   const twin = { ...item('Gladiator', 98, 'Cine'), program: { ...item('Gladiator', 98, 'Cine').program, workPath: '/peliculas/gladiator' } };
   const { service, cache } = serviceWith({ gladiator: twin, 'modern-family': item('Modern Family', 1421, 'Series') });
   const before = process.env.PROGRAMME_SEO_POLICY;
   process.env.PROGRAMME_SEO_POLICY = 'on';
   try {
     assert.equal(await (service as any).resolveProgrammePath(98, 'movie', [airing('Gladiator')]), undefined, 'canonical is the work page itself');
-    // Identity unverified (no workPath): the programme page is self-canonical (noindex, follow) and stays a schedule link.
-    assert.equal(await (service as any).resolveProgrammePath(1421, 'series', [airing('Modern Family')]), '/programas/modern-family');
+    // Identity unverified (no workPath): no link either; "Horarios de Modern Family" would assert the identity.
+    assert.equal(await (service as any).resolveProgrammePath(1421, 'series', [airing('Modern Family')]), undefined);
   } finally {
     if (before === undefined) delete process.env.PROGRAMME_SEO_POLICY; else process.env.PROGRAMME_SEO_POLICY = before;
     cache.destroy();

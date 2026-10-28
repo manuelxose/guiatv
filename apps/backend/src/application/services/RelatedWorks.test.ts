@@ -50,27 +50,49 @@ test('M10-B: a work outside the set uses its detail genres; an unknown kind or a
   assert.deepEqual(new RelatedWorkGraph([work('movie', 1, [1])]).related('movie', 1), [], 'alone: nothing to link');
 });
 
-test('M10-B: the index reads once, refreshes in the background, keeps the last good set and backs off on failure', async () => {
+test('M10-B: a request never waits for the catalogue read; refresh in the background, keep the last good set, back off', async () => {
   let now = 0;
   let calls = 0;
   let fail = false;
-  const index = new RelatedWorkIndex(async () => { calls += 1; if (fail) throw new Error('db down'); return films; }, 1000, () => now);
+  let release!: () => void;
+  const gate = new Promise<void>((ok) => { release = ok; });
+  const index = new RelatedWorkIndex(async () => { calls += 1; await gate; if (fail) throw new Error('db down'); return films; }, 1000, () => now);
   const [a, b] = await Promise.all([index.get(), index.get()]);
+  assert.equal(a, undefined, 'cold: no rail, no wait');
+  assert.equal(b, undefined);
   assert.equal(calls, 1, 'one read in flight');
-  assert.equal(a, b);
-  assert.equal(a?.size, 600);
+  release();
+  await new Promise((ok) => setImmediate(ok));
+  const g = await index.get();
+  assert.equal(g?.size, 600);
   now = 2000; fail = true;
-  assert.equal(await index.get(), a, 'stale set served while refreshing');
+  assert.equal(await index.get(), g, 'stale set served while refreshing');
   await new Promise((ok) => setImmediate(ok));
   assert.equal(calls, 2);
-  assert.equal(await index.get(), a, 'failed refresh keeps the last good set');
+  assert.equal(await index.get(), g, 'failed refresh keeps the last good set');
+  assert.equal(calls, 2, 'backs off for a minute after a failure');
 
   const cold = new RelatedWorkIndex(async () => { calls += 1; throw new Error('db down'); }, 1000, () => now);
   calls = 0;
   assert.equal(await cold.get(), undefined, 'no set: nothing, never an unverified fallback');
+  await new Promise((ok) => setImmediate(ok));
   assert.equal(await cold.get(), undefined);
   assert.equal(calls, 1, 'backs off for a minute after a failure');
   now += 61_000;
   await cold.get();
   assert.equal(calls, 2);
+});
+
+test('M10-B: works without genres and works with many genres still get an inlink; the rail stays mostly on genre', () => {
+  const set = [
+    ...Array.from({ length: 200 }, (_, i) => work('movie', i + 1, [i % 3])),
+    ...Array.from({ length: 20 }, (_, i) => work('movie', 1000 + i, [])),                          // no genre ids
+    ...Array.from({ length: 20 }, (_, i) => work('movie', 2000 + i, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9])), // more than 8
+  ];
+  const g = new RelatedWorkGraph(set);
+  const linked = new Set<string>();
+  for (const w of set) for (const r of g.related(w.kind, w.tmdbId)) linked.add(r.path);
+  assert.deepEqual(set.filter((w) => !linked.has(w.path)).map((w) => w.path), []);
+  const single = g.related('movie', 1);
+  assert.ok(single.filter((r) => r.genreIds.includes(0)).length >= 6, 'a single-genre work: mostly the same genre');
 });

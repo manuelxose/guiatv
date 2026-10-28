@@ -10,8 +10,8 @@
  * inlink from an indexable page; several hashed rings make the graph shallow instead of a chain. A kind-wide ring fills
  * a work with too few genre neighbours. No title similarity is involved and nothing is fetched from TMDB.
  *
- * The set is read once per TTL in the background (a full catalogue read, never on a request once warm); a failed read
- * keeps the last good set, and with none the rail is empty (no unverified fallback here).
+ * The set is read at process start and once per TTL in the background (a full catalogue read, never awaited by a
+ * request); a failed read keeps the last good set, and with none the rail is empty (no unverified fallback here).
  */
 import { createHash } from 'node:crypto';
 import { logger } from '@/shared/utils/logger';
@@ -50,24 +50,36 @@ export class RelatedWorkGraph {
    */
   related(kind: 'movie' | 'tv', tmdbId: number, genreIds: readonly number[] = [], limit = 8): IndexableWork[] {
     const own = this.byId.get(`${kind}:${tmdbId}`);
-    const genres = [...new Set(own ? own.genreIds : genreIds)];
+    // At most limit - 1 genre rings take part in the guaranteed round, leaving one slot for the kind-wide ring.
+    const genres = [...new Set(own ? own.genreIds : genreIds)].slice(0, limit - 1);
     const self = { kind, tmdbId };
     const out = new Map<string, IndexableWork>();
     const take = (g: number, s: number, rounds: number) => {
       const ring = this.rings.get(`${kind}:${g}:${s}`);
       if (!ring?.length) return;
       const r = rank(s, g, self);
-      // First entry after this work's own position (its successor when it is on the ring).
-      let i = ring.findIndex((e) => e.r > r || (e.r === r && e.w.tmdbId > tmdbId));
-      if (i < 0) i = 0;
+      // First entry after this work's own position (its successor when it is on the ring): binary search.
+      let lo = 0;
+      let hi = ring.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        const e = ring[mid];
+        if (e.r > r || (e.r === r && e.w.tmdbId > tmdbId)) hi = mid; else lo = mid + 1;
+      }
+      const i = lo % ring.length;
       for (let n = 0, added = 0; n < ring.length && added < rounds && out.size < limit; n++) {
         const w = ring[(i + n) % ring.length].w;
-        if (w.tmdbId === tmdbId || out.has(w.path)) continue;
+        if (w.tmdbId === tmdbId || w.path === own?.path || out.has(w.path)) continue;
         out.set(w.path, w);
         added += 1;
       }
     };
-    for (let s = 0; s < SEEDS && out.size < limit; s++) for (const g of genres) take(g, s, 1);
+    // Guaranteed round: the seed-0 successor on each genre ring and on the kind-wide ring, so every work of the set is
+    // linked from its predecessors (a work without genres too). Then more of the same genres, then the kind as a whole.
+    for (const g of genres) take(g, 0, 1);
+    take(ANY_GENRE, 0, 1);
+    for (let s = 1; s < SEEDS && out.size < limit; s++) for (const g of genres) take(g, s, 1);
+    for (const g of genres) take(g, 0, limit);
     for (let s = 0; s < SEEDS && out.size < limit; s++) take(ANY_GENRE, s, limit);
     return [...out.values()].slice(0, limit);
   }
@@ -84,14 +96,21 @@ export class RelatedWorkIndex {
 
   constructor(private readonly load: Loader = () => indexableWorks(), private readonly ttlMs = TTL_MS, private readonly now = () => Date.now()) {}
 
-  /** Starts the first read without waiting (process start). */
-  warm(): void { void this.refresh(); }
+  /** Starts the first read without waiting (process start), retrying every minute until one succeeds. */
+  warm(): void {
+    void this.refresh().then((graph) => {
+      if (!graph) setTimeout(() => this.warm(), 60_000).unref();
+    });
+  }
 
-  /** The current graph; waits only when none was ever built. Undefined when the set could not be read. */
+  /**
+   * The current graph, never waiting for a catalogue read on a request: undefined until the first read has succeeded
+   * (a rail is then absent for that render), the last good graph while a stale one refreshes in the background.
+   */
   async get(): Promise<RelatedWorkGraph | undefined> {
+    const stale = !this.graph || this.now() - this.loadedAt > this.ttlMs;
     // After a failed read, wait a minute before the next one: a database outage must not turn every request into one.
-    if (!this.graph) return this.now() - this.failedAt < 60_000 ? undefined : this.refresh();
-    if (this.now() - this.loadedAt > this.ttlMs && this.now() - this.failedAt >= 60_000) void this.refresh();
+    if (stale && this.now() - this.failedAt >= 60_000) void this.refresh();
     return this.graph;
   }
 
