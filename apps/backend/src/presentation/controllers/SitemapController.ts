@@ -58,9 +58,11 @@ const log = logger.child('SitemapController');
 
 export const clearSitemapLastGood = (): void => lastGood.clear();
 
-export const invalidateSitemapCache = (): void => {
-  cache.clear();
-  inflightMap.clear();
+/** No keys: every sitemap. With keys: only those (a guide publish must not force the EPG sitemap rebuild). */
+export const invalidateSitemapCache = (keys?: string[]): void => {
+  for (const map of [cache, inflightMap]) {
+    for (const key of [...map.keys()]) if (!keys || keys.includes(key.slice(key.lastIndexOf(':') + 1))) map.delete(key);
+  }
 };
 
 export class SitemapController {
@@ -194,21 +196,28 @@ export class SitemapController {
   private async buildSitemapIndex(): Promise<string> {
     const baseUrl = this.getBaseUrl();
 
-    const subs = [
-      'sitemap-static.xml',
-      'sitemap-channels.xml',
-      'sitemap-programs.xml',
-      'sitemap-blog.xml',
+    const subs: Array<[string, string, () => Promise<string>]> = [
+      ['sitemap-static.xml', 'static', () => this.buildStaticSitemap()],
+      ['sitemap-channels.xml', 'channels', () => this.buildChannelsSitemap()],
+      ['sitemap-programs.xml', 'programs', () => this.buildProgramsSitemap()],
+      ['sitemap-blog.xml', 'blog', () => this.buildBlogSitemap()],
     ];
 
     const lines: string[] = [
       '<?xml version="1.0" encoding="UTF-8"?>',
       '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ];
-    for (const file of subs) {
+    for (const [file, key, build] of subs) {
+      // M11-G: lastmod = the newest real lastmod inside the child (never the build time), so Google re-reads a child
+      // when one of its URLs changed. Without it Google kept a 2-day-old sitemap-blog.xml missing the new guides.
+      // A child that fails to build or has no dated entry gets no lastmod.
+      const lastmod = await this.getCached(key, build).then(
+        (xml) => [...xml.matchAll(/<lastmod>([^<]+)<\/lastmod>/g)].map((m) => m[1]).sort().pop(),
+        () => undefined,
+      );
       lines.push('  <sitemap>');
-      // No lastmod: a child sitemap is rebuilt on request, so "today" would claim a change that did not happen.
       lines.push(`    <loc>${this.escapeXml(`${baseUrl}/${file}`)}</loc>`);
+      if (lastmod) lines.push(`    <lastmod>${lastmod}</lastmod>`);
       lines.push('  </sitemap>');
     }
     lines.push('</sitemapindex>');
