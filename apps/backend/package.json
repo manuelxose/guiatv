@@ -22,7 +22,8 @@
     "migrate:social-data": "node dist/scripts/migrate-social-data.js",
     "migrate:user-privacy-defaults": "node dist/scripts/migrate-user-privacy-defaults.js",
     "validate:football-provider": "node dist/scripts/validate-football-provider.js",
-    "seo:submit-sitemap": "node dist/scripts/submit-sitemap.js"
+    "seo:submit-sitemap": "node dist/scripts/submit-sitemap.js",
+    "seo:gsc-monitor": "node dist/scripts/gsc-monitor.js"
   },
   "engines": {
     "node": "22"

@@ -144,6 +144,7 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     assert.deepEqual(overview.posts.map((p: { slug: string }) => p.slug), ['el-padrino-portada', 'el-padrino-m11c']);
     assert.deepEqual(overview.posts[1].claims, { supported: 4, conflicting: 0, unverified: 1 });
     assert.equal(overview.routes.research[0].provider, 'anthropic');
+    assert.deepEqual([overview.searchConsole.lastRun, overview.searchConsole.baseline], [null, { days: 0, complete: false }], 'no GSC run yet: nothing invented');
 
     // Router authorization over HTTP: no session, a non-admin session, and resume without the review key.
     process.env.ANALYTICS_ADMIN_KEY = 'admin-key-test';

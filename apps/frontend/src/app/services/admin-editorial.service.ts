@@ -90,6 +90,28 @@ export interface EditorialPostSummary {
   nextReviewAt: string | null;
 }
 
+/** Read-only Search Console observations; `indexed` comes only from Google's inspection verdict. */
+export interface EditorialSearchConsole {
+  enabled: boolean;
+  windowDays: number;
+  lastRun: { status: string; message: string | null; startedAt: string; finishedAt?: string; inspected: number; skipped: number } | null;
+  baseline: { days: number; complete: boolean };
+  guides: Array<{
+    slug: string;
+    title: string;
+    url: string;
+    inspection: {
+      inspectedAt: string | null; verdict: string | null; coverageState: string | null; indexed: boolean;
+      lastCrawlTime: string | null; googleCanonical: string | null; canonicalMatch: boolean | null; error: string | null;
+    } | null;
+    /** null when Google returned no rows for the page (never zero-filled). */
+    performance: {
+      clicks: number; impressions: number; ctr: number | null; position: number | null;
+      days: number; baselineComplete: boolean; preliminary: boolean;
+    } | null;
+  }>;
+}
+
 export interface EditorialOverview {
   policy: EditorialPolicyStatus;
   /** USD caps are null when the runner reported EDITORIAL_BUDGET=unlimited. */
@@ -100,6 +122,7 @@ export interface EditorialOverview {
   spend: { todayUsd: number; last30dUsd: number };
   jobs: EditorialJobSummary[];
   posts: EditorialPostSummary[];
+  searchConsole: EditorialSearchConsole;
 }
 
 export interface EditorialFinding {

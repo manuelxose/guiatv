@@ -92,6 +92,10 @@ El envío es automático: al final de cada deploy (`deploy-guiatv.sh`) y tras el
 3. Search Console (`sc-domain:guiaprogramaciontv.com`) → Configuración → Usuarios y permisos → añadir el email de la cuenta de servicio como **Propietario**.
 4. Servidor: copiar el JSON a `/etc/guiatv/gsc-service-account.json` (`chmod 600`), añadir las 4 variables de arriba a `api.env` y comprobar con `npm run seo:submit-sitemap -w apps/backend` (debe registrar `Sitemap submit completed`).
 
+Monitor de Search Console (solo lectura, guías `/guias/<slug>`): URL Inspection (máx. una vez cada 24 h por URL) y Search Analytics (28 días, `dataState: all`). Guarda en `editorial_gsc_inspections`, `editorial_gsc_performance` y `editorial_gsc_runs`, y se ve en Admin → Operaciones IA. No usa la Indexing API.
+- `GSC_MONITOR_ENABLED=true` en `api.env` lo ejecuta tras el precompute (por defecto apagado). Usa las mismas `GSC_SITE_URL` y `GOOGLE_APPLICATION_CREDENTIALS`.
+- Ejecución manual (ignora el flag): `cd /var/www/guiatv/current && npm run seo:gsc-monitor -w apps/backend`. Sale con 0 solo si el estado es `ok`; credenciales ausentes, 403 o cuota (429) quedan registrados como estado de la ejecución.
+
 ## Operación diaria
 ```bash
 systemctl status mongod valkey-server guiatv-api guiatv-ssr --no-pager

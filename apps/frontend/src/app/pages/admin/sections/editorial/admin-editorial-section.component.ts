@@ -53,6 +53,14 @@ const STATE_BADGE: Record<string, string> = {
   revise: 'warning',
   blocked: 'failed',
   block: 'failed',
+  // Search Console run statuses.
+  ok: 'healthy',
+  partial: 'warning',
+  'quota-exceeded': 'warning',
+  'missing-credentials': 'unconfigured',
+  forbidden: 'failed',
+  'auth-error': 'failed',
+  error: 'failed',
 };
 
 function errorMessage(e: any, fallback: string): string {

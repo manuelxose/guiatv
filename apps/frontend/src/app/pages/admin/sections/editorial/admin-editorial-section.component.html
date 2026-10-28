@@ -448,6 +448,66 @@
       </div>
     </section>
 
+    <!-- Search Console (read-only): what we serve vs what Google reports -->
+    <section *ngIf="ov.searchConsole as gsc" class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-5 space-y-3" aria-labelledby="editorial-gsc-title">
+      <h3 id="editorial-gsc-title" class="text-sm font-medium text-[var(--portal-text-soft)]">Search Console (guías públicas)</h3>
+      <div class="flex flex-wrap items-center gap-3 text-xs">
+        <app-admin-status-badge *ngIf="gsc.lastRun as run; else noGscRun" [status]="badgeStatus(run.status)" [label]="run.status"></app-admin-status-badge>
+        <span *ngIf="gsc.lastRun as run" class="text-[var(--portal-text-soft)]">
+          Última consulta {{ run.startedAt | date: 'short' }} · {{ run.inspected }} inspeccionadas · {{ run.skipped }} omitidas (&lt; 24 h)<ng-container *ngIf="run.message"> · {{ run.message }}</ng-container>
+        </span>
+        <span class="text-[var(--portal-text-muted)]">
+          Programada: {{ gsc.enabled ? 'sí' : 'no (GSC_MONITOR_ENABLED)' }} · Datos de rendimiento: {{ gsc.baseline.days }}/{{ gsc.windowDays }} días{{ gsc.baseline.complete ? '' : ' (línea base incompleta)' }}
+        </span>
+      </div>
+      <p class="text-xs text-[var(--portal-text-muted)]">
+        «Publicada» es lo nuestro (HTTP 200, index,follow, en el sitemap). «Indexada» solo según la inspección de URL de Google. Clics e impresiones: últimos {{ gsc.windowDays }} días, sin rellenar días sin datos.
+      </p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="text-left text-[var(--portal-text-muted)]">
+              <th scope="col" class="pb-2 pr-3">Guía</th>
+              <th scope="col" class="pb-2 pr-3">Publicada</th>
+              <th scope="col" class="pb-2 pr-3">Google</th>
+              <th scope="col" class="pb-2 pr-3">Último rastreo</th>
+              <th scope="col" class="pb-2 pr-3">Canónica Google</th>
+              <th scope="col" class="pb-2 pr-3 text-right">Clics</th>
+              <th scope="col" class="pb-2 pr-3 text-right">Impresiones</th>
+              <th scope="col" class="pb-2 pr-3 text-right">CTR</th>
+              <th scope="col" class="pb-2 pr-3 text-right">Posición</th>
+              <th scope="col" class="pb-2">Días con datos</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let g of gsc.guides" class="border-t border-[var(--portal-border)] align-top">
+              <td class="py-2 pr-3"><a [href]="g.url" target="_blank" rel="noopener" class="underline">{{ g.slug }}</a></td>
+              <td class="py-2 pr-3">200 · index · sitemap</td>
+              <td class="py-2 pr-3">
+                <ng-container *ngIf="g.inspection as i; else notInspected">
+                  <app-admin-status-badge [status]="i.indexed ? 'healthy' : 'warning'" [label]="i.indexed ? 'Indexada' : 'No indexada'"></app-admin-status-badge>
+                  <span class="block text-[var(--portal-text-soft)]">{{ i.verdict || '—' }} · {{ i.coverageState || '—' }}</span>
+                  <span *ngIf="i.error" class="block text-[var(--spotify-negative)]">{{ i.error }}</span>
+                </ng-container>
+              </td>
+              <td class="py-2 pr-3 whitespace-nowrap">{{ g.inspection?.lastCrawlTime ? (g.inspection?.lastCrawlTime | date: 'short') : '—' }}</td>
+              <td class="py-2 pr-3" [title]="g.inspection?.googleCanonical || ''">
+                {{ g.inspection?.canonicalMatch === true ? 'Coincide' : g.inspection?.canonicalMatch === false ? 'Distinta' : '—' }}
+              </td>
+              <ng-container *ngIf="g.performance as p; else noPerf">
+                <td class="py-2 pr-3 text-right">{{ p.clicks | number }}</td>
+                <td class="py-2 pr-3 text-right">{{ p.impressions | number }}</td>
+                <td class="py-2 pr-3 text-right">{{ p.ctr !== null ? (p.ctr | percent: '1.1-1') : '—' }}</td>
+                <td class="py-2 pr-3 text-right">{{ p.position !== null ? (p.position | number: '1.1-1') : '—' }}</td>
+                <td class="py-2">{{ p.days }}/{{ gsc.windowDays }}{{ p.baselineComplete ? '' : ' (incompleta)' }}{{ p.preliminary ? ' · incluye datos preliminares' : '' }}</td>
+              </ng-container>
+            </tr>
+            <tr *ngIf="!gsc.guides.length"><td colspan="10" class="py-2 text-[var(--portal-text-faint)]">No hay guías públicas</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <!-- Jobs -->
     <section class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-5">
       <div class="overflow-x-auto">
@@ -491,6 +551,9 @@
 
 <ng-template #none>—</ng-template>
 <ng-template #noCap><span> · presupuesto sin tope (modo de prueba)</span></ng-template>
+<ng-template #noGscRun><span class="text-[var(--portal-text-faint)]">Sin consultas a Search Console todavía</span></ng-template>
+<ng-template #notInspected><span class="text-[var(--portal-text-faint)]">Sin inspeccionar</span></ng-template>
+<ng-template #noPerf><td colspan="5" class="py-2 text-[var(--portal-text-faint)]">Sin datos de Google</td></ng-template>
 <ng-template #noneList><p class="text-xs text-[var(--portal-text-faint)]">Ninguno</p></ng-template>
 
 <app-admin-confirm-dialog
