@@ -151,6 +151,11 @@ export interface EditorialTopic {
   /** Starting points the research agent must consider (e.g. the operator's price page). */
   seedUrls?: string[];
   notes?: string;
+  /**
+   * M11-F: GuíaTV pages checked by the runner (200, self-canonical, indexable) that fit this topic. When given, they
+   * are the only internal links the article may carry, besides the editorial policy page.
+   */
+  linkTargets?: Array<{ path: string; label: string }>;
 }
 
 export interface EditorialDeps {
@@ -233,9 +238,12 @@ const EVIDENCE_GAPS = new Set(['unsupported-claim', 'no-distinct-value']);
 const WRITER_FIXABLE = new Set([
   'uncited-factual-statement', 'figure-not-in-claim', 'figure-in-words', 'metadata-figure-not-in-claims', 'invalid-metadata',
   'internal-link-status', 'broken-internal-link', 'unsourced-link', 'invalid-link', 'claim-marker-leak', 'fabricated-experience',
-  'placeholder-text', 'unknown-claim', 'faq-not-evidenced',
+  'placeholder-text', 'unknown-claim', 'faq-not-evidenced', 'unverified-internal-link', 'excessive-internal-links',
 ]);
 const MAX_GATE_FIXES = 3;
+/** M11-F: a guide links a few relevant GuíaTV pages, not a directory of them. The AI disclosure links the policy page. */
+const MAX_INTERNAL_LINKS = 4;
+const POLICY_PAGE = '/politica-editorial';
 
 /**
  * M11-E2b: one quality standard for writer and critic. Live runs showed drafts failing on criteria the writer never saw
@@ -480,7 +488,10 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
     type Draft = { title: string; excerpt: string; metaTitle: string; metaDescription: string; markdown: string };
     const writerSystem = `${STYLE}\nEres el agente editorial. Redactas una guía útil y diferente: explica criterios, compara, y aprovecha los datos propios de GuíaTV cuando los haya.\n${EDITORIAL_RUBRIC}`;
     // A function: re-research can add sources between drafts.
-    const writerRules = () => `Fuentes que puedes enlazar:\n${sourceList()}\n\n${GATE_RULES}`;
+    const internalLinks = topic.linkTargets?.length
+      ? `\n\nPáginas de GuíaTV que puedes enlazar con una ruta relativa (como mucho ${MAX_INTERNAL_LINKS}, solo si ayudan al lector; ancla descriptiva y distinta en cada una, nunca «aquí»; enlazar no es un dato, pero una frase con un canal o una cifra sigue necesitando su marcador):\n${topic.linkTargets.map((t) => `- ${t.path}: ${t.label}`).join('\n')}`
+      : '';
+    const writerRules = () => `Fuentes que puedes enlazar:\n${sourceList()}${internalLinks}\n\n${GATE_RULES}`;
     // Everything that does not depend on the critic: the HTML, hashes, the unsigned provenance and the CMS fields.
     const assemble = (d: Draft, verifiedOn: Date, critic?: CriticReview) => {
       const html = `<div class="editorial-body">${deps.render(stripClaimMarkers(d.markdown).replace(/^# .*\n?/m, ''))}${aiDisclosure(verifiedOn)}</div>`;
@@ -528,7 +539,7 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
       let repaired: RevisionRecord['repaired'];
       for (let fix = 0; fix < MAX_GATE_FIXES; fix++) {
         const { provenance: unreviewed, cms: candidate } = assemble(draft, now());
-        const gate = (await publisherFindings(candidate, unreviewed, deps, taken, now())).filter((f) => f.severity === 'block' && !/^critic-/.test(f.code));
+        const gate = (await publisherFindings(candidate, unreviewed, deps, taken, now(), topic.linkTargets)).filter((f) => f.severity === 'block' && !/^critic-/.test(f.code));
         if (!gate.length || !gate.every((f) => WRITER_FIXABLE.has(f.code))) break;
         gateFixes++;
         if (gate.every((f) => f.code === 'metadata-figure-not-in-claims' && !/^title:/.test(f.message))) {
@@ -560,7 +571,7 @@ Resumen: ${draft.excerpt}\nmetaTitle: ${draft.metaTitle}\nmetaDescription: ${dra
       const { provenance, cms } = assemble(draft, verifiedOn, critic);
       if (deps.signingKey) provenance.signature = signProvenance(provenance, deps.signingKey);
       // The excerpt and metadata are reviewed and signed with the text (metadataHash), so nothing rewrites them after this.
-      let findings = await publisherFindings(cms, provenance, deps, taken, verifiedOn);
+      let findings = await publisherFindings(cms, provenance, deps, taken, verifiedOn, topic.linkTargets);
       Object.assign(run, { draft: cms, provenance, findings, value: measureValue(draft.markdown, bundle) });
       const blocking = findings.filter((f) => f.severity === 'block');
       const revision: RevisionRecord = { attempt: loop, draftHash, verdict: verdict.verdict, issues: verdict.issues.length, blocking: blocking.map((f) => f.code), action: 'pass', gateFixes, ...(repaired ? { repaired } : {}) };
@@ -590,7 +601,7 @@ Resumen: ${draft.excerpt}\nmetaTitle: ${draft.metaTitle}\nmetaDescription: ${dra
         // Only a text that passed gets a cover, so a rejected draft never spends on images.
         if (await addCover(run, cms, provenance, topic, deps, ledger, verifiedOn)) {
           if (deps.signingKey) provenance.signature = signProvenance(provenance, deps.signingKey);
-          findings = run.findings = await publisherFindings(cms, provenance, deps, taken, verifiedOn);
+          findings = run.findings = await publisherFindings(cms, provenance, deps, taken, verifiedOn, topic.linkTargets);
         }
         const pending = policyGateFailures(findings);
         return finish(run, pending.length ? 'verified' : 'approved-by-policy', pending.length ? `requiere confirmación: ${pending.map((f) => f.code).join(', ')}` : undefined);
@@ -657,7 +668,7 @@ function partial(bundle: EvidenceBundle): EditorialProvenance {
 }
 
 /** Publisher: the evidence gate, the existing CMS quality gate, metadata and every internal link. */
-async function publisherFindings(cms: CmsDraft, provenance: EditorialProvenance, deps: EditorialDeps, taken: Set<string>, now: Date): Promise<EditorialFinding[]> {
+async function publisherFindings(cms: CmsDraft, provenance: EditorialProvenance, deps: EditorialDeps, taken: Set<string>, now: Date, linkTargets?: EditorialTopic['linkTargets']): Promise<EditorialFinding[]> {
   const post = {
     ...cms, categories: cms.categories.map((name) => ({ name, slug: name })),
     author: { name: cms.authorName, id: cms.authorId }, seo: { metaTitle: cms.metaTitle, metaDescription: cms.metaDescription },
@@ -672,6 +683,14 @@ async function publisherFindings(cms: CmsDraft, provenance: EditorialProvenance,
   for (const path of internal) {
     const status = await deps.internalLinkStatus(path).catch(() => 0);
     if (status !== 200) findings.push({ severity: 'block', code: 'internal-link-status', message: `${path} responde ${status}` });
+  }
+  if (linkTargets) {
+    const allowed = new Set([...linkTargets.map((t) => t.path), POLICY_PAGE]);
+    for (const path of internal.filter((p) => !allowed.has(p))) {
+      findings.push({ severity: 'block', code: 'unverified-internal-link', message: `${path} no está entre las páginas de GuíaTV verificadas para este tema` });
+    }
+    const linked = internal.filter((p) => p !== POLICY_PAGE).length;
+    if (linked > MAX_INTERNAL_LINKS) findings.push({ severity: 'block', code: 'excessive-internal-links', message: `${linked} enlaces internos; máximo ${MAX_INTERNAL_LINKS}` });
   }
   return findings;
 }
