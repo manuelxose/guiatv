@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CatalogService } from './CatalogService';
-import { InMemoryCache } from '@/infrastructure/cache/InMemoryCache';
 
 // M09-B: the /programas/:slug payload carries the page's canonical and robots; work pages are untouched.
 const service = (detail: Record<string, unknown>, foldedLoads = detail.title) => {
-  const s = new CatalogService({} as any, new InMemoryCache() as any, {} as any, {} as any, {} as any, {} as any);
+  // A stub, not InMemoryCache: its cleanup interval would keep the test process alive.
+  const s = new CatalogService({} as any, { get: async () => undefined } as any, {} as any, {} as any, {} as any, {} as any);
   (s as any).resolveBySlug = async () => ({ ...detail });
   (s as any).findTvReadItemBySlug = async () => ({ program: { title: foldedLoads } });
   return s;
