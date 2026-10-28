@@ -15,6 +15,7 @@ import type { IStorageRepository } from '../../domain/repositories/IStorageRepos
 import { EditorialMediaRejected, storeEditorialCover } from '../../infrastructure/storage/EditorialMediaStore';
 import { generatedImageFindings } from '../../application/services/EditorialImages';
 import { editorialCoverPreview } from '../middlewares/editorialMediaGate';
+import { searchConsoleOverview } from '../../application/services/SearchConsoleMonitor';
 
 /**
  * M11-C Admin supervision of the AI editorial pipeline (/v2/admin/editorial, admin role enforced by the router).
@@ -86,7 +87,7 @@ export class EditorialOpsController {
   overview = async (_req: Request, res: Response): Promise<void> => {
     const since = (ms: number) => new Date(Date.now() - ms);
     const today = new Date().toISOString().slice(0, 10);
-    const [policy, approvalsLast24h, recentJobs, todayJobs, posts, spend] = await Promise.all([
+    const [policy, approvalsLast24h, recentJobs, todayJobs, posts, spend, searchConsole] = await Promise.all([
       editorialPolicyState(),
       db().collection('editorial_policy_approvals').countDocuments({ at: { $gte: since(DAY) } }),
       jobs().find({}, { projection: { _id: 0 } }).sort({ startedAt: -1 }).limit(50).toArray(),
@@ -100,6 +101,8 @@ export class EditorialOpsController {
         { $match: { startedAt: { $gte: since(30 * DAY).toISOString() } } },
         { $group: { _id: { $substr: ['$startedAt', 0, 10] }, usd: { $sum: '$costUsd' } } },
       ]).toArray(),
+      // Monitoring only: a GSC read failure must not take the runner's overview (its cap and stop source) down.
+      searchConsoleOverview().catch(() => null),
     ]);
     const { routes, imageRoutes } = routesFromEnv();
     // The runner owns the money caps; its latest report says which budget it ran under (M11-E2 testing: unlimited).
@@ -139,6 +142,7 @@ export class EditorialOpsController {
         last30dUsd: +spend.reduce((sum, d) => sum + d.usd, 0).toFixed(4),
       },
       jobs: recentJobs,
+      searchConsole,
       posts: posts.map((post) => {
         const p = post.editorial as EditorialProvenance;
         const count = (status: string) => p.bundle.claims.filter((c) => (c.status ?? 'unverified') === status).length;

@@ -8,6 +8,7 @@ import { logger } from '../../shared/utils/logger';
 import { EPGDataSource } from '../external/EPGDataSource';
 import { XMLParser } from '../parsers/XMLParser';
 import { submitSitemapToSearchConsole } from '../../application/services/submitSitemapToSearchConsole';
+import { runSearchConsoleMonitor } from '../../application/services/SearchConsoleMonitor';
 import { EPGSourceSnapshotModel } from '../database/models/EPGSourceSnapshot.model';
 import { createHash } from 'node:crypto';
 import {
@@ -459,6 +460,16 @@ export const precomputeSchedulesHandler = async (context: any) => {
       precomputeLogger.warn('Search Console sitemap submit not completed', {
         result: submitResult,
       });
+    }
+
+    // Read-only GSC monitor, off unless GSC_MONITOR_ENABLED; its failures are recorded in editorial_gsc_runs.
+    if (/^(1|true|yes|on)$/i.test((process.env.GSC_MONITOR_ENABLED || '').trim())) {
+      try {
+        const gscRun = await runSearchConsoleMonitor();
+        precomputeLogger.info('Search Console monitor run', { ...gscRun });
+      } catch (error) {
+        precomputeLogger.warn('Search Console monitor failed', { error: (error as Error).message });
+      }
     }
 
     return { success: true, results };

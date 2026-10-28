@@ -179,7 +179,7 @@ function containsQuote(text: string, needle: string): boolean {
 }
 
 // Rights holders and operators whose own pages state their prices, catalogue and broadcast rights.
-const OFFICIAL_DOMAINS = [
+export const OFFICIAL_DOMAINS = [
   'netflix.com', 'hbomax.com', 'max.com', 'disneyplus.com', 'primevideo.com', 'movistarplus.es', 'movistar.es',
   'dazn.com', 'apple.com', 'filmin.es', 'skyshowtime.com', 'atresplayer.com', 'rtve.es', 'mitele.es', 'laliga.com', 'uefa.com',
   'rfef.es', 'boe.es', 'cnmc.es', 'fifa.com',

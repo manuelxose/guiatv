@@ -25,7 +25,7 @@
     "test": "npm run test -w apps/backend && npm run test -w apps/frontend",
     "test:backend": "npm run test -w apps/backend",
     "test:deploy": "bash scripts/test-deploy-script.sh",
-    "test:ops": "node --test scripts/uptime-probe.test.mjs scripts/post-boot-check.test.mjs scripts/workflows.test.mjs scripts/deploy-ssh.test.mjs scripts/legacy-rollout-snapshot.test.mjs",
+    "test:ops": "node --test scripts/uptime-probe.test.mjs scripts/post-boot-check.test.mjs scripts/workflows.test.mjs scripts/deploy-ssh.test.mjs scripts/legacy-rollout-snapshot.test.mjs scripts/editorial-cycle.test.mjs",
     "canary:probe": "node scripts/canary-legacy-probe.mjs",
     "test:frontend": "npm run test -w apps/frontend",
     "test:e2e": "playwright test",

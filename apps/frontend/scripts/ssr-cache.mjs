@@ -28,8 +28,8 @@ export function createSsrCache({ ttlMs, staleMs, maxEntries = 200, now = Date.no
       entries.set(path, { statusCode, html, ts: now() });
     },
     /** Drops every rendered page (the rollout state of a server-side feature changed). */
-    clear() {
-      entries.clear();
+    clear(matches = () => true) {
+      for (const path of [...entries.keys()]) if (matches(path)) entries.delete(path);
     },
     /** Starts `refresh()` unless one is already running for `path`; false when it was already running. */
     refreshOnce(path, refresh) {
@@ -47,3 +47,7 @@ export function createSsrCache({ ttlMs, staleMs, maxEntries = 200, now = Date.no
 // Pages whose content is "what is on now": a stale copy of these may only be a few minutes old.
 const LIVE_PATHS = /^\/(?:$|programacion-tv\/(?:en-directo|que-ver-hoy)$|canales\/[^/]+$|deportes\/futbol(?:\/.*)?$)/;
 export const isLivePath = (path) => LIVE_PATHS.test(path);
+
+// Pages that list or show editorial posts (M11-F): dropped when the API's editorial epoch changes.
+const EDITORIAL_PATHS = /^\/(?:$|guias(?:\/.*)?$|deportes\/futbol(?:\/.*)?$)/;
+export const isEditorialPath = (path) => EDITORIAL_PATHS.test(path);

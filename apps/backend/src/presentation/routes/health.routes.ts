@@ -8,6 +8,7 @@ import { legacyEnrichmentPolicy } from '../../application/services/LegacyEnrichm
 import { catalogueLinkSnapshot } from '../../application/services/CatalogueLinkShadow';
 import { legacyEnrichmentSnapshot } from '../../application/services/LegacyEnrichmentService';
 import { ChatSocketHub } from '../realtime/ChatSocketHub';
+import { editorialEpoch } from '../../shared/utils/editorialEpoch';
 
 /**
  * Simple health-check routes used by uptime monitors and load balancers.
@@ -62,6 +63,7 @@ export const createHealthRoutes = (): Router => {
       }
 
       res.set('X-Legacy-Enrichment-Epoch', legacyEnrichmentPolicy.epoch());
+      res.set('X-Editorial-Epoch', editorialEpoch());
       res.status(200).json(
         successResponse(
           {
