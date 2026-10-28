@@ -116,6 +116,36 @@ test('known programme IDs render without guessed slugs or redirect loops and sta
   } finally { await ssr.stop(); await backend.stop(); }
 });
 
+test('M09-D: verified works without broadcasts render index with one self canonical; thin and ambiguous stay noindex, follow', { timeout: 120000 }, async () => {
+  const work = (contentType, slug, disposition, robots) => ({
+    ...legacy(), catalogId: `tmdb:${contentType === 'movie' ? 'movie' : 'tv'}:1`, contentType, slug, title: slug, detailPath: `/${contentType === 'movie' ? 'peliculas' : 'series'}/${slug}`,
+    airings: [], seo: { disposition, applied: true, canonicalPath: `/${contentType === 'movie' ? 'peliculas' : 'series'}/${slug}`, ...(robots ? { robots } : {}) },
+  });
+  const paths = ['/peliculas/sin-emision', '/series/serie-sin-emision', '/peliculas/ficha-pobre', '/peliculas/homonimo'];
+  const backend = await startBackend(Object.fromEntries(paths.map((p) => [p, { status: 404, code: 'ENTITY_PUBLIC_READ_DISABLED' }])), {
+    '/v2/catalog/slug/movie/sin-emision': work('movie', 'sin-emision', 'indexable'),
+    '/v2/catalog/slug/series/serie-sin-emision': work('series', 'serie-sin-emision', 'indexable'),
+    '/v2/catalog/slug/movie/ficha-pobre': work('movie', 'ficha-pobre', 'thin', 'noindex, follow'),
+    '/v2/catalog/slug/movie/homonimo': work('movie', 'homonimo', 'ambiguous', 'noindex, follow'),
+  });
+  const ssr = await launchSsr(backend.origin);
+  try {
+    for (const [path, indexable] of paths.map((p, i) => [p, i < 2])) {
+      const response = await fetch(`${ssr.origin}${path}`, { redirect: 'manual' });
+      const s = surface({ response, html: await response.text() });
+      assert.equal(s.status, 200, `${path} ${ssr.logs()}`);
+      assert.deepEqual(s.canonical, [`https://guiaprogramaciontv.com${path}`], path);
+      if (indexable) {
+        assert.match(s.robots, /^index, follow/, path);
+        assert.doesNotMatch(s.xRobots ?? '', /noindex/, path);
+      } else {
+        assert.equal(s.robots, 'noindex, follow', path);
+        assert.equal(s.xRobots, 'noindex, follow', path);
+      }
+    }
+  } finally { await ssr.stop(); await backend.stop(); }
+});
+
 test('the confirmed EPG film misclassified as a series redirects to its verified movie route', { timeout: 60000 }, async () => {
   const backend = await startBackend({}, {
     '/v2/catalog/slug/movie/camino-a-la-perdicion': legacy(),

@@ -10,7 +10,9 @@
  *               `noindex, follow` until the content improves
  *   airing      identity proven, content below the thresholds, but the page lists current broadcasts (first-party
  *               value, Phase 3B `original_value`): `index, follow` while they last, never in the sitemap
- *   indexable   identity and content pass: `index, follow`, with or without a current broadcast
+ *   indexable   identity and content pass: `index, follow`, with or without a current broadcast. M09-D: a complete
+ *               record whose synopsis is only short (Phase 3B `synopsisThinChars`..`synopsisMinChars`) also passes when
+ *               GuíaTV has recorded a broadcast of the work, at any date, so it stays indexed after the broadcast ends
  *
  * The rows are the ones the page's own local lookup reads (`normalizedTitle` = the slug key), read so that a database
  * failure throws (the page answers 503, never a cacheable `noindex`). The sitemap lists an indexable work only when
@@ -63,28 +65,36 @@ export function workPolicyApplies(slug: string, env: NodeJS.ProcessEnv = process
  * EPG/search row has no credits), the Phase 3B synopsis length, genres, a poster, credits, and for a film its year and
  * runtime (a film without a year cannot be told from its remake). No field is inferred.
  */
-export function workContentPasses(r: WorkRow, kind: 'movie' | 'tv'): boolean {
+export function workContentPasses(r: WorkRow, kind: 'movie' | 'tv', synopsisMinChars: number = QUALITY_THRESHOLDS.synopsisMinChars): boolean {
   return Boolean(r.lastEnrichedAt)
-    && (r.synopsis ?? '').trim().length >= QUALITY_THRESHOLDS.synopsisMinChars
+    && (r.synopsis ?? '').trim().length >= synopsisMinChars
     && (r.tmdbGenres?.length ?? 0) > 0
     && Boolean(r.posterPath)
     && ((r.directors?.length ?? 0) > 0 || (r.castSummary?.length ?? 0) >= 3)
     && (kind === 'tv' || (Boolean(r.year) && (r.runtimeMinutes ?? 0) > 0));
 }
 
-/** `rows`: the catalogue rows of the slug key. Same slug match as `CatalogService.findLocalSlugMatch` and M10's `workSlugResolves`. */
-export function workDisposition(slug: string, tmdbId: number, kind: 'movie' | 'tv', rows: readonly WorkRow[], hasAirings = false): WorkDisposition {
+/**
+ * `rows`: the catalogue rows of the slug key. Same slug match as `CatalogService.findLocalSlugMatch` and M10's `workSlugResolves`.
+ * `hasAirings`: the page lists current broadcasts. `everAired`: GuíaTV has recorded a broadcast of this work (`tv_read_airings`).
+ */
+export function workDisposition(slug: string, tmdbId: number, kind: 'movie' | 'tv', rows: readonly WorkRow[], hasAirings = false, everAired = false): WorkDisposition {
   const hits = rows.filter((r) => r.tmdbType === kind && typeof r.tmdbId === 'number'
     && (slugify(r.title ?? '') === slug || slugifyTitle(r.title ?? '') === slug));
   const own = hits.find((r) => r.tmdbId === tmdbId);
   if (!own || hits.some((r) => r.tmdbId !== tmdbId)) return 'ambiguous';
   if (slugifyTitle(own.title ?? '') !== slug) return 'variant';
-  if (workContentPasses(own, kind)) return 'indexable';
+  if (workContentPasses(own, kind) || (everAired && shortTierPasses(own, kind))) return 'indexable';
   return hasAirings ? 'airing' : 'thin';
 }
 
-export function workSeo(contentType: 'movie' | 'series', slug: string, tmdbId: number, rows: readonly WorkRow[], hasAirings = false): WorkSeo {
-  const disposition = workDisposition(slug, tmdbId, KIND[contentType], rows, hasAirings);
+/** M09-D: complete except for a synopsis between Phase 3B's thin line and its substantial line. */
+function shortTierPasses(r: WorkRow, kind: 'movie' | 'tv'): boolean {
+  return workContentPasses(r, kind, QUALITY_THRESHOLDS.synopsisThinChars);
+}
+
+export function workSeo(contentType: 'movie' | 'series', slug: string, tmdbId: number, rows: readonly WorkRow[], hasAirings = false, everAired = false): WorkSeo {
+  const disposition = workDisposition(slug, tmdbId, KIND[contentType], rows, hasAirings, everAired);
   const canonicalPath = buildDetailPath(contentType, slug);
   return disposition === 'indexable' || disposition === 'airing'
     ? { disposition, applied: true, canonicalPath }
@@ -96,6 +106,21 @@ export async function readWorkRows(slug: string): Promise<WorkRow[]> {
   return MediaCatalogModel.find({ normalizedTitle: slugLookupKey(slug) }).select(ROW_FIELDS).lean<WorkRow[]>().exec();
 }
 
+const CATEGORY = { movie: 'Cine', tv: 'Series' } as const;
+
+/**
+ * The page's verdict on its own rows; the broadcast record is read only when the short-synopsis tier could decide it.
+ * Same answer as `indexableWorkPaths` for a work in the sitemap. Throws on a database failure.
+ */
+export async function readWorkSeo(contentType: 'movie' | 'series', slug: string, tmdbId: number, hasAirings = false): Promise<WorkSeo> {
+  const rows = await readWorkRows(slug);
+  const kind = KIND[contentType];
+  const own = rows.find((r) => r.tmdbId === tmdbId && r.tmdbType === kind);
+  const everAired = Boolean(own && !workContentPasses(own, kind) && shortTierPasses(own, kind)
+    && await TVReadAiringModel.exists({ 'program.tmdbId': tmdbId, 'program.editorialCategory': CATEGORY[kind] }).exec());
+  return workSeo(contentType, slug, tmdbId, rows, hasAirings, everAired);
+}
+
 /**
  * Sitemap work paths: indexable (same rule and rows as the page), inside the policy cohort, and broadcast at least once
  * on a channel GuíaTV tracks (`tv_read_airings` keeps the history). Throws on a database failure.
@@ -105,7 +130,7 @@ export async function indexableWorkPaths(env: NodeJS.ProcessEnv = process.env): 
   const [rows, aired] = await Promise.all([
     MediaCatalogModel.find({ tmdbId: { $type: 'number' } }).select(ROW_FIELDS).lean<WorkRow[]>().exec(),
     TVReadAiringModel.aggregate<{ _id: { id: number; c: string } }>([
-      { $match: { 'program.tmdbId': { $type: 'number' }, 'program.editorialCategory': { $in: ['Cine', 'Series'] } } },
+      { $match: { 'program.tmdbId': { $type: 'number' }, 'program.editorialCategory': { $in: Object.values(CATEGORY) } } },
       { $group: { _id: { id: '$program.tmdbId', c: '$program.editorialCategory' } } },
     ]).allowDiskUse(true).exec(),
   ]);
@@ -118,7 +143,7 @@ export async function indexableWorkPaths(env: NodeJS.ProcessEnv = process.env): 
     if ((kind !== 'movie' && kind !== 'tv') || !airedKeys.has(`${kind}:${r.tmdbId}`)) continue;
     const slug = slugifyTitle(r.title ?? '');
     if (slug === 'sin-titulo' || !workPolicyApplies(slug, env)) continue;
-    if (workDisposition(slug, r.tmdbId as number, kind, byKey.get(slugLookupKey(slug)) ?? []) !== 'indexable') continue;
+    if (workDisposition(slug, r.tmdbId as number, kind, byKey.get(slugLookupKey(slug)) ?? [], false, true) !== 'indexable') continue;
     paths.add(buildDetailPath(kind === 'movie' ? 'movie' : 'series', slug));
   }
   return [...paths].sort();
