@@ -58,9 +58,14 @@ const log = logger.child('SitemapController');
 
 export const clearSitemapLastGood = (): void => lastGood.clear();
 
-export const invalidateSitemapCache = (): void => {
-  cache.clear();
-  inflightMap.clear();
+/** Bumped on invalidation: a build already running when its key was invalidated must not cache its older answer. */
+let generation = 0;
+/** No keys: every sitemap. With keys: only those (a guide publish must not force the EPG sitemap rebuild). */
+export const invalidateSitemapCache = (keys?: string[]): void => {
+  generation++;
+  for (const map of [cache, inflightMap]) {
+    for (const key of [...map.keys()]) if (!keys || keys.includes(key.slice(key.lastIndexOf(':') + 1))) map.delete(key);
+  }
 };
 
 export class SitemapController {
@@ -155,8 +160,11 @@ export class SitemapController {
     const existing = inflightMap.get(key);
     if (existing) return existing;
 
+    const started = generation;
     const promise = builder()
       .then((xml) => {
+        // Invalidated while building (a guide went live meanwhile): answer this request, cache nothing.
+        if (started !== generation && inflightMap.get(key) !== promise) return xml;
         cache.set(key, { value: xml, expiresAt: Date.now() + CACHE_TTL_MS });
         lastGood.set(key, { xml, at: Date.now() });
         inflightMap.delete(key);
@@ -194,21 +202,29 @@ export class SitemapController {
   private async buildSitemapIndex(): Promise<string> {
     const baseUrl = this.getBaseUrl();
 
-    const subs = [
-      'sitemap-static.xml',
-      'sitemap-channels.xml',
-      'sitemap-programs.xml',
-      'sitemap-blog.xml',
+    const subs: Array<[string, string, () => Promise<string>]> = [
+      ['sitemap-static.xml', 'static', () => this.buildStaticSitemap()],
+      ['sitemap-channels.xml', 'channels', () => this.buildChannelsSitemap()],
+      ['sitemap-programs.xml', 'programs', () => this.buildProgramsSitemap()],
+      ['sitemap-blog.xml', 'blog', () => this.buildBlogSitemap()],
     ];
 
     const lines: string[] = [
       '<?xml version="1.0" encoding="UTF-8"?>',
       '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     ];
-    for (const file of subs) {
+    for (const [file, key, build] of subs) {
+      // M11-G: the blog child is dated by its newest guide change, so Google re-reads it when a guide is published or
+      // revised (it kept a 2-day-old copy missing the new guides). The schedule-driven children would say "today" every
+      // day, and Google stops trusting a site's lastmod when it is not consistently accurate: they carry none.
+      // A child that fails to build or has no dated entry gets none either.
+      const lastmod = key !== 'blog' ? undefined : await this.getCached(key, build).then(
+        (xml) => [...xml.matchAll(/<lastmod>([^<]+)<\/lastmod>/g)].map((m) => m[1]).sort().pop(),
+        () => undefined,
+      );
       lines.push('  <sitemap>');
-      // No lastmod: a child sitemap is rebuilt on request, so "today" would claim a change that did not happen.
       lines.push(`    <loc>${this.escapeXml(`${baseUrl}/${file}`)}</loc>`);
+      if (lastmod) lines.push(`    <lastmod>${lastmod}</lastmod>`);
       lines.push('  </sitemap>');
     }
     lines.push('</sitemapindex>');

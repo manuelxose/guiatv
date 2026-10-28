@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
 import { BlogPostModel } from '../../infrastructure/database/models/BlogPost.model';
-import { runSearchConsoleMonitor, searchConsoleOverview } from './SearchConsoleMonitor';
+import { classifyInspection, runSearchConsoleMonitor, searchConsoleOverview } from './SearchConsoleMonitor';
 
 const NOW = new Date('2026-10-28T06:00:00Z');
 const A = 'https://guiaprogramaciontv.com/guias/guia-a';
@@ -36,7 +36,7 @@ const inspectCalls = (calls: Array<{ url: string }>) => calls.filter((c) => c.ur
 test('Search Console monitor stores genuine observations only', { skip: !process.env.TEST_MONGO_URI }, async (t) => {
   await mongoose.connect(process.env.TEST_MONGO_URI!, { dbName: `guiatv_test_gsc_${process.pid}` });
   const col = (name: string) => mongoose.connection.collection(name);
-  const reset = () => Promise.all(['editorial_gsc_inspections', 'editorial_gsc_performance', 'editorial_gsc_runs'].map((n) => col(n).deleteMany({})));
+  const reset = () => Promise.all(['editorial_gsc_inspections', 'editorial_gsc_inspection_history', 'editorial_gsc_performance', 'editorial_gsc_runs'].map((n) => col(n).deleteMany({})));
   try {
     await BlogPostModel.collection.insertMany([
       { slug: 'guia-a', title: 'A', status: 'publish', reviewState: 'approved', publishedAt: new Date('2026-10-01') },
@@ -108,8 +108,40 @@ test('Search Console monitor stores genuine observations only', { skip: !process
       const second = await runSearchConsoleMonitor({ ...again, now: new Date(NOW.getTime() + 3600e3) });
       assert.deepEqual([second.inspected, second.skipped, inspectCalls(again.calls)], [0, 2, 0], 'inspected less than 24 h ago');
       assert.equal(await col('editorial_gsc_performance').countDocuments({ query: null }), 3, 'an empty later answer deletes nothing');
+      // M11-G: the indexed guide waits a week; the one Google has not indexed is checked again the next day.
       const later = google({ inspect: inspectOk });
-      assert.equal((await runSearchConsoleMonitor({ ...later, now: new Date(NOW.getTime() + 25 * 3600e3) })).inspected, 2);
+      const third = await runSearchConsoleMonitor({ ...later, now: new Date(NOW.getTime() + 25 * 3600e3) });
+      assert.deepEqual([third.inspected, third.skipped], [1, 1]);
+      assert.deepEqual(later.calls.filter((c) => c.url.endsWith('index:inspect')).map((c) => c.body.inspectionUrl), [B]);
+      const week = google({ inspect: inspectOk });
+      assert.equal((await runSearchConsoleMonitor({ ...week, now: new Date(NOW.getTime() + 8 * 864e5) })).inspected, 2);
+
+      // Every inspection is kept as a snapshot, with its normalised class next to Google's own words.
+      const snaps = await col('editorial_gsc_inspection_history').find({ url: B }).sort({ inspectedAt: 1 }).toArray();
+      assert.deepEqual(snaps.map((s) => [s.classification, s.coverageState]), Array(3).fill(['discovered-not-indexed', 'Discovered - currently not indexed']));
+      const ovAfter = await searchConsoleOverview(new Date(NOW.getTime() + 8 * 864e5));
+      assert.deepEqual(ovAfter.summary.byClassification, { indexed: 1, 'discovered-not-indexed': 1 });
+      assert.deepEqual(ovAfter.summary.byPublicationDay, { '2026-10-01': 1, '2026-09-01': 1 });
+      assert.deepEqual(ovAfter.guides.map((g) => [g.ageDays, g.ageBand, g.strategy, g.firstPartyData]), [[35, 'más de 28 días', 'manual', false], [65, 'más de 28 días', 'manual', false]]);
+      assert.equal(ovAfter.guides[0].daysSinceCrawl, 9);
+    });
+
+    await t.test('classification uses Google\'s structured fields, never a missing value as a negative', () => {
+      const base = { inspectedAt: NOW, error: null };
+      assert.equal(classifyInspection(null), 'insufficient-evidence');
+      assert.equal(classifyInspection({ ...base, verdict: null, coverageState: null }), 'insufficient-evidence', 'an empty answer is not a state');
+      assert.equal(classifyInspection({ ...base, error: 'HTTP 500' }), 'insufficient-evidence');
+      assert.equal(classifyInspection({ ...base, verdict: 'PASS' }), 'indexed');
+      assert.equal(classifyInspection({ ...base, verdict: 'FAIL', indexingState: 'BLOCKED_BY_META_TAG' }), 'blocked');
+      assert.equal(classifyInspection({ ...base, verdict: 'FAIL', robotsTxtState: 'DISALLOWED' }), 'blocked');
+      assert.equal(classifyInspection({ ...base, verdict: 'FAIL', pageFetchState: 'SOFT_404' }), 'fetch-error');
+      assert.equal(classifyInspection({ ...base, verdict: 'NEUTRAL', googleCanonical: B, userCanonical: A, lastCrawlTime: 'x' }), 'alternate-canonical');
+      assert.equal(classifyInspection({ ...base, verdict: 'NEUTRAL', lastCrawlTime: '2026-10-20T10:53:41Z' }), 'crawled-not-indexed');
+      assert.equal(classifyInspection({ ...base, verdict: 'NEUTRAL', sitemaps: ['https://guiaprogramaciontv.com/sitemap.xml'] }), 'discovered-not-indexed');
+      assert.equal(classifyInspection({ ...base, verdict: 'NEUTRAL', referringUrls: ['https://guiaprogramaciontv.com/guias'] }), 'discovered-not-indexed');
+      assert.equal(classifyInspection({ ...base, verdict: 'NEUTRAL', coverageState: 'Descubierta: actualmente sin indexar' }), 'discovered-not-indexed');
+      assert.equal(classifyInspection({ ...base, verdict: 'NEUTRAL', coverageState: 'Rastreada: actualmente sin indexar' }), 'crawled-not-indexed');
+      assert.equal(classifyInspection({ ...base, verdict: 'NEUTRAL', coverageState: 'Google no reconoce esta URL' }), 'not-discovered');
     });
 
     await t.test('quota exhaustion stops the run and is recorded', async () => {

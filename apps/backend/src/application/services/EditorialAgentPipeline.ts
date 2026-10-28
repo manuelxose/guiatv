@@ -12,6 +12,7 @@ import {
   EditorialVolatility,
   EvidenceBundle,
   EvidenceClaim,
+  DistinctValue,
   evaluateEvidence,
   hashBundle,
   hashText,
@@ -36,7 +37,7 @@ import { coverAsset, coverRequest, ImageModel, imageProblems, ImageRoute } from 
  * The output is a reviewable CMS draft plus its provenance; nothing here writes to a database.
  */
 
-export const PIPELINE_VERSION = 'm11e2-1';
+export const PIPELINE_VERSION = 'm11g-1';
 export type EditorialRole = 'research' | 'evidence' | 'editorial' | 'seo' | 'critic';
 
 export interface ModelRoute { provider: string; model: string; effort: 'low' | 'medium' | 'high' }
@@ -233,12 +234,13 @@ export interface RevisionRecord {
   gateFixes?: number;
 }
 /** Gate findings that mean the evidence is short, so another rewrite of the same claims cannot fix them. */
-const EVIDENCE_GAPS = new Set(['unsupported-claim', 'no-distinct-value']);
+const EVIDENCE_GAPS = new Set(['unsupported-claim', 'no-distinct-value', 'schedule-fact-not-dated']);
 /** M11-E2b: gate findings the writer or the SEO agent can fix with a local edit, before the critic sees the draft. */
 const WRITER_FIXABLE = new Set([
   'uncited-factual-statement', 'figure-not-in-claim', 'figure-in-words', 'metadata-figure-not-in-claims', 'invalid-metadata',
   'internal-link-status', 'broken-internal-link', 'unsourced-link', 'invalid-link', 'claim-marker-leak', 'fabricated-experience',
   'placeholder-text', 'unknown-claim', 'faq-not-evidenced', 'unverified-internal-link', 'excessive-internal-links', 'missing-internal-link',
+  'distinct-value-missing', 'distinct-value-unsupported',
 ]);
 const MAX_GATE_FIXES = 3;
 /** M11-F: a guide links a few relevant GuíaTV pages, not a directory of them. The AI disclosure links the policy page. */
@@ -264,7 +266,9 @@ const GATE_RULES = `Reglas que comprueba un programa (un fallo impide publicar):
 - Escribe cada cifra como en su afirmación (si la afirmación dice «dieciocho», no escribas «18»). No uses cantidades con letras seguidas de unidad («dos euros», «tres horas»).
 - Título, resumen, metaTitle y metaDescription: solo cifras que el texto da con marcador y escritas igual (nada de «+18» si el texto dice «dieciocho»).
 - Enlaces externos solo a las URL exactas de la lista de fuentes; internos solo a rutas de guiaprogramaciontv.com que aparezcan en los datos propios o en la lista de páginas de GuíaTV para enlazar.
-- Extensión: la que pida la intención, sin inflarla.`;
+- Extensión: la que pida la intención, sin inflarla.
+- Datos propios de GuíaTV: úsalos solo si ayudan a la intención del lector. Un horario va con su día y su hora peninsular, y caduca: no lo uses en una guía permanente. De la programación nunca saques datos de una película o serie (año, director, reparto) ni la confundas con otra de título parecido. GuíaTV agrega guías de terceros: no es una segunda fuente que confirme a otra.
+- distinctValue: en una o dos frases concretas, qué obtiene el lector aquí que no tendría leyendo solo una de las fuentes (un dato propio de GuíaTV, una comparación verificada entre editores, un criterio práctico), y los ids de las afirmaciones que lo prueban, todas citadas en el texto. Nada genérico («información completa», «guía útil»).`;
 const CRITIC_SEVERITY = `Gravedad de cada problema:
 - high: dato falso, no respaldado o mal atribuido; matiz de la fuente perdido que cambia el sentido; el texto no responde a la intención.
 - medium: inferencia o consejo más allá de la evidencia; falta información importante para la intención que sí está en las afirmaciones; repetición o relleno que ocupa una parte apreciable del texto; recomendación sin criterio.
@@ -307,8 +311,11 @@ const CONFLICT_SCHEMA = {
   properties: { conflicts: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['claimIds', 'note'], properties: { claimIds: { type: 'array', items: str }, note: str } } } },
 };
 const DRAFT_SCHEMA = {
-  type: 'object', additionalProperties: false, required: ['title', 'excerpt', 'metaTitle', 'metaDescription', 'markdown'],
-  properties: { title: str, excerpt: str, metaTitle: str, metaDescription: str, markdown: str },
+  type: 'object', additionalProperties: false, required: ['title', 'excerpt', 'metaTitle', 'metaDescription', 'markdown', 'distinctValue'],
+  properties: {
+    title: str, excerpt: str, metaTitle: str, metaDescription: str, markdown: str,
+    distinctValue: { type: 'object', additionalProperties: false, required: ['readerBenefit', 'claimIds'], properties: { readerBenefit: str, claimIds: { type: 'array', items: str } } },
+  },
 };
 const META_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['title', 'metaTitle', 'metaDescription'],
@@ -485,7 +492,7 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
     let feedback = '';
     let previous = '';
     run.revisions = [];
-    type Draft = { title: string; excerpt: string; metaTitle: string; metaDescription: string; markdown: string };
+    type Draft = { title: string; excerpt: string; metaTitle: string; metaDescription: string; markdown: string; distinctValue?: DistinctValue };
     const writerSystem = `${STYLE}\nEres el agente editorial. Redactas una guía útil y diferente: explica criterios, compara, y aprovecha los datos propios de GuíaTV cuando los haya.\n${EDITORIAL_RUBRIC}`;
     // A function: re-research can add sources between drafts.
     const internalLinks = topic.linkTargets?.length
@@ -501,6 +508,7 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
         lastVerifiedAt: verifiedOn.toISOString(), nextReviewAt: nextReviewAt(bundle, d.markdown)?.toISOString(), version: 1, backend,
         // Signed with the verdict: the reviewed excerpt/metadata, and every candidate a critic blocked in this job.
         metadataHash: metadataHash(d),
+        ...(d.distinctValue ? { distinctValue: { readerBenefit: String(d.distinctValue.readerBenefit ?? ''), claimIds: [...(d.distinctValue.claimIds ?? [])].map(String) } } : {}),
         ...(run.blockedCandidates?.length ? { blockedCandidates: run.blockedCandidates.map((b) => ({ draftHash: b.draftHash, bundleHash: b.bundleHash, verdict: b.critic.verdict })) } : {}),
       };
       const cms: CmsDraft = {
@@ -563,7 +571,8 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
         `Eres el crítico independiente. No escribiste este texto. Lo contrastas solo con el paquete de evidencias.\n${EDITORIAL_RUBRIC}\n${CRITIC_SEVERITY}`,
         `Intención del lector: ${topic.intent}\n\nAfirmaciones verificadas:\n${claimDigest(usable)}\n\nAfirmaciones descartadas:\n${bundle.claims.filter((c) => c.status !== 'supported').map((c) => `- ${c.id} (${c.status}): ${c.text}`).join('\n') || '(ninguna)'}
 ${run.blockedCandidates?.length ? `\nUn candidato anterior de este artículo se bloqueó por falta de evidencias. Comprueba que este borrador resuelve esos problemas; si no, vuelve a bloquearlo:\n${run.blockedCandidates.flatMap((b) => b.critic.issues).map((i) => `- (${i.severity}) ${i.message}`).join('\n')}\n` : ''}
-Resumen: ${draft.excerpt}\nmetaTitle: ${draft.metaTitle}\nmetaDescription: ${draft.metaDescription}\n(El resumen y los metadatos se publican con el texto: revísalos con el mismo criterio.)\n\nBorrador:\n${draft.markdown}`,
+Resumen: ${draft.excerpt}\nmetaTitle: ${draft.metaTitle}\nmetaDescription: ${draft.metaDescription}\n(El resumen y los metadatos se publican con el texto: revísalos con el mismo criterio.)
+Valor diferencial que declara el redactor: «${draft.distinctValue?.readerBenefit ?? '(ninguno)'}» (afirmaciones: ${draft.distinctValue?.claimIds?.join(', ') || 'ninguna'}). Compruébalo contra el texto y esas afirmaciones: si es genérico, si el texto no lo cumple, si solo resume o parafrasea una fuente, si los datos propios o los enlaces de GuíaTV no tienen relación con la intención, o si un horario se presenta como permanente, señala un problema high.\n\nBorrador:\n${draft.markdown}`,
         CRITIC_SCHEMA);
       const critic: CriticReview = { model: chosen.critic.route.model, verdict: criticVerdict(answer), modelVerdict: answer.verdict, issues: answer.issues, bundleHash, draftHash, reviewedAt: now().toISOString() };
       const verdict = critic;

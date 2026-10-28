@@ -130,7 +130,8 @@ test('contradictory evidence: a conflict marks every involved claim conflicting 
 test('publication gate: a cited, verified, reviewed draft passes with no findings', () => {
   const v = verifyBundle(bundleFixture(), snapshots);
   assert.deepEqual(evaluateEvidence({ author: AI_AUTHOR, content: render(DRAFT) }, provenanceFor(v), NOW), []);
-  assert.deepEqual(measureValue(DRAFT, v), { internalClaims: 1, publishers: 2, tables: 0, claimsUsed: 2 });
+  // M11-G: GuíaTV (internal) is not counted as a publisher: it never confirms another source.
+  assert.deepEqual(measureValue(DRAFT, v), { internalClaims: 1, publishers: 1, tables: 0, claimsUsed: 2 });
 });
 
 test('publication gate: missing evidence, uncited figures and unknown markers block', () => {

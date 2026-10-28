@@ -171,8 +171,16 @@ test('sitemap index excludes quarantined provider-only child sitemaps', async ()
   invalidateSitemapCache();
   const controller = new SitemapController({} as any, {} as any, {} as any, fakeFootballQueryService());
   const { req, res, getSentXml } = fakeReqRes();
-
-  await controller.getSitemapIndex(req, res, (() => {}) as any);
+  // The index reads each child for its lastmod: keep the blog child off the (absent) database.
+  const Model = (await import('../../infrastructure/database/models/BlogPost.model')).BlogPostModel;
+  const originalFind = Model.find;
+  (Model as any).find = () => ({ select: () => ({ lean: () => ({ exec: async () => [] }) }) });
+  try {
+    await controller.getSitemapIndex(req, res, (() => {}) as any);
+  } finally {
+    (Model as any).find = originalFind;
+    invalidateSitemapCache();
+  }
 
   assert.doesNotMatch(getSentXml(), /sitemap-streaming\.xml/);
   assert.doesNotMatch(getSentXml(), /sitemap-football\.xml/);
@@ -328,15 +336,50 @@ test('M09: a failing rebuild serves the last good sitemap, retries later, and st
   assert.equal(calls, before, 'the stale answer is cached briefly: no rebuild on the next request');
 });
 
-test('M09: sitemap index declares no invented lastmod', async () => {
+test('M09/M11-G: sitemap index lastmod is the newest lastmod inside each child, never invented', async () => {
   invalidateSitemapCache();
-  const controller = new SitemapController({} as any, {} as any);
-  const { req, res, getSentXml } = fakeReqRes();
+  clearSitemapLastGood();
+  const Model = (await import('../../infrastructure/database/models/BlogPost.model')).BlogPostModel;
+  const originalFind = Model.find;
+  let posts: unknown[] = [
+    { slug: 'vieja', updatedAt: new Date('2026-10-19T10:00:00Z'), categories: [] },
+    { slug: 'nueva', updatedAt: new Date('2026-10-27T23:00:00Z'), categories: [] },
+  ];
+  (Model as any).find = () => ({ select: () => ({ lean: () => ({ exec: async () => posts }) }) });
+  const index = async () => {
+    const { req, res, getSentXml } = fakeReqRes();
+    await new SitemapController({} as any, {} as any).getSitemapIndex(req, res, (() => {}) as any);
+    return getSentXml();
+  };
+  try {
+    const xml = await index();
+    assert.match(xml, /sitemap-blog\.xml<\/loc>\s*<lastmod>2026-10-27<\/lastmod>/);
+    // Schedule-driven children would claim "today" every day: no lastmod rather than an inaccurate one.
+    for (const child of ['static', 'channels', 'programs']) assert.match(xml, new RegExp(`<sitemap>\\s*<loc>[^<]+sitemap-${child}\\.xml</loc>\\s*</sitemap>`));
 
-  await controller.getSitemapIndex(req, res, (() => {}) as any);
+    // A guide publish invalidates only blog + index; the next index read carries the new date.
+    posts = [...posts, { slug: 'hoy', updatedAt: new Date('2026-10-28T10:40:00Z'), categories: [] }];
+    assert.match(await index(), /sitemap-blog\.xml<\/loc>\s*<lastmod>2026-10-27<\/lastmod>/, 'cached until invalidated');
+    invalidateSitemapCache(['blog', 'index']);
+    assert.match(await index(), /sitemap-blog\.xml<\/loc>\s*<lastmod>2026-10-28<\/lastmod>/);
 
-  assert.match(getSentXml(), /<sitemap>\s*<loc>[^<]+sitemap-programs\.xml<\/loc>\s*<\/sitemap>/);
-  assert.doesNotMatch(getSentXml(), /lastmod/);
+    // A build already running when a guide goes live answers its request but is not cached over the new state.
+    invalidateSitemapCache();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const before = posts.filter((p: any) => p.slug !== 'hoy');
+    (Model as any).find = () => ({ select: () => ({ lean: () => ({ exec: async () => { await gate; return before; } }) }) });
+    const slow = index();
+    await new Promise((r) => setTimeout(r, 5));
+    invalidateSitemapCache(['blog', 'index']); // 'hoy' goes live while the slow build still reads the old list
+    release();
+    assert.match(await slow, /sitemap-blog\.xml<\/loc>\s*<lastmod>2026-10-27<\/lastmod>/);
+    (Model as any).find = () => ({ select: () => ({ lean: () => ({ exec: async () => posts }) }) });
+    assert.match(await index(), /sitemap-blog\.xml<\/loc>\s*<lastmod>2026-10-28<\/lastmod>/, 'the stale build was not cached');
+  } finally {
+    (Model as any).find = originalFind;
+    invalidateSitemapCache();
+  }
 });
 
 test('sitemap-blog.xml excludes categories with fewer than three approved posts', async () => {

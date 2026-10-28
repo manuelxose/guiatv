@@ -19,6 +19,7 @@ import { ICacheRepository } from '../../domain/repositories/ICacheRepository';
 import { StaleWhileRevalidateCache } from '../../infrastructure/cache/StaleWhileRevalidateCache';
 import { measureTiming } from '../../shared/utils/performanceTiming';
 import { bumpEditorialEpoch } from '../../shared/utils/editorialEpoch';
+import { invalidateSitemapCache } from './SitemapController';
 import {
   ConflictError,
   ForbiddenError,
@@ -837,6 +838,8 @@ export class BlogController {
 
   private async invalidatePublicReads(): Promise<void> {
     bumpEditorialEpoch();
+    // M11-G: the blog sitemap (and the index lastmod derived from it) must list a guide as soon as it is public.
+    invalidateSitemapCache(['blog', 'index']);
     await Promise.all([
       this.cache.clear('v2:editorial:*'),
       this.cache.clear('v2:football:news:*'),
