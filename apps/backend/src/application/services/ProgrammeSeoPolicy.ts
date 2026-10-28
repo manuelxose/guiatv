@@ -4,12 +4,15 @@
  *   episode     an explicit episode airing ("Fallen T1 E3", "Episodio 812"): noindex, follow; never canonicalised to the
  *               series page, which is a different document
  *   work        the M10 verified work page (same TMDB identity, per-airing gate): canonical = that `/peliculas|/series` URL
- *   ambiguous   a TMDB id the M10 gate did not verify: kept as it is (self-canonical, indexable), no target is guessed
+ *   ambiguous   a TMDB id the M10 gate did not verify: self-canonical, no target is guessed. M10-B: `noindex, follow`, as an
+ *               unproven identity is on a work page (WorkSeoPolicy `ambiguous`). The page renders that TMDB record, so
+ *               indexed it duplicated the work page of the same id (`/programas/modern-family` vs `/series/modern-family`)
  *   thin        no TMDB identity and under 20 words of description: noindex, follow
  *   standalone  anything else: self-canonical, indexable
  *
  * M09-C: a `work` page whose target work page is not indexable (WorkSeoPolicy) keeps its own canonical and gets
- * `noindex, follow` instead. Only `standalone` is a sitemap candidate. The canonical slug folds accents ("último" -> "ultimo"); the legacy slug
+ * `noindex, follow` instead. Only `standalone` is a sitemap candidate, and since M10-B it is the only disposition indexed
+ * under its own URL (a `work` page is indexed through its canonical). The canonical slug folds accents ("último" -> "ultimo"); the legacy slug
  * that dropped them still resolves and declares the folded one as canonical (no redirect: both serve the same row).
  *
  *   PROGRAMME_SEO_POLICY=off|canary|on        off (default) = pre-M09-B signals, except the folded canonical slug
@@ -78,6 +81,6 @@ export function programmeSeo(
   // self-canonical and out of the index, like a thin page, until the work page qualifies.
   if (disposition === 'work' && page.workIndexable === false) return { disposition, applied, canonicalPath: self, robots: 'noindex, follow' };
   if (disposition === 'work') return { disposition, applied, canonicalPath: page.workPath! };
-  if (disposition === 'episode' || disposition === 'thin') return { disposition, applied, canonicalPath: self, robots: 'noindex, follow' };
+  if (disposition === 'episode' || disposition === 'thin' || disposition === 'ambiguous') return { disposition, applied, canonicalPath: self, robots: 'noindex, follow' };
   return { disposition, applied, canonicalPath: self };
 }

@@ -100,6 +100,8 @@ async function startServer() {
 
     const server = httpServer.listen(config.port, () => {
       logger.info(`Server listening on http://localhost:${config.port}`);
+      // M10-B: read the related-works set once in the background, so no work page waits for that catalogue scan.
+      void import('../application/services/RelatedWorks').then(({ relatedWorkIndex }) => relatedWorkIndex.warm());
     });
 
     const shutdown = createShutdown({

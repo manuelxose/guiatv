@@ -55,8 +55,9 @@ import { measureTiming } from '@/shared/utils/performanceTiming';
 import { logger } from '@/shared/utils/logger';
 import { titleIdentityKey } from '@/domain/services/contentIdentity';
 import { airingDetailSlug, buildDetailPath, episodeWorkTitle, inferContentType, normalizeToken, programDetailPath, slugify, slugifyTitle } from '@/domain/services/detailPath';
-import { programmeCanonicalSlug, programmeDisposition, programmeSeo, type ProgrammeDisposition } from './ProgrammeSeoPolicy';
+import { programmeCanonicalSlug, programmeDisposition, programmePolicyApplies, programmeSeo, type ProgrammeDisposition } from './ProgrammeSeoPolicy';
 import { readWorkSeo, workPolicyApplies } from './WorkSeoPolicy';
+import { RelatedWorkIndex, relatedWorkIndex } from './RelatedWorks';
 
 export interface CatalogQueryParams {
   userId?: string;
@@ -117,7 +118,9 @@ export class CatalogService {
     // on every request. Falls back to the old direct-TMDB behavior when absent
     // so existing tests/call sites that don't pass it keep working unchanged.
     private readonly mediaCatalogService?: MediaCatalogService,
-    private readonly legacyEnrichment?: LegacyEnrichmentService
+    private readonly legacyEnrichment?: LegacyEnrichmentService,
+    /** M10-B: the indexable works the "Relacionados" rail of a work page may link (RelatedWorks). */
+    private readonly relatedWorks: Pick<RelatedWorkIndex, 'get'> = relatedWorkIndex
   ) {}
 
   /** Single choke point for TMDB *detail* fetches (movie/tv by id) so the
@@ -520,6 +523,29 @@ export class CatalogService {
 
   /** M09-B: the page's ProgrammeSeoPolicy disposition, from the same row `/programas/:slug` loads; null = the page 404s. */
   async programSlugDisposition(slug: string): Promise<ProgrammeDisposition | null> {
+    return (await this.programSlugPage(slug))?.disposition ?? null;
+  }
+
+  /**
+   * M10-B: the `/programas/:slug` page of an airing, only when that page is indexed under its own URL (`standalone`, the
+   * sitemap rule) and loads this same title. A TMDB-matched, episode or thin programme is never linked from here.
+   */
+  private async standaloneProgrammePath(title: string): Promise<string | undefined> {
+    const slug = slugifyTitle(title);
+    if (slug === 'sin-titulo' || !programmePolicyApplies(slug)) return undefined;
+    // Airing pages are crawled heavily: one lookup per title per 10 minutes, misses included (bounded map).
+    const hit = this.standalonePaths.get(title);
+    if (hit && hit.until > Date.now()) return hit.path;
+    const page = await this.programSlugPage(slug);
+    const path = page?.disposition === 'standalone' && page.title === title ? `/programas/${slug}` : undefined;
+    if (this.standalonePaths.size >= 5000) this.standalonePaths.clear();
+    this.standalonePaths.set(title, { path, until: Date.now() + 10 * 60_000 });
+    return path;
+  }
+
+  private readonly standalonePaths = new Map<string, { path?: string; until: number }>();
+
+  private async programSlugPage(slug: string): Promise<{ title: string; disposition: ProgrammeDisposition } | null> {
     const searchText = String(slug || '').replace(/-/g, ' ').trim();
     if (!searchText) return null;
     const found =
@@ -530,7 +556,7 @@ export class CatalogService {
     if (!found || !isConsumerVisibleTvReadItem(found as TvReadItemDTO)) return null;
     const p = (found as TvReadItemDTO).program;
     // A TMDB item's page shows the TMDB overview, but any TMDB id already decides the disposition before the synopsis.
-    return programmeDisposition(programmeCanonicalSlug(slug, p.title), { title: p.title, workPath: p.workPath, tmdbId: p.tmdbId, synopsis: cleanEpgDescription(p.description) });
+    return { title: p.title, disposition: programmeDisposition(programmeCanonicalSlug(slug, p.title), { title: p.title, workPath: p.workPath, tmdbId: p.tmdbId, synopsis: cleanEpgDescription(p.description) }) };
   }
 
   /**
@@ -551,7 +577,13 @@ export class CatalogService {
     // TMDB movie and tv ids share one number space: the kind must agree too.
     const match = found.find(({ item }) => item && isConsumerVisibleTvReadItem(item) && item.program?.tmdbId === tmdbId
       && this.inferTvReadContentType(item) === contentType);
-    return match ? `/programas/${match.slug}` : undefined;
+    if (!match?.item) return undefined;
+    // M10-B: a programme page that declares this work page as its canonical is not linked from it (a link to a
+    // non-canonical URL that leads back here); the work page lists the same broadcasts under #emisiones.
+    const p = match.item.program;
+    const seo = programmeSeo(match.slug, { ...p, workIndexable: await this.workPathIndexable(p) });
+    // An unverified identity (`ambiguous`) is not linked as this work's schedule either: the anchor would assert it.
+    return seo.canonicalPath === `/programas/${match.slug}` && !(seo.applied && seo.disposition === 'ambiguous') ? seo.canonicalPath : undefined;
   }
 
   private async cacheSlugNotFound(negativeCacheKey: string): Promise<void> {
@@ -825,9 +857,14 @@ export class CatalogService {
     };
     const airings = this.mergeAirings([own], tvReadDetail.relatedChannelItems.filter(sameWork).map((slot) => this.mapTvReadItemToAiring(slot)));
     const channelAirings = tvReadDetail.relatedChannelItems.filter((slot) => !sameWork(slot)).map((slot) => this.mapTvReadItemToAiring(slot));
+    // M10-B: an airing of a programme with an indexable page of its own links it; a failed lookup only omits the link.
+    const programmePath = item.tmdbId || item.workPath
+      ? undefined
+      : await measureTiming('programme', () => this.standaloneProgrammePath(item.title).catch(() => undefined));
 
     return {
       ...item,
+      programmePath,
       synopsis: tmdbDetail?.overview || item.synopsis,
       image: item.image || this.tmdbService.getImageUrl(tmdbDetail?.poster_path || null),
       backdrop:
@@ -1183,38 +1220,33 @@ export class CatalogService {
     return matches.map((entry) => this.mapTvReadItemToAiring(entry));
   }
 
+  /**
+   * M10-B: works of the sitemap set only (RelatedWorks): identity proven, indexable, broadcast by GuíaTV, same kind and
+   * a shared genre where possible. Each card links the work's canonical path, never a slug a TMDB search would resolve.
+   */
   private async loadRelatedForTmdb(
     detail: TMDBDetailResult,
     type: 'movie' | 'tv'
   ): Promise<CatalogItemDTO[]> {
-    const topGenreIds = (detail.genres || []).slice(0, 2).map((genre) => genre.id);
-    const discovered =
-      type === 'movie'
-        ? await this.tmdbService.discoverMovies({
-            withGenres: topGenreIds,
-            page: 1,
-            sortBy: 'popularity.desc',
-          })
-        : await this.tmdbService.discoverTV({
-            withGenres: topGenreIds,
-            page: 1,
-            sortBy: 'popularity.desc',
-          });
-
-    const providers = await Promise.all(
-      discovered.results
-        .filter((item) => item.id !== detail.id)
-        .slice(0, 8)
-        .map(async (item) => {
-          const watch =
-            type === 'movie'
-              ? await this.streamingProvidersService.getMovieProviders(item.id)
-              : await this.streamingProvidersService.getTVProviders(item.id);
-          return this.mapTmdbToCatalogItem(item, type, watch || undefined);
-        })
+    const graph = await this.relatedWorks.get();
+    if (!graph) return [];
+    const genreIds = (detail.genres || []).map((genre) => genre.id);
+    const contentType: CatalogContentType = type === 'movie' ? 'movie' : 'series';
+    return Promise.all(
+      graph.related(type, detail.id, genreIds).map(async (work) => {
+        const watch = await (type === 'movie'
+          ? this.streamingProvidersService.getMovieProviders(work.tmdbId)
+          : this.streamingProvidersService.getTVProviders(work.tmdbId)
+        ).catch(() => null);
+        const item = this.mapTmdbToCatalogItem(
+          { id: work.tmdbId, title: work.title, name: work.title, poster_path: work.posterPath ?? null, backdrop_path: null, overview: '',
+            vote_average: work.rating, release_date: work.year, first_air_date: work.year } as unknown as TMDBResult,
+          type,
+          watch || undefined
+        );
+        return { ...item, contentType, slug: work.path.split('/').pop()!, detailPath: work.path };
+      })
     );
-
-    return providers;
   }
 
   private async attachUserInteractions(

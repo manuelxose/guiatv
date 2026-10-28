@@ -12,8 +12,8 @@ test('verified movie and series twins declare their work page; nothing else is m
   assert.equal(programmeSeo('la-promesa', { title: 'La promesa', tmdbId: 7, workPath: '/series/la-promesa' }, ON).canonicalPath, '/series/la-promesa');
   // Same title, different work (remake, another year): only the verified workPath counts, never the title.
   assert.equal(programmeSeo('la-momia', { title: 'La momia', tmdbId: 564, workPath: '/peliculas/la-momia-1999' }, ON).canonicalPath, '/peliculas/la-momia-1999');
-  // A TMDB id the M10 gate did not verify: isolated, no target guessed, robots untouched.
-  assert.deepEqual(programmeSeo('furia', { title: 'Furia', tmdbId: 228150 }, ON), { disposition: 'ambiguous', applied: true, canonicalPath: '/programas/furia' });
+  // A TMDB id the M10 gate did not verify: isolated, no target guessed, and (M10-B) out of the index like an unproven work.
+  assert.deepEqual(programmeSeo('furia', { title: 'Furia', tmdbId: 228150 }, ON), { disposition: 'ambiguous', applied: true, canonicalPath: '/programas/furia', robots: 'noindex, follow' });
 });
 
 test('invalid work metadata never becomes a canonical target', () => {
@@ -21,6 +21,7 @@ test('invalid work metadata never becomes a canonical target', () => {
     const seo = programmeSeo('x', { title: 'X', tmdbId: 1, workPath }, ON);
     assert.equal(seo.disposition, 'ambiguous', workPath);
     assert.equal(seo.canonicalPath, '/programas/x', workPath);
+    assert.equal(seo.robots, 'noindex, follow', workPath);
   }
 });
 
@@ -68,4 +69,31 @@ test('canary: a stable cohort of slugs; an invalid percentage applies nowhere', 
   assert.ok(ten.every((s) => at('25').includes(s)), 'a wider cohort contains the narrower one');
   assert.equal(at('100').length, slugs.length);
   for (const bad of ['0', '101', '5.5', '', 'x']) assert.equal(at(bad).length, 0, bad);
+});
+
+test('M10-B: an unverified TMDB identity never yields two indexable representations of one record', () => {
+  // `/programas/modern-family` carries TMDB 1421 from a title search, without the stored link the M10 gate needs
+  // (no `workPath`), while `/series/modern-family` is the indexable work page of 1421. No canonical is asserted between
+  // them (identity unproven); the programme page leaves the index and keeps its schedule and links (`follow`).
+  const seo = programmeSeo('modern-family', { title: 'Modern Family', tmdbId: 1421 }, ON);
+  assert.deepEqual(seo, { disposition: 'ambiguous', applied: true, canonicalPath: '/programas/modern-family', robots: 'noindex, follow' });
+  // The same airing once verified is a canonical twin, never noindex + canonical at once.
+  assert.deepEqual(programmeSeo('modern-family', { title: 'Modern Family', tmdbId: 1421, workPath: '/series/modern-family', workIndexable: true }, ON),
+    { disposition: 'work', applied: true, canonicalPath: '/series/modern-family' });
+  // Indexed under its own URL <=> sitemap candidate (standalone): every other disposition is canonicalised or noindex.
+  const cases = [
+    { slug: 'modern-family', page: { title: 'Modern Family', tmdbId: 1421 } },
+    { slug: 'fallen-t1-e3', page: { title: 'Fallen T1 E3', tmdbId: 5, workPath: '/series/fallen' } },
+    { slug: 'creadoras', page: { title: 'Creadoras' } },
+    { slug: 'desmontando-la-ciudad', page: { title: 'Desmontando la ciudad', synopsis: LONG } },
+    { slug: 'gladiator', page: { title: 'Gladiator', tmdbId: 98, workPath: '/peliculas/gladiator', workIndexable: false } },
+    { slug: 'gladiator', page: { title: 'Gladiator', tmdbId: 98, workPath: '/peliculas/gladiator', workIndexable: true } },
+  ];
+  for (const { slug, page } of cases) {
+    const s = programmeSeo(slug, page, ON);
+    const selfIndexed = !s.robots && s.canonicalPath === `/programas/${slug}`;
+    assert.equal(selfIndexed, s.disposition === 'standalone', `${slug}: ${s.disposition}`);
+  }
+  // Policy off: pre-M09-B signals, nothing changes.
+  assert.equal(programmeSeo('modern-family', { title: 'Modern Family', tmdbId: 1421 }, OFF).robots, undefined);
 });

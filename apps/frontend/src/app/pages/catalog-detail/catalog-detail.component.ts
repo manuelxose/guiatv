@@ -161,6 +161,10 @@ type LegacyCatalogMode = 'program' | 'movie' | 'series';
               <a *ngIf="content.source === 'tmdb' && content.programmePath" [routerLink]="content.programmePath" data-testid="programme-link" class="inline-block text-sm font-semibold text-[var(--hero-text)] underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
                 Horarios de {{ content.title }} en televisión
               </a>
+              <!-- M10-B: an airing links its programme's page only when the API says that page is indexed under its own URL. -->
+              <a *ngIf="content.source === 'program' && content.programmePath && content.programmePath !== currentPath" [routerLink]="content.programmePath" data-testid="programme-page-link" class="inline-block text-sm font-semibold text-[var(--hero-text)] underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+                Todos los horarios de {{ content.title }}
+              </a>
 
               <p class="max-w-3xl text-base leading-7 text-[var(--hero-text-muted)]">
                 {{ content.synopsis || 'Sinopsis no disponible.' }}
@@ -454,7 +458,9 @@ export class CatalogDetailComponent implements OnInit, OnDestroy {
               }
 
               const primaryRelated = this.normalizeRelatedItems(item.related || [], item.catalogId);
-              if (primaryRelated.length) {
+              // M10-B: a work page's rail comes from the enrichment call (verified, indexable works only), not from a
+              // popular-titles query.
+              if (primaryRelated.length || item.source === 'tmdb') {
                 return of({ item, related: primaryRelated });
               }
 
@@ -647,7 +653,9 @@ export class CatalogDetailComponent implements OnInit, OnDestroy {
 
         if (enrichment.related.length && !this.relatedItems.length) {
           this.relatedItems = this.normalizeRelatedItems(enrichment.related, item.catalogId);
-        } else if (!enrichment.related.length && !this.relatedItems.length) {
+        } else if (!enrichment.related.length && !this.relatedItems.length && item.source !== 'tmdb') {
+          // M10-B: a work page's rail lists verified, indexable works only (API); with none it stays absent instead of
+          // falling back to a popular-titles query whose slugs nothing verified.
           this.loadFallbackRelated(item)
             .pipe(takeUntil(this.destroy$))
             .subscribe((related) => {
@@ -736,6 +744,8 @@ export class CatalogDetailComponent implements OnInit, OnDestroy {
    * not used: it is rebuilt from the inferred content type and title (a /programas/ page can yield /series/…), and
    * nothing guarantees that URL resolves to this item. The persistent entity canonical replaces this in Phase 2D-6.
    */
+  get currentPath(): string { return this.canonicalPath(); }
+
   private canonicalPath(): string {
     return this.router.url.split(/[?#]/)[0];
   }

@@ -210,6 +210,10 @@ const notReachedByFamily = {};
 for (const p of notReached) notReachedByFamily[family(p)] = (notReachedByFamily[family(p)] ?? 0) + 1;
 const inconsistentAnchors = [...anchors].filter(([, m]) => m.size >= 4).map(([p, m]) => [p, [...m.keys()].slice(0, 6)]).slice(0, 25);
 const lowInlinkSitemap = [...sitemap.keys()].filter((p) => pages.has(p) && linkCount(p) <= 1).map((p) => [p, linkCount(p), pages.get(p).depth]);
+// M10-B: minimum click depth of each sitemap URL ('>3' = not discovered within three clicks), per sitemap file.
+const depthBucket = (p) => { const d = pages.get(p)?.depth; return d === undefined || d > 3 ? '>3' : String(d); };
+const sitemapByDepth = {};
+for (const [p, file] of sitemap) { const b = (sitemapByDepth[file] ??= { 0: 0, 1: 0, 2: 0, 3: 0, '>3': 0 }); b[depthBucket(p)] += 1; }
 
 const summary = {
   fetched: done.length,
@@ -236,6 +240,7 @@ const summary = {
 console.log(JSON.stringify(summary, null, 1));
 console.log('depth by family', JSON.stringify(depthByFamily));
 console.log('sitemap not reached by family', JSON.stringify(notReachedByFamily));
+console.log('sitemap URLs by click depth', JSON.stringify(sitemapByDepth));
 const show = (label, rows) => { console.log(`${label}: ${rows.length}`); for (const r of rows.slice(0, 12)) console.log('  ', JSON.stringify(r)); };
 show('broken', broken.map(([p, x]) => [p, x.status, linkCount(p), [...(inlinks.get(p) ?? [])][0]]));
 show('redirects', redirects.map(([p, x]) => [p, x.status, x.location, linkCount(p)]));
@@ -254,7 +259,7 @@ if (out) {
     redirects: redirects.map(([p, x]) => ({ path: p, status: x.status, location: x.location, inlinks: linkCount(p) })),
     noindexLinked: noindex.map(([p, x]) => ({ path: p, robots: x.robots, inlinks: linkCount(p) })),
     nonCanonicalLinked: nonCanonical.map(([p, x]) => ({ path: p, canonical: x.canonical, inlinks: linkCount(p) })),
-    parameterised: [...params], inconsistentAnchors, lowInlinkSitemap, notReached,
+    parameterised: [...params], inconsistentAnchors, lowInlinkSitemap, notReached, sitemapByDepth,
     pages: Object.fromEntries([...pages].map(([p, x]) => [p, { d: x.depth, s: x.status, in: linkCount(p), out: x.out?.length }])),
   }, null, 1));
 }
