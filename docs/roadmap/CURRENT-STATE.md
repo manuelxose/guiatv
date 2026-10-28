@@ -418,3 +418,11 @@ Details: [M12-ENTRY-GATE.md](M12-ENTRY-GATE.md).
 - **Running:** Windows task `GuiaTV\EditorialCycle` (08–20 h every 3 h, 1 topic per cycle) → maintenance, discovery when the queue is low, certified publication by policy; Admin cap 10/day, server-enforced. `GSC_MONITOR_ENABLED=true` (backup `api.env.bak-m11f-20261028T102056Z`).
 - **Evidence:** 1 guide published autonomously from a discovered topic (`/guias/descargar-series-netflix-grabar-tele-copia-privada`); 1 canary article correctly held; 3 policy guides re-verified unchanged. Search Console: 13 guides inspected, **0 indexed**, no Search Analytics rows yet.
 - **Roadmap:** M11-B PARTIAL (owner's revised criterion met; M04-B unmet). M12 NO-GO. Details: [M11F-DELIVERY.md](M11F-DELIVERY.md).
+
+## M11-G addendum — indexation forensics and first-party facts (2026-10-28): ENGINEERING PASS
+- **Live:** release **`20261028155613`**, `gitSha ad46e73` (PR #115). Runner `guiatv-runner` at `main@ad46e73`, pipeline `m11g-1`. Rollback target `20261028111735`.
+- **Diagnosis (GSC, read-only):** 14 public guides, 0 indexed, none crawled; 3 "Discovered". Not guide-specific: homepage "Crawled - currently not indexed" (last crawl 2026-10-20), 0/840 sitemap URLs indexed, site impressions ~0 since 2026-09-01. SSR, robots, canonical, links and HTTP verified clean.
+- **Fixed:** sitemap index had no lastmod (Google's copy of `sitemap-blog.xml` was from 2026-10-26, without the 4 newest guides); blog sitemap invalidated on publish; same-day revisions no longer overwrite the live run file.
+- **New:** `GET /v2/editorial/facts` (first-party facts with provenance/freshness, noindex); stated `distinctValue` signed, gated and criticised; channel line-up is context, GuíaTV never a second publisher; GSC inspection history + normalised classes.
+- **Pilot:** `enrich` of the copia-privada guide held by the critic after 5 cycles (0 gate blocks); published version untouched.
+- **Open (M09):** ~700 `/programas` URLs = 85 % of the sitemap, slugs lose accents. Owner: check Manual actions / Security issues in the GSC UI. Details: [M11G-DELIVERY.md](M11G-DELIVERY.md).
