@@ -49,6 +49,7 @@ import { AffiliateAdminController } from '../controllers/AffiliateAdminControlle
 import { createAdminAffiliateRoutes } from './admin-affiliate.routes';
 import { EditorialOpsController } from '../controllers/EditorialOpsController';
 import { createAdminEditorialRoutes } from './admin-editorial.routes';
+import { editorialFactsHandler } from './editorial-facts.routes';
 
 /**
  * Dependencies required by every route factory.
@@ -141,6 +142,7 @@ export const createV2Routes = (dependencies: RoutesDependencies): Router => {
   router.use('/admin/ai-analytics', createAdminAIAnalyticsRoutes(dependencies.aiAnalyticsController, dependencies.authService));
   router.use('/auth', createAuthRoutes(dependencies.authController));
   router.use('/blog', createBlogRoutes(dependencies.blogController));
+  router.get('/editorial/facts', editorialFactsHandler);
   router.use('/monetization', createMonetizationRoutes(dependencies.monetizationController));
   router.use('/affiliate', createAffiliateRoutes(dependencies.affiliateController));
   router.use('/lists/public', createListsPublicRoutes());
