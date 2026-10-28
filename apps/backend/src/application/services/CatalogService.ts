@@ -56,6 +56,7 @@ import { logger } from '@/shared/utils/logger';
 import { titleIdentityKey } from '@/domain/services/contentIdentity';
 import { airingDetailSlug, buildDetailPath, episodeWorkTitle, inferContentType, normalizeToken, programDetailPath, slugify, slugifyTitle } from '@/domain/services/detailPath';
 import { programmeCanonicalSlug, programmeDisposition, programmeSeo, type ProgrammeDisposition } from './ProgrammeSeoPolicy';
+import { readWorkRows, workPolicyApplies, workSeo } from './WorkSeoPolicy';
 
 export interface CatalogQueryParams {
   userId?: string;
@@ -345,11 +346,16 @@ export class CatalogService {
     const existing = this.inFlightSlugLookups.get(inFlightKey);
     const finish = async (detail: CatalogDetailDTO) => {
       const enriched = await this.withLegacyEnrichment(detail, slug);
-      if (contentType !== 'program') return enriched;
+      if (contentType !== 'program') {
+        // M09-C: a TMDB work page's robots come from its identity and content, not from today's airings. A daily
+        // serial resolved through the TV read model is a programme payload and keeps its own rule.
+        if (enriched.source !== 'tmdb' || !enriched.tmdbId || !workPolicyApplies(slug)) return enriched;
+        return { ...enriched, seo: workSeo(contentType, slug, enriched.tmdbId, await readWorkRows(slug), (enriched.airings?.length ?? 0) > 0) };
+      }
       const folded = programmeCanonicalSlug(slug, enriched.title);
       // Two titles can fold to one slug ("Último", "Ultimo"): never declare a URL that loads another programme.
       const fold = folded === slug || (await this.programSlugTitle(folded)) === enriched.title;
-      return { ...enriched, seo: programmeSeo(slug, enriched, process.env, fold) };
+      return { ...enriched, seo: programmeSeo(slug, { ...enriched, workIndexable: await this.workPathIndexable(enriched) }, process.env, fold) };
     };
     if (existing) {
       return existing.then(finish);
@@ -366,6 +372,20 @@ export class CatalogService {
     });
     this.inFlightSlugLookups.set(inFlightKey, lookupPromise);
     return lookupPromise.then(finish);
+  }
+
+  /**
+   * M09-C: whether the work page a programme would canonicalise to is indexable; undefined when there is no work path,
+   * the work policy does not apply to it, or the catalogue cannot be read (the M09-B canonical then stands).
+   */
+  private async workPathIndexable(p: { workPath?: string; tmdbId?: number }): Promise<boolean | undefined> {
+    const m = /^\/(peliculas|series)\/([a-z0-9]+(?:-[a-z0-9]+)*)$/.exec(p.workPath ?? '');
+    if (!m || !p.tmdbId || !workPolicyApplies(m[2])) return undefined;
+    try {
+      return workSeo(m[1] === 'peliculas' ? 'movie' : 'series', m[2], p.tmdbId, await readWorkRows(m[2])).disposition === 'indexable';
+    } catch {
+      return undefined;
+    }
   }
 
   private buildSlugNotFoundCacheKey(

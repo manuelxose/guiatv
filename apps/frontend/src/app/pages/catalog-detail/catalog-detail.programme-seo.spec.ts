@@ -62,6 +62,20 @@ describe('CatalogDetailComponent: M09-B programme SEO signals', () => {
     fixture.destroy();
   });
 
+  it('M09-C: a verified film with no broadcast is indexable with its own canonical; a thin one is noindex, follow', () => {
+    const film = (robots?: 'noindex, follow') => programme({ source: 'tmdb', catalogId: 'tmdb:movie:9', airings: [], seo: { canonicalPath: '/peliculas/el-ultimo-sol', disposition: robots ? 'thin' : 'indexable', applied: true, robots } });
+    const ok = render(film(), '/peliculas/el-ultimo-sol');
+    expect(robots()).toContain('index, follow');
+    expect(robots()).not.toContain('noindex');
+    expect(canonical()).toBe('/peliculas/el-ultimo-sol');
+    expect(document.querySelectorAll('link[rel="canonical"]').length).toBe(1);
+    ok.destroy();
+    TestBed.resetTestingModule();
+    const thin = render(film('noindex, follow'), '/peliculas/el-ultimo-sol');
+    expect(robots()).toBe('noindex, follow');
+    thin.destroy();
+  });
+
   it('ignores a malformed declared canonical, and any declaration outside /programas/', () => {
     const bad = render(programme({ seo: { canonicalPath: 'https://example.com/peliculas/x' } }), '/programas/el-ultimo-sol');
     expect(canonical()).toBe('/programas/el-ultimo-sol');
