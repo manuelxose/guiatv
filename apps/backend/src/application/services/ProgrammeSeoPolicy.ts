@@ -59,9 +59,11 @@ export function programmePolicyApplies(slug: string, env: NodeJS.ProcessEnv = pr
 export function programmeSeo(
   requestedSlug: string,
   page: { title: string; workPath?: string; tmdbId?: number; synopsis?: string },
-  env: NodeJS.ProcessEnv = process.env
+  env: NodeJS.ProcessEnv = process.env,
+  /** false when the folded slug loads another title ("Último" vs "Ultimo"): the page keeps its own slug. */
+  fold = true
 ): ProgrammeSeo {
-  const slug = programmeCanonicalSlug(requestedSlug, page.title);
+  const slug = fold ? programmeCanonicalSlug(requestedSlug, page.title) : requestedSlug;
   const self = `/programas/${slug}`;
   const disposition = programmeDisposition(slug, page);
   const applied = programmePolicyApplies(slug, env);

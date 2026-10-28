@@ -744,7 +744,7 @@ export class CatalogDetailComponent implements OnInit, OnDestroy {
   private seoCanonicalPath(item: CatalogItem): string {
     const declared = item.seo?.canonicalPath;
     const own = this.canonicalPath();
-    return own.startsWith('/programas/') && declared && /^\/(programas|peliculas|series)\/[a-z0-9]+(?:-[a-z0-9]+)*$/.test(declared) ? declared : own;
+    return own.startsWith('/programas/') && declared && /^\/(programas|peliculas|series)\/[a-z0-9_]+(?:-[a-z0-9_]+)*$/.test(declared) ? declared : own;
   }
 
   private applyMeta(item: CatalogItem): void {

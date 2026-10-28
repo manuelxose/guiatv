@@ -345,7 +345,11 @@ export class CatalogService {
     const existing = this.inFlightSlugLookups.get(inFlightKey);
     const finish = async (detail: CatalogDetailDTO) => {
       const enriched = await this.withLegacyEnrichment(detail, slug);
-      return contentType === 'program' ? { ...enriched, seo: programmeSeo(slug, enriched) } : enriched;
+      if (contentType !== 'program') return enriched;
+      const folded = programmeCanonicalSlug(slug, enriched.title);
+      // Two titles can fold to one slug ("Último", "Ultimo"): never declare a URL that loads another programme.
+      const fold = folded === slug || (await this.programSlugTitle(folded)) === enriched.title;
+      return { ...enriched, seo: programmeSeo(slug, enriched, process.env, fold) };
     };
     if (existing) {
       return existing.then(finish);
@@ -484,6 +488,15 @@ export class CatalogService {
    * Whether `/programas/:slug` resolves today or tomorrow: exactly the lookup `resolveBySlugInternal` runs for a
    * programme, so the sitemap can list only URLs that answer 200.
    */
+  /** Title of the airing `/programas/:slug` would load (today, then tomorrow); undefined when it 404s. */
+  private async programSlugTitle(slug: string): Promise<string | undefined> {
+    const searchText = slug.replace(/-/g, ' ');
+    const found =
+      (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getTodayYYYYMMDD())) ??
+      (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getTomorrowYYYYMMDD()));
+    return found?.program.title;
+  }
+
   async programSlugResolves(slug: string): Promise<boolean> {
     return (await this.programSlugDisposition(slug)) !== null;
   }
