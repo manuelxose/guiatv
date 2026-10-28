@@ -375,17 +375,14 @@ export class CatalogService {
   }
 
   /**
-   * M09-C: whether the work page a programme would canonicalise to is indexable; undefined when there is no work path,
-   * the work policy does not apply to it, or the catalogue cannot be read (the M09-B canonical then stands).
+   * M09-C: whether the work page a programme would canonicalise to is indexable, on its stable content (a broadcast
+   * that only this airing proves is not counted); undefined when there is no work path or the work policy does not
+   * apply to it (the M09-B canonical then stands). A catalogue read failure throws, as on the work page itself.
    */
   private async workPathIndexable(p: { workPath?: string; tmdbId?: number }): Promise<boolean | undefined> {
     const m = /^\/(peliculas|series)\/([a-z0-9]+(?:-[a-z0-9]+)*)$/.exec(p.workPath ?? '');
     if (!m || !p.tmdbId || !workPolicyApplies(m[2])) return undefined;
-    try {
-      return workSeo(m[1] === 'peliculas' ? 'movie' : 'series', m[2], p.tmdbId, await readWorkRows(m[2])).disposition === 'indexable';
-    } catch {
-      return undefined;
-    }
+    return workSeo(m[1] === 'peliculas' ? 'movie' : 'series', m[2], p.tmdbId, await readWorkRows(m[2])).disposition === 'indexable';
   }
 
   private buildSlugNotFoundCacheKey(

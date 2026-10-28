@@ -220,8 +220,9 @@ export class SitemapController {
       ['sitemap-programs.xml', 'programs', () => this.buildProgramsSitemap()],
       ['sitemap-blog.xml', 'blog', () => this.buildBlogSitemap()],
     ];
-    // Search Console rejects an empty urlset: the works child is listed only once it has a URL.
-    const works = await this.getCached('works', () => this.buildWorksSitemap()).catch(() => '');
+    // Search Console rejects an empty urlset: the works child is listed only once it has a URL. A failed build fails the
+    // index too (served from its last good copy), so a database blip never caches an index without the works child.
+    const works = await this.getCached('works', () => this.buildWorksSitemap());
     if (works.includes('<url>')) subs.push(['sitemap-works.xml', 'works', () => this.buildWorksSitemap()]);
 
     const lines: string[] = [

@@ -574,3 +574,24 @@ test('M09-C: indexable work pages get their own child, listed in the index only 
     clearSitemapLastGood();
   }
 });
+
+test('M09-C: a failed works build fails the index instead of caching it without the works child', async () => {
+  const tvReadQueryService = { getChannels: async () => ({ channels: [], meta: {} }), getIndexableProgramSitemapRows: async () => [] } as any;
+  const Model = (await import('../../infrastructure/database/models/BlogPost.model')).BlogPostModel;
+  const originalFind = Model.find;
+  (Model as any).find = () => ({ select: () => ({ lean: () => ({ exec: async () => [] }) }) });
+  try {
+    invalidateSitemapCache();
+    clearSitemapLastGood();
+    const failing = new SitemapController({} as any, {} as any, undefined, undefined, tvReadQueryService, async () => null, async () => { throw new Error('mongo down'); });
+    const { req, res, getSentXml } = fakeReqRes();
+    let failed: unknown;
+    await failing.getSitemapIndex(req, res, ((e: unknown) => { failed = e; }) as any);
+    assert.ok(failed instanceof Error);
+    assert.equal(getSentXml(), '');
+  } finally {
+    (Model as any).find = originalFind;
+    invalidateSitemapCache();
+    clearSitemapLastGood();
+  }
+});

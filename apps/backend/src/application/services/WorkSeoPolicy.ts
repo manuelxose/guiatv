@@ -50,7 +50,8 @@ export interface WorkRow {
   lastEnrichedAt?: Date | null;
 }
 
-const ROW_FIELDS = 'tmdbId tmdbType title normalizedTitle synopsis year runtimeMinutes posterPath tmdbGenres castSummary directors lastEnrichedAt';
+// Only the first three cast members matter (`workContentPasses`): the sitemap build reads every row.
+const ROW_FIELDS = { tmdbId: 1, tmdbType: 1, title: 1, normalizedTitle: 1, synopsis: 1, year: 1, runtimeMinutes: 1, posterPath: 1, tmdbGenres: 1, castSummary: { $slice: 3 }, directors: 1, lastEnrichedAt: 1 };
 const KIND = { movie: 'movie', series: 'tv' } as const;
 
 export function workPolicyApplies(slug: string, env: NodeJS.ProcessEnv = process.env): boolean {
