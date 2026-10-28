@@ -238,7 +238,7 @@ const EVIDENCE_GAPS = new Set(['unsupported-claim', 'no-distinct-value']);
 const WRITER_FIXABLE = new Set([
   'uncited-factual-statement', 'figure-not-in-claim', 'figure-in-words', 'metadata-figure-not-in-claims', 'invalid-metadata',
   'internal-link-status', 'broken-internal-link', 'unsourced-link', 'invalid-link', 'claim-marker-leak', 'fabricated-experience',
-  'placeholder-text', 'unknown-claim', 'faq-not-evidenced', 'unverified-internal-link', 'excessive-internal-links',
+  'placeholder-text', 'unknown-claim', 'faq-not-evidenced', 'unverified-internal-link', 'excessive-internal-links', 'missing-internal-link',
 ]);
 const MAX_GATE_FIXES = 3;
 /** M11-F: a guide links a few relevant GuíaTV pages, not a directory of them. The AI disclosure links the policy page. */
@@ -263,7 +263,7 @@ const GATE_RULES = `Reglas que comprueba un programa (un fallo impide publicar):
 - Toda frase, fila de tabla o elemento de lista con una cifra, fecha, hora, día, mes, precio, canal, disponibilidad o una referencia a una norma («artículo 98.1», «Ley 13/2022») termina con su marcador [[cN]] (o [[c1,c2]]) antes del punto, y esa cifra o referencia aparece en las afirmaciones que cita.
 - Escribe cada cifra como en su afirmación (si la afirmación dice «dieciocho», no escribas «18»). No uses cantidades con letras seguidas de unidad («dos euros», «tres horas»).
 - Título, resumen, metaTitle y metaDescription: solo cifras que el texto da con marcador y escritas igual (nada de «+18» si el texto dice «dieciocho»).
-- Enlaces externos solo a las URL exactas de la lista de fuentes; internos solo a rutas de guiaprogramaciontv.com que aparezcan en los datos propios.
+- Enlaces externos solo a las URL exactas de la lista de fuentes; internos solo a rutas de guiaprogramaciontv.com que aparezcan en los datos propios o en la lista de páginas de GuíaTV para enlazar.
 - Extensión: la que pida la intención, sin inflarla.`;
 const CRITIC_SEVERITY = `Gravedad de cada problema:
 - high: dato falso, no respaldado o mal atribuido; matiz de la fuente perdido que cambia el sentido; el texto no responde a la intención.
@@ -489,7 +489,7 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
     const writerSystem = `${STYLE}\nEres el agente editorial. Redactas una guía útil y diferente: explica criterios, compara, y aprovecha los datos propios de GuíaTV cuando los haya.\n${EDITORIAL_RUBRIC}`;
     // A function: re-research can add sources between drafts.
     const internalLinks = topic.linkTargets?.length
-      ? `\n\nPáginas de GuíaTV que puedes enlazar con una ruta relativa (como mucho ${MAX_INTERNAL_LINKS}, solo si ayudan al lector; ancla descriptiva y distinta en cada una, nunca «aquí»; enlazar no es un dato, pero una frase con un canal o una cifra sigue necesitando su marcador):\n${topic.linkTargets.map((t) => `- ${t.path}: ${t.label}`).join('\n')}`
+      ? `\n\nPáginas de GuíaTV para enlazar con una ruta relativa (al menos una y como mucho ${MAX_INTERNAL_LINKS}, donde más ayuden al lector; ancla descriptiva y distinta en cada una, nunca «aquí»; enlazar no es un dato, pero una frase con un canal o una cifra sigue necesitando su marcador):\n${topic.linkTargets.map((t) => `- ${t.path}: ${t.label}`).join('\n')}`
       : '';
     const writerRules = () => `Fuentes que puedes enlazar:\n${sourceList()}${internalLinks}\n\n${GATE_RULES}`;
     // Everything that does not depend on the critic: the HTML, hashes, the unsigned provenance and the CMS fields.
@@ -697,6 +697,10 @@ async function publisherFindings(cms: CmsDraft, provenance: EditorialProvenance,
     }
     const linked = internal.filter((p) => p !== POLICY_PAGE).length;
     if (linked > MAX_INTERNAL_LINKS) findings.push({ severity: 'block', code: 'excessive-internal-links', message: `${linked} enlaces internos; máximo ${MAX_INTERNAL_LINKS}` });
+    // M11-F canary: offered as optional, verified pages went unused; a guide with related GuíaTV pages links one.
+    if (linkTargets.length && !internal.some((p) => linkTargets.some((t) => t.path === p))) {
+      findings.push({ severity: 'block', code: 'missing-internal-link', message: `Enlaza al menos una de estas páginas de GuíaTV donde ayude al lector: ${linkTargets.map((t) => t.path).join(', ')}` });
+    }
   }
   return findings;
 }

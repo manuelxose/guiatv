@@ -26,7 +26,7 @@ test('a link outside the verified list is fixed by the writer before the critic 
   assert.match(r.draft?.content ?? '', /href="\/canales\/la-2"/);
   assert.ok(!r.findings.some((f) => /internal-link/.test(f.code)), JSON.stringify(r.findings));
   const prompt = m.calls.find((c) => c.role === 'editorial')!.prompt;
-  assert.match(prompt, /Páginas de GuíaTV que puedes enlazar[^\n]*\n- \/canales\/la-2: canal La 2/);
+  assert.match(prompt, /Páginas de GuíaTV para enlazar[^\n]*al menos una[^\n]*\n- \/canales\/la-2: canal La 2/);
   assert.equal(m.calls.filter((c) => c.role === 'critic').length, 1, 'the critic reviewed only the clean draft');
 });
 
@@ -35,6 +35,15 @@ test('an absolute link to the site goes through the same allowlist (review M2)',
   const r = await job;
   assert.ok(r.findings.some((f) => f.code === 'unverified-internal-link' && /\/programas\/el-padrino/.test(f.message)), JSON.stringify(r.findings.map((f) => f.code)));
   assert.notEqual(r.state, 'approved-by-policy');
+});
+
+test('verified pages offered but none linked: the writer must add one before the critic (canary finding)', async () => {
+  const unlinked = LONG.replace('Ficha en [GuíaTV](/programas/el-padrino) y datos', 'Datos');
+  const { job, m } = run([unlinked, linked(['/canales/la-2'])], [{ path: '/canales/la-2', label: 'canal La 2' }]);
+  const r = await job;
+  assert.equal(r.revisions?.[0].gateFixes, 1);
+  assert.match(m.calls.filter((c) => c.role === 'editorial')[1].prompt, /missing-internal-link/);
+  assert.match(r.draft?.content ?? '', /href="\/canales\/la-2"/);
 });
 
 test('more than four internal links is a block the writer must reduce; the policy page does not count', async () => {
