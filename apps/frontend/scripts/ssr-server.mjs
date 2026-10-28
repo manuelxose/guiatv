@@ -7,7 +7,7 @@ import { dirname, join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { finalizeCanonical } from './ssr-canonical.mjs';
-import { createSsrCache, isLivePath } from './ssr-cache.mjs';
+import { createSsrCache, isEditorialPath, isLivePath } from './ssr-cache.mjs';
 
 const require = createRequire(import.meta.url);
 try {
@@ -541,7 +541,10 @@ app.get('*', async (req, res) => {
 
 // Phase 3E: the API says which legacy pages receive enrichment (health header). When that changes, pages rendered
 // under the previous state are dropped, so a rollout or rollback never serves a mixed set. A failed poll changes nothing.
+// M11-F: the same poll carries the editorial epoch; a publication drops only the guide, football and home pages,
+// so a new guide shows in its listings within one poll instead of after a stale-while-revalidate round.
 let enrichmentEpoch = null;
+let editorialEpoch = null;
 function pollEnrichmentEpoch() {
   backendClient
     .get(new URL('/v2/health', backendUrl), { timeout: 3000 }, (res) => {
@@ -553,6 +556,11 @@ function pollEnrichmentEpoch() {
           console.log(`[SSR] legacy enrichment state ${enrichmentEpoch} -> ${epoch}; rendered-page cache cleared`);
         }
         enrichmentEpoch = epoch;
+      }
+      const editorial = res.headers['x-editorial-epoch'];
+      if (typeof editorial === 'string') {
+        if (editorialEpoch !== null && editorial !== editorialEpoch) ssrCache.clear(isEditorialPath);
+        editorialEpoch = editorial;
       }
     })
     .on('timeout', function onTimeout() { this.destroy(); })

@@ -18,6 +18,7 @@ import { successResponse } from '../../shared/types/ApiResponse';
 import { ICacheRepository } from '../../domain/repositories/ICacheRepository';
 import { StaleWhileRevalidateCache } from '../../infrastructure/cache/StaleWhileRevalidateCache';
 import { measureTiming } from '../../shared/utils/performanceTiming';
+import { bumpEditorialEpoch } from '../../shared/utils/editorialEpoch';
 import {
   ConflictError,
   ForbiddenError,
@@ -359,35 +360,7 @@ export class BlogController {
       await this.assertUniqueSlug(normalized.slug, postId);
 
       this.pushRevision(existing, 'update');
-      existing.editorial = normalized.editorial;
-      existing.title = normalized.title;
-      existing.slug = normalized.slug;
-      existing.status = 'draft';
-      existing.reviewState = 'unreviewed';
-      existing.reviewedBy = undefined;
-      existing.reviewedAt = undefined;
-      existing.reviewNotes = undefined;
-      existing.origin = normalized.origin;
-      existing.excerpt = normalized.excerpt;
-      existing.content = normalized.content;
-      existing.categories = normalized.categories;
-      existing.contentType = normalized.contentType;
-      existing.featured = normalized.featured;
-      existing.primaryIntent = normalized.primaryIntent;
-      existing.targetQuery = normalized.targetQuery;
-      existing.relatedPlatformKeys = normalized.relatedPlatformKeys;
-      existing.relatedRouteKeys = normalized.relatedRouteKeys;
-      existing.sportsRelations = normalized.sportsRelations;
-      existing.faqItems = normalized.faqItems;
-      existing.evergreen = normalized.evergreen;
-      existing.affiliatePlacementMode = normalized.affiliatePlacementMode;
-      existing.relatedOfferCategories = normalized.relatedOfferCategories;
-      existing.relatedMerchantKeys = normalized.relatedMerchantKeys;
-      existing.manualAffiliateOfferIds = normalized.manualAffiliateOfferIds;
-      existing.featuredImage = normalized.featuredImage;
-      existing.seo = normalized.seo;
-      existing.publishedAt = normalized.publishedAt;
-      existing.author = normalized.author;
+      this.applyAsDraft(existing, normalized);
 
       await this.saveUnchanged(existing);
       await this.invalidatePublicReads();
@@ -460,75 +433,151 @@ export class BlogController {
    */
   public approveByPolicy = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const policy = await editorialPolicyState();
-      if (!policy.envEnabled) throw new ForbiddenError('Policy publishing is disabled (EDITORIAL_POLICY_PUBLISHING)');
-      if (policy.paused) throw new ForbiddenError(`Policy publishing is paused by the Admin emergency stop (${policy.pausedReason ?? 'no reason'})`);
-      if (!policy.activated) throw new ForbiddenError('Policy publishing has not been activated from the Admin (human review key)');
-      const postId = String(req.params.id || '').trim();
-      const post = await BlogPostModel.findById(postId).exec();
-      if (!post) throw new NotFoundError('Editorial post not found');
-      if (!post.editorial || post.origin !== 'ai-assisted') {
-        throw new ValidationError('Editorial quality gate failed', [
-          { field: 'editorial', message: 'Policy approval needs an ai-assisted post with M11-B provenance', value: postId },
-        ]);
-      }
-      // Only provenance the pipeline runner signed, from live models: replayed or hand-made bundles need a person.
-      const providerProblem = policyProviderProblem(post.editorial);
-      if (!provenanceSignatureValid(post.editorial, process.env.EDITORIAL_PIPELINE_SIGNING_KEY) || providerProblem) {
-        throw new ValidationError('Editorial quality gate failed', [
-          { field: 'editorial', message: `Provenance is not signed by the pipeline with live providers${providerProblem ? ` (${providerProblem})` : ''} — use the named-reviewer approval`, value: postId },
-        ]);
-      }
-      // Set from the Admin at any time (editorial_settings), validated there; see DAILY_LIMIT.
-      const { dailyLimit } = policy;
-      try {
-        assertEditorialPostCanBeApproved(post.toObject());
-      } catch (error) {
-        throw new ValidationError('Editorial quality gate failed', [
-          { field: 'review', message: error instanceof Error ? error.message : 'Approval rejected', value: postId },
-        ]);
-      }
+      const { policy, postId, post } = await this.policyTarget(req);
       if (post.status === 'publish') throw new ConflictError('Editorial post is already published');
-      const findings = await this.qualityFindings(post);
-      const failures = policyGateFailures(findings);
-      if (failures.length) {
-        throw new ValidationError('Editorial quality gate failed', failures.map((f) => ({ field: f.code, message: f.message, value: postId })));
-      }
-      // Append-only ledger, insert first: concurrent approvals both count, and a later PUT cannot erase one.
-      // One row per post and reviewed draft: a duplicate attempt, concurrent or later, is refused, not published twice.
-      const ledger = BlogPostModel.db.collection<{ _id: string; postId: unknown; at: Date }>('editorial_policy_approvals');
-      const { insertedId } = await ledger.insertOne({ _id: `${post._id}:${post.editorial.draftHash}`, postId: post._id, at: new Date() }).catch((error) => {
-        if (error?.code === 11000) throw new ConflictError('This draft was already published by policy once; a person must approve it again');
-        throw error;
-      });
-      if (await ledger.countDocuments({ at: { $gte: new Date(Date.now() - 864e5) } }) > dailyLimit) {
-        await ledger.deleteOne({ _id: insertedId });
-        throw new ForbiddenError(`Policy publishing limit reached (${dailyLimit} in 24 h)`);
-      }
-      // An emergency stop pressed while the gates ran still wins.
-      if (!(await editorialPolicyState()).active) {
-        await ledger.deleteOne({ _id: insertedId });
-        throw new ForbiddenError('Policy publishing was stopped while this approval ran');
-      }
-      const now = new Date();
-      post.status = 'publish';
-      post.reviewState = 'approved';
-      post.reviewedBy = POLICY_REVIEWER;
-      post.reviewedAt = now;
-      post.publishedAt = post.publishedAt || now;
-      post.reviewNotes = 'Approved by the M11-B evidence policy: every stated fact verified against its source, independent AI review passed. Automatic certification, no per-article human review.';
-      post.editorial = { ...post.editorial, state: 'published' };
-      // A failed save publishes nothing, so it must not keep a slot or lock this draft out.
-      await this.saveUnchanged(post).catch(async (error) => {
-        await ledger.deleteOne({ _id: insertedId });
-        throw error;
-      });
-      await this.invalidatePublicReads();
+      const findings = await this.publishByPolicy(post, postId, policy.dailyLimit);
       res.status(200).json(successResponse({ post: this.mapPost(post.toObject()), qualityFindings: findings }));
     } catch (error) {
       next(error);
     }
   };
+
+  /**
+   * M11-F maintenance: replaces a guide the policy published with a new pipeline revision, under every gate of
+   * approve-by-policy. The candidate is checked in memory and saved only if it passes, so a failed maintenance
+   * leaves the published version untouched; the old version is kept as a revision (rollback).
+   * `expectedDraftHash` is the version the runner re-verified: anything else changed meanwhile → 409.
+   */
+  public reviseByPolicy = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { policy, postId, post } = await this.policyTarget(req);
+      // A person's approval is never overridden by the policy, and a draft goes through approve-by-policy.
+      if (post.status !== 'publish' || post.reviewedBy !== POLICY_REVIEWER) {
+        throw new ConflictError('Only a guide published by the policy can be revised by the policy');
+      }
+      if (String(req.body?.expectedDraftHash || '') !== post.editorial?.draftHash) {
+        throw new ConflictError('The published version changed since it was verified; read it again');
+      }
+      const payload = (req.body?.post ?? {}) as BlogWritePayload;
+      const normalized = this.normalizePayload({ ...payload, status: 'draft' }, post);
+      if (normalized.slug !== post.slug || normalized.origin !== 'ai-assisted' || !payload.editorial) {
+        throw new ValidationError('Editorial quality gate failed', [
+          { field: 'editorial', message: 'A policy revision keeps the slug and brings new pipeline provenance', value: postId },
+        ]);
+      }
+      const publishedAt = post.publishedAt;
+      this.pushRevision(post, 'maintenance by policy');
+      this.applyAsDraft(post, normalized);
+      post.publishedAt = publishedAt;
+      const findings = await this.publishByPolicy(post, postId, policy.dailyLimit, 'Maintenance revision');
+      res.status(200).json(successResponse({ post: this.mapPost(post.toObject()), qualityFindings: findings }));
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  private async policyTarget(req: Request) {
+    const policy = await editorialPolicyState();
+    if (!policy.envEnabled) throw new ForbiddenError('Policy publishing is disabled (EDITORIAL_POLICY_PUBLISHING)');
+    if (policy.paused) throw new ForbiddenError(`Policy publishing is paused by the Admin emergency stop (${policy.pausedReason ?? 'no reason'})`);
+    if (!policy.activated) throw new ForbiddenError('Policy publishing has not been activated from the Admin (human review key)');
+    const postId = String(req.params.id || '').trim();
+    const post = await BlogPostModel.findById(postId).exec();
+    if (!post) throw new NotFoundError('Editorial post not found');
+    return { policy, postId, post };
+  }
+
+  /** Every policy gate, the cap ledger and the stop re-check, then publication. Throws before saving on any failure. */
+  private async publishByPolicy(post: InstanceType<typeof BlogPostModel>, postId: string, dailyLimit: number, kind = 'Approved') {
+    if (!post.editorial || post.origin !== 'ai-assisted') {
+      throw new ValidationError('Editorial quality gate failed', [
+        { field: 'editorial', message: 'Policy approval needs an ai-assisted post with M11-B provenance', value: postId },
+      ]);
+    }
+    // Only provenance the pipeline runner signed, from live models: replayed or hand-made bundles need a person.
+    const providerProblem = policyProviderProblem(post.editorial);
+    if (!provenanceSignatureValid(post.editorial, process.env.EDITORIAL_PIPELINE_SIGNING_KEY) || providerProblem) {
+      throw new ValidationError('Editorial quality gate failed', [
+        { field: 'editorial', message: `Provenance is not signed by the pipeline with live providers${providerProblem ? ` (${providerProblem})` : ''} — use the named-reviewer approval`, value: postId },
+      ]);
+    }
+    try {
+      assertEditorialPostCanBeApproved(post.toObject());
+    } catch (error) {
+      throw new ValidationError('Editorial quality gate failed', [
+        { field: 'review', message: error instanceof Error ? error.message : 'Approval rejected', value: postId },
+      ]);
+    }
+    const findings = await this.qualityFindings(post);
+    const failures = policyGateFailures(findings);
+    if (failures.length) {
+      throw new ValidationError('Editorial quality gate failed', failures.map((f) => ({ field: f.code, message: f.message, value: postId })));
+    }
+    // Append-only ledger, insert first: concurrent approvals both count, and a later PUT cannot erase one.
+    // One row per post and reviewed draft: a duplicate attempt, concurrent or later, is refused, not published twice.
+    // Maintenance revisions count too (dailyLimit is set from the Admin, see DAILY_LIMIT).
+    const ledger = BlogPostModel.db.collection<{ _id: string; postId: unknown; at: Date }>('editorial_policy_approvals');
+    const { insertedId } = await ledger.insertOne({ _id: `${post._id}:${post.editorial.draftHash}`, postId: post._id, at: new Date() }).catch((error) => {
+      if (error?.code === 11000) throw new ConflictError('This draft was already published by policy once; a person must approve it again');
+      throw error;
+    });
+    if (await ledger.countDocuments({ at: { $gte: new Date(Date.now() - 864e5) } }) > dailyLimit) {
+      await ledger.deleteOne({ _id: insertedId });
+      throw new ForbiddenError(`Policy publishing limit reached (${dailyLimit} in 24 h)`);
+    }
+    // An emergency stop pressed while the gates ran still wins.
+    if (!(await editorialPolicyState()).active) {
+      await ledger.deleteOne({ _id: insertedId });
+      throw new ForbiddenError('Policy publishing was stopped while this approval ran');
+    }
+    const now = new Date();
+    post.status = 'publish';
+    post.reviewState = 'approved';
+    post.reviewedBy = POLICY_REVIEWER;
+    post.reviewedAt = now;
+    post.publishedAt = post.publishedAt || now;
+    post.reviewNotes = `${kind} by the M11-B evidence policy: every stated fact verified against its source, independent AI review passed. Automatic certification, no per-article human review.`;
+    post.editorial = { ...post.editorial, state: 'published' };
+    // A failed save publishes nothing, so it must not keep a slot or lock this draft out.
+    await this.saveUnchanged(post).catch(async (error) => {
+      await ledger.deleteOne({ _id: insertedId });
+      throw error;
+    });
+    await this.invalidatePublicReads();
+    return findings;
+  }
+
+  private applyAsDraft(post: InstanceType<typeof BlogPostModel>, normalized: NormalizedBlogPayload): void {
+    post.editorial = normalized.editorial;
+    post.title = normalized.title;
+    post.slug = normalized.slug;
+    post.status = 'draft';
+    post.reviewState = 'unreviewed';
+    post.reviewedBy = undefined;
+    post.reviewedAt = undefined;
+    post.reviewNotes = undefined;
+    post.origin = normalized.origin;
+    post.excerpt = normalized.excerpt;
+    post.content = normalized.content;
+    post.categories = normalized.categories;
+    post.contentType = normalized.contentType;
+    post.featured = normalized.featured;
+    post.primaryIntent = normalized.primaryIntent;
+    post.targetQuery = normalized.targetQuery;
+    post.relatedPlatformKeys = normalized.relatedPlatformKeys;
+    post.relatedRouteKeys = normalized.relatedRouteKeys;
+    post.sportsRelations = normalized.sportsRelations;
+    post.faqItems = normalized.faqItems;
+    post.evergreen = normalized.evergreen;
+    post.affiliatePlacementMode = normalized.affiliatePlacementMode;
+    post.relatedOfferCategories = normalized.relatedOfferCategories;
+    post.relatedMerchantKeys = normalized.relatedMerchantKeys;
+    post.manualAffiliateOfferIds = normalized.manualAffiliateOfferIds;
+    post.featuredImage = normalized.featuredImage;
+    post.seo = normalized.seo;
+    post.publishedAt = normalized.publishedAt;
+    post.author = normalized.author;
+  }
 
   /**
    * Restores a stored revision. The text comes back with the review it had: an approved version stays public
@@ -781,6 +830,7 @@ export class BlogController {
   }
 
   private async invalidatePublicReads(): Promise<void> {
+    bumpEditorialEpoch();
     await Promise.all([
       this.cache.clear('v2:editorial:*'),
       this.cache.clear('v2:football:news:*'),

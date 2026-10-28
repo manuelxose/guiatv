@@ -52,7 +52,8 @@ const isPolicyKey = (provided: string) => {
 };
 
 /**
- * M11-D: the unattended runner's only approval right is approve-by-policy, with its own key. It must never hold
+ * M11-D: the unattended runner's only approval rights are approve-by-policy (and, M11-F, revise-by-policy for guides
+ * the policy itself published), with its own key. It must never hold
  * a reviewer key, so a policy key equal to one of them (or to the admin key) is a misconfiguration and refused (fail closed).
  */
 export const policyApprovalGuard = (req: Request, _res: Response, next: NextFunction): void => {

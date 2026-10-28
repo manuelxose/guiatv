@@ -1,7 +1,7 @@
 // node --test apps/frontend/scripts/ssr-cache.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSsrCache, isLivePath } from './ssr-cache.mjs';
+import { createSsrCache, isEditorialPath, isLivePath } from './ssr-cache.mjs';
 
 const MIN = 60_000;
 const setup = () => {
@@ -93,4 +93,14 @@ test('clear drops every rendered page (a rollout state change never serves a mix
   cache.clear();
   assert.equal(cache.get('/peliculas/a'), null);
   assert.equal(cache.get('/series/b'), null);
+});
+
+test('an editorial change drops only listing and guide pages (M11-F)', () => {
+  const { cache } = setup();
+  for (const p of ['/guias', '/canales/la-1', '/peliculas/a']) cache.settle(p, { statusCode: 200, html: page(), cacheable: true });
+  cache.clear(isEditorialPath);
+  assert.equal(cache.get('/guias'), null, 'the guide hub must show a new publication');
+  assert.ok(cache.get('/canales/la-1') && cache.get('/peliculas/a'), 'unrelated pages keep their cache');
+  for (const p of ['/', '/guias', '/guias/x', '/guias/categoria/television', '/deportes/futbol/noticias']) assert.ok(isEditorialPath(p), p);
+  for (const p of ['/canales/la-1', '/guiasx', '/programas/x']) assert.ok(!isEditorialPath(p), p);
 });
