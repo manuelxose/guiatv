@@ -15,13 +15,13 @@ const coverage = [
 const proposal = (over: Partial<TopicProposal> = {}): TopicProposal => ({
   slug: 'como-resintonizar-canales-tdt-television', title: 'Cómo resintonizar los canales de la TDT paso a paso',
   topic: 'Resintonización de la televisión digital terrestre cuando cambian las frecuencias', intent: 'cómo volver a sintonizar los canales de la TDT en el televisor',
-  category: 'Tecnología', volatility: 'stable', seedUrls: ['https://www.rtve.es/television/tdt/'], readerNeed: 4, whyDistinct: 'nadie lo cubre', ...over,
+  category: 'Tecnología', volatility: 'stable', seedUrls: ['https://www.rtve.es/television/tdt/', 'https://www.cnmc.es/ambitos-de-actuacion/audiovisual'], readerNeed: 4, whyDistinct: 'nadie lo cubre', ...over,
 });
 const ctx = (queue: QueuedTopic[] = []) => ({ now: NOW, coverage, queue });
 const queued = (id: string, over: Partial<QueuedTopic> = {}): QueuedTopic => ({
   id, title: id.replace(/-/g, ' '), intent: `intención de ${id}`, category: 'Streaming', sourceCandidates: [], sourceFamilies: [], score: 50, scoreExplanation: [],
   freshUntil: null, duplicateCheck: { maxSimilarity: 0, closest: null }, createdAt: NOW.toISOString(), updatedAt: NOW.toISOString(), state: 'queued', attempts: 0,
-  topic: { slug: id, topic: id, intent: id, volatility: 'stable', categories: ['Streaming'], internalSources: [] }, ...over,
+  topic: { slug: id, topic: id, intent: id, volatility: 'stable', categories: ['Streaming'], internalSources: [], seedUrls: ['https://www.boe.es/a', 'https://www.cnmc.es/b'] }, ...over,
 });
 
 test('a valid, new, primary-sourced topic is eligible and gets an explained score', async () => {
@@ -33,7 +33,7 @@ test('a valid, new, primary-sourced topic is eligible and gets an explained scor
   const { score, explanation } = scoreProposal(p, { ...ctx(), seeds, linkTargets: 2, publishedCategories: ['Televisión', 'Televisión', 'Televisión'] });
   assert.ok(score >= 70, `score ${score}`);
   assert.equal(explanation.length, 7);
-  assert.match(explanation.join('\n'), /evidencia 25: 1\/1 semillas verificadas/);
+  assert.match(explanation.join('\n'), /evidencia 30: 2\/2 semillas verificadas, 2 editor/);
   assert.match(explanation.join('\n'), /diversidad 10: 0 guías publicadas en Tecnología/);
 });
 
@@ -111,4 +111,15 @@ test('restart recovery: an interrupted topic goes back once, then is held; past 
   assert.deepEqual(file.topics.map((t) => t.state), ['queued', 'held', 'expired', 'queued']);
   assert.equal(file.topics[0].attempts, 1);
   assert.equal(notes.length, 3);
+});
+
+test('one publisher cannot pass the value gate: rejected at screening and dropped from the queue (canary finding)', () => {
+  const law = (id: string) => `https://www.boe.es/buscar/act.php?id=${id}`;
+  assert.ok(screenProposal(proposal({ seedUrls: [law('BOE-A-1995-25444'), law('BOE-A-1996-8930')] }), ctx())
+    .includes('insufficient-evidence: una sola entidad editora entre las fuentes semilla (hacen falta dos)'));
+  const single = queued('solo-boe', { topic: { ...queued('solo-boe').topic, seedUrls: [law('BOE-A-1995-25444'), law('BOE-A-1996-8930')] } });
+  const withData = queued('con-datos', { topic: { ...queued('con-datos').topic, seedUrls: [law('BOE-A-1995-25444')], internalSources: [{ id: 'g1', url: 'https://guiaprogramaciontv.com/v2/x' }] } });
+  const file: TopicQueueFile = { version: 1, topics: [single, withData] };
+  recoverQueue(file, NOW);
+  assert.deepEqual(file.topics.map((t) => t.state), ['rejected', 'queued'], 'GuíaTV data also satisfies the value gate');
 });

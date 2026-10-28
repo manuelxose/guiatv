@@ -115,6 +115,10 @@ export function sourceFamily(url: string): string {
 }
 
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+){2,}$/;
+/** Distinct publishing hosts among seed URLs (www. ignored). */
+export function seedPublishers(urls: string[]): number {
+  return new Set(urls.map((u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } })).size;
+}
 const LIFESPAN_POINTS: Record<EditorialVolatility, number> = { stable: 15, 'sports-rights': 12, pricing: 8, availability: 8, 'catalog-ranking': 6, 'tv-schedule': 0 };
 
 export interface ScreenContext {
@@ -148,6 +152,9 @@ export function screenProposal(p: TopicProposal, ctx: ScreenContext): string[] {
     const kind = sourceKindFor(url);
     if (kind !== 'official' && kind !== 'dataset') reasons.push(`source-reliability: ${new URL(url).hostname} no es fuente primaria`);
   }
+  // The value gate needs GuíaTV data or verified claims from two publishers (EditorialEvidence `no-distinct-value`):
+  // a topic resting on one publisher cannot pass it, however well it is written (M11-F canary).
+  if (seeds.length && seedPublishers(seeds) < 2) reasons.push('insufficient-evidence: una sola entidad editora entre las fuentes semilla (hacen falta dos)');
   const taken = new Set([...ctx.coverage.map((c) => c.slug), ...ctx.queue.map((q) => q.id)]);
   if (taken.has(p.slug)) reasons.push('duplicate: slug ya usado');
   const dup = closestCoverage(p, ctx);
@@ -243,6 +250,10 @@ export function recoverQueue(file: TopicQueueFile, now: Date, policy: QueuePolic
       t.updatedAt = now.toISOString();
       notes.push(`${t.id}: interrumpido → ${t.state}`);
     }
+    if (t.state === 'queued' && !t.topic.internalSources.length && seedPublishers(t.topic.seedUrls ?? []) < 2) {
+      Object.assign(t, { state: 'rejected', reason: 'insufficient-evidence: una sola entidad editora verificada (el gate de valor exige dos o datos propios)', updatedAt: now.toISOString() });
+      notes.push(`${t.id}: una sola entidad editora → rejected`);
+    }
     if (t.state === 'queued' && t.freshUntil && Date.parse(t.freshUntil) < now.getTime() + 864e5) {
       t.state = 'expired';
       t.reason = `caducó el ${t.freshUntil.slice(0, 10)}`;
@@ -319,7 +330,7 @@ Secciones y datos propios de GuíaTV:\n${ctx.siteInventory}
 
 Propón hasta 8 temas de guía distintos entre sí, repartidos entre categorías (${TOPIC_CATEGORIES.join(', ')}), que un lector en España busque y que se puedan respaldar con fuentes primarias.
 Reglas:
-- Cada tema tiene 1-3 seedUrls https de fuentes primarias en estos dominios: ${SEED_DOMAINS.join(', ')}. URLs exactas de páginas que existen y tienen el dato en el HTML (por ejemplo una ley consolidada en boe.es/buscar/act.php?id=…, una página de ayuda o de condiciones de una plataforma). Nada de portadas genéricas.
+- Cada tema tiene 2-4 seedUrls de al menos DOS entidades editoras distintas (por ejemplo la ley en el BOE y el regulador o la plataforma afectada); un tema con un solo editor no se puede publicar. Solo https de fuentes primarias en estos dominios: ${SEED_DOMAINS.join(', ')}. URLs exactas de páginas que existen y tienen el dato en el HTML (por ejemplo una ley consolidada en boe.es/buscar/act.php?id=…, una página de ayuda o de condiciones de una plataforma). Nada de portadas genéricas.
 - No dependas siempre de la misma ley o del mismo organismo: busca fuentes de familias distintas.
 - Nada de programación del día ni listados que caduquen en días (volatilidad tv-schedule no vale).
 - slug en minúsculas con guiones (3-8 palabras); title de 20-100 caracteres; intent = la pregunta concreta del lector.
