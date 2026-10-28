@@ -459,7 +459,10 @@ export class BlogController {
         throw new ConflictError('The published version changed since it was verified; read it again');
       }
       const payload = (req.body?.post ?? {}) as BlogWritePayload;
-      const normalized = this.normalizePayload({ ...payload, status: 'draft' }, post);
+      // Only what the pipeline signs (text, excerpt, title, metadata) or re-checks; canonical, categories, affiliate
+      // and every other field stay as published, so a revision cannot move or monetise a live guide.
+      const { title, slug, excerpt, content, metaTitle, metaDescription, editorial } = payload;
+      const normalized = this.normalizePayload({ title, slug, excerpt, content, metaTitle, metaDescription, editorial, status: 'draft' }, post);
       if (normalized.slug !== post.slug || normalized.origin !== 'ai-assisted' || !payload.editorial) {
         throw new ValidationError('Editorial quality gate failed', [
           { field: 'editorial', message: 'A policy revision keeps the slug and brings new pipeline provenance', value: postId },
@@ -510,6 +513,9 @@ export class BlogController {
     }
     const findings = await this.qualityFindings(post);
     const failures = policyGateFailures(findings);
+    // The canonical is not signed: a policy publication is always its own /guias/<slug> page.
+    const canonical = String(post.seo?.canonicalUrl || `/guias/${post.slug}`).replace(/^https:\/\/(?:www\.)?guiaprogramaciontv\.com/, '');
+    if (canonical !== `/guias/${post.slug}`) failures.push({ severity: 'block', code: 'canonicalUrl', message: `A policy publication is canonical to /guias/${post.slug}` });
     if (failures.length) {
       throw new ValidationError('Editorial quality gate failed', failures.map((f) => ({ field: f.code, message: f.message, value: postId })));
     }

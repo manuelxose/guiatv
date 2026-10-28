@@ -461,7 +461,7 @@
         </span>
       </div>
       <p class="text-xs text-[var(--portal-text-muted)]">
-        «Publicada» es lo nuestro (HTTP 200, index,follow, en el sitemap). «Indexada» solo según la inspección de URL de Google. Clics e impresiones: últimos {{ gsc.windowDays }} días, sin rellenar días sin datos.
+        «Publicada» es el estado en nuestro CMS (no una comprobación de HTTP ni del sitemap). «Indexada» solo según la inspección de URL de Google. Clics e impresiones: últimos {{ gsc.windowDays }} días, sin rellenar días sin datos.
       </p>
       <div class="overflow-x-auto">
         <table class="w-full text-xs">
@@ -482,7 +482,7 @@
           <tbody>
             <tr *ngFor="let g of gsc.guides" class="border-t border-[var(--portal-border)] align-top">
               <td class="py-2 pr-3"><a [href]="g.url" target="_blank" rel="noopener" class="underline">{{ g.slug }}</a></td>
-              <td class="py-2 pr-3">200 · index · sitemap</td>
+              <td class="py-2 pr-3">Pública en el CMS</td>
               <td class="py-2 pr-3">
                 <ng-container *ngIf="g.inspection as i; else notInspected">
                   <app-admin-status-badge [status]="i.indexed ? 'healthy' : 'warning'" [label]="i.indexed ? 'Indexada' : 'No indexada'"></app-admin-status-badge>

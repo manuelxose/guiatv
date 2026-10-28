@@ -234,4 +234,31 @@ test.describe('Admin editorial operations', () => {
     expect(req?.headers()['x-editorial-review-key']).toBe('human-key');
     await expect(page.locator('#editorial-resume-key')).toHaveCount(0);
   });
+
+  test('M11-F: Search Console separates indexed from published, and missing data is never shown as zero', async ({ page, context }) => {
+    const captured: Captured = { requests: [] };
+    const inspection = { inspectedAt: '2026-10-28T10:00:00Z', lastCrawlTime: '2026-10-27T08:00:00Z', googleCanonical: null, canonicalMatch: true, error: null };
+    const overview = {
+      ...OVERVIEW,
+      searchConsole: {
+        enabled: true, windowDays: 28, baseline: { days: 3, complete: false },
+        lastRun: { status: 'ok', message: null, startedAt: '2026-10-28T10:00:00Z', inspected: 2, skipped: 0 },
+        guides: [
+          { slug: 'guia-indexada', title: 'A', url: 'https://guiaprogramaciontv.com/guias/guia-indexada', inspection: { ...inspection, verdict: 'PASS', coverageState: 'Submitted and indexed', indexed: true },
+            performance: { clicks: 4, impressions: 120, ctr: 0.0333, position: 8.4, days: 3, baselineComplete: false, preliminary: true } },
+          { slug: 'guia-descubierta', title: 'B', url: 'https://guiaprogramaciontv.com/guias/guia-descubierta', inspection: { ...inspection, verdict: 'NEUTRAL', coverageState: 'Discovered - currently not indexed', indexed: false, lastCrawlTime: null, canonicalMatch: null }, performance: null },
+        ],
+      },
+    };
+    await openEditorialSection(page, context, captured, overview);
+    const table = page.locator('section[aria-labelledby="editorial-gsc-title"]');
+    await expect(table.getByText('Datos de rendimiento: 3/28 días (línea base incompleta)')).toBeVisible();
+    const indexed = table.locator('tr', { hasText: 'guia-indexada' });
+    await expect(indexed.getByText('Indexada', { exact: true })).toBeVisible();
+    await expect(indexed.getByText('3/28 (incompleta) · incluye datos preliminares')).toBeVisible();
+    const discovered = table.locator('tr', { hasText: 'guia-descubierta' });
+    await expect(discovered.getByText('No indexada')).toBeVisible();
+    await expect(discovered.getByText('NEUTRAL · Discovered - currently not indexed')).toBeVisible();
+    await expect(discovered.getByText('Sin datos de Google')).toBeVisible();
+  });
 });

@@ -132,7 +132,7 @@ const jobsToday = () => new Set((existsSync(spendLog()) ? readFileSync(spendLog(
 const appendSpend = (row) => writeFileSync(spendLog(), `${JSON.stringify({ day: today(), at: new Date().toISOString(), ...row })}\n`, { flag: 'a' });
 // The runner may sign and publish by policy, never approve as a person or lift the emergency stop.
 for (const name of ['EDITORIAL_REVIEW_KEY', 'AUCTORIO_EDITORIAL_REVIEW_KEY']) {
-  if (['run', 'save-draft', 'publish'].includes(command) && process.env[name]) {
+  if (['run', 'save-draft', 'publish', 'cycle', 'discover', 'maintain'].includes(command) && process.env[name]) {
     console.error(`${name} is a reviewer key and must not be in the runner environment; publish uses EDITORIAL_POLICY_KEY`); process.exit(2);
   }
 }
@@ -196,7 +196,8 @@ if (command === 'run') {
   if (arg('report')) {
     const api = apiBase(arg('report'));
     const apply = process.argv.includes('--apply');
-    if (apply) acquireLock();
+    // Always: maintenance.json and any revision must not race a scheduled cycle.
+    acquireLock();
     const policy = await adminPolicy(api);
     if (!policy) { console.error(`cannot read the Admin policy from ${api}`); process.exit(2); }
     // --force re-verifies every policy guide now, whatever its interval (a manual check).
@@ -417,10 +418,11 @@ async function runCycle(report, discoverOnly) {
   if (!policy) { cycleLog({ result: 'admin-unreadable', recovered }); console.error(`cannot read the Admin policy from ${report}`); process.exitCode = 2; return; }
   const corpus = await publicCorpus();
   const log = { recovered, policy: { active: policy.active, dailyLimit: policy.dailyLimit, publishedLast24h: policy.approvalsLast24h } };
-  if (!discoverOnly) {
-    log.maintenance = (await maintainPublished(report, { apply: policy.active, max: 2, corpus })).map((x) => `${x.slug}: ${x.result}`);
-    if (!policy.active) { cycleLog({ ...log, result: 'inactive' }); console.log('publicación automática inactiva o parada de emergencia: no se publica nada'); return; }
-  }
+  if (!discoverOnly) log.maintenance = (await maintainPublished(report, { apply: policy.active, max: 2, corpus })).map((x) => `${x.slug}: ${x.result}`);
+  // Stopped or inactive: no model call, not even discovery.
+  if (!policy.active) { cycleLog({ ...log, result: 'inactive' }); console.log('publicación automática inactiva o parada de emergencia: no se publica nada'); return; }
+  // A maintenance revision may have used the last slot of the day: read the cap again.
+  if (log.maintenance?.length && !(await adminPolicy(report))?.active) { cycleLog({ ...log, result: 'inactive' }); return; }
   const queued = q.topics.filter((t) => t.state === 'queued').length;
   // Discovery is one model call: at most every 12 h, and only when fewer than 3 topics wait.
   if (discoverOnly || (queued < 3 && now - Date.parse(q.lastDiscoveryAt ?? 0) >= 12 * 3600e3)) log.discovery = await discover(q, corpus, report);
@@ -441,7 +443,8 @@ async function runCycle(report, discoverOnly) {
     const run = runs.find((r) => r.slug === t.id);
     t.updatedAt = new Date().toISOString();
     if (run?.state === 'published') Object.assign(t, { state: 'published', publicUrl: run.publicUrl, reason: undefined });
-    else if (/^límite diario/.test(run?.reason ?? '')) Object.assign(t, { state: 'queued', reason: run.reason });
+    // Out of daily room (runner or server cap) is not the topic's fault: it waits for the next day.
+    else if (/^límite diario|limit reached/.test(run?.reason ?? '')) Object.assign(t, { state: 'queued', reason: run.reason });
     else {
       t.attempts++;
       // A failed article is held or retried later with new research, never published with a weaker gate.
@@ -601,7 +604,13 @@ async function maintainPublished(api, { apply, max, force = false, corpus }) {
       save();
     };
     if (!detail?.provenance?.bundle || detail.post.reviewedBy !== 'policy:m11b-evidence-gate') { record('not-policy', 'no publicada por la política: la revisa una persona', 30); continue; }
-    if (!run) { record('no-local-provenance', 'sin el fichero de ejecución de la versión publicada', 7); continue; }
+    // Every outcome a person may need to act on is reported to the Admin job list, not only logged here.
+    const alert = (jobState) => reportJob(api, { jobId: `${new Date().toISOString()}-maint-${c.slug}`, slug: c.slug, state: jobState, reason: state[c.slug]?.note ?? null });
+    if (!run) {
+      record('no-local-provenance', 'sin el fichero de ejecución de la versión publicada: no se puede re-verificar', 7);
+      await alert('maintenance-unverifiable');
+      continue;
+    }
     checked++;
     const r = await reverify(run.provenance);
     const unreachable = r.bundle.sources.filter((s) => !s.retrievedAt).map((s) => s.id);
@@ -609,22 +618,35 @@ async function maintainPublished(api, { apply, max, force = false, corpus }) {
     const overdue = Date.parse(run.provenance.nextReviewAt ?? '') <= now;
     if (!r.changed.length) {
       record('verified', `${r.bundle.claims.filter((x) => x.status === 'supported').length} afirmaciones verificadas${unreachable.length ? `; fuentes caídas: ${unreachable.join(', ')}` : ''}${overdue ? '; fecha de revisión vencida, evidencia sin cambios' : ''}`, interval);
-      await reportJob(api, { jobId: `${new Date().toISOString()}-maint-${c.slug}`, slug: c.slug, state: 'maintenance-verified', reason: state[c.slug].note });
+      await alert('maintenance-verified');
       continue;
     }
     // A claim whose only quotes come from a source that did not answer is not proof of a change: retry, 3 times at most.
     const lostOnlyToOutage = r.changed.every((id) => r.bundle.claims.find((x) => x.id === id)?.quotes.every((qt) => unreachable.includes(qt.sourceId)));
     const outages = (prev?.result === 'source-unavailable' ? prev.outages ?? 1 : 0) + 1;
     if (lostOnlyToOutage && outages < 3) { record('source-unavailable', `fuentes sin respuesta: ${unreachable.join(', ')}`, 1, { outages }); continue; }
+    // Consecutive daily checks that confirmed the change: on the second, a guide that could not be recertified goes offline.
+    const confirmed = (['requires-update', 'update-held'].includes(prev?.result) ? prev.confirmed ?? 1 : 0) + 1;
     const lost = r.changed.map((id) => run.provenance.bundle.claims.find((x) => x.id === id)?.text).filter(Boolean);
-    if (!apply) { record('requires-update', `ya no se verifican: ${r.changed.join(', ')}`, 1); continue; }
-    const [res] = await runTopics([maintenanceTopic(run, lost, unreachable)], {
+    if (!apply) { record('requires-update', `ya no se verifican: ${r.changed.join(', ')}`, 1, { confirmed }); await alert('maintenance-requires-update'); continue; }
+    const topic = maintenanceTopic(run, lost, unreachable);
+    topic.linkTargets = await verifiedTargets(topic.linkTargets);
+    const [res] = await runTopics([topic], {
       report: api, autopublish: true, corpus: corpus.filter((x) => x.slug !== c.slug),
       publish: (next) => reviseRun(next, api, found.id, published),
     });
-    // Failed recertification: the published version stays (the server never saw a passing candidate); retried next day.
-    if (res.state === 'updated') record('updated', `nueva revisión publicada; cambiaron ${r.changed.join(', ')}`, checkIntervalDays(res.provenance));
-    else record('update-held', `${res.state}: ${res.reason ?? ''}`.slice(0, 300), 1);
+    if (res.state === 'updated') { record('updated', `nueva revisión publicada; cambiaron ${r.changed.join(', ')}`, checkIntervalDays(res.provenance)); continue; }
+    // Failed recertification: the published version stays (the server never saw a passing candidate) and is retried
+    // next day. If the change is confirmed again and still cannot be fixed, the established reversible hold applies:
+    // back to draft (out of the site and the sitemap), the published version kept as a revision for rollback.
+    if (confirmed >= 2) {
+      const held = await fetch(`${api}/v2/blog/${found.id}`, { method: 'PUT', headers: adminHeaders(), body: JSON.stringify({ status: 'draft' }) }).catch(() => null);
+      record(held?.ok ? 'held-offline' : 'hold-failed', `${held?.ok ? 'retirada (borrador, reversible)' : `retirada FALLIDA ${held?.status ?? 0}`}: ya no se verifican ${r.changed.join(', ')}; ${res.state}: ${res.reason ?? ''}`.slice(0, 300), 1, { confirmed });
+      await alert(held?.ok ? 'maintenance-held-offline' : 'maintenance-hold-failed');
+    } else {
+      record('update-held', `${res.state}: ${res.reason ?? ''}`.slice(0, 300), 1, { confirmed });
+      await alert('maintenance-requires-update');
+    }
   }
   return results;
 }

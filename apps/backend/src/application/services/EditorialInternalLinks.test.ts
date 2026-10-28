@@ -30,6 +30,13 @@ test('a link outside the verified list is fixed by the writer before the critic 
   assert.equal(m.calls.filter((c) => c.role === 'critic').length, 1, 'the critic reviewed only the clean draft');
 });
 
+test('an absolute link to the site goes through the same allowlist (review M2)', async () => {
+  const { job } = run([linked(['https://guiaprogramaciontv.com/programas/el-padrino'])], [{ path: '/canales/la-2', label: 'canal La 2' }]);
+  const r = await job;
+  assert.ok(r.findings.some((f) => f.code === 'unverified-internal-link' && /\/programas\/el-padrino/.test(f.message)), JSON.stringify(r.findings.map((f) => f.code)));
+  assert.notEqual(r.state, 'approved-by-policy');
+});
+
 test('more than four internal links is a block the writer must reduce; the policy page does not count', async () => {
   const targets = ['/canales/la-2', '/guias/a', '/guias/b', '/guias/c', '/guias/d'].map((path) => ({ path, label: path }));
   const { job } = run([linked(targets.map((t) => t.path))], targets);

@@ -91,7 +91,7 @@ describe('Search Console table', () => {
     const section: HTMLElement = fixture.nativeElement.querySelector('[aria-labelledby="editorial-gsc-title"]');
     const rows = Array.from(section.querySelectorAll('tbody tr')).map((r) => (r.textContent || '').replace(/\s+/g, ' '));
     expect(rows.length).toBe(2);
-    expect(rows[0]).toContain('200 · index · sitemap');
+    expect(rows[0]).toContain('Pública en el CMS');
     expect(rows[0]).toContain('Indexada');
     expect(rows[0]).toContain('Submitted and indexed');
     expect(rows[0]).toContain('Coincide');

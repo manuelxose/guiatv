@@ -101,7 +101,8 @@ export class EditorialOpsController {
         { $match: { startedAt: { $gte: since(30 * DAY).toISOString() } } },
         { $group: { _id: { $substr: ['$startedAt', 0, 10] }, usd: { $sum: '$costUsd' } } },
       ]).toArray(),
-      searchConsoleOverview(),
+      // Monitoring only: a GSC read failure must not take the runner's overview (its cap and stop source) down.
+      searchConsoleOverview().catch(() => null),
     ]);
     const { routes, imageRoutes } = routesFromEnv();
     // The runner owns the money caps; its latest report says which budget it ran under (M11-E2 testing: unlimited).

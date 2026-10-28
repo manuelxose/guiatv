@@ -87,7 +87,8 @@ test('M11-B CMS: evidence gate, policy approval, versioning and rollback', { ski
     const live = (await BlogPostModel.findById(id).lean())!;
     const edited = await call(controller.updatePost, { params: { id }, body: { status: 'draft', content: String(live.content).replace('22:00', '23:00'), faqItems: [{ question: '¿Hora?', answer: 'Tarde' }] } });
     assert.equal(edited.body?.data.post.status, 'draft', String(edited.error?.stack));
-    assert.deepEqual(fields(await call(controller.approveByPolicy, { params: { id } })), ['content-not-reviewed-draft', 'faq-not-evidenced']);
+    // M11-F: this PUT re-derived the slug from the title, so the canonical no longer names the guide's own page.
+    assert.deepEqual(fields(await call(controller.approveByPolicy, { params: { id } })), ['content-not-reviewed-draft', 'faq-not-evidenced', 'canonicalUrl']);
     // The human path runs the same evidence gate, and acknowledgements cannot waive a block.
     const human = await call(controller.approvePost, { params: { id }, body: { reviewer: 'Revisora Prueba', acknowledge: 'unverified-claims,near-duplicate' } });
     assert.ok(fields(human).includes('content-not-reviewed-draft'));

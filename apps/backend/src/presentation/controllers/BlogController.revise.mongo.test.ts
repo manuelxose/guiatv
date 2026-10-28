@@ -68,9 +68,12 @@ test('M11-F revise-by-policy: certified update, failed update, conflicts, stop a
     await BlogPostModel.db.collection<{ _id: string }>('editorial_settings').updateOne({ _id: 'policy' }, { $set: { paused: false } });
 
     // Certified revision: published in place, same URL and first publication date, the old version kept.
-    const ok = await call(controller.reviseByPolicy, { params: { id }, body: { expectedDraftHash: v1.draftHash, post: v2.post } });
+    // Unsigned fields in the payload (canonical, affiliate) are ignored: only the signed text and metadata change.
+    const sneaky = { ...v2.post, canonicalUrl: 'https://otro-dominio.example/x', featured: true, affiliatePlacementMode: 'inline' };
+    const ok = await call(controller.reviseByPolicy, { params: { id }, body: { expectedDraftHash: v1.draftHash, post: sneaky } });
     assert.equal(ok.code, 200, JSON.stringify(ok.error));
     const after = (await BlogPostModel.findById(id).lean())!;
+    assert.deepEqual([after.seo?.canonicalUrl, after.featured, after.affiliatePlacementMode], [published.seo?.canonicalUrl, published.featured, published.affiliatePlacementMode]);
     assert.deepEqual([after.status, after.slug, after.reviewedBy, after.editorial?.draftHash, after.editorial?.state], ['publish', SLUG, POLICY_REVIEWER, v2.draftHash, 'published']);
     assert.equal(after.publishedAt?.toISOString(), published.publishedAt?.toISOString());
     assert.match(String(after.content), /Vale la pena verla/);

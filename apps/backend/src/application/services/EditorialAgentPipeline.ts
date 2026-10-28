@@ -679,7 +679,13 @@ async function publisherFindings(cms: CmsDraft, provenance: EditorialProvenance,
     ...evaluateEditorialQuality(post, { others: deps.corpus }),
     ...metadataProblems(cms, cms.slug, taken).map((message) => ({ severity: 'block' as const, code: 'invalid-metadata', message })),
   ];
-  const internal = [...new Set([...cms.content.matchAll(/href="(\/(?!\/)[^"#]*)/g)].map((m) => m[1]))];
+  // Relative and absolute links to the site alike: an absolute URL must not skip the status and allowlist checks.
+  const internal = [...new Set([...cms.content.matchAll(/href=["']([^"'#]+)/g)].map((m) => {
+    try {
+      const u = new URL(m[1], 'https://guiaprogramaciontv.com');
+      return /^(?:www\.)?guiaprogramaciontv\.com$/i.test(u.hostname) ? `${u.pathname}${u.search}` : null;
+    } catch { return null; }
+  }).filter((p): p is string => Boolean(p)))];
   for (const path of internal) {
     const status = await deps.internalLinkStatus(path).catch(() => 0);
     if (status !== 200) findings.push({ severity: 'block', code: 'internal-link-status', message: `${path} responde ${status}` });

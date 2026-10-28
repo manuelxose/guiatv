@@ -24,10 +24,10 @@ await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const base = `http://127.0.0.1:${server.address().port}`;
 test.after(() => server.close());
 
-function cycle(dir) {
+function cycle(dir, env = {}, command = 'cycle') {
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, ['scripts/editorial-agents.mjs', 'cycle', '--report', base, '--site', base, '--out', join(dir, 'out')], {
-      env: { ...process.env, EDITORIAL_SPEND_DIR: dir, EDITORIAL_REVIEW_KEY: '', AUCTORIO_EDITORIAL_REVIEW_KEY: '', ANTHROPIC_BASE_URL: base, ANTHROPIC_API_KEY: 'test', ANTHROPIC_AUTH_TOKEN: '', EDITORIAL_BUDGET: 'unlimited' },
+    const child = spawn(process.execPath, ['scripts/editorial-agents.mjs', command, '--report', base, '--site', base, '--out', join(dir, 'out')], {
+      env: { ...process.env, EDITORIAL_SPEND_DIR: dir, EDITORIAL_REVIEW_KEY: '', AUCTORIO_EDITORIAL_REVIEW_KEY: '', ANTHROPIC_BASE_URL: base, ANTHROPIC_API_KEY: 'test', ANTHROPIC_AUTH_TOKEN: '', EDITORIAL_BUDGET: 'unlimited', ...env },
     });
     let output = '';
     child.stdout.on('data', (d) => (output += d));
@@ -51,6 +51,22 @@ test('emergency stop or inactive policy: the cycle writes nothing and calls no m
   assert.equal(r.code, 0, r.output);
   assert.equal(lastCycle(dir).result, 'inactive');
   assert.ok(!seen.some((s) => s.startsWith('POST /v1/messages')), 'no model call while stopped');
+  rmSync(dir, { recursive: true });
+});
+
+test('the scheduler never runs with the human review key, and discovery respects the stop', async () => {
+  const dir = fresh();
+  for (const command of ['cycle', 'discover', 'maintain']) {
+    const r = await cycle(dir, { EDITORIAL_REVIEW_KEY: 'human-key' }, command);
+    assert.equal(r.code, 2, command);
+    assert.match(r.output, /EDITORIAL_REVIEW_KEY is a reviewer key/);
+  }
+  Object.assign(policy, { active: false });
+  const before = seen.length;
+  await cycle(dir, {}, 'discover');
+  Object.assign(policy, { active: true });
+  assert.equal(lastCycle(dir).result, 'inactive');
+  assert.ok(!seen.slice(before).some((s) => s.startsWith('POST /v1/messages')), 'no discovery call while stopped');
   rmSync(dir, { recursive: true });
 });
 
