@@ -5,8 +5,10 @@
 //  - rails: work links (/peliculas|/series) on programme and airing pages, split into "in sitemap-works" (verified,
 //    indexable set) and "outside it";
 //  - links: status of every internal link on the editorial hubs (/guias, /plataformas, listings);
+//  - identities: Cine/Series airings of today and tomorrow with a TMDB id but no verified work link, classified with
+//    public evidence only (TMDB record of that id as the catalogue serves it, shared ids, missing records);
 //  - health: /v2/health (release identifier).
-// Usage: node scripts/m10c-probe.mjs [baseUrl] [--section channels|rails|links|health]
+// Usage: node scripts/m10c-probe.mjs [baseUrl] [--section channels|rails|links|identities|health]
 const args = process.argv.slice(2);
 const base = (args.find((a) => /^https?:/.test(a)) ?? 'https://guiaprogramaciontv.com').replace(/\/$/, '');
 const only = args.includes('--section') ? args[args.indexOf('--section') + 1] : undefined;
@@ -148,4 +150,58 @@ if (!only || only === 'links') {
     print('hub', { hub: h, status: page.status, links: targets.length });
   }
   print('broken-links', { checkedTargets: status.size, broken });
+}
+
+if (!only || only === 'identities') {
+  const key = (t) => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/\(\s*\d{4}\s*\)/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
+  const airings = [];
+  for (const date of ['today', 'tomorrow']) {
+    for (const category of ['Cine', 'Series']) {
+      const r = await get(`/v2/tv/read?view=day&date=${date}&category=${category}&limit=5000&includeChannels=false`, { json: true });
+      const items = r.json?.data?.items ?? r.json?.items ?? [];
+      for (const i of items) airings.push({ date, category, id: i.id, title: i.program?.title, tmdbId: i.program?.tmdbId, workPath: i.program?.workPath, channel: i.channel?.name });
+      await pause(300);
+    }
+  }
+  const withTmdb = airings.filter((a) => Number.isInteger(a.tmdbId));
+  const unverified = withTmdb.filter((a) => !a.workPath);
+  // Distinct (title key, TMDB id, kind): one identity decision each.
+  const groups = new Map();
+  for (const a of unverified) {
+    const k = `${key(a.title)}|${a.tmdbId}|${a.category}`;
+    const g = groups.get(k) ?? { title: a.title, tmdbId: a.tmdbId, category: a.category, airings: 0, channels: new Set() };
+    g.airings += 1; g.channels.add(a.channel); groups.set(k, g);
+  }
+  const titlesById = new Map();
+  for (const a of withTmdb) (titlesById.get(a.tmdbId) ?? titlesById.set(a.tmdbId, new Set()).get(a.tmdbId)).add(key(a.title));
+  const classes = {};
+  const rows = [];
+  for (const g of groups.values()) {
+    const type = g.category === 'Cine' ? 'movie' : 'tv';
+    const r = await get(`/v2/catalog/tmdb:${type}:${g.tmdbId}`, { json: true });
+    const d = r.json?.data ?? r.json;
+    const recTitles = [d?.title, d?.originalTitle].filter(Boolean).map(key);
+    const year = d?.year ?? d?.releaseYear ?? (String(d?.releaseDate ?? d?.firstAirDate ?? '').slice(0, 4) || undefined);
+    const yearInTitle = String(g.title ?? '').match(/\b(19|20)\d{2}\b/)?.[0];
+    let cls;
+    if (r.status === 404 || r.status === 410) cls = 'invalid_external_id';
+    else if (r.status !== 200 || !d) cls = 'record_unreadable';
+    else if ((titlesById.get(g.tmdbId)?.size ?? 0) > 1) cls = 'tmdb_id_shared_by_titles';
+    else if (!recTitles.includes(key(g.title))) cls = 'title_differs_from_record'; // localized title, remake, or wrong match
+    else if (yearInTitle && year && yearInTitle !== String(year)) cls = 'same_title_different_year';
+    else cls = 'title_matches_no_persistent_id'; // agreement on the title only: no independent evidence yet
+    classes[cls] = (classes[cls] ?? 0) + 1;
+    rows.push([cls, g.category, g.tmdbId, g.title, d?.title ?? '-', year ?? '-', g.airings, [...g.channels].slice(0, 2).join(', ')]);
+    await pause(150);
+  }
+  print('identities', {
+    airings: airings.length,
+    withTmdbId: withTmdb.length,
+    verifiedLinked: withTmdb.length - unverified.length,
+    unverifiedAirings: unverified.length,
+    distinctUnverifiedIdentities: groups.size,
+    classes,
+    rows: rows.sort((a, b) => a[0].localeCompare(b[0])),
+  });
 }

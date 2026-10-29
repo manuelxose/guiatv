@@ -667,17 +667,24 @@ export class CatalogDetailComponent implements OnInit, OnDestroy {
       });
   }
 
+  /**
+   * M10-C: the fallback rail of a programme or airing page keeps only airings (`source: 'program'`). Each one links
+   * the work page its broadcast verified (`workPath`, set by the M10 gate) or its own airing page. TMDB catalogue
+   * results ("popular" films and series) are dropped: their slugs come from a title search nothing verified.
+   */
   private loadFallbackRelated(item: CatalogItem) {
     const primaryQuery = this.buildFallbackRelatedQuery(item, true);
+    const airingsOnly = (items: CatalogItem[]) =>
+      this.normalizeRelatedItems((items || []).filter((candidate) => candidate?.source === 'program'), item.catalogId);
     return this.catalogService.query(primaryQuery).pipe(
-      map((response) => this.normalizeRelatedItems(response.items, item.catalogId)),
+      map((response) => airingsOnly(response.items)),
       switchMap((related) => {
         if (related.length || item.contentType === 'program') {
           return of(related);
         }
 
         return this.catalogService.query(this.buildFallbackRelatedQuery(item, false)).pipe(
-          map((response) => this.normalizeRelatedItems(response.items, item.catalogId))
+          map((response) => airingsOnly(response.items))
         );
       }),
       catchError(() => of([]))
