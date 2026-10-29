@@ -308,6 +308,8 @@ export class CatalogCardComponent {
   get detailLink(): any[] | null {
     // M10: a title with no slug characters ("चार यार") gets the API's `/…/sin-titulo`, a 404 shared by every such
     // title (the /contenido fallback 301s there too): render no link rather than a broken one.
+    // M10-C: the API knows this title's work page does not show this work: no link rather than a 404 or a namesake.
+    if (this.item?.source === 'tmdb' && this.item.workPathUnresolved) return null;
     const path = this.item?.workPath || this.item?.detailPath;
     if (path) {
       return /\/sin-titulo$/.test(path) ? null : [path];

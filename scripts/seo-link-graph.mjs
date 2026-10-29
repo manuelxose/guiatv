@@ -78,7 +78,7 @@ if (args.includes('--self-check')) {
 const SUMMARY_KEYS = ['fetched', 'discovered', 'brokenTargets', 'brokenLinkInstances', 'redirectTargets', 'redirectChains',
   'linkInstancesToRedirects', 'noindexTargetsLinked', 'nonCanonicalTargetsLinked', 'parameterisedTargets',
   'emptyAnchors', 'genericAnchors', 'sitemapUrls', 'sitemapReached', 'sitemapNotReached', 'programmeToWorkLinks',
-  'workToProgrammeLinks', 'workToChannelLinks', 'programmeToChannelLinks'];
+  'workToProgrammeLinks', 'workToChannelLinks', 'programmeToChannelLinks', 'edgeInjectedTargets'];
 
 /**
  * M10-C: reachability of the sitemap URLs from `/` in a saved crawl, without overstating it.
@@ -198,6 +198,9 @@ const inlinks = new Map(); // path -> Set(source path)
 const anchors = new Map(); // path -> Map(text -> count)
 const params = new Set();
 let emptyAnchors = 0, genericAnchors = 0;
+// M10-C: Cloudflare's email obfuscation rewrites `mailto:` anchors at the edge into `/cdn-cgi/l/email-protection#…`.
+// The origin HTML has no such link and the URL is not a page of the site: counted apart, never as a broken page.
+const edgeInjected = new Map(); // path -> Set(source path)
 
 const visit = async (path) => {
   const page = pages.get(path);
@@ -217,6 +220,7 @@ const visit = async (path) => {
     const seen = new Map();
     for (const l of extractLinks(body, base + path, host)) {
       if (!l.text) emptyAnchors++; else if (GENERIC.test(l.text)) genericAnchors++;
+      if (l.path.startsWith('/cdn-cgi/')) { (edgeInjected.get(l.path) ?? edgeInjected.set(l.path, new Set()).get(l.path)).add(path); continue; }
       if (l.query) { params.add(l.path + l.query); continue; }
       if (l.path === path || seen.has(l.path)) continue;
       seen.set(l.path, l.text);
@@ -299,6 +303,7 @@ const summary = {
   workToProgrammeLinks: sumLinks((s, d) => isWork(s) && isProg(d)),
   workToChannelLinks: sumLinks((s, d) => isWork(s) && isChannel(d)),
   programmeToChannelLinks: sumLinks((s, d) => isProg(s) && isChannel(d)),
+  edgeInjectedTargets: edgeInjected.size,
 };
 
 console.log(JSON.stringify(summary, null, 1));
@@ -306,6 +311,7 @@ console.log('depth by family', JSON.stringify(depthByFamily));
 console.log('sitemap not reached by family', JSON.stringify(notReachedByFamily));
 console.log('sitemap URLs by click depth', JSON.stringify(sitemapByDepth));
 const show = (label, rows) => { console.log(`${label}: ${rows.length}`); for (const r of rows.slice(0, 12)) console.log('  ', JSON.stringify(r)); };
+show('edge-injected (Cloudflare, not origin links)', [...edgeInjected].map(([p, from]) => [p, [...from].slice(0, 5)]));
 show('broken', broken.map(([p, x]) => [p, x.status, linkCount(p), [...(inlinks.get(p) ?? [])][0]]));
 show('redirects', redirects.map(([p, x]) => [p, x.status, x.location, linkCount(p)]));
 show('redirect chains', chains.map(([p, x]) => [p, x.location]));
@@ -320,6 +326,7 @@ if (out) {
   writeFileSync(out, JSON.stringify({
     base, at: new Date().toISOString(), max, summary, depthByFamily, notReachedByFamily,
     broken: broken.map(([p, x]) => ({ path: p, status: x.status, from: [...(inlinks.get(p) ?? [])].slice(0, 5) })),
+    edgeInjected: [...edgeInjected].map(([p, from]) => ({ path: p, from: [...from].slice(0, 5) })),
     redirects: redirects.map(([p, x]) => ({ path: p, status: x.status, location: x.location, inlinks: linkCount(p) })),
     noindexLinked: noindex.map(([p, x]) => ({ path: p, robots: x.robots, inlinks: linkCount(p) })),
     nonCanonicalLinked: nonCanonical.map(([p, x]) => ({ path: p, canonical: x.canonical, inlinks: linkCount(p) })),

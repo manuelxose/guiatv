@@ -338,7 +338,10 @@ export class Container {
     const tvReadQueryService = new TvReadQueryService(this.get('cacheRepository'));
     this.dependencies.set('tvReadQueryService', tvReadQueryService);
     const { TvSurfaceService } = await import('../application/services/TvSurfaceService');
-    const tvSurfaceService = new TvSurfaceService(tvReadQueryService, this.get('cacheRepository'));
+    const { ChannelFeedAliasResolver } = await import('../application/services/ChannelFeedAliases');
+    const channelFeedAliases = new ChannelFeedAliasResolver(tvReadQueryService);
+    this.dependencies.set('channelFeedAliases', channelFeedAliases);
+    const tvSurfaceService = new TvSurfaceService(tvReadQueryService, this.get('cacheRepository'), channelFeedAliases);
     this.dependencies.set('tvSurfaceService', tvSurfaceService);
 
     // Football bounded context (provider abstraction + reconciliation + BFF).
@@ -730,7 +733,8 @@ export class Container {
       this.has('footballQueryService') ? this.get('footballQueryService') : undefined,
       this.get('tvReadQueryService'),
       (slug) => this.get<{ programSlugDisposition(slug: string): Promise<ProgrammeDisposition | null> }>('catalogService').programSlugDisposition(slug),
-      async () => (await import('../application/services/WorkSeoPolicy')).indexableWorkPaths()
+      async () => (await import('../application/services/WorkSeoPolicy')).indexableWorkPaths(),
+      this.get('channelFeedAliases')
     );
     this.dependencies.set('sitemapController', sitemapController);
 

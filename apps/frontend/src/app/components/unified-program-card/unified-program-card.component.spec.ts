@@ -90,6 +90,16 @@ describe('UnifiedProgramCardComponent — affiliate opt-in', () => {
     expect(linkedTap.getAttribute('aria-label')).toContain('Test Movie');
   });
 
+  it('M10-C: a TMDB card whose work page is known not to show it keeps its content and links nothing', () => {
+    const fixture = TestBed.createComponent(UnifiedProgramCardComponent);
+    fixture.componentInstance.item = { ...testItem, workPathUnresolved: true };
+    fixture.componentInstance.ngOnChanges({ item: {} as any });
+    fixture.detectChanges();
+    const tap: HTMLElement = fixture.nativeElement.querySelector('.program-card__tap');
+    expect(tap.hasAttribute('href')).toBeFalse();
+    expect(fixture.nativeElement.textContent).toContain('Test Movie');
+  });
+
   it('formats broadcast times in Madrid through the autumn clock change', () => {
     const fixture = TestBed.createComponent(UnifiedProgramCardComponent);
     fixture.componentInstance.item = { ...testItem, start: '2026-10-25T00:30:00Z', end: '2026-10-25T02:30:00Z' };

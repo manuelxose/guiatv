@@ -426,6 +426,26 @@ app.get('/contenido/:catalogId', async (req, res, next) => {
 // manufacturing a second catalogue identity; the movie route is the verified canonical target.
 app.get('/series/camino-a-la-perdicion', (_req, res) => res.redirect(301, '/peliculas/camino-a-la-perdicion'));
 
+// M10-C: a verified second XMLTV feed of a channel (`Telemadrid.TV` beside `Telemadrid.es`) is one channel: its page
+// answers a 301 to the channel's own page. The API decides (persistent feed ids + same schedule, ChannelFeedAliases);
+// only `-tv` slugs can be such a feed, so every other channel page costs no extra call. Any API doubt renders the page.
+app.get('/canales/:slug', async (req, res, next) => {
+  const slug = String(req.params.slug || '');
+  if (!/[-_]tv$/i.test(slug)) return next();
+  try {
+    const apiResponse = await fetch(`${backendOrigin}/v2/tv/surface/channels/${encodeURIComponent(slug)}`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!apiResponse.ok) return next();
+    const target = (await apiResponse.json())?.data?.canonicalChannel?.normalizedName;
+    const path = typeof target === 'string' && /^[a-z0-9_]+$/.test(target) ? `/canales/${target.replace(/_/g, '-')}` : '';
+    if (path && path !== req.path) return res.redirect(301, path);
+  } catch {
+    // Render the page as before; its canonical still names the channel when the API answers it.
+  }
+  return next();
+});
+
 app.get(['/programacion-tv/ver-canal/:id', '/ver-canal/:id'], (req, res) => {
   const slug = encodeURIComponent(String(req.params.id || '').trim());
   if (!slug) return res.status(404).send('Not found');

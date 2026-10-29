@@ -67,6 +67,13 @@ describe('tv-normalizers', () => {
     expect(normalized.detailPath).toContain('/peliculas/');
   });
 
+  it('M10-C: a TMDB title whose work page is known not to show it gets no link (the /plataformas 404)', () => {
+    const item: CatalogItem = { catalogId: 'tmdb:tv:1', source: 'tmdb', contentType: 'series', genres: [], primaryPlatforms: ['Disney+'],
+      title: "20/20 Britain's Most Notorious Crime Investigations" };
+    expect(normalizeToCard(item).detailPath).toBe('/series/2020-britains-most-notorious-crime-investigations');
+    expect(normalizeToCard({ ...item, workPathUnresolved: true }).detailPath).toBe('');
+  });
+
   it('keeps base letters of accented characters in movie/series slugs (regression)', () => {
     const catalogItem: CatalogItem = {
       catalogId: 'tmdb:movie:999',

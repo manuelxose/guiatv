@@ -16,6 +16,7 @@ import {
   normalizeTvToken,
 } from '@/shared/utils/tvMetadata';
 import { TvReadChannelSummaryDTO, TvReadItemDTO } from '../dto/TvReadDTO';
+import type { ChannelFeedAliasResolver, FeedAliasTarget } from './ChannelFeedAliases';
 
 function sortTvItems(left: TvReadItemDTO, right: TvReadItemDTO): number {
   return (
@@ -236,6 +237,8 @@ export interface TvGuideSurfaceDTO {
 export interface TvChannelSurfaceDTO {
   date: string;
   channel: TvReadChannelSummaryDTO['channel'] | null;
+  /** M10-C: set when `channel` is a verified second feed of this channel; its page redirects there. */
+  canonicalChannel?: FeedAliasTarget;
   current?: TvReadItemDTO;
   next?: TvReadItemDTO;
   tonightItems: TvReadItemDTO[];
@@ -251,8 +254,19 @@ export interface TvChannelSurfaceDTO {
 export class TvSurfaceService {
   constructor(
     private readonly tvReadQueryService: TvReadQueryService,
-    private readonly cacheRepository: ICacheRepository
+    private readonly cacheRepository: ICacheRepository,
+    private readonly channelFeedAliases?: Pick<ChannelFeedAliasResolver, 'resolve'>
   ) {}
+
+  /** Never fails the page: without the alias list every channel is served as itself, as before M10-C. */
+  private async feedAliases(): Promise<Map<string, FeedAliasTarget>> {
+    if (!this.channelFeedAliases) return new Map();
+    try {
+      return await this.channelFeedAliases.resolve('today');
+    } catch {
+      return new Map();
+    }
+  }
 
   async getGuideSurface(params: {
     date?: string;
@@ -281,9 +295,11 @@ export class TvSurfaceService {
     const groupCounts = group
       ? await this.tvReadQueryService.getGroupChannelCounts(day.date)
       : deriveGroupCountsFromItems(day.items);
-    const channelSource = day.channels;
+    // M10-C: a verified second feed repeats its channel's schedule; the guide shows the channel once.
+    const aliases = await this.feedAliases();
+    const channelSource = day.channels.filter((entry) => !aliases.has(entry.channel.id));
     const visibleChannels = sortChannels(filterGuideChannels(channelSource, group));
-    const groupScopedItems = filterGuideItemsByGroup(day.items, group);
+    const groupScopedItems = filterGuideItemsByGroup(day.items.filter((item) => !aliases.has(item.channel?.id)), group);
     const preFilteredSports = group === 'deporte'
       ? getAvailableSports(groupScopedItems)
       : undefined;
@@ -350,13 +366,18 @@ export class TvSurfaceService {
     const current = selectCurrentTvItems(response.items)[0];
     const next = selectNextTvItems(response.items, new Date())[0];
     const tonightItems = buildChannelPrimeTimeItems(response.items, response.date);
+    // M10-C: today's verified feed aliases (a property of the feeds, not of the day shown). An alias page names its
+    // channel; no page lists an alias among its related channels (it would link a redirect).
+    const aliases = await this.feedAliases();
+    const canonicalChannel = channel ? aliases.get(channel.id) : undefined;
     const relatedChannels = (relatedSource.channels || [])
-      .filter((entry) => entry.channel.id !== channel?.id)
+      .filter((entry) => entry.channel.id !== channel?.id && !aliases.has(entry.channel.id))
       .slice(0, 8);
 
     const surface: TvChannelSurfaceDTO = {
       date: response.date,
       channel,
+      ...(canonicalChannel ? { canonicalChannel } : {}),
       current,
       next,
       tonightItems,
