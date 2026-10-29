@@ -1,0 +1,30 @@
+name: M10-C production probe (temporary, branch only)
+
+# Read-only GETs against production from the M10-C working branch (the agent session has no route to the site and
+# cannot dispatch workflows). Removed before the branch is merged.
+on:
+  push:
+    branches: [claude/guiatv-m10c-cleanup-qtt7ju]
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/m10c-probe.mjs > m10c-probe.jsonl; cat m10c-probe.jsonl
+  link-graph:
+    if: contains(github.event.head_commit.message, '[link-graph]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/seo-link-graph.mjs --max 1500 --out link-graph.json > graph.log; tail -c 20000 graph.log
+      - run: node scripts/seo-link-graph.mjs --reachability link-graph.json
+      - run: node -e "const d=require('./link-graph.json');console.log(JSON.stringify({broken:d.broken,notReachedChannels:d.notReached.filter(p=>p.startsWith('/canales/'))}))"
