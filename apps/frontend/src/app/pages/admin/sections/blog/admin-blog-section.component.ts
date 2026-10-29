@@ -59,6 +59,7 @@ export class AdminBlogSectionComponent implements OnInit {
   public pendingDeletePost: AdminBlogPost | null = null;
 
   public activeBlogTab: BlogStudioTab = 'posts';
+  public blogView: 'table' | 'cards' = 'table';
   public readonly blogTabs: Array<{ id: BlogStudioTab; label: string }> = [
     { id: 'posts', label: 'Artículos' },
     { id: 'content', label: 'Contenido' },

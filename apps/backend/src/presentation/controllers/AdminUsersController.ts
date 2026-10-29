@@ -12,6 +12,54 @@ const REPORT_STATUSES = new Set(['open', 'reviewing', 'resolved', 'dismissed']);
 export class AdminUsersController {
   private notificationService = new UserNotificationService();
 
+  /**
+   * Weekly sign-up cohorts (last 4 weeks) with the share of users whose
+   * lastLoginAt shows they came back in each following week. Real figures
+   * computed from User.createdAt/lastLoginAt; weeks not fully elapsed yet
+   * are reported as null instead of a made-up number.
+   */
+  async getRetention(
+    _req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const now = Date.now();
+      const weekMs = 7 * 24 * 60 * 60 * 1000;
+      const since = new Date(now - 4 * weekMs);
+
+      const users = await UserModel.find({ createdAt: { $gte: since } })
+        .select({ createdAt: 1, lastLoginAt: 1 })
+        .limit(10000)
+        .lean()
+        .exec();
+
+      const cohorts = [3, 2, 1, 0].map((weeksAgo) => {
+        const start = now - (weeksAgo + 1) * weekMs;
+        const end = now - weeksAgo * weekMs;
+        const members = users.filter((user) => {
+          const created = new Date(user.createdAt).getTime();
+          return created >= start && created < end;
+        });
+        const label = new Date(start).toISOString().slice(0, 10);
+        const weeks: Array<number | null> = [1, 2, 3, 4].map((k) => {
+          // Only measure week k when every member has had the chance to live it.
+          if (end + k * weekMs > now) return null;
+          const returned = members.filter((user) => {
+            const lastLogin = user.lastLoginAt ? new Date(user.lastLoginAt).getTime() : 0;
+            return lastLogin >= new Date(user.createdAt).getTime() + (k - 1) * weekMs + weekMs;
+          }).length;
+          return members.length ? Math.round((returned / members.length) * 100) : null;
+        });
+        return { cohort: label, size: members.length, weeks };
+      });
+
+      res.json(successResponse({ cohorts }));
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async listUsers(
     req: Request,
     res: Response,

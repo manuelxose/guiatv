@@ -48,6 +48,17 @@ export interface AdminAnalyticsLiveSnapshot {
   sessions: AdminAnalyticsLiveSession[];
 }
 
+export interface AdminAnalyticsJourney {
+  steps: string[];
+  count: number;
+}
+
+export interface AdminAnalyticsJourneys {
+  days: number;
+  sessionsAnalyzed: number;
+  journeys: AdminAnalyticsJourney[];
+}
+
 interface ApiResponse<T> {
   success: boolean;
   data: T;
@@ -103,6 +114,15 @@ export class AdminAnalyticsService {
         headers: this.buildHeaders(),
       })
       .pipe(map((resp) => resp.data.events || []));
+  }
+
+  getJourneys(days = 7): Observable<AdminAnalyticsJourneys> {
+    const url = `${this.baseUrl}/analytics/journeys?days=${days}`;
+    return this.http
+      .get<ApiResponse<AdminAnalyticsJourneys>>(url, {
+        headers: this.buildHeaders(),
+      })
+      .pipe(map((resp) => resp.data || { days, sessionsAnalyzed: 0, journeys: [] }));
   }
 
   private buildHeaders(): HttpHeaders {

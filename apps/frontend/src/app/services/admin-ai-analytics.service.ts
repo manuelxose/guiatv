@@ -96,8 +96,7 @@ export class AdminAIAnalyticsService {
     return this.http
       .get<ApiResponse<AIConversationListResult>>(`${this.baseUrl}/admin/ai-analytics/conversations`, { headers: this.headers(), params })
       .pipe(
-        map((r) => r?.data || null),
-        catchError(() => of(null))
+        map((r) => r?.data || null)
       );
   }
 
@@ -105,8 +104,7 @@ export class AdminAIAnalyticsService {
     return this.http
       .get<ApiResponse<AIConversationDetail>>(`${this.baseUrl}/admin/ai-analytics/conversations/${encodeURIComponent(conversationId)}`, { headers: this.headers() })
       .pipe(
-        map((r) => r?.data || null),
-        catchError(() => of(null))
+        map((r) => r?.data || null)
       );
   }
 

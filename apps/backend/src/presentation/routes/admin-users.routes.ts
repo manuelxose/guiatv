@@ -16,6 +16,11 @@ export const createAdminUsersRoutes = (
     adminAccessGuard,
     asyncHandler(controller.listUsers.bind(controller))
   );
+  router.get(
+    '/retention',
+    adminAccessGuard,
+    asyncHandler(controller.getRetention.bind(controller))
+  );
   router.patch(
     '/:id',
     adminAccessGuard,

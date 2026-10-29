@@ -40,6 +40,11 @@ export const createAnalyticsRoutes = (
     adminAccessGuard,
     asyncHandler(controller.getEvents.bind(controller))
   );
+  router.get(
+    '/journeys',
+    adminAccessGuard,
+    asyncHandler(controller.getJourneys.bind(controller))
+  );
 
   return router;
 };

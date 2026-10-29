@@ -33,6 +33,12 @@ export interface AdminUsersResponse {
   pagination: AdminUsersPagination;
 }
 
+export interface AdminRetentionCohort {
+  cohort: string;
+  size: number;
+  weeks: Array<number | null>;
+}
+
 export interface AdminUserReport {
   id: string;
   reporterId: string;
@@ -103,8 +109,16 @@ export class AdminUsersService {
       );
   }
 
-  updateUser(userId: string, payload: AdminUserUpdatePayload): Observable<AdminUser> {
-    const url = `${this.baseUrl}/admin/users/${encodeURIComponent(userId)}`;
+  getRetention(): Observable<AdminRetentionCohort[]> {
+    const url = `${this.baseUrl}/admin/users/retention`;
+    return this.http
+      .get<ApiResponse<{ cohorts: AdminRetentionCohort[] }>>(url, {
+        headers: this.buildHeaders(),
+      })
+      .pipe(map((resp) => resp.data?.cohorts || []));
+  }
+
+  updateUser(userId: string, payload: AdminUserUpdatePayload): Observable<AdminUser> {    const url = `${this.baseUrl}/admin/users/${encodeURIComponent(userId)}`;
     return this.http
       .patch<ApiResponse<{ user: AdminUser }> | AdminUser>(url, payload, {
         headers: this.buildHeaders(),

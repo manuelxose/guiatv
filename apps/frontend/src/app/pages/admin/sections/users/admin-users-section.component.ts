@@ -7,6 +7,7 @@ import {
   AdminUsersService,
 } from '../../../../services/admin-users.service';
 import { AdminConfirmDialogComponent } from '../../components/admin-confirm-dialog/admin-confirm-dialog.component';
+import { environment } from '../../../../../environments/environment';
 
 @Component({
   selector: 'app-admin-users-section',
@@ -90,6 +91,10 @@ export class AdminUsersSectionComponent implements OnInit {
   refresh(): void {
     this.page = 1;
     this.loadUsers(true);
+  }
+
+  inviteUser(): void {
+    window.open(`${environment.SITE_URL}/registro`, '_blank', 'noopener');
   }
 
   applyFilters(): void {

@@ -59,6 +59,10 @@
           <span *ngIf="blogLastLoaded"> | actualizado {{ blogLastLoaded | date: 'shortTime' }}</span>
         </p>
       </div>
+      <div class="flex gap-2" role="group" aria-label="Vista de artículos">
+        <button type="button" class="px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-sm text-[var(--portal-text)]" [attr.aria-pressed]="blogView === 'table'" (click)="blogView = 'table'">Tabla</button>
+        <button type="button" class="px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-sm text-[var(--portal-text)]" [attr.aria-pressed]="blogView === 'cards'" (click)="blogView = 'cards'">Tarjetas</button>
+      </div>
       <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <select
           class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-3 py-2 text-xs text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
@@ -103,7 +107,19 @@
       No hay articulos para estos filtros.
     </div>
 
-    <div *ngIf="blogPosts.length" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <div *ngIf="blogPosts.length && blogView === 'table'" class="max-w-full overflow-x-auto" tabindex="0" role="region" aria-label="Tabla de artículos, desplazable horizontalmente">
+      <table class="w-full min-w-[900px] text-sm text-left">
+        <thead><tr class="border-b border-[var(--portal-border)] text-[var(--portal-text-muted)]"><th class="p-3">Artículo</th><th class="p-3">Estado</th><th class="p-3">Tipo</th><th class="p-3">Origen</th><th class="p-3">Categorías</th><th class="p-3">Fecha</th><th class="p-3">Acciones</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let post of blogPosts; trackBy: trackByBlogPost" class="border-b border-[var(--portal-border)] text-[var(--portal-text)]">
+            <td class="p-3"><strong>{{ getPostTitle(post) }}</strong><div class="text-xs text-[var(--portal-text-muted)]">{{ post.slug }}</div></td>
+            <td class="p-3">{{ post.status || 'draft' }}</td><td class="p-3">{{ getPostTypeLabel(post) }}</td><td class="p-3">{{ getPostOriginLabel(post) }}</td><td class="p-3">{{ getPostCategories(post) }}</td><td class="p-3">{{ post.date | date: 'mediumDate' }}</td>
+            <td class="p-3"><div class="flex gap-2 whitespace-nowrap"><button type="button" class="px-3 py-2 rounded-lg border border-[var(--portal-border-strong)]" (click)="editBlogPost(post)">Editar</button><button *ngIf="post.status === 'publish'" type="button" class="px-3 py-2 rounded-lg border border-[var(--portal-border-strong)]" (click)="togglePublishState(post)">Retirar</button><a class="px-3 py-2 rounded-lg border border-[var(--portal-border-strong)]" [href]="getPostUrl(post)" target="_blank" rel="noopener">Abrir</a><button type="button" class="px-3 py-2 rounded-lg border border-[var(--portal-border-strong)] disabled:opacity-50" [disabled]="blogDeletingId === post.id" (click)="requestDeleteBlogPost(post)">{{ blogDeletingId === post.id ? 'Eliminando...' : 'Eliminar' }}</button></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div *ngIf="blogPosts.length && blogView === 'cards'" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       <article
         *ngFor="let post of blogPosts; trackBy: trackByBlogPost"
         class="p-4 rounded-2xl bg-[var(--portal-surface)] border space-y-3"

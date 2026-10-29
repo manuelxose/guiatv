@@ -215,7 +215,8 @@ type AISectionTab = 'metrics' | 'conversations';
                 <tr *ngIf="conversationsLoading">
                   <td colspan="6" class="px-4 py-6 text-center text-[var(--portal-text-soft)]">Cargando conversaciones…</td>
                 </tr>
-                <tr *ngIf="!conversationsLoading && conversations.length === 0">
+                <tr *ngIf="!conversationsLoading && conversationError"><td colspan="6" class="px-4 py-6 text-center text-[var(--spotify-negative)]" role="alert">{{ conversationError }} <button type="button" class="underline" (click)="refresh()">Reintentar</button></td></tr>
+                <tr *ngIf="!conversationsLoading && !conversationError && conversations.length === 0">
                   <td colspan="6" class="px-4 py-6 text-center text-[var(--portal-text-soft)]">No hay conversaciones para esta búsqueda.</td>
                 </tr>
                 <tr *ngFor="let conv of conversations; trackBy: trackByConversation" class="hover:bg-[var(--portal-surface)]">
@@ -294,6 +295,7 @@ type AISectionTab = 'metrics' | 'conversations';
 
           <div *ngIf="conversationDetailLoading" class="text-sm text-[var(--portal-text-muted)] py-6 text-center">Cargando mensajes…</div>
 
+          <p *ngIf="conversationDetailError" role="alert" class="text-sm text-[var(--spotify-negative)]">{{ conversationDetailError }} <button type="button" class="underline" (click)="openConversation(selectedConversation)">Reintentar</button></p>
           <div *ngIf="conversationDetail" class="space-y-3 max-h-[560px] overflow-auto pr-1">
             <div
               *ngFor="let message of conversationDetail.messages"
@@ -334,6 +336,7 @@ export class AdminAISectionComponent implements OnInit {
   conversations: AIConversationListItem[] = [];
   conversationsLoading = false;
   conversationsLoaded = false;
+  conversationError: string | null = null;
   conversationsTotal = 0;
   conversationPage = 1;
   conversationPages = 1;
@@ -341,6 +344,7 @@ export class AdminAISectionComponent implements OnInit {
   selectedConversation: AIConversationListItem | null = null;
   conversationDetail: AIConversationDetail | null = null;
   conversationDetailLoading = false;
+  conversationDetailError: string | null = null;
 
   private readonly destroyRef = inject(DestroyRef);
   private readonly cdr = inject(ChangeDetectorRef);
@@ -391,14 +395,20 @@ export class AdminAISectionComponent implements OnInit {
     this.selectedConversation = conversation;
     this.conversationDetail = null;
     this.conversationDetailLoading = true;
+    this.conversationDetailError = null;
     this.service
       .getConversation(conversation.conversationId)
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((detail) => {
+      .subscribe({ next: (detail) => {
         this.conversationDetail = detail;
+        if (!detail) this.conversationDetailError = 'No se pudo encontrar esta conversación.';
         this.conversationDetailLoading = false;
         this.cdr.markForCheck();
-      });
+      }, error: () => {
+        this.conversationDetailError = 'No se pudieron cargar los mensajes.';
+        this.conversationDetailLoading = false;
+        this.cdr.markForCheck();
+      } });
   }
 
   closeConversation(): void {
@@ -412,10 +422,12 @@ export class AdminAISectionComponent implements OnInit {
 
   private loadConversations(): void {
     this.conversationsLoading = true;
+    this.conversationError = null;
     this.service
       .getConversations(this.conversationPage, 20, this.conversationSearch)
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((result) => {
+      .subscribe({ next: (result) => {
+        if (!result) this.conversationError = 'La API no devolvió las conversaciones.';
         this.conversations = result?.items || [];
         this.conversationsTotal = result?.pagination.total || 0;
         this.conversationPages = result?.pagination.pages || 1;
@@ -423,7 +435,14 @@ export class AdminAISectionComponent implements OnInit {
         this.conversationsLoaded = true;
         this.lastUpdatedChange.emit(new Date());
         this.cdr.markForCheck();
-      });
+      }, error: () => {
+        this.conversations = [];
+        this.conversationsTotal = 0;
+        this.conversationError = 'No se pudieron cargar las conversaciones. Comprueba la conexión y los permisos.';
+        this.conversationsLoading = false;
+        this.conversationsLoaded = false;
+        this.cdr.markForCheck();
+      } });
   }
 
   private loadData(): void {
