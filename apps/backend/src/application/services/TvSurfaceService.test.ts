@@ -235,7 +235,7 @@ test('M10-C: an alias channel surface names its channel; related channels and th
     getGroupChannelCounts: async () => ({}),
   } as any;
   const cache = { get: async () => null, set: async () => undefined } as any;
-  const aliases = { resolve: async () => new Map([['telemadrid_tv', { id: 'telemadrid', name: 'Telemadrid', normalizedName: 'telemadrid' }]]) };
+  const aliases = { current: () => new Map([['telemadrid_tv', { id: 'telemadrid', name: 'Telemadrid', normalizedName: 'telemadrid' }]]) };
   const service = new TvSurfaceService(reader, cache, aliases);
 
   const aliasSurface = await service.getChannelSurface('telemadrid_tv', 'today');
@@ -251,6 +251,6 @@ test('M10-C: an alias channel surface names its channel; related channels and th
   assert.ok(![...guide.nowItems, ...guide.nextItems, ...guide.nightItems].some((i) => i.channel.id === 'telemadrid_tv'));
 
   // Alias list unavailable: every channel is served as itself, as before.
-  const degraded = new TvSurfaceService(reader, cache, { resolve: async () => { throw new Error('down'); } });
+  const degraded = new TvSurfaceService(reader, cache, { current: () => { throw new Error('down'); } });
   assert.equal((await degraded.getChannelSurface('telemadrid_tv', 'today')).canonicalChannel, undefined);
 });

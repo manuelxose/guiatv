@@ -255,14 +255,13 @@ export class TvSurfaceService {
   constructor(
     private readonly tvReadQueryService: TvReadQueryService,
     private readonly cacheRepository: ICacheRepository,
-    private readonly channelFeedAliases?: Pick<ChannelFeedAliasResolver, 'resolve'>
+    private readonly channelFeedAliases?: Pick<ChannelFeedAliasResolver, 'current'>
   ) {}
 
-  /** Never fails the page: without the alias list every channel is served as itself, as before M10-C. */
-  private async feedAliases(): Promise<Map<string, FeedAliasTarget>> {
-    if (!this.channelFeedAliases) return new Map();
+  /** Never waits nor fails the page: without the alias list every channel is served as itself, as before M10-C. */
+  private feedAliases(): Map<string, FeedAliasTarget> {
     try {
-      return await this.channelFeedAliases.resolve('today');
+      return this.channelFeedAliases?.current('today') ?? new Map();
     } catch {
       return new Map();
     }
@@ -296,7 +295,7 @@ export class TvSurfaceService {
       ? await this.tvReadQueryService.getGroupChannelCounts(day.date)
       : deriveGroupCountsFromItems(day.items);
     // M10-C: a verified second feed repeats its channel's schedule; the guide shows the channel once.
-    const aliases = await this.feedAliases();
+    const aliases = this.feedAliases();
     const channelSource = day.channels.filter((entry) => !aliases.has(entry.channel.id));
     const visibleChannels = sortChannels(filterGuideChannels(channelSource, group));
     const groupScopedItems = filterGuideItemsByGroup(day.items.filter((item) => !aliases.has(item.channel?.id)), group);
@@ -368,7 +367,7 @@ export class TvSurfaceService {
     const tonightItems = buildChannelPrimeTimeItems(response.items, response.date);
     // M10-C: today's verified feed aliases (a property of the feeds, not of the day shown). An alias page names its
     // channel; no page lists an alias among its related channels (it would link a redirect).
-    const aliases = await this.feedAliases();
+    const aliases = this.feedAliases();
     const canonicalChannel = channel ? aliases.get(channel.id) : undefined;
     const relatedChannels = (relatedSource.channels || [])
       .filter((entry) => entry.channel.id !== channel?.id && !aliases.has(entry.channel.id))

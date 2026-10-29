@@ -109,7 +109,11 @@ export function schedulesAgree(alias: readonly ScheduleItem[], target: readonly 
 
 type Reader = Pick<TvReadQueryService, 'getChannels' | 'getChannelDetail'>;
 
-/** Verified feed aliases of one day's channel directory, cached per instance; a request never waits twice. */
+/**
+ * Verified feed aliases of one day's channel directory, cached per instance (10 min). `resolve` waits for a fresh
+ * list (the sitemap); `current` never waits (page requests): it answers the last list, stale or not, and refreshes it
+ * in the background, so a page pays no directory read. Before the first list exists it answers an empty map.
+ */
 export class ChannelFeedAliasResolver {
   private readonly cache = new Map<string, { at: number; value: Map<string, FeedAliasTarget> }>();
   private readonly inFlight = new Map<string, Promise<Map<string, FeedAliasTarget>>>();
@@ -130,6 +134,14 @@ export class ChannelFeedAliasResolver {
       .finally(() => this.inFlight.delete(date));
     this.inFlight.set(date, load);
     return load;
+  }
+
+  current(date = 'today'): Map<string, FeedAliasTarget> {
+    const hit = this.cache.get(date);
+    if (!hit || this.now() - hit.at >= TTL_MS) {
+      this.resolve(date).catch((error) => log.warn('Feed aliases refresh failed; last list kept', { error: (error as Error).message }));
+    }
+    return hit?.value ?? new Map();
   }
 
   private async load(date: string): Promise<Map<string, FeedAliasTarget>> {

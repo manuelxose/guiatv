@@ -84,6 +84,20 @@ test('M10-C resolver: verified aliases only, cached, and a candidate with anothe
   assert.equal(calls.n, 1, 'cached');
 });
 
+test('M10-C resolver.current: never waits; empty before the first list, then the last list while it refreshes', async () => {
+  let clock = 0;
+  const calls = { n: 0 };
+  const resolver = new ChannelFeedAliasResolver(reader({ telemadrid: schedule('telemadrid', madridRows), telemadrid_tv: schedule('telemadrid_tv', madridRows) }, calls), () => clock);
+  assert.equal(resolver.current().size, 0, 'cold: nothing yet, a refresh starts');
+  await resolver.resolve();
+  assert.equal(calls.n, 1, 'the cold call and resolve shared one load');
+  assert.deepEqual([...resolver.current().keys()], ['telemadrid_tv']);
+  clock += 11 * 60_000;
+  assert.deepEqual([...resolver.current().keys()], ['telemadrid_tv'], 'stale list answered at once');
+  await resolver.resolve();
+  assert.equal(calls.n, 2, 'refreshed in the background');
+});
+
 test('M10-C sitemap-channels.xml: a verified alias is never listed; its channel and same-suffix channels are', async () => {
   invalidateSitemapCache();
   const tv = { getChannels: async () => ({ channels: directory.map((channel) => ({ channel })), meta: {} }) } as any;
