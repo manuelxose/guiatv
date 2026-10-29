@@ -27,6 +27,7 @@ import {
 
 type BlogStatusFilter = 'all' | 'draft' | 'publish';
 type BlogTypeFilter = 'all' | AdminBlogContentType;
+export type BlogStudioTab = 'posts' | 'content' | 'seo';
 
 interface BlogRouteOption {
   key: string;
@@ -57,6 +58,12 @@ export class AdminBlogSectionComponent implements OnInit {
   public confirmDeletePostOpen = false;
   public pendingDeletePost: AdminBlogPost | null = null;
 
+  public activeBlogTab: BlogStudioTab = 'posts';
+  public readonly blogTabs: Array<{ id: BlogStudioTab; label: string }> = [
+    { id: 'posts', label: 'Artículos' },
+    { id: 'content', label: 'Contenido' },
+    { id: 'seo', label: 'SEO y monetización' },
+  ];
   public blogStatusFilter: BlogStatusFilter = 'all';
   public blogTypeFilter: BlogTypeFilter = 'all';
   public blogCategoryFilter = 'all';
@@ -205,6 +212,15 @@ export class AdminBlogSectionComponent implements OnInit {
     return this.affiliatePlacementModeOptions.find((mode) => mode.id === current)?.description || '';
   }
 
+  setBlogTab(tab: BlogStudioTab): void {
+    this.activeBlogTab = tab;
+  }
+
+  startNewDraft(): void {
+    this.resetBlogForm(true);
+    this.activeBlogTab = 'content';
+  }
+
   onBlogSearchInput(event: Event): void {
     const target = event.target as HTMLInputElement | null;
     this.blogSearchTerm = target?.value || '';
@@ -260,6 +276,7 @@ export class AdminBlogSectionComponent implements OnInit {
           : 'Articulo editorial creado.';
         this.resetBlogForm();
         this.loadBlogPosts(true);
+        this.activeBlogTab = 'posts';
       },
       error: () => {
         this.blogSaving = false;
@@ -270,6 +287,7 @@ export class AdminBlogSectionComponent implements OnInit {
 
   editBlogPost(post: AdminBlogPost): void {
     this.selectedBlogPostId = post.id ? String(post.id) : null;
+    this.activeBlogTab = 'content';
     this.blogSaveError = null;
     this.blogSaveSuccess = null;
     this.resetAffiliatePreview();
@@ -587,6 +605,20 @@ export class AdminBlogSectionComponent implements OnInit {
     if (type === 'ranking') return 'Ranking';
     if (type === 'trend') return 'Tendencia';
     return 'Guia';
+  }
+
+  getPostOriginLabel(post: AdminBlogPost): string {
+    if (post.origin === 'ai-assisted') return 'IA asistida';
+    if (post.origin === 'automated-import') return 'IA automática';
+    if (post.origin === 'legacy') return 'Legado';
+    return 'Humano';
+  }
+
+  getPostReviewLabel(post: AdminBlogPost): string | null {
+    if (post.reviewState === 'unreviewed') return 'Sin revisar';
+    if (post.reviewState === 'in-review') return 'En revisión';
+    if (post.reviewState === 'rejected') return 'Rechazado';
+    return null;
   }
 
   private loadBlogPosts(force = false): void {

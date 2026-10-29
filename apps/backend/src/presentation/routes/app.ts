@@ -43,7 +43,7 @@ export const createApp = (dependencies: RoutesDependencies): Application => {
   app.use(requestLogger);
 
   // Rutas Blog (Legacy / separate from V2)
-  app.use('/blog', createBlogRoutes(dependencies.blogController));
+  app.use('/blog', createBlogRoutes(dependencies.blogController, dependencies.authService));
 
   // Rutas v2
   const v2Router = createV2Routes(dependencies);
