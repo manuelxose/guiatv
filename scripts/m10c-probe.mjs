@@ -205,3 +205,33 @@ if (!only || only === 'identities') {
     rows: rows.sort((a, b) => a[0].localeCompare(b[0])),
   });
 }
+
+if (only === 'feed-pairs') {
+  // Investigation only: every `.TV`-feed channel against every other autonomic/TDT channel, by schedule agreement
+  // (same title key within 10 minutes), to find second feeds whose key differs from their channel's (`Canarias.TV`).
+  const directory = (await get('/v2/tv/read/channels?date=today', { json: true })).json;
+  const chans = (directory?.data?.channels ?? []).map((e) => e.channel).filter((c) => c.group === 'autonomico' || c.group === 'tdt');
+  const key = (t) => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const slots = new Map();
+  for (const c of chans) {
+    const r = await get(`/v2/tv/surface/channels/${encodeURIComponent(c.id)}?date=today`, { json: true });
+    const items = (r.json?.data?.scheduleItems ?? []).filter((i) => i.channel?.id === c.id);
+    slots.set(c.id, items.map((i) => [key(i.program?.title), Date.parse(i.airing?.start)]).filter(([k, s]) => k && Number.isFinite(s)));
+    await pause(150);
+  }
+  const isTvFeed = (c) => (c.sourceIds ?? []).some((s) => /\.tv$/i.test(s)) && !(c.sourceIds ?? []).some((s) => /\.es$/i.test(s));
+  const rows = [];
+  for (const a of chans.filter(isTvFeed)) {
+    const mine = slots.get(a.id) ?? [];
+    let best = null;
+    for (const b of chans) {
+      if (b.id === a.id || isTvFeed(b)) continue;
+      const theirs = slots.get(b.id) ?? [];
+      const shared = mine.filter(([k, s]) => theirs.some(([k2, s2]) => k2 === k && Math.abs(s2 - s) <= 600000)).length;
+      if (!best || shared > best.shared) best = { id: b.id, name: b.name, sourceIds: (b.sourceIds ?? []).slice(-1), shared };
+    }
+    rows.push([a.id, a.name, mine.length, best?.id ?? '-', best?.name ?? '-', best?.sourceIds ?? [], best?.shared ?? 0,
+      mine.length ? Math.round(100 * (best?.shared ?? 0) / mine.length) : 0]);
+  }
+  print('feed-pairs', { rows });
+}

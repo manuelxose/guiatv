@@ -15,7 +15,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node scripts/m10c-probe.mjs > m10c-probe.jsonl; cat m10c-probe.jsonl
+      - run: node scripts/m10c-probe.mjs --section feed-pairs
   link-graph:
     if: contains(github.event.head_commit.message, '[link-graph]')
     runs-on: ubuntu-latest
