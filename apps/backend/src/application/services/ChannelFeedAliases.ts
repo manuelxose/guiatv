@@ -24,6 +24,7 @@ const log = logger.child('ChannelFeedAliases');
 export const MIN_SHARED = 3;
 export const SLOT_TOLERANCE_MS = 10 * 60_000;
 const TTL_MS = 10 * 60_000;
+const RETRY_MS = 60_000;
 
 export interface FeedChannel {
   id: string;
@@ -43,15 +44,15 @@ type ScheduleItem = Pick<TvReadItemDTO, 'airing' | 'program'>;
 /**
  * `.TV` key -> `.es` key of the same channel where the provider spells them differently. Each pair was reviewed on
  * the production schedules of 2026-10-29 (same title within 10 minutes for 93-100 % of the `.TV` airings,
- * docs/roadmap/M10C-DELIVERY.md); rule 2 still has to hold every day. `TeleMadridInt.TV` shares 61 % with Telemadrid
- * and is another channel (the international one): it is deliberately absent.
+ * docs/roadmap/M10C-DELIVERY.md); rule 2 still has to hold every day. Deliberately absent: `TeleMadridInt.TV` (61 %
+ * shared with Telemadrid, another channel) and `CMM TV` (95 % with "Castilla la Mancha TV", but a brand name of its
+ * own: which URL is canonical is the owner's call).
  */
 export const FEED_KEY_EQUIVALENTS: Readonly<Record<string, string>> = {
   canarias: 'tvcanaria',
   extremadura: 'canalextremadura',
   tvgal: 'tvgtvgalicia',
   '7rm': '7tvregionmurcia',
-  cmm: 'castillalamanchatv',
   etbsat: 'eitbbasque',
 };
 
@@ -117,6 +118,7 @@ type Reader = Pick<TvReadQueryService, 'getChannels' | 'getChannelDetail'>;
 export class ChannelFeedAliasResolver {
   private readonly cache = new Map<string, { at: number; value: Map<string, FeedAliasTarget> }>();
   private readonly inFlight = new Map<string, Promise<Map<string, FeedAliasTarget>>>();
+  private readonly failedAt = new Map<string, number>();
 
   constructor(private readonly reader: Reader, private readonly now: () => number = Date.now) {}
 
@@ -129,7 +131,11 @@ export class ChannelFeedAliasResolver {
     const load = this.load(date)
       .then((value) => {
         this.cache.set(date, { at: this.now(), value });
+        this.failedAt.delete(date);
         return value;
+      }, (error) => {
+        this.failedAt.set(date, this.now());
+        throw error;
       })
       .finally(() => this.inFlight.delete(date));
     this.inFlight.set(date, load);
@@ -138,7 +144,10 @@ export class ChannelFeedAliasResolver {
 
   current(date = 'today'): Map<string, FeedAliasTarget> {
     const hit = this.cache.get(date);
-    if (!hit || this.now() - hit.at >= TTL_MS) {
+    const failed = this.failedAt.get(date);
+    // After a failed load, page requests wait RETRY_MS before starting another one (a database incident must not
+    // turn every request into a directory read).
+    if ((!hit || this.now() - hit.at >= TTL_MS) && (failed === undefined || this.now() - failed >= RETRY_MS)) {
       this.resolve(date).catch((error) => log.warn('Feed aliases refresh failed; last list kept', { error: (error as Error).message }));
     }
     return hit?.value ?? new Map();

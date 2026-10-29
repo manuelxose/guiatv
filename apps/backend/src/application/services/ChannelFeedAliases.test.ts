@@ -36,8 +36,10 @@ test('M10-C feed keys: only the dotted feed ids, compared without accents, case 
 test('M10-C candidates: a ".TV" feed pairs with the one channel carrying the same ".es" key; names ending in TV never do', () => {
   const c = feedAliasCandidates(directory);
   assert.deepEqual([...c].map(([alias, target]) => [alias, target.id]).sort(), [
-    ['apunt_tv', 'a_punt'], ['aragontv_tv', 'aragon_tv'], ['canarias_tv', 'tv_canaria'], ['cmm_tv', 'castilla_la_mancha_tv'], ['telemadrid_tv', 'telemadrid'],
+    ['apunt_tv', 'a_punt'], ['aragontv_tv', 'aragon_tv'], ['canarias_tv', 'tv_canaria'], ['telemadrid_tv', 'telemadrid'],
   ]);
+  // "CMM TV" shares Castilla la Mancha TV's schedule but is a brand of its own: not paired without an owner decision.
+  assert.ok(!c.has('cmm_tv'));
   // No `.es` counterpart: stays its own channel (documented as unresolved, not guessed). The international feed
   // shares much of Telemadrid's schedule but is another channel: no id pairs it.
   assert.ok(!c.has('sx3_tv') && !c.has('telemadridint_tv'));
@@ -96,6 +98,22 @@ test('M10-C resolver.current: never waits; empty before the first list, then the
   assert.deepEqual([...resolver.current().keys()], ['telemadrid_tv'], 'stale list answered at once');
   await resolver.resolve();
   assert.equal(calls.n, 2, 'refreshed in the background');
+});
+
+test('M10-C resolver.current: after a failed load, page requests wait a minute before reading again', async () => {
+  let clock = 0;
+  let calls = 0;
+  const failing = { getChannels: async () => { calls += 1; throw new Error('db down'); }, getChannelDetail: async () => ({ items: [] }) } as any;
+  const resolver = new ChannelFeedAliasResolver(failing, () => clock);
+  assert.equal(resolver.current().size, 0);
+  await new Promise((ok) => setImmediate(ok));
+  for (let i = 0; i < 5; i++) resolver.current();
+  await new Promise((ok) => setImmediate(ok));
+  assert.equal(calls, 1, 'no new read inside the retry window');
+  clock += 61_000;
+  resolver.current();
+  await new Promise((ok) => setImmediate(ok));
+  assert.equal(calls, 2);
 });
 
 test('M10-C sitemap-channels.xml: a verified alias is never listed; its channel and same-suffix channels are', async () => {

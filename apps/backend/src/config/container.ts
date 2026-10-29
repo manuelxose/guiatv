@@ -637,7 +637,8 @@ export class Container {
 
     const tvController = new TvController(
       this.get('tvReadQueryService'),
-      this.get('tvSurfaceService')
+      this.get('tvSurfaceService'),
+      this.get('channelFeedAliases')
     );
     this.dependencies.set('tvController', tvController);
 

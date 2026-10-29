@@ -110,6 +110,20 @@ describe('CanalCompletoComponent — channel-page affiliate CTA', () => {
     }));
   });
 
+  it('M10-C: a second-feed alias page declares its channel as canonical (when the SSR 301 did not apply)', () => {
+    const surface = { ...buildSurface({ id: 'telemadrid_tv', name: 'Telemadrid.TV', normalizedName: 'telemadrid_tv' } as any),
+      canonicalChannel: { id: 'telemadrid', name: 'Telemadrid', normalizedName: 'telemadrid' } } as TvChannelSurfaceDTO;
+    configure(surface);
+    TestBed.createComponent(CanalCompletoComponent).detectChanges();
+    expect(setMetaTagsSpy.calls.mostRecent().args[0].canonicalUrl).toBe('/canales/telemadrid');
+  });
+
+  it('M10-C: a channel without canonicalChannel keeps its own canonical', () => {
+    configure(buildSurface({ id: 'aragon_tv', name: 'Aragón TV', normalizedName: 'aragon_tv' } as any));
+    TestBed.createComponent(CanalCompletoComponent).detectChanges();
+    expect(setMetaTagsSpy.calls.mostRecent().args[0].canonicalUrl).toBe('/canales/aragon-tv');
+  });
+
   function airing(id: string, start: string, end: string, liveNow = false): TvReadItemDTO {
     return {
       id,

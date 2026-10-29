@@ -691,26 +691,19 @@ export class CatalogDetailComponent implements OnInit, OnDestroy {
     );
   }
 
+  /** M10-C: ranked by airtime, so airings come first (the `popular` order put TMDB titles on top, which the rail drops). */
   private buildFallbackRelatedQuery(
     item: CatalogItem,
     strict: boolean
   ): CatalogQuery {
     const query: CatalogQuery = {
       types: [item.contentType],
-      sort: item.contentType === 'program' ? 'airtime' : 'popular',
+      sort: 'airtime',
       limit: 8,
     };
 
     if (strict && item.genres?.length) {
       query.genres = item.genres.slice(0, item.contentType === 'program' ? 1 : 2);
-    }
-
-    if (
-      strict &&
-      item.contentType !== 'program' &&
-      item.primaryPlatforms?.length
-    ) {
-      query.platforms = item.primaryPlatforms.slice(0, 1);
     }
 
     return query;

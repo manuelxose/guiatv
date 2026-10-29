@@ -25,12 +25,19 @@ test('M10-C: a verified second-feed channel page is a 301 to its channel; a chan
   const aragonTv = channel('aragon_tv', 'Aragón TV', ['aragon_tv', 'aragontv_es', 'AragonTV.es']);
   await withSsr({
     '/v2/tv/surface/channels/telemadrid-tv': surface(telemadridTv, { canonicalChannel: { id: 'telemadrid', name: 'Telemadrid', normalizedName: 'telemadrid' } }),
+    '/v2/tv/surface/channels/telemadrid_tv': surface(telemadridTv, { canonicalChannel: { id: 'telemadrid', name: 'Telemadrid', normalizedName: 'telemadrid' } }),
     '/v2/tv/surface/channels/aragon-tv': surface(aragonTv),
     '/v2/tv/surface/channels/aragon_tv': surface(aragonTv), // the page asks with the channel id form
   }, async (ssr) => {
     const alias = await fetch(`${ssr.origin}/canales/telemadrid-tv`, { redirect: 'manual' });
     assert.equal(alias.status, 301, ssr.logs());
     assert.equal(alias.headers.get('location'), '/canales/telemadrid');
+    // The day filter survives, and the underscore form reaches the channel in one hop.
+    const tomorrow = await fetch(`${ssr.origin}/canales/telemadrid-tv?dia=manana`, { redirect: 'manual' });
+    assert.equal(tomorrow.headers.get('location'), '/canales/telemadrid?dia=manana');
+    const underscore = await fetch(`${ssr.origin}/canales/telemadrid_tv`, { redirect: 'manual' });
+    assert.equal(underscore.status, 301);
+    assert.equal(underscore.headers.get('location'), '/canales/telemadrid');
 
     const own = await fetch(`${ssr.origin}/canales/aragon-tv`, { redirect: 'manual' });
     const html = await own.text();

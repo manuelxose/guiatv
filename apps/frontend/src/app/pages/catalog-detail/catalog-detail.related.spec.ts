@@ -114,6 +114,14 @@ describe('CatalogDetailComponent: M10-C programme rail', () => {
     fixture.destroy();
   });
 
+  it('asks for airings first (airtime order, no platform filter)', () => {
+    const { fixture, query } = render([[verified]]);
+    const asked = query.calls.first().args[0];
+    expect(asked.sort).toBe('airtime');
+    expect(asked.platforms).toBeUndefined();
+    fixture.destroy();
+  });
+
   it('only unverified catalogue titles: no rail at all, never an empty or broken card', () => {
     const { fixture } = render([[unverifiedPopular], [unverifiedPopular]]);
     expect(fixture.nativeElement.querySelector('app-catalog-rail')).toBeNull();

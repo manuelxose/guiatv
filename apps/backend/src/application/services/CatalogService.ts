@@ -396,7 +396,10 @@ export class CatalogService {
    * One cache read per card on this page and one batched catalogue read; a read failure leaves the links as they were.
    */
   private async markUnresolvedWorkPaths(items: CatalogItemDTO[]): Promise<CatalogItemDTO[]> {
-    const tmdbCards = items.filter((item) => item.source === 'tmdb' && item.tmdbId && (item.contentType === 'movie' || item.contentType === 'series'));
+    // Bounded: a page of cards is at most a few dozen; a large `limit` checks its first 200 TMDB cards.
+    const tmdbCards = items
+      .filter((item) => item.source === 'tmdb' && item.tmdbId && (item.contentType === 'movie' || item.contentType === 'series'))
+      .slice(0, 200);
     if (!tmdbCards.length) return items;
     try {
       const searchText = (slug: string) => String(slug || '').replace(/-/g, ' ').trim();

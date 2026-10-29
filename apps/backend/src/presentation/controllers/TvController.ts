@@ -5,12 +5,26 @@ import {
   TvReadQueryService,
 } from '@/application/services/TvReadQueryService';
 import { TvSurfaceService } from '@/application/services/TvSurfaceService';
+import type { ChannelFeedAliasResolver } from '@/application/services/ChannelFeedAliases';
 
 export class TvController {
   constructor(
     private readonly tvReadQueryService: TvReadQueryService,
-    private readonly tvSurfaceService: TvSurfaceService
+    private readonly tvSurfaceService: TvSurfaceService,
+    /** M10-C: lists never show a verified second feed of a channel (it repeats that channel and its page is a 301). */
+    private readonly channelFeedAliases?: Pick<ChannelFeedAliasResolver, 'current'>
   ) {}
+
+  /** Never waits nor fails a request: without the alias list every channel is listed, as before M10-C. */
+  private isAlias(): (channelId: string | undefined) => boolean {
+    let aliases: Map<string, unknown>;
+    try {
+      aliases = this.channelFeedAliases?.current('today') ?? new Map();
+    } catch {
+      aliases = new Map();
+    }
+    return (channelId) => Boolean(channelId && aliases.has(channelId));
+  }
 
   async read(req: Request, res: Response): Promise<void> {
     const result = await this.tvReadQueryService.query({
@@ -25,8 +39,15 @@ export class TvController {
       cursor: req.query.cursor ? String(req.query.cursor) : undefined,
       includeChannels: String(req.query.includeChannels || 'true') !== 'false',
     });
+    // An explicit channel filter is a request for that channel's own rows: kept.
+    const alias = req.query.channelId ? () => false : this.isAlias();
+    const shown = {
+      ...result,
+      items: result.items.filter((item) => !alias(item.channel?.id)),
+      channels: (result.channels || []).filter((entry) => !alias(entry.channel?.id)),
+    };
 
-    res.status(200).json(successResponse(result, result.meta));
+    res.status(200).json(successResponse(shown, result.meta));
   }
 
   async readChannels(req: Request, res: Response): Promise<void> {
@@ -34,7 +55,9 @@ export class TvController {
     const group = req.query.group ? String(req.query.group) : undefined;
     const limit = req.query.limit ? Number(req.query.limit) : undefined;
     const result = await this.tvReadQueryService.getChannels(date, group, limit);
-    res.status(200).json(successResponse(result, result.meta));
+    const alias = this.isAlias();
+    const shown = { ...result, channels: result.channels.filter((entry) => !alias(entry.channel?.id)) };
+    res.status(200).json(successResponse(shown, result.meta));
   }
 
   async readSchedule(req: Request, res: Response): Promise<void> {
@@ -48,7 +71,9 @@ export class TvController {
         ? Number(req.query.itemsPerChannel)
         : undefined,
     });
-    res.status(200).json(successResponse(result, result.meta));
+    const alias = req.query.channelId ? () => false : this.isAlias();
+    const shown = { ...result, channels: result.channels.filter((entry) => !alias(entry.channel?.id)) };
+    res.status(200).json(successResponse(shown, result.meta));
   }
 
   async readChannelDetail(req: Request, res: Response): Promise<void> {
