@@ -1,6 +1,6 @@
 # M10-C: canales canónicos, rail de programas seguro, enlaces rotos y rastreabilidad
 
-Fecha: 2026-10-29. Rama `claude/guiatv-m10c-cleanup-qtt7ju`. Producción de partida: `f6ff172` (PR #126, run 40926451726, desplegado hoy a las 17:58 UTC sobre M10-B `20261028223254`).
+Fecha: 2026-10-29. PR #128, squash `2c2a431` en `main` (CI `changes`, `backend` con Mongo 8, `frontend` y `verify` en verde). **No desplegado**: lanzar `deploy-artifact.yml` desde este entorno devuelve 403. Producción de partida: `f6ff172` (PR #126, run 40926451726, desplegado hoy a las 17:58 UTC sobre M10-B `20261028223254`).
 
 Evidencia de producción: este entorno de agente no tiene ruta al sitio ni permiso para lanzar workflows, así que las mediciones se hicieron con un workflow temporal de la rama (`m10c-probe.yml`, solo GET, eliminado antes del merge) que ejecuta `scripts/m10c-probe.mjs` y `scripts/seo-link-graph.mjs` en GitHub Actions. Runs: 40927800290 (probe + grafo, 18:07–18:22 UTC), 40928581145 (probe con identidades), 40932232480 (pares de feeds).
 
@@ -221,7 +221,7 @@ Esperado con los datos del 29 oct:
 ## 8. Producción y rollback
 
 - **Producción actual:** `f6ff172` (PR #126, run 40926451726), sobre M10-B `20261028223254`. El id exacto de la release de hoy no se pudo leer desde aquí (sin SSH): está en el log del run 40926451726 y en `readlink -f /var/www/guiatv/current`.
-- **Despliegue de M10-C: no realizado.** El agente no puede lanzar workflows (`POST …/dispatches` → 403) ni llegar al host.
+- **Despliegue de M10-C (`2c2a431`): no realizado.** El agente no puede lanzar workflows (`POST …/actions/workflows/deploy-artifact.yml/dispatches` → 403, probado tras el merge) ni llegar al host.
   - **Procedimiento:** tras el merge, el propietario lanza `deploy-artifact.yml` en `main` y comprueba que el run compiló el commit del merge.
   - **Verificación:**
     - `curl -sI https://guiaprogramaciontv.com/canales/telemadrid-tv` → `301` a `/canales/telemadrid`;
