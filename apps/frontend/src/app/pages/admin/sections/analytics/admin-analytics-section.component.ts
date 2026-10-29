@@ -12,10 +12,18 @@ import {
 import { Subscription, interval } from 'rxjs';
 import {
   AdminAnalyticsEvent,
+  AdminAnalyticsJourney,
   AdminAnalyticsLiveSession,
   AdminAnalyticsOverview,
   AdminAnalyticsService,
 } from '../../../../services/admin-analytics.service';
+import {
+  AdminRetentionCohort,
+  AdminUsersService,
+} from '../../../../services/admin-users.service';
+import { environment } from '../../../../../environments/environment';
+
+const VIEW_STORAGE_KEY = 'gtv_admin_analytics_view';
 
 @Component({
   selector: 'app-admin-analytics-section',
@@ -64,11 +72,20 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnDestroy {
     { id: 'retention', label: 'Retention' },
   ];
 
+  public journeys: AdminAnalyticsJourney[] = [];
+  public journeysSessionsAnalyzed = 0;
+  public journeysLoaded = false;
+  public retentionCohorts: AdminRetentionCohort[] = [];
+  public retentionLoaded = false;
+  public showAllTopPages = false;
+  public viewSavedMessage: string | null = null;
+
   private subs = new Subscription();
   private readonly isBrowser: boolean;
 
   constructor(
     private analyticsService: AdminAnalyticsService,
+    private usersService: AdminUsersService,
     @Inject(PLATFORM_ID) platformId: object
   ) {
     this.isBrowser = isPlatformBrowser(platformId);
@@ -76,6 +93,11 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     if (!this.isBrowser) return;
+    const savedView = window.localStorage.getItem(VIEW_STORAGE_KEY);
+    if (savedView && savedView !== this.activeItem
+      && this.analyticsTabs.some((tab) => tab.id === savedView)) {
+      this.activeItemChange.emit(savedView);
+    }
     this.loadAnalytics();
 
     this.subs.add(interval(10000).subscribe(() => this.loadLive()));
@@ -116,6 +138,48 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnDestroy {
   selectTab(tabId: string): void {
     if (this.activeItem === tabId) return;
     this.activeItemChange.emit(tabId);
+    if (tabId === 'journeys' && !this.journeysLoaded) this.loadJourneys();
+    if (tabId === 'retention' && !this.retentionLoaded) this.loadRetention();
+  }
+
+  saveView(): void {
+    if (!this.isBrowser) return;
+    window.localStorage.setItem(VIEW_STORAGE_KEY, this.activeItem);
+    this.viewSavedMessage = `Vista "${this.activeItem}" guardada como predeterminada.`;
+    setTimeout(() => (this.viewSavedMessage = null), 3000);
+  }
+
+  exportCsv(): void {
+    if (!this.isBrowser) return;
+    const rows: string[][] = [['section', 'key', 'value']];
+    if (this.overview) {
+      rows.push(['overview', 'totalPageViews', String(this.overview.totalPageViews ?? 0)]);
+      for (const page of this.overview.topPages || []) {
+        rows.push(['top_page', page.path, String(page.count)]);
+      }
+      for (const day of this.overview.sessionsByDay || []) {
+        rows.push(['sessions_by_day', day.date, String(day.count)]);
+      }
+    }
+    for (const journey of this.journeys) {
+      rows.push(['journey', journey.steps.join(' > '), String(journey.count)]);
+    }
+    const csv = rows.map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `guiatv-analytics-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
+  toggleShowAllTopPages(): void {
+    this.showAllTopPages = !this.showAllTopPages;
+  }
+
+  openPagePath(path: string): void {
+    if (!this.isBrowser) return;
+    window.open(`${environment.SITE_URL}${path}`, '_blank', 'noopener');
   }
 
   selectEventFilter(type?: string): void {
@@ -194,6 +258,35 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnDestroy {
     this.loadOverview();
     this.loadLive();
     this.loadEvents();
+    if (this.activeItem === 'journeys') this.loadJourneys();
+    if (this.activeItem === 'retention') this.loadRetention();
+  }
+
+  private loadJourneys(): void {
+    this.analyticsService.getJourneys(7).subscribe({
+      next: (result) => {
+        this.journeys = result.journeys;
+        this.journeysSessionsAnalyzed = result.sessionsAnalyzed;
+        this.journeysLoaded = true;
+      },
+      error: () => {
+        this.journeys = [];
+        this.journeysLoaded = true;
+      },
+    });
+  }
+
+  private loadRetention(): void {
+    this.usersService.getRetention().subscribe({
+      next: (cohorts) => {
+        this.retentionCohorts = cohorts;
+        this.retentionLoaded = true;
+      },
+      error: () => {
+        this.retentionCohorts = [];
+        this.retentionLoaded = true;
+      },
+    });
   }
 
   private loadOverview(): void {

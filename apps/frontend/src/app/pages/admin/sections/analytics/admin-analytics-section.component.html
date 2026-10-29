@@ -25,6 +25,7 @@
       <button
         type="button"
         class="px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text)] hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+        (click)="exportCsv()"
       >
         Export
       </button>
@@ -44,6 +45,17 @@
     </button>
   </nav>
 
+  <div class="flex items-center gap-3 text-xs">
+    <button
+      type="button"
+      class="px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+      (click)="saveView()"
+    >
+      Save view
+    </button>
+    <span *ngIf="viewSavedMessage" class="text-[var(--accent-discover)]">{{ viewSavedMessage }}</span>
+  </div>
+
   <div class="flex flex-wrap items-center justify-between gap-3">
     <div class="flex flex-wrap items-center gap-2">
       <button
@@ -55,40 +67,6 @@
         [attr.aria-pressed]="eventFilter === filter.type"
       >
         {{ filter.label }}
-      </button>
-    </div>
-    <div class="flex flex-wrap items-center gap-2 text-xs">
-      <select
-        class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-3 py-2 text-xs text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-        aria-label="Segment"
-      >
-        <option>All segments</option>
-        <option>Subscribers</option>
-        <option>Anonymous</option>
-        <option>Editors</option>
-      </select>
-      <select
-        class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-3 py-2 text-xs text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-        aria-label="Device"
-      >
-        <option>All devices</option>
-        <option>Desktop</option>
-        <option>Mobile</option>
-        <option>Tablet</option>
-      </select>
-      <select
-        class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-3 py-2 text-xs text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-        aria-label="Comparison"
-      >
-        <option>Compare to previous period</option>
-        <option>No comparison</option>
-        <option>Last 30 days</option>
-      </select>
-      <button
-        type="button"
-        class="px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text)] hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-      >
-        Save view
       </button>
     </div>
   </div>
@@ -151,13 +129,17 @@
                 <button
                   type="button"
                   class="text-xs text-[var(--portal-text-soft)] hover:text-[var(--portal-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+                  (click)="toggleShowAllTopPages()"
                 >
-                  View all
+                  {{ showAllTopPages ? 'View less' : 'View all' }}
                 </button>
               </div>
               <div *ngIf="overview?.topPages?.length === 0" class="text-sm text-[var(--portal-text-muted)]">No data yet.</div>
-              <div *ngIf="overview?.topPages?.length" class="space-y-3">
-                <div *ngFor="let page of overview?.topPages" class="flex items-center justify-between text-sm">
+              <div *ngIf="overview?.topPages?.length" class="space-y-3" [ngClass]="{ 'max-h-72 overflow-auto pr-1': showAllTopPages }">
+                <div
+                  *ngFor="let page of showAllTopPages ? overview?.topPages : (overview?.topPages || []).slice(0, 5)"
+                  class="flex items-center justify-between text-sm"
+                >
                   <span class="text-[var(--portal-text)] truncate pr-3">{{ page.path }}</span>
                   <span class="text-[var(--portal-text-soft)]">{{ page.count }}</span>
                 </div>
@@ -226,7 +208,8 @@
           </div>
           <button
             type="button"
-            class="px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text)] hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+            class="px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+            (click)="exportCsv()"
           >
             Export table
           </button>
@@ -238,16 +221,15 @@
                 <th class="px-4 py-3">Page</th>
                 <th class="px-4 py-3">Views</th>
                 <th class="px-4 py-3">Share</th>
-                <th class="px-4 py-3">Trend</th>
-                <th class="px-4 py-3 text-right">Action</th>
+                <th class="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-[var(--portal-border)]">
               <tr *ngIf="!overview">
-                <td colspan="5" class="px-4 py-6 text-center text-[var(--portal-text-muted)]">Loading data...</td>
+                <td colspan="4" class="px-4 py-6 text-center text-[var(--portal-text-muted)]">Loading data...</td>
               </tr>
               <tr *ngIf="overview?.topPages?.length === 0">
-                <td colspan="5" class="px-4 py-6 text-center text-[var(--portal-text-muted)]">No data yet.</td>
+                <td colspan="4" class="px-4 py-6 text-center text-[var(--portal-text-muted)]">No data yet.</td>
               </tr>
               <tr *ngFor="let page of overview?.topPages" class="hover:bg-[var(--portal-surface)]">
                 <td class="px-4 py-4 text-[var(--portal-text)]">{{ page.path }}</td>
@@ -255,11 +237,11 @@
                 <td class="px-4 py-4 text-[var(--portal-text-soft)]">
                   {{ ((page.count / (overview?.totalPageViews || 1)) * 100) | number: '1.0-1' }}%
                 </td>
-                <td class="px-4 py-4 text-[var(--accent-discover)]">+{{ (page.count % 10) + 2 }}%</td>
                 <td class="px-4 py-4 text-right">
                   <button
                     type="button"
-                    class="text-xs text-[var(--spotify-negative)] hover:text-[var(--spotify-negative)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+                    class="text-xs text-[var(--portal-text-soft)] hover:text-[var(--portal-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+                    (click)="openPagePath(page.path)"
                   >
                     View
                   </button>
@@ -421,85 +403,64 @@
 
     <div *ngSwitchCase="'journeys'" class="space-y-6">
       <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6">
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
-            <h4 class="text-lg font-semibold text-[var(--portal-text)]">Journeys</h4>
-            <p class="text-xs text-[var(--portal-text-muted)]">Define funnels and editorial conversions.</p>
+            <h4 class="text-lg font-semibold text-[var(--portal-text)]">User journeys</h4>
+            <p class="text-xs text-[var(--portal-text-muted)]">
+              Most common 3-step page paths from the last 7 days ({{ journeysSessionsAnalyzed }} sessions analyzed).
+            </p>
           </div>
-          <button
-            type="button"
-            class="px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text)] hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+        </div>
+        <div *ngIf="!journeysLoaded" class="space-y-3 animate-pulse">
+          <div class="h-14 rounded-2xl bg-[var(--portal-surface)] border border-[var(--portal-border)]"></div>
+          <div class="h-14 rounded-2xl bg-[var(--portal-surface)] border border-[var(--portal-border)]"></div>
+        </div>
+        <div *ngIf="journeysLoaded && journeys.length === 0" class="text-sm text-[var(--portal-text-muted)] py-6 text-center">
+          No journeys recorded yet.
+        </div>
+        <div *ngIf="journeys.length" class="space-y-3 max-h-[520px] overflow-auto pr-1">
+          <div
+            *ngFor="let journey of journeys"
+            class="flex items-center justify-between gap-4 p-4 rounded-2xl bg-[var(--portal-surface)] border border-[var(--portal-border)]"
           >
-            Create journey
-          </button>
-        </div>
-        <div class="grid md:grid-cols-3 gap-4 text-sm text-[var(--portal-text-soft)]">
-          <div class="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface)] p-4">
-            <p class="text-xs uppercase tracking-[0.2em] text-[var(--portal-text-muted)]">Step 1</p>
-            <p class="text-[var(--portal-text)] mt-2">Landing page view</p>
-            <p class="text-xs text-[var(--portal-text-muted)] mt-3">Conversion 100%</p>
-          </div>
-          <div class="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface)] p-4">
-            <p class="text-xs uppercase tracking-[0.2em] text-[var(--portal-text-muted)]">Step 2</p>
-            <p class="text-[var(--portal-text)] mt-2">Program detail</p>
-            <p class="text-xs text-[var(--portal-text-muted)] mt-3">Conversion 46%</p>
-          </div>
-          <div class="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface)] p-4">
-            <p class="text-xs uppercase tracking-[0.2em] text-[var(--portal-text-muted)]">Step 3</p>
-            <p class="text-[var(--portal-text)] mt-2">Schedule reminder</p>
-            <p class="text-xs text-[var(--portal-text-muted)] mt-3">Conversion 18%</p>
+            <span class="text-sm text-[var(--portal-text)] break-all">{{ journey.steps.join(' → ') }}</span>
+            <span class="text-xs text-[var(--portal-text-soft)] whitespace-nowrap">{{ journey.count }} sessions</span>
           </div>
         </div>
-        <p class="text-xs text-[var(--portal-text-muted)] mt-4">Define event groups to unlock advanced breakdowns and cohort drill-down.</p>
       </div>
     </div>
 
     <div *ngSwitchCase="'retention'" class="space-y-6">
       <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6">
-        <div class="flex items-center justify-between mb-4">
-          <div>
-            <h4 class="text-lg font-semibold text-[var(--portal-text)]">Retention</h4>
-            <p class="text-xs text-[var(--portal-text-muted)]">Measure editorial stickiness and return rate.</p>
-          </div>
-          <button
-            type="button"
-            class="px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text)] hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-          >
-            Configure cohorts
-          </button>
+        <div class="mb-4">
+          <h4 class="text-lg font-semibold text-[var(--portal-text)]">Weekly retention cohorts</h4>
+          <p class="text-xs text-[var(--portal-text-muted)]">
+            Percentage of users from each signup week active in later weeks. "—" means the week has not elapsed yet.
+          </p>
         </div>
-        <div class="overflow-auto border border-[var(--portal-border)] rounded-2xl">
-          <table class="min-w-[620px] w-full text-sm text-left">
-            <thead class="bg-[var(--portal-surface)] text-[11px] uppercase text-[var(--portal-text-muted)]">
+        <div *ngIf="!retentionLoaded" class="space-y-3 animate-pulse">
+          <div class="h-14 rounded-2xl bg-[var(--portal-surface)] border border-[var(--portal-border)]"></div>
+          <div class="h-14 rounded-2xl bg-[var(--portal-surface)] border border-[var(--portal-border)]"></div>
+        </div>
+        <div *ngIf="retentionLoaded && retentionCohorts.length === 0" class="text-sm text-[var(--portal-text-muted)] py-6 text-center">
+          No cohorts yet.
+        </div>
+        <div *ngIf="retentionCohorts.length" class="overflow-auto max-h-[520px] border border-[var(--portal-border)] rounded-2xl">
+          <table class="min-w-[720px] w-full text-sm text-left">
+            <thead class="sticky top-0 bg-[var(--portal-surface)] text-[11px] uppercase text-[var(--portal-text-muted)]">
               <tr>
                 <th class="px-4 py-3">Cohort</th>
-                <th class="px-4 py-3">Week 1</th>
-                <th class="px-4 py-3">Week 2</th>
-                <th class="px-4 py-3">Week 3</th>
-                <th class="px-4 py-3">Week 4</th>
+                <th class="px-4 py-3">Users</th>
+                <th *ngFor="let week of retentionCohorts[0]?.weeks; let i = index" class="px-4 py-3">W{{ i }}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-[var(--portal-border)]">
-              <tr>
-                <td class="px-4 py-4 text-[var(--portal-text)]">Nov 01 - Nov 07</td>
-                <td class="px-4 py-4 text-[var(--accent-discover)]">42%</td>
-                <td class="px-4 py-4 text-[var(--spotify-warning)]">31%</td>
-                <td class="px-4 py-4 text-[var(--portal-text-soft)]">22%</td>
-                <td class="px-4 py-4 text-[var(--portal-text-soft)]">18%</td>
-              </tr>
-              <tr>
-                <td class="px-4 py-4 text-[var(--portal-text)]">Nov 08 - Nov 14</td>
-                <td class="px-4 py-4 text-[var(--accent-discover)]">38%</td>
-                <td class="px-4 py-4 text-[var(--spotify-warning)]">27%</td>
-                <td class="px-4 py-4 text-[var(--portal-text-soft)]">20%</td>
-                <td class="px-4 py-4 text-[var(--portal-text-soft)]">15%</td>
-              </tr>
-              <tr>
-                <td class="px-4 py-4 text-[var(--portal-text)]">Nov 15 - Nov 21</td>
-                <td class="px-4 py-4 text-[var(--accent-discover)]">36%</td>
-                <td class="px-4 py-4 text-[var(--spotify-warning)]">25%</td>
-                <td class="px-4 py-4 text-[var(--portal-text-soft)]">19%</td>
-                <td class="px-4 py-4 text-[var(--portal-text-soft)]">14%</td>
+              <tr *ngFor="let cohort of retentionCohorts" class="hover:bg-[var(--portal-surface)]">
+                <td class="px-4 py-4 text-[var(--portal-text)]">{{ cohort.cohort }}</td>
+                <td class="px-4 py-4 text-[var(--portal-text-soft)]">{{ cohort.size }}</td>
+                <td *ngFor="let week of cohort.weeks" class="px-4 py-4 text-[var(--portal-text-soft)]">
+                  {{ week === null ? '—' : (week | number: '1.0-0') + '%' }}
+                </td>
               </tr>
             </tbody>
           </table>

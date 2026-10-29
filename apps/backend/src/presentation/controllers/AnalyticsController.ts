@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AnalyticsService } from '../../application/services/AnalyticsService';
+import { AnalyticsEventModel } from '../../infrastructure/database/models/AnalyticsEvent.model';
 import { successResponse } from '../../shared/types/ApiResponse';
 import { ValidationError } from '../../shared/errors';
 
@@ -227,6 +228,43 @@ export class AnalyticsController {
     });
 
     res.status(200).json(successResponse({ events }));
+  }
+
+  /**
+   * Simple real "journeys": the most common first page sequences per session
+   * over the last N days, built from page_view events. No fabricated funnels.
+   */
+  async getJourneys(req: Request, res: Response): Promise<void> {
+    const days = Math.min(Math.max(this.parseNumber(req.query.days, 7), 1), 30);
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const sessions = await AnalyticsEventModel.aggregate([
+      { $match: { type: 'page_view', occurredAt: { $gte: since }, path: { $exists: true, $ne: '' } } },
+      { $sort: { occurredAt: 1 } },
+      { $group: { _id: '$sessionId', paths: { $push: '$path' }, last: { $max: '$occurredAt' } } },
+      { $sort: { last: -1 } },
+      { $limit: 5000 },
+    ]).exec();
+
+    const sequences = new Map<string, { steps: string[]; count: number }>();
+    for (const session of sessions) {
+      const steps: string[] = [];
+      for (const path of session.paths as string[]) {
+        if (steps[steps.length - 1] !== path) steps.push(path);
+        if (steps.length === 3) break;
+      }
+      if (!steps.length) continue;
+      const key = steps.join(' → ');
+      const entry = sequences.get(key) || { steps, count: 0 };
+      entry.count += 1;
+      sequences.set(key, entry);
+    }
+
+    const journeys = Array.from(sequences.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    res.status(200).json(successResponse({ days, sessionsAnalyzed: sessions.length, journeys }));
   }
 
   private parseNumber(

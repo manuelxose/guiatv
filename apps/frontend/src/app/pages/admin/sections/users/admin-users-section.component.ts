@@ -7,6 +7,7 @@ import {
   AdminUsersService,
 } from '../../../../services/admin-users.service';
 import { AdminConfirmDialogComponent } from '../../components/admin-confirm-dialog/admin-confirm-dialog.component';
+import { environment } from '../../../../../environments/environment';
 
 @Component({
   selector: 'app-admin-users-section',
@@ -29,6 +30,8 @@ export class AdminUsersSectionComponent implements OnInit {
   public page = 1;
   public limit = 20;
   public total = 0;
+  public adminCount: number | null = null;
+  public suspendedCount: number | null = null;
   public pages = 1;
 
   public readonly roleOptions: Array<{ id: 'all' | AdminUserRole; label: string }> = [
@@ -88,6 +91,10 @@ export class AdminUsersSectionComponent implements OnInit {
   refresh(): void {
     this.page = 1;
     this.loadUsers(true);
+  }
+
+  inviteUser(): void {
+    window.open(`${environment.SITE_URL}/registro`, '_blank', 'noopener');
   }
 
   applyFilters(): void {
@@ -188,6 +195,8 @@ export class AdminUsersSectionComponent implements OnInit {
         next: (response) => {
           this.users = response.users || [];
           this.total = response.pagination?.total || 0;
+          this.adminCount = response.counts?.admins ?? null;
+          this.suspendedCount = response.counts?.suspended ?? null;
           this.page = response.pagination?.page || this.page;
           this.limit = response.pagination?.limit || this.limit;
           this.pages = response.pagination?.pages || 1;

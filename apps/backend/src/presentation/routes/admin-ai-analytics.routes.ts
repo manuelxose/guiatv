@@ -14,6 +14,8 @@ export const createAdminAIAnalyticsRoutes = (
   router.get('/overview', adminGuard, asyncHandler(controller.getOverview.bind(controller)));
   router.get('/timeseries', adminGuard, asyncHandler(controller.getTimeSeries.bind(controller)));
   router.get('/failures', adminGuard, asyncHandler(controller.getFailures.bind(controller)));
+  router.get('/conversations', adminGuard, asyncHandler(controller.getConversations.bind(controller)));
+  router.get('/conversations/:id', adminGuard, asyncHandler(controller.getConversation.bind(controller)));
 
   return router;
 };

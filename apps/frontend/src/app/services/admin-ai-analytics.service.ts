@@ -23,6 +23,34 @@ export interface AIAnalyticsTimeSeries {
 }
 export interface AIFailureDiagnostic { requestId: string; outcome: 'partial' | 'fallback' | 'failed'; grounding: string[]; failureReason?: string; latencyMs: number; createdAt: string; }
 
+export interface AIConversationListItem {
+  conversationId: string;
+  userId: string;
+  userEmail?: string;
+  userName?: string;
+  sessionTitle?: string;
+  messageCount: number;
+  feedbackPositive: number;
+  feedbackNegative: number;
+  pinned: boolean;
+  archived: boolean;
+  lastUsedAt?: string;
+}
+
+export interface AIConversationListResult {
+  items: AIConversationListItem[];
+  pagination: { total: number; page: number; limit: number; pages: number };
+}
+
+export interface AIConversationDetail extends AIConversationListItem {
+  messages: Array<{
+    role: 'user' | 'assistant';
+    content: string;
+    createdAt?: string;
+    feedback?: 'positive' | 'negative';
+  }>;
+}
+
 interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -60,6 +88,24 @@ export class AdminAIAnalyticsService {
 
   getFailures(limit = 50): Observable<AIFailureDiagnostic[]> {
     return this.http.get<ApiResponse<AIFailureDiagnostic[]>>(`${this.baseUrl}/admin/ai-analytics/failures`, { headers: this.headers(), params: { limit: String(limit) } }).pipe(map((r) => r?.data || []), catchError(() => of([])));
+  }
+
+  getConversations(page = 1, limit = 20, search = ''): Observable<AIConversationListResult | null> {
+    const params: Record<string, string> = { page: String(page), limit: String(limit) };
+    if (search.trim()) params['search'] = search.trim();
+    return this.http
+      .get<ApiResponse<AIConversationListResult>>(`${this.baseUrl}/admin/ai-analytics/conversations`, { headers: this.headers(), params })
+      .pipe(
+        map((r) => r?.data || null)
+      );
+  }
+
+  getConversation(conversationId: string): Observable<AIConversationDetail | null> {
+    return this.http
+      .get<ApiResponse<AIConversationDetail>>(`${this.baseUrl}/admin/ai-analytics/conversations/${encodeURIComponent(conversationId)}`, { headers: this.headers() })
+      .pipe(
+        map((r) => r?.data || null)
+      );
   }
 
   private headers(): HttpHeaders {
