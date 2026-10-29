@@ -1,6 +1,6 @@
 # M10-C: canales canónicos, rail de programas seguro, enlaces rotos y rastreabilidad
 
-Fecha: 2026-10-29. PR #128, squash `2c2a431` en `main` (CI `changes`, `backend` con Mongo 8, `frontend` y `verify` en verde). **No desplegado**: lanzar `deploy-artifact.yml` desde este entorno devuelve 403. Producción de partida: `f6ff172` (PR #126, run 40926451726, desplegado hoy a las 17:58 UTC sobre M10-B `20261028223254`).
+Fecha: 2026-10-29. PR #128, squash `2c2a431` en `main` (CI `changes`, `backend` con Mongo 8, `frontend` y `verify` en verde). Desplegado por el propietario: run 40938051879 → release **`20261029201513`** @ `17e44e3` (19:15 UTC); verificado en producción (§8). Producción de partida: `f6ff172` (PR #126, run 40926451726, desplegado hoy a las 17:58 UTC sobre M10-B `20261028223254`).
 
 Evidencia de producción: este entorno de agente no tiene ruta al sitio ni permiso para lanzar workflows, así que las mediciones se hicieron con un workflow temporal de la rama (`m10c-probe.yml`, solo GET, eliminado antes del merge) que ejecuta `scripts/m10c-probe.mjs` y `scripts/seo-link-graph.mjs` en GitHub Actions. Runs: 40927800290 (probe + grafo, 18:07–18:22 UTC), 40928581145 (probe con identidades), 40932232480 (pares de feeds).
 
@@ -8,17 +8,17 @@ Evidencia de producción: este entorno de agente no tiene ruta al sitio ni permi
 
 | Criterio | Estado | Base |
 |---|---|---|
-| Duplicados de canal verificados fuera del sitemap | **PASS en código**: los 15 alias verificados salen (regla + parrilla); 0 duplicados confirmados quedan listados | §2 |
-| Comportamiento canónico de canal coherente (sitemap, 301, canonical, enlaces) | **PASS en código y SSR** | §2, §7 |
-| Rail de programas sin asociaciones a obras no verificadas | **PASS en código**: 116 enlaces fuera de `sitemap-works` → solo emisiones y `workPath` verificados | §3 |
-| Enlaces rotos | 2 conocidos corregidos en el generador, el 3.º (Cloudflare) clasificado | §4 |
+| Duplicados de canal verificados fuera del sitemap | **PASS**: 15 alias → 301, `sitemap-channels.xml` 82 → 67, 0 duplicados confirmados listados | §2, §8 |
+| Comportamiento canónico de canal coherente (sitemap, 301, canonical, enlaces) | **PASS** en producción: 0 enlaces internos a redirects, alias fuera de directorio y guía | §8 |
+| Rail de programas sin asociaciones a obras no verificadas | **PASS**: 116 → 0 enlaces TMDB sin verificar (queda 1 enlace a una obra verificada por `workPath` que no está en el sitemap) | §3, §8 |
+| Enlaces rotos | **PASS**: el 404 de `/plataformas` desaparece; `/cdn-cgi` (Cloudflare) clasificado aparte. El grafo registra 1 «roto» transitorio (`fetch failed`) | §4, §8 |
 | Sin nuevas relaciones falsas | **PASS**: ninguna asociación nueva; los pares de canal exigen id y parrilla | §2–§5 |
-| Rastreabilidad | medición mejorada y límites demostrados; sin navegación nueva | §6 |
+| Rastreabilidad | **límites demostrados**: canales no alcanzados 26 → 10; el resto de la profundidad varía con la parrilla diaria (§6) | §6 |
 | Deuda de identidad clasificada con plan | **PASS** | §5 |
-| Tests y CI sin fallos nuevos | **PASS** local; CI en el PR | §7 |
+| Tests y CI sin fallos nuevos | **PASS** | §7 |
 | Revisión independiente sin BLOCKER | **PASS** (1 HIGH, 2 MEDIUM y 5 LOW corregidos) | §7 |
-| Despliegue y verificación en producción | **PENDIENTE**: requiere lanzar `deploy-artifact.yml` (el agente no tiene permiso: 403) | §8 |
-| **M10-C** | **PARTIAL**: ingeniería completa; falta despliegue y verificación | |
+| Despliegue y verificación en producción | **PASS**: `20261029201513`, smokes en verde, sitemap enviado a GSC (204) | §8 |
+| **M10-C** | **PASS** (ingeniería). La indexación en Google no se evalúa aquí (checkpoints GSC) | |
 
 ## 2. Fase A: canales duplicados (`-tv`)
 
@@ -168,7 +168,26 @@ Línea base (producción `f6ff172`, 29 oct 18:07–18:22 UTC, `--max 1500`, nive
 - **Las 26 URL de canal no alcanzadas son todas del feed `.TV`:** ninguna recibe enlaces internos. 13 son alias verificados por la regla con los datos del 29 oct, que salen del sitemap. Las otras 13 son canales propios o sin resolver (§2), que se quedan.
 - **Por qué no se añade navegación:** no se añadieron bloques de enlaces nuevos. El límite real es el presupuesto del crawl: el nivel 3 tiene 8.273 páginas, 6.852 de ellas emisiones `/contenido`. Las obras a 4+ clics dependen de los anillos de relacionadas (M10-B). Un índice A–Z o bloques masivos serían una granja de enlaces.
 
-**Después:** pendiente del despliegue. Comando para repetir la medición sobre la misma población:
+**Después** (release `20261029201513`, 29 oct 19:18–19:30 UTC, mismo comando y límite):
+
+| Población | URL | ≤3 clics | Más profundas | Sin medir (límite) | Huérfanas confirmadas |
+|---|---:|---:|---:|---:|---:|
+| Todo el sitemap | 3.861 | 1.314 | 529 | 2.018 | 0 (no medible) |
+| `sitemap-works.xml` | 3.723 | 1.215 | 527 | 1.981 | — |
+| `sitemap-channels.xml` | **67** | 55 | 2 | **10** | — |
+| `sitemap-programs.xml` | 30 | 3 | 0 | 27 | — |
+| estáticas + guías | 41 | 41 | 0 | 0 | — |
+
+| Grafo | Antes | Después |
+|---|---:|---:|
+| Destinos rotos | 7 (1 404 real, `/cdn-cgi`, 5 cortes de conexión) | 1 (corte de conexión); `/cdn-cgi` contado aparte |
+| Enlaces a redirects / cadenas | 0 / 0 | 0 / 0 |
+| No canónicos enlazados | 0 | 0 |
+| Destinos `noindex` enlazados | 635 | 664 (emisiones `/contenido` del momento) |
+
+- **Canales:** de 26 URL sin alcanzar a 10. Son 13 alias fuera del sitemap y otros 3 canales que ahora se alcanzan. Las 10 que quedan son canales propios del feed `.TV` sin enlaces internos.
+- **Obras:** 1.347 → 1.215 a ≤3 clics. Las tarjetas del día cambian con la hora (19:18 frente a 18:07): las fichas a 1–2 clics salen de la parrilla en emisión. M10-C no tocó la navegación de obras, así que esta variación no es un efecto del hito. Para atribuirla haría falta un crawl a la misma hora o el grafo desde la base de datos.
+- **Repetir la medición:**
 
 ```sh
 node scripts/seo-link-graph.mjs --max 1500 --out after.json
@@ -220,20 +239,36 @@ Esperado con los datos del 29 oct:
 
 ## 8. Producción y rollback
 
-- **Producción actual:** `f6ff172` (PR #126, run 40926451726), sobre M10-B `20261028223254`. El id exacto de la release de hoy no se pudo leer desde aquí (sin SSH): está en el log del run 40926451726 y en `readlink -f /var/www/guiatv/current`.
-- **Despliegue de M10-C (`2c2a431`): no realizado.** El agente no puede lanzar workflows (`POST …/actions/workflows/deploy-artifact.yml/dispatches` → 403, probado tras el merge) ni llegar al host.
-  - **Procedimiento:** tras el merge, el propietario lanza `deploy-artifact.yml` en `main` y comprueba que el run compiló el commit del merge.
-  - **Verificación:**
-    - `curl -sI https://guiaprogramaciontv.com/canales/telemadrid-tv` → `301` a `/canales/telemadrid`;
-    - `/canales/aragon-tv` → `200` con canonical propio;
-    - `sitemap-channels.xml` sin los 15 alias;
-    - `node scripts/m10c-probe.mjs` (rail y enlaces rotos);
-    - el grafo de §6.
+- **Despliegue:** run 40938051879 (lanzado por el propietario) → release **`20261029201513`** @ `17e44e3`, que es `2c2a431` más los docs.
+  - Smokes HTTP/SSR en verde y warm-up 200.
+  - Sitemap enviado a GSC (204).
+  - Salud `healthy`.
+- **Verificación** (workflow temporal de rama, solo GET, 19:18–19:31 UTC):
+  - **15 alias → 301 a su canal:** `telemadrid-tv` → `/canales/telemadrid`, `324-tv` → `/canales/3-24`, `canarias-tv` → `/canales/tv-canaria`, `etbsat-tv` → `/canales/eitb-basque`…
+    - `/canales/telemadrid-tv?dia=manana` → `/canales/telemadrid?dia=manana`;
+    - `/canales/telemadrid_tv` → `/canales/telemadrid` en un salto.
+  - **Siguen siendo páginas 200** con canonical propio e `index, follow`: `etb1-tv`, `cmm-tv`, `telemadridint-tv`, `sx3-tv`, `aragon-tv`, `andalucia-tv`, `castilla-la-mancha-tv`, `telemadrid`.
+  - **`sitemap-channels.xml`:** 67 URL, 18 con `-tv`. Todas son canales propios o sin resolver (§2).
+  - **API:** `/v2/tv/surface/channels/telemadrid-tv` devuelve `canonicalChannel` = `telemadrid` y conserva sus 22 emisiones.
+  - **Directorio, guía y vista «ahora»:** a las 19:31, tras expirar la caché de `/v2`, sin alias. El directorio pasa de 456 a 426 filas. A las 19:19 todavía se servía la respuesta cacheada de antes del despliegue.
+  - **Rail** (82 páginas de programa y emisión):
+    - enlaces a obras fuera de `sitemap-works`: 116 → 1;
+    - ese 1 es `/peliculas/franco-battiato-el-largo-viaje`, una tarjeta de emisión con `workPath` verificado por la puerta M10 cuya obra no está en el sitemap;
+    - 0 títulos TMDB «populares».
+  - **Enlaces de los hubs:**
+    - ya no aparece el 404 de `/series/2020-britains-…`;
+    - `/cdn-cgi` sigue (Cloudflare);
+    - `/v2/affiliate/go/*` y `/v2/oembed` dan 400 solo porque el probe los pide sin su query; en la página llevan parámetros.
+  - **Sin regresiones:**
+    - `/programas/modern-family` → `noindex, follow` (meta y `X-Robots-Tag`) con canonical propio;
+    - `/series/modern-family` → `index`;
+    - `/programas/gladiator` → canonical `/peliculas/gladiator`;
+    - `/`, `/plataformas`, `/canales/la-1` y `/canales/discovery` → 200, `index`, con canonical propio.
 - **Rollback:**
-  - **A la release previa:** `sudo /var/www/guiatv/scripts/guiatv-ops.sh rollback <release previa>`, que hoy es la de `f6ff172`. Hay que leerla en el host antes de desplegar.
-  - **A M10-B:** `20261028223254`, si la de hoy no está disponible.
+  - **A la release anterior:** `sudo /var/www/guiatv/scripts/guiatv-ops.sh rollback 20261029190122`. Es `f6ff172`, desplegada a las 18:01 UTC (run 40926451726).
+  - **A M10-B:** `20261028223254`, si la anterior no estuviera.
   - **Compatibilidad:** no hay migración ni datos escritos (la lista de alias vive en memoria y la marca de tarjetas en la respuesta), así que cualquier release anterior lee los mismos datos.
-  - **Cachés:** SSR, nginx y `/v2` expiran en 5–30 min. Los 301 son permanentes en los navegadores que ya los vieron; Google vuelve a rastrear la URL.
+  - **Cachés:** SSR, nginx y `/v2` expiran en 5–30 min. Los 301 quedan en los navegadores que ya los vieron.
 
 ## 9. Deuda restante
 
