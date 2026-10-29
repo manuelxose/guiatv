@@ -16,7 +16,10 @@ const andalucia = ch('andalucia_tv', 'Andalucía TV', ['andalucia_tv', 'andaluci
 const cmm = ch('cmm_tv', 'CMM TV', ['cmm_tv', 'CMM TV', 'CMM.TV']);
 const castilla = ch('castilla_la_mancha_tv', 'Castilla la Mancha TV', ['castilla_la_mancha_tv', 'castillalamanchatv_es', 'CastillalaManchaTV.es']);
 const sx3 = ch('sx3_tv', 'SX3.TV', ['sx3_tv', 'SX3.TV']);
-const directory = [telemadrid, telemadridTv, aPunt, apuntTv, aragon, aragonTv, andalucia, cmm, castilla, sx3];
+const canariasTv = ch('canarias_tv', 'Canarias.TV', ['canarias_tv', 'Canarias.TV']);
+const tvCanaria = ch('tv_canaria', 'TV Canaria', ['tv_canaria', 'tvcanaria_es', 'TVCanaria.es']);
+const telemadridInt = ch('telemadridint_tv', 'TeleMadridInt.TV', ['telemadridint_tv', 'TeleMadridInt.TV']);
+const directory = [telemadrid, telemadridTv, aPunt, apuntTv, aragon, aragonTv, andalucia, cmm, castilla, sx3, canariasTv, tvCanaria, telemadridInt];
 
 const at = (hhmm: string) => `2026-10-29T${hhmm}:00.000Z`;
 const item = (channelId: string, start: string, title: string) => ({ id: `${channelId}-${start}`, channel: { id: channelId }, airing: { start: at(start) }, program: { title } }) as any;
@@ -33,10 +36,11 @@ test('M10-C feed keys: only the dotted feed ids, compared without accents, case 
 test('M10-C candidates: a ".TV" feed pairs with the one channel carrying the same ".es" key; names ending in TV never do', () => {
   const c = feedAliasCandidates(directory);
   assert.deepEqual([...c].map(([alias, target]) => [alias, target.id]).sort(), [
-    ['apunt_tv', 'a_punt'], ['aragontv_tv', 'aragon_tv'], ['telemadrid_tv', 'telemadrid'],
+    ['apunt_tv', 'a_punt'], ['aragontv_tv', 'aragon_tv'], ['canarias_tv', 'tv_canaria'], ['cmm_tv', 'castilla_la_mancha_tv'], ['telemadrid_tv', 'telemadrid'],
   ]);
-  // No `.es` counterpart: stays its own channel (documented as unresolved, not guessed).
-  assert.ok(!c.has('sx3_tv') && !c.has('cmm_tv'));
+  // No `.es` counterpart: stays its own channel (documented as unresolved, not guessed). The international feed
+  // shares much of Telemadrid's schedule but is another channel: no id pairs it.
+  assert.ok(!c.has('sx3_tv') && !c.has('telemadridint_tv'));
   // Distinct channels with similar titles are not paired.
   assert.ok(!c.has('andalucia_tv') && !c.has('castilla_la_mancha_tv') && !c.has('aragon_tv'));
   // Two channels claiming the same `.es` key: ambiguous, no pair.
@@ -90,7 +94,9 @@ test('M10-C sitemap-channels.xml: a verified alias is never listed; its channel 
   await controller.getChannelsSitemap({} as any, res, ((e: unknown) => { throw e; }) as any);
   const locs = [...xml.matchAll(/<loc>[^<]*\/canales\/([^<]+)<\/loc>/g)].map((m) => m[1]);
   assert.ok(locs.includes('telemadrid') && !locs.includes('telemadrid-tv'), locs.join(' '));
-  for (const own of ['aragon-tv', 'andalucia-tv', 'cmm-tv', 'castilla-la-mancha-tv', 'sx3-tv', 'apunt-tv']) assert.ok(locs.includes(own), own);
+  for (const own of ['aragon-tv', 'andalucia-tv', 'castilla-la-mancha-tv', 'sx3-tv', 'apunt-tv', 'telemadridint-tv']) assert.ok(locs.includes(own), own);
+  // A paired candidate whose schedule is not checked equal stays listed.
+  assert.ok(locs.includes('cmm-tv') && locs.includes('canarias-tv'));
   assert.equal(new Set(locs).size, locs.length, 'no URL twice');
 
   // The alias list cannot be read: the build fails (the last good sitemap is served), never a list with the alias.

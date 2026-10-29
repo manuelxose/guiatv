@@ -6,8 +6,9 @@
  * `/canales/telemadrid` and `/canales/telemadrid-tv`, both indexable with their own canonical, for one channel.
  *
  * A channel is a feed alias of another only when all of this holds:
- *  1. persistent identifiers: it carries a `<Key>.TV` source id and no `<Key>.es` one, and exactly one other channel
- *     of the directory carries `<Same key>.es` (keys compared without accents, case or separators);
+ *  1. persistent identifiers: it carries a `<Key>.TV` source id and no `.es` one, and exactly one other channel of the
+ *     directory carries `<Same key>.es` (keys compared without accents, case or separators), or the `.es` key that
+ *     FEED_KEY_EQUIVALENTS names for it (reviewed pairs whose two feeds spell the channel differently);
  *  2. the same schedule: at least MIN_SHARED of its airings, and at least half of them, have an airing of the other
  *     channel with the same title key starting within SLOT_TOLERANCE_MS.
  * A `-tv` suffix alone proves nothing ("Aragón TV", "Andalucía TV" and "CMM TV" are channel names), and a pair that
@@ -39,6 +40,21 @@ export interface FeedAliasTarget {
 
 type ScheduleItem = Pick<TvReadItemDTO, 'airing' | 'program'>;
 
+/**
+ * `.TV` key -> `.es` key of the same channel where the provider spells them differently. Each pair was reviewed on
+ * the production schedules of 2026-10-29 (same title within 10 minutes for 93-100 % of the `.TV` airings,
+ * docs/roadmap/M10C-DELIVERY.md); rule 2 still has to hold every day. `TeleMadridInt.TV` shares 61 % with Telemadrid
+ * and is another channel (the international one): it is deliberately absent.
+ */
+export const FEED_KEY_EQUIVALENTS: Readonly<Record<string, string>> = {
+  canarias: 'tvcanaria',
+  extremadura: 'canalextremadura',
+  tvgal: 'tvgtvgalicia',
+  '7rm': '7tvregionmurcia',
+  cmm: 'castillalamanchatv',
+  etbsat: 'eitbbasque',
+};
+
 const compact = (value: string) => normalizeTvToken(value, ' ').replace(/\s+/g, '');
 
 /** Feed keys of a channel for one feed suffix: `Telemadrid.TV` -> `telemadrid` for `tv`. */
@@ -62,7 +78,7 @@ export function feedAliasCandidates(channels: readonly FeedChannel[]): Map<strin
   }
   const out = new Map<string, FeedChannel>();
   for (const channel of channels) {
-    const tv = feedKeys(channel, 'tv');
+    const tv = feedKeys(channel, 'tv').flatMap((key) => (FEED_KEY_EQUIVALENTS[key] ? [key, FEED_KEY_EQUIVALENTS[key]] : [key]));
     if (!tv.length || feedKeys(channel, 'es').length) continue;
     const targets = new Map<string, FeedChannel>();
     for (const key of tv) for (const t of byEsKey.get(key) ?? []) if (t.id !== channel.id) targets.set(t.id, t);
