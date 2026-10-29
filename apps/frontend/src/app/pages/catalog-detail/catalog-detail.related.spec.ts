@@ -66,6 +66,69 @@ describe('CatalogDetailComponent: M10-B related works', () => {
   });
 });
 
+// M10-C: the fallback rail of programme and airing pages never links a work that no identity check verified.
+describe('CatalogDetailComponent: M10-C programme rail', () => {
+  const airing = (id: string, title: string, workPath?: string): CatalogItem => ({
+    catalogId: `program:${id}`, source: 'program', contentType: 'movie', title, slug: title, detailPath: `/contenido/program:${id}`,
+    workPath, genres: ['Drama'], primaryPlatforms: [],
+  });
+  const verified = airing('a1', 'gladiator', '/peliculas/gladiator');
+  const ambiguous = airing('a2', 'modern-family'); // TMDB id by title search only: the gate withheld workPath
+  const rejected = airing('a3', 'rejected'); // a rejected association reaches the client as an airing without workPath
+  const unverifiedPopular: CatalogItem = { catalogId: 'tmdb:movie:7', source: 'tmdb', contentType: 'movie', title: 'Spider-Man',
+    slug: 'spider-man-brand-new-day', detailPath: '/peliculas/spider-man-brand-new-day', genres: ['Drama'], tmdbId: 7, primaryPlatforms: [] };
+
+  function render(items: CatalogItem[][]) {
+    const query = jasmine.createSpy('query').and.returnValues(...items.map((page) => of({ items: page })));
+    const film: CatalogItem = { catalogId: 'program:self', source: 'program', contentType: 'movie', title: 'Ben-Hur', slug: 'ben-hur',
+      detailPath: '/contenido/program:self', genres: ['Drama'], primaryPlatforms: [], enrichmentPending: true };
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
+        { provide: PLATFORM_ID, useValue: 'browser' },
+        { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ catalogId: film.catalogId })), data: of({}), snapshot: { data: {} } } },
+        { provide: CatalogService, useValue: {
+          getBySlugState: () => of({ data: film, unavailable: false, stale: false }),
+          getDetailState: () => of({ data: film, unavailable: false, stale: false }),
+          getDetailEnrichment: () => of({ related: [] }),
+          query,
+        } },
+      ],
+    });
+    spyOnProperty(TestBed.inject(Router), 'url', 'get').and.returnValue(film.detailPath);
+    const fixture = TestBed.createComponent(CatalogDetailComponent);
+    fixture.detectChanges();
+    fixture.detectChanges();
+    return { fixture, query };
+  }
+  const hrefs = (el: HTMLElement) => Array.from(el.querySelectorAll('app-catalog-rail a[href]')).map((a) => a.getAttribute('href'));
+
+  it('verified airing links its work page; ambiguous and rejected ones link their own airing page; TMDB popular is dropped', () => {
+    const { fixture } = render([[unverifiedPopular, verified, ambiguous, rejected]]);
+    const links = hrefs(fixture.nativeElement);
+    expect(links).toContain('/peliculas/gladiator');
+    expect(links).toContain('/contenido/program:a2');
+    expect(links).toContain('/contenido/program:a3');
+    expect(links).not.toContain('/peliculas/spider-man-brand-new-day');
+    expect([...new Set(links.filter((l) => /^\/(peliculas|series)\//.test(l ?? '')))]).toEqual(['/peliculas/gladiator']);
+    fixture.destroy();
+  });
+
+  it('asks for airings first (airtime order, no platform filter)', () => {
+    const { fixture, query } = render([[verified]]);
+    const asked = query.calls.first().args[0];
+    expect(asked.sort).toBe('airtime');
+    expect(asked.platforms).toBeUndefined();
+    fixture.destroy();
+  });
+
+  it('only unverified catalogue titles: no rail at all, never an empty or broken card', () => {
+    const { fixture } = render([[unverifiedPopular], [unverifiedPopular]]);
+    expect(fixture.nativeElement.querySelector('app-catalog-rail')).toBeNull();
+    fixture.destroy();
+  });
+});
+
 describe('CatalogDetailComponent: M10-B airing to programme page', () => {
   function render(item: CatalogItem, path: string) {
     TestBed.configureTestingModule({

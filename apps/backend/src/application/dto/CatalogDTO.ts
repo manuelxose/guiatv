@@ -122,6 +122,11 @@ export interface CatalogItemDTO {
   /** M10, programme-sourced items only: the verified work page of this airing (absent unless proven). */
   workPath?: string;
   /**
+   * M10-C, TMDB catalogue items: true when the work page for this title is known not to show this work (its slug
+   * answered 404 within the last 6 h, or resolves locally to another TMDB id). Cards then link nothing.
+   */
+  workPathUnresolved?: true;
+  /**
    * M10, TMDB work detail: the `/programas/:slug` broadcast page resolving to this same TMDB id (absent unless proven, and
    * since M10-B absent when that page declares this work page canonical). M10-B, programme airing detail: the
    * programme's own page when it is indexed under its own URL (`standalone`).

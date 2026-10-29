@@ -117,11 +117,12 @@ export function normalizeToCard(item: TvReadItemDTO | CatalogItem): UnifiedCardD
     sport: '',
     // TMDB movie/series paths are derived from the title so a stale cached
     // detailPath (pre-transliteration) can never resurface; program paths and
-    // programme-sourced films/series keep the API's known airing destination.
+    // programme-sourced films/series keep the API's known airing destination. M10-C: no link when the API knows the
+    // title's page does not show this work (it answered 404, or resolves to a namesake).
     detailPath:
       contentType === 'program' || item.source === 'program'
         ? item.workPath || item.detailPath || (item.channel?.id ? channelCanonicalPath(item.channel, item.channel.id) : APP_PATHS.guide)
-        : resolvableWorkPath(contentType, item.title),
+        : item.workPathUnresolved ? '' : resolvableWorkPath(contentType, item.title),
     badges: buildCatalogBadges(item),
     progressPercent: computeProgress(item.start, item.end),
     contentType,

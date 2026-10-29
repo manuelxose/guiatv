@@ -4,6 +4,7 @@ import { IProgramRepository } from '../../domain/repositories/IProgramRepository
 import { BlogPostModel } from '../../infrastructure/database/models/BlogPost.model';
 import { TMDBService } from '../../infrastructure/external/TMDBService';
 import { ChannelType } from '../../domain/entities/Channel';
+import type { ChannelFeedAliasResolver } from '../../application/services/ChannelFeedAliases';
 import { FootballQueryService } from '../../application/sports/services/FootballQueryService';
 import { normalizeTvToken, channelPagePath } from '../../shared/utils/tvMetadata';
 import { slugifyTitle } from '../../domain/services/detailPath';
@@ -83,7 +84,9 @@ export class SitemapController {
     /** Same lookup the `/programas/:slug` page uses: null (the page 404s) or its M09-B disposition. */
     private readonly programSlugDisposition?: (slug: string) => Promise<ProgrammeDisposition | null>,
     /** M09-C: indexable `/peliculas|/series` paths (WorkSeoPolicy.indexableWorkPaths); empty while the policy is off. */
-    private readonly workPaths?: () => Promise<string[]>
+    private readonly workPaths?: () => Promise<string[]>,
+    /** M10-C: verified second-feed channels (ChannelFeedAliases); their page redirects to the channel listed instead. */
+    private readonly channelFeedAliases?: Pick<ChannelFeedAliasResolver, 'resolve'>
   ) {}
 
   /* ------------------------------------------------------------------ */
@@ -263,11 +266,16 @@ export class SitemapController {
 
     if (this.tvReadQueryService) {
       const directory = await this.tvReadQueryService.getChannels('today');
+      // A read failure throws: the sitemap keeps its last good copy rather than listing the aliases again.
+      const aliases = this.channelFeedAliases ? await this.channelFeedAliases.resolve('today') : new Map();
+      const listed = new Set<string>();
       for (const entry of directory.channels) {
         const channel = entry.channel;
         if (channel.group !== 'tdt' && channel.group !== 'autonomico') continue;
+        if (aliases.has(channel.id)) continue;
         const slug = channel.normalizedName || normalizeTvToken(channel.name);
-        if (!slug) continue;
+        if (!slug || listed.has(channelPagePath(slug))) continue;
+        listed.add(channelPagePath(slug));
         urls.push({
           loc: channelPagePath(slug),
           lastmod: todayIso,

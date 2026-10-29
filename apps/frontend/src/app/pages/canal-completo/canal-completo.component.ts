@@ -105,11 +105,13 @@ export class CanalCompletoComponent implements OnInit, OnDestroy {
     return [
       { name: 'Inicio', url: '/' },
       { name: 'Canales', url: '/canales' },
-      { name: this.canal, url: channelCanonicalPath(this.channel, this.query) },
+      { name: this.canal, url: channelCanonicalPath(this.canonicalChannel || this.channel, this.query) },
     ];
   }
   public logo = '';
   public channel: ChannelMetaDTO | null = null;
+  /** M10-C: set on a second-feed alias page; canonical, breadcrumb and the SSR 301 point to this channel. */
+  public canonicalChannel: TvChannelSurfaceDTO['canonicalChannel'] | null = null;
   public channelDescription: string | null = null;
   public isLoading = true;
   public error: string | null = null;
@@ -342,6 +344,7 @@ export class CanalCompletoComponent implements OnInit, OnDestroy {
     }
 
     this.channel = surface.channel;
+    this.canonicalChannel = surface.canonicalChannel || null;
     const channelName = String(surface.channel.name || this.canal || '').trim();
     this.canal = channelName || this.canal;
     this.channelDescription = surface.channel?.description || null;
@@ -501,7 +504,7 @@ export class CanalCompletoComponent implements OnInit, OnDestroy {
         this.channelDescription ||
         `Consulta qué están emitiendo ahora, qué viene después y la parrilla completa de ${channelName} ${currentText}.`,
       // One URL per channel: not the request path (la_1 vs la-1, dmax vs discovery, ?dia=…), the one in the sitemap.
-      canonicalUrl: channelCanonicalPath(this.channel, this.query),
+      canonicalUrl: channelCanonicalPath(this.canonicalChannel || this.channel, this.query),
       ogTitle: `${channelName} en directo y programación ${currentText}`,
       ogDescription:
         this.channelDescription ||

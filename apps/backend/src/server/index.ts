@@ -22,6 +22,9 @@ async function startServer() {
     const container = createContainer();
     await container.initialize();
     logger.info('Container initialized');
+    // M10-C: load the channel feed-alias list now, so the first pages after a restart already redirect and hide
+    // aliases (requests never wait for it; a failure is logged and retried after a minute).
+    container.get<{ current(date?: string): unknown }>('channelFeedAliases').current('today');
 
     const app = createRoutesApp({
       adminController: container.get('adminController'),

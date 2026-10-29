@@ -5,6 +5,7 @@
 // It is a bounded sample, not proof a URL is orphaned site-wide: "not reached" means "not within --max pages".
 // Usage: node scripts/seo-link-graph.mjs [baseUrl] [--max 1200] [--concurrency 3] [--out file.json]
 //        node scripts/seo-link-graph.mjs --compare before.json after.json
+//        node scripts/seo-link-graph.mjs --reachability file.json [--urls urls.txt]
 //        node scripts/seo-link-graph.mjs --self-check
 import { readFileSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
@@ -62,6 +63,14 @@ if (args.includes('--self-check')) {
   assert.equal(family('/deportes/futbol/equipos/real-madrid'), '/deportes/futbol/equipos/:slug');
   assert.equal(family('/deportes/futbol'), '/deportes/futbol');
   assert.ok(GENERIC.test('Ver más') && !GENERIC.test('Ver La 1'));
+  // Depths 0-1 fully fetched, depth 2 partly: depth <= 2 is exact, depth 3 is an upper bound, missing URLs unknown.
+  const graph = { pages: { '/': { d: 0, s: 200 }, '/a': { d: 1, s: 200 }, '/b': { d: 2, s: 200 }, '/c': { d: 2 }, '/d': { d: 3 } },
+    sitemap: { '/a': 's', '/b': 's', '/d': 's', '/z': 's' } };
+  const r = reachability(graph);
+  assert.equal(r.exactThroughDepth, 2);
+  assert.deepEqual([r.within3, r.deeperThanMeasured, r.omittedByCrawlLimit, r.confirmedOrphans], [2, 1, 1, 0]);
+  assert.equal(reachability({ ...graph, complete: true }).confirmedOrphans, 1, 'only an exhausted crawl confirms an orphan');
+  assert.equal(reachability(graph, ['/a', '/q']).urls, 2);
   console.log('self-check ok');
   process.exit(0);
 }
@@ -69,7 +78,62 @@ if (args.includes('--self-check')) {
 const SUMMARY_KEYS = ['fetched', 'discovered', 'brokenTargets', 'brokenLinkInstances', 'redirectTargets', 'redirectChains',
   'linkInstancesToRedirects', 'noindexTargetsLinked', 'nonCanonicalTargetsLinked', 'parameterisedTargets',
   'emptyAnchors', 'genericAnchors', 'sitemapUrls', 'sitemapReached', 'sitemapNotReached', 'programmeToWorkLinks',
-  'workToProgrammeLinks', 'workToChannelLinks', 'programmeToChannelLinks'];
+  'workToProgrammeLinks', 'workToChannelLinks', 'programmeToChannelLinks', 'edgeInjectedTargets'];
+
+/**
+ * M10-C: reachability of the sitemap URLs from `/` in a saved crawl, without overstating it.
+ * - `measured[d]`: minimum click depth d is exact (every level above d was fetched completely);
+ * - `deeperThanMeasured`: discovered below the last complete level, so the depth is an upper bound only;
+ * - `omittedByCrawlLimit`: not discovered while the crawl stopped at --max (reachability unknown);
+ * - `confirmedOrphans`: not discovered by a crawl that exhausted every link (only then is "orphan" a fact).
+ * The sitemap is never an edge: it only says which URLs to look for. `urls` narrows to a fixed URL set so two
+ * crawls can be compared on the same population.
+ */
+export function reachability(data, urls) {
+  const pages = data.pages ?? {};
+  const sitemap = urls ?? Object.keys(data.sitemap ?? {});
+  const byDepth = new Map();
+  for (const p of Object.values(pages)) {
+    const level = byDepth.get(p.d) ?? { total: 0, fetched: 0 };
+    level.total += 1;
+    if (p.s !== undefined && p.s !== null) level.fetched += 1;
+    byDepth.set(p.d, level);
+  }
+  // Depth d is exact while every page at depths < d was fetched (BFS is level-synchronous).
+  let exactThrough = -1;
+  for (let d = 0; byDepth.has(d) && byDepth.get(d).fetched === byDepth.get(d).total; d++) exactThrough = d + 1;
+  const complete = data.complete === true;
+  const out = { urls: sitemap.length, exactThroughDepth: exactThrough, crawlComplete: complete, measured: {}, within3: 0,
+    deeperThanMeasured: 0, omittedByCrawlLimit: 0, confirmedOrphans: 0, orphanSample: [], unknownSample: [] };
+  for (const path of sitemap) {
+    const p = pages[path];
+    if (!p) {
+      if (complete) { out.confirmedOrphans += 1; if (out.orphanSample.length < 20) out.orphanSample.push(path); }
+      else { out.omittedByCrawlLimit += 1; if (out.unknownSample.length < 20) out.unknownSample.push(path); }
+      continue;
+    }
+    if (p.d <= exactThrough) {
+      out.measured[p.d] = (out.measured[p.d] ?? 0) + 1;
+      if (p.d <= 3) out.within3 += 1;
+    } else out.deeperThanMeasured += 1;
+  }
+  out.beyond3 = out.urls - out.within3;
+  return out;
+}
+
+if (args.includes('--reachability')) {
+  const data = JSON.parse(readFileSync(opt('--reachability'), 'utf8'));
+  const urls = opt('--urls') ? readFileSync(opt('--urls'), 'utf8').split(/\s+/).filter(Boolean) : undefined;
+  const all = reachability(data, urls);
+  const bySitemap = {};
+  for (const file of new Set(Object.values(data.sitemap ?? {}))) {
+    const subset = Object.entries(data.sitemap).filter(([, f]) => f === file).map(([p]) => p);
+    const r = reachability(data, subset);
+    bySitemap[file] = { urls: r.urls, within3: r.within3, deeperThanMeasured: r.deeperThanMeasured, omittedByCrawlLimit: r.omittedByCrawlLimit, confirmedOrphans: r.confirmedOrphans };
+  }
+  console.log(JSON.stringify({ at: data.at, max: data.max, fetched: data.summary?.fetched, ...all, bySitemap }, null, 1));
+  process.exit(0);
+}
 
 if (args.includes('--compare')) {
   const [a, b] = args.slice(args.indexOf('--compare') + 1).map((f) => JSON.parse(readFileSync(f, 'utf8')));
@@ -134,6 +198,9 @@ const inlinks = new Map(); // path -> Set(source path)
 const anchors = new Map(); // path -> Map(text -> count)
 const params = new Set();
 let emptyAnchors = 0, genericAnchors = 0;
+// M10-C: Cloudflare's email obfuscation rewrites `mailto:` anchors at the edge into `/cdn-cgi/l/email-protection#…`.
+// The origin HTML has no such link and the URL is not a page of the site: counted apart, never as a broken page.
+const edgeInjected = new Map(); // path -> Set(source path)
 
 const visit = async (path) => {
   const page = pages.get(path);
@@ -153,6 +220,7 @@ const visit = async (path) => {
     const seen = new Map();
     for (const l of extractLinks(body, base + path, host)) {
       if (!l.text) emptyAnchors++; else if (GENERIC.test(l.text)) genericAnchors++;
+      if (l.path.startsWith('/cdn-cgi/')) { (edgeInjected.get(l.path) ?? edgeInjected.set(l.path, new Set()).get(l.path)).add(path); continue; }
       if (l.query) { params.add(l.path + l.query); continue; }
       if (l.path === path || seen.has(l.path)) continue;
       seen.set(l.path, l.text);
@@ -235,6 +303,7 @@ const summary = {
   workToProgrammeLinks: sumLinks((s, d) => isWork(s) && isProg(d)),
   workToChannelLinks: sumLinks((s, d) => isWork(s) && isChannel(d)),
   programmeToChannelLinks: sumLinks((s, d) => isProg(s) && isChannel(d)),
+  edgeInjectedTargets: edgeInjected.size,
 };
 
 console.log(JSON.stringify(summary, null, 1));
@@ -242,6 +311,7 @@ console.log('depth by family', JSON.stringify(depthByFamily));
 console.log('sitemap not reached by family', JSON.stringify(notReachedByFamily));
 console.log('sitemap URLs by click depth', JSON.stringify(sitemapByDepth));
 const show = (label, rows) => { console.log(`${label}: ${rows.length}`); for (const r of rows.slice(0, 12)) console.log('  ', JSON.stringify(r)); };
+show('edge-injected (Cloudflare, not origin links)', [...edgeInjected].map(([p, from]) => [p, [...from].slice(0, 5)]));
 show('broken', broken.map(([p, x]) => [p, x.status, linkCount(p), [...(inlinks.get(p) ?? [])][0]]));
 show('redirects', redirects.map(([p, x]) => [p, x.status, x.location, linkCount(p)]));
 show('redirect chains', chains.map(([p, x]) => [p, x.location]));
@@ -256,10 +326,12 @@ if (out) {
   writeFileSync(out, JSON.stringify({
     base, at: new Date().toISOString(), max, summary, depthByFamily, notReachedByFamily,
     broken: broken.map(([p, x]) => ({ path: p, status: x.status, from: [...(inlinks.get(p) ?? [])].slice(0, 5) })),
+    edgeInjected: [...edgeInjected].map(([p, from]) => ({ path: p, from: [...from].slice(0, 5) })),
     redirects: redirects.map(([p, x]) => ({ path: p, status: x.status, location: x.location, inlinks: linkCount(p) })),
     noindexLinked: noindex.map(([p, x]) => ({ path: p, robots: x.robots, inlinks: linkCount(p) })),
     nonCanonicalLinked: nonCanonical.map(([p, x]) => ({ path: p, canonical: x.canonical, inlinks: linkCount(p) })),
     parameterised: [...params], inconsistentAnchors, lowInlinkSitemap, notReached, sitemapByDepth,
+    complete: level.length === 0, sitemap: Object.fromEntries(sitemap),
     pages: Object.fromEntries([...pages].map(([p, x]) => [p, { d: x.depth, s: x.status, in: linkCount(p), out: x.out?.length }])),
   }, null, 1));
 }

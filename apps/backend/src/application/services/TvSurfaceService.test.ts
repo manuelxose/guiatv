@@ -222,3 +222,35 @@ test('cached channel surface refreshes both live flags without queries or changi
   assert.equal(surface.current?.detailPath, '/programas/verified-programme');
   assert.equal(cached.scheduleItems[0].airing.liveNow, true, 'do not mutate the cached snapshot');
 });
+
+test('M10-C: an alias channel surface names its channel; related channels and the guide never list a verified alias', async () => {
+  const alias = buildItem('a1', 'telemadrid_tv', 1, 'Yo soy de aquí');
+  const own = buildItem('o1', 'telemadrid', 1, 'Yo soy de aquí');
+  const other = buildItem('x1', 'la_1', 1, 'Telediario');
+  const summary = (item: TvReadItemDTO) => ({ channel: item.channel, current: item, counts: { total: 1, live: 0, tonight: 0 } });
+  const reader = {
+    getChannelDetail: async (id: string) => ({ date: '20261029', items: id === 'telemadrid' ? [own] : [alias], channels: [] }),
+    getChannels: async () => ({ channels: [summary(own), summary(alias), summary(other)] }),
+    query: async () => ({ date: '20261029', items: [own, alias, other], channels: [summary(own), summary(alias), summary(other)] }),
+    getGroupChannelCounts: async () => ({}),
+  } as any;
+  const cache = { get: async () => null, set: async () => undefined } as any;
+  const aliases = { current: () => new Map([['telemadrid_tv', { id: 'telemadrid', name: 'Telemadrid', normalizedName: 'telemadrid' }]]) };
+  const service = new TvSurfaceService(reader, cache, aliases);
+
+  const aliasSurface = await service.getChannelSurface('telemadrid_tv', 'today');
+  assert.deepEqual(aliasSurface.canonicalChannel, { id: 'telemadrid', name: 'Telemadrid', normalizedName: 'telemadrid' });
+  assert.equal(aliasSurface.scheduleItems.length, 1, 'the alias schedule is still served by the API');
+
+  const ownSurface = await service.getChannelSurface('telemadrid', 'today');
+  assert.equal(ownSurface.canonicalChannel, undefined);
+  assert.deepEqual(ownSurface.relatedChannels.map((e) => e.channel.id), ['la_1']);
+
+  const guide = await service.getGuideSurface({});
+  assert.ok(!guide.channels.some((e) => e.channel.id === 'telemadrid_tv'));
+  assert.ok(![...guide.nowItems, ...guide.nextItems, ...guide.nightItems].some((i) => i.channel.id === 'telemadrid_tv'));
+
+  // Alias list unavailable: every channel is served as itself, as before.
+  const degraded = new TvSurfaceService(reader, cache, { current: () => { throw new Error('down'); } });
+  assert.equal((await degraded.getChannelSurface('telemadrid_tv', 'today')).canonicalChannel, undefined);
+});

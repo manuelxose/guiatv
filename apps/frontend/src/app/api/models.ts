@@ -245,6 +245,8 @@ export interface TvGuideSurfaceDTO {
 export interface TvChannelSurfaceDTO {
   date: string;
   channel: ChannelMetaDTO | null;
+  /** M10-C: `channel` is a verified second feed of this channel, whose page is the canonical one. */
+  canonicalChannel?: { id: string; name?: string; normalizedName: string };
   current?: TvReadItemDTO;
   next?: TvReadItemDTO;
   tonightItems: TvReadItemDTO[];

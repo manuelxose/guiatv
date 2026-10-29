@@ -15,6 +15,15 @@ on:
       - 'playwright.entity.config.ts'
       - '.github/workflows/seo-regression.yml'
   workflow_dispatch:
+    inputs:
+      link_graph:
+        description: 'Also run the bounded internal-link graph of production (M10, ~30 min)'
+        type: boolean
+        default: false
+      link_graph_max:
+        description: 'Page budget of that crawl (--max)'
+        type: string
+        default: '1500'
   # Weekly live crawl is intentionally NOT scheduled until the owner approves it:
   # schedule:
   #   - cron: '0 6 * * 1'
@@ -33,7 +42,7 @@ jobs:
       - run: node --test apps/frontend/scripts/ssr-cache.test.mjs apps/frontend/scripts/ssr-canonical.test.mjs apps/frontend/scripts/entity-canary-verify.test.mjs
       - run: node scripts/seo-crawl.mjs --self-check && node scripts/seo-link-graph.mjs --self-check
       - run: npm run build:frontend
-      - run: node --test apps/frontend/scripts/entity-read-ssr.test.mjs apps/frontend/scripts/legacy-enrichment-ssr.test.mjs apps/frontend/scripts/m10b-links-ssr.test.mjs
+      - run: node --test apps/frontend/scripts/entity-read-ssr.test.mjs apps/frontend/scripts/legacy-enrichment-ssr.test.mjs apps/frontend/scripts/m10b-links-ssr.test.mjs apps/frontend/scripts/m10c-ssr.test.mjs
       - run: npm run seo:ssr-resilience
       # Phase 3D: the entity page in desktop and mobile Chromium against the real SSR bundle (fake API, no database).
       - run: npx playwright install --with-deps chromium
@@ -51,6 +60,10 @@ jobs:
       - run: node scripts/seo-crawl.mjs --out seo-crawl.json
       - run: node scripts/editorial-audit.mjs --json editorial-audit.json
         continue-on-error: true # findings are review prompts; the crawl above is the hard gate
+      # M10-C: channel aliases, programme-rail work links and hub link status, printed to the log (read-only GETs).
+      - run: node scripts/m10c-probe.mjs > m10c-probe.jsonl; cat m10c-probe.jsonl
+        if: always()
+        continue-on-error: true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -58,3 +71,22 @@ jobs:
           path: |
             seo-crawl.json
             editorial-audit.json
+            m10c-probe.jsonl
+
+  link-graph:
+    # M10-C: bounded BFS link graph of production from `/` (read-only GETs), only when asked on a manual dispatch.
+    if: github.event_name == 'workflow_dispatch' && inputs.link_graph
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/seo-link-graph.mjs --max "${{ inputs.link_graph_max }}" --out link-graph.json
+      - run: node scripts/seo-link-graph.mjs --reachability link-graph.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: link-graph
+          path: link-graph.json

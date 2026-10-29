@@ -201,7 +201,7 @@ export class CatalogService {
 
     const total = scored.length;
     const startIndex = (normalized.page - 1) * normalized.limit;
-    const paged = scored.slice(startIndex, startIndex + normalized.limit);
+    const paged = await this.markUnresolvedWorkPaths(scored.slice(startIndex, startIndex + normalized.limit));
     const withInteractions = await this.attachUserInteractions(
       paged,
       normalized.userId
@@ -386,6 +386,44 @@ export class CatalogService {
     const m = /^\/(peliculas|series)\/([a-z0-9]+(?:-[a-z0-9]+)*)$/.exec(p.workPath ?? '');
     if (!m || !p.tmdbId || !workPolicyApplies(m[2])) return undefined;
     return (await readWorkSeo(m[1] === 'peliculas' ? 'movie' : 'series', m[2], p.tmdbId)).disposition === 'indexable';
+  }
+
+  /**
+   * M10-C: a TMDB catalogue card links `/peliculas|/series/<slug of its title>`, which the page resolves by a local
+   * lookup and then a TMDB title search. When that page is known not to show this work, the card must not link it:
+   * the slug answered 404 recently (negative cache, and no local row resolves it now: the page's own condition), or a
+   * local row for another TMDB id matches the slug (the page could show a namesake). Unknown slugs keep their link.
+   * One cache read per card on this page and one batched catalogue read; a read failure leaves the links as they were.
+   */
+  private async markUnresolvedWorkPaths(items: CatalogItemDTO[]): Promise<CatalogItemDTO[]> {
+    // Bounded: a page of cards is at most a few dozen; a large `limit` checks its first 200 TMDB cards.
+    const tmdbCards = items
+      .filter((item) => item.source === 'tmdb' && item.tmdbId && (item.contentType === 'movie' || item.contentType === 'series'))
+      .slice(0, 200);
+    if (!tmdbCards.length) return items;
+    try {
+      const searchText = (slug: string) => String(slug || '').replace(/-/g, ' ').trim();
+      const known = this.mediaCatalogService
+        ? await this.mediaCatalogService.findKnownMatchesForTitles(tmdbCards.map((item) => searchText(item.slug)))
+        : [];
+      const unresolved = new Set<string>();
+      await Promise.all(tmdbCards.map(async (item) => {
+        const tmdbType = item.contentType === 'movie' ? 'movie' : 'tv';
+        const locals = known.filter((entry) => entry.tmdbType === tmdbType
+          && (this.slugify(entry.title) === item.slug || this.slugifyTitle(entry.title) === item.slug));
+        if (locals.length) {
+          // The page takes a local row: any row for another TMDB id may be the one it shows.
+          if (locals.some((entry) => entry.tmdbId !== item.tmdbId)) unresolved.add(item.catalogId);
+          return;
+        }
+        if (await this.cacheRepository.get<boolean>(this.buildSlugNotFoundCacheKey(item.contentType, item.slug))) unresolved.add(item.catalogId);
+      }));
+      return unresolved.size
+        ? items.map((item) => (unresolved.has(item.catalogId) ? { ...item, workPathUnresolved: true as const } : item))
+        : items;
+    } catch {
+      return items;
+    }
   }
 
   private buildSlugNotFoundCacheKey(

@@ -69,6 +69,8 @@ export interface CatalogItem {
   detailPath?: string;
   /** M10, programme-sourced items: verified work page of this airing (absent unless proven by the API). */
   workPath?: string;
+  /** M10-C, TMDB catalogue items: the work page of this title is known not to show this work; link nothing. */
+  workPathUnresolved?: boolean;
   /** M10, TMDB work detail: `/programas/:slug` broadcast page of this same work (absent unless proven by the API). */
   programmePath?: string;
   /** M09-B, `/programas/:slug` only: the canonical path and robots the page declares (backend ProgrammeSeoPolicy). */
