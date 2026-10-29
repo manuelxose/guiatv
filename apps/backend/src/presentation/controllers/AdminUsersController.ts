@@ -38,7 +38,7 @@ export class AdminUsersController {
       const pageValue = this.parseNumber(page, 1, 1, 1000);
       const skip = (pageValue - 1) * limitValue;
 
-      const [users, total] = await Promise.all([
+      const [users, total, admins, suspended] = await Promise.all([
         UserModel.find(filters)
           .sort({ lastLoginAt: -1, createdAt: -1 })
           .skip(skip)
@@ -46,6 +46,8 @@ export class AdminUsersController {
           .lean()
           .exec(),
         UserModel.countDocuments(filters),
+        UserModel.countDocuments({ role: 'admin' }),
+        UserModel.countDocuments({ status: 'suspended' }),
       ]);
 
       const pages = Math.max(1, Math.ceil(total / limitValue));
@@ -53,6 +55,7 @@ export class AdminUsersController {
       res.json(
         successResponse({
           users: users.map((user) => this.mapUser(user)),
+          counts: { admins, suspended },
           pagination: {
             total,
             page: pageValue,

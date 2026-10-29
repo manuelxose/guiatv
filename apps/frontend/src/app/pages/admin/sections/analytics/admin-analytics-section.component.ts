@@ -60,8 +60,6 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnDestroy {
     { id: 'pages', label: 'Pages' },
     { id: 'live', label: 'Realtime' },
     { id: 'events', label: 'Events' },
-    { id: 'journeys', label: 'Journeys' },
-    { id: 'retention', label: 'Retention' },
   ];
 
   private subs = new Subscription();

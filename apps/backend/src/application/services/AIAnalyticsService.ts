@@ -21,6 +21,36 @@ export interface AIAnalyticsTimeSeries {
   messages: number;
 }
 
+export interface AIConversationListItem {
+  conversationId: string;
+  userId: string;
+  userEmail?: string;
+  userName?: string;
+  sessionTitle?: string;
+  messageCount: number;
+  feedbackPositive: number;
+  feedbackNegative: number;
+  pinned: boolean;
+  archived: boolean;
+  lastUsedAt?: Date;
+}
+
+export interface AIConversationListResult {
+  items: AIConversationListItem[];
+  pagination: { total: number; page: number; limit: number; pages: number };
+}
+
+export interface AIConversationMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt?: Date;
+  feedback?: 'positive' | 'negative';
+}
+
+export interface AIConversationDetail extends AIConversationListItem {
+  messages: AIConversationMessage[];
+}
+
 export class AIAnalyticsService {
   constructor(private readonly cacheRepository: ICacheRepository) {}
 
@@ -167,5 +197,75 @@ export class AIAnalyticsService {
 
     this.cacheRepository.set(cacheKey, JSON.stringify(result), 300).catch(() => {});
     return result;
+  }
+
+  async listConversations(
+    page = 1,
+    limit = 20,
+    userId?: string,
+    search?: string
+  ): Promise<AIConversationListResult> {
+    const filters: Record<string, unknown> = {};
+    if (userId) filters.userId = userId;
+    if (search) {
+      const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filters.$or = [{ sessionTitle: regex }, { 'messages.content': regex }];
+    }
+
+    const skip = (page - 1) * limit;
+    const [docs, total] = await Promise.all([
+      UserAssistantConversationModel.find(filters)
+        .sort({ lastUsedAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select({ messages: 1, userId: 1, conversationId: 1, sessionTitle: 1, pinned: 1, archived: 1, lastUsedAt: 1 })
+        .lean()
+        .exec(),
+      UserAssistantConversationModel.countDocuments(filters),
+    ]);
+
+    const userIds = Array.from(new Set(docs.map((doc) => String(doc.userId))));
+    const users = userIds.length
+      ? await UserModel.find({ _id: { $in: userIds } }).select({ email: 1, name: 1 }).lean().exec()
+      : [];
+    const userMap = new Map(users.map((user: any) => [String(user._id), user]));
+
+    const items = docs.map((doc) => this.mapConversationListItem(doc, userMap.get(String(doc.userId))));
+    return {
+      items,
+      pagination: { total, page, limit, pages: Math.max(1, Math.ceil(total / limit)) },
+    };
+  }
+
+  async getConversation(conversationId: string): Promise<AIConversationDetail | null> {
+    const doc = await UserAssistantConversationModel.findOne({ conversationId }).lean().exec();
+    if (!doc) return null;
+    const user = await UserModel.findById(doc.userId).select({ email: 1, name: 1 }).lean().exec();
+    return {
+      ...this.mapConversationListItem(doc, user || undefined),
+      messages: (doc.messages || []).map((message) => ({
+        role: message.role,
+        content: message.content,
+        createdAt: message.createdAt,
+        feedback: message.feedback?.rating,
+      })),
+    };
+  }
+
+  private mapConversationListItem(doc: any, user?: any): AIConversationListItem {
+    const messages = Array.isArray(doc.messages) ? doc.messages : [];
+    return {
+      conversationId: doc.conversationId,
+      userId: String(doc.userId),
+      userEmail: user?.email,
+      userName: user?.name,
+      sessionTitle: doc.sessionTitle || undefined,
+      messageCount: messages.length,
+      feedbackPositive: messages.filter((m: any) => m.feedback?.rating === 'positive').length,
+      feedbackNegative: messages.filter((m: any) => m.feedback?.rating === 'negative').length,
+      pinned: Boolean(doc.pinned),
+      archived: Boolean(doc.archived),
+      lastUsedAt: doc.lastUsedAt,
+    };
   }
 }

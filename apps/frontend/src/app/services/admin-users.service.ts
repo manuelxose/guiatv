@@ -29,6 +29,7 @@ export interface AdminUsersPagination {
 
 export interface AdminUsersResponse {
   users: AdminUser[];
+  counts?: { admins: number; suspended: number };
   pagination: AdminUsersPagination;
 }
 

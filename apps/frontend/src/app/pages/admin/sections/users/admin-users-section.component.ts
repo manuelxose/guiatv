@@ -29,6 +29,8 @@ export class AdminUsersSectionComponent implements OnInit {
   public page = 1;
   public limit = 20;
   public total = 0;
+  public adminCount: number | null = null;
+  public suspendedCount: number | null = null;
   public pages = 1;
 
   public readonly roleOptions: Array<{ id: 'all' | AdminUserRole; label: string }> = [
@@ -188,6 +190,8 @@ export class AdminUsersSectionComponent implements OnInit {
         next: (response) => {
           this.users = response.users || [];
           this.total = response.pagination?.total || 0;
+          this.adminCount = response.counts?.admins ?? null;
+          this.suspendedCount = response.counts?.suspended ?? null;
           this.page = response.pagination?.page || this.page;
           this.limit = response.pagination?.limit || this.limit;
           this.pages = response.pagination?.pages || 1;

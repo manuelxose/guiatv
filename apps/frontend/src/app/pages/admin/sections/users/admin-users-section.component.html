@@ -8,12 +8,6 @@
     <div class="flex items-center gap-2">
       <button
         type="button"
-        class="px-4 py-2 rounded-xl bg-[var(--spotify-negative)]/20 border border-[var(--spotify-negative)]/40 text-xs text-[var(--spotify-negative)] hover:bg-[var(--spotify-negative)]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-      >
-        Invite user
-      </button>
-      <button
-        type="button"
         class="px-4 py-2 rounded-xl border border-[var(--portal-border-strong)] text-[var(--portal-text)] text-xs hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
         (click)="refresh()"
       >
@@ -35,12 +29,12 @@
     </div>
     <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-4">
       <p class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Admins</p>
-      <p class="text-2xl font-semibold text-[var(--portal-text)] mt-2">4</p>
+      <p class="text-2xl font-semibold text-[var(--portal-text)] mt-2">{{ adminCount ?? '—' }}</p>
       <p class="text-xs text-[var(--portal-text-muted)] mt-1">Full access</p>
     </div>
     <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-4">
       <p class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Suspended</p>
-      <p class="text-2xl font-semibold text-[var(--spotify-warning)] mt-2">2</p>
+      <p class="text-2xl font-semibold text-[var(--spotify-warning)] mt-2">{{ suspendedCount ?? '—' }}</p>
       <p class="text-xs text-[var(--portal-text-muted)] mt-1">Awaiting review</p>
     </div>
   </div>
