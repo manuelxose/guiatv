@@ -18,41 +18,223 @@
       <button
         class="px-4 py-2 rounded-xl bg-[var(--spotify-negative)]/20 border border-[var(--spotify-negative)]/40 text-[var(--spotify-negative)] text-sm hover:bg-[var(--spotify-negative)]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
         type="button"
-        (click)="resetBlogForm(true)"
+        (click)="startNewDraft()"
       >
         Nuevo borrador
       </button>
     </div>
   </div>
 
-  <div class="grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] gap-6">
-    <form
-      class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6 space-y-6"
-      [formGroup]="blogForm"
-      (ngSubmit)="submitBlogPost()"
+  <div class="flex flex-wrap gap-2 border-b border-[var(--portal-border)]" role="tablist" aria-label="Blog Studio">
+    <button
+      *ngFor="let tab of blogTabs"
+      type="button"
+      role="tab"
+      [id]="'blog-tab-' + tab.id"
+      [attr.aria-selected]="activeBlogTab === tab.id"
+      [attr.aria-controls]="'blog-panel-' + tab.id"
+      class="px-4 py-2 rounded-t-xl border border-b-0 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+      [ngClass]="activeBlogTab === tab.id
+        ? 'border-[var(--portal-border-strong)] bg-[var(--portal-surface)] text-[var(--portal-text)] font-semibold'
+        : 'border-transparent text-[var(--portal-text-muted)] hover:text-[var(--portal-text)]'"
+      (click)="setBlogTab(tab.id)"
     >
-      <div class="flex items-center justify-between gap-4">
-        <div>
-          <h4 class="text-lg font-semibold text-[var(--portal-text)]">
-            {{ isEditingBlogPost ? 'Editar articulo editorial' : 'Crear articulo editorial' }}
-          </h4>
-          <p class="text-xs text-[var(--portal-text-muted)] mt-1">
-            Modelo SEO first con tipos editoriales, FAQs y relaciones con recursos de la app.
-          </p>
+      {{ tab.label }}
+      <span *ngIf="tab.id !== 'posts' && isEditingBlogPost" class="ml-1 text-[10px] text-[var(--accent-discover)]">●</span>
+    </button>
+  </div>
+
+  <div
+    *ngIf="activeBlogTab === 'posts'"
+    id="blog-panel-posts"
+    role="tabpanel"
+    aria-labelledby="blog-tab-posts"
+    class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6"
+  >
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div>
+        <h4 class="text-lg font-semibold text-[var(--portal-text)]">Articulos</h4>
+        <p class="text-xs text-[var(--portal-text-muted)]">
+          {{ blogPosts.length }} resultados
+          <span *ngIf="blogLastLoaded"> | actualizado {{ blogLastLoaded | date: 'shortTime' }}</span>
+        </p>
+      </div>
+      <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <select
+          class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-3 py-2 text-xs text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+          [value]="blogStatusFilter"
+          (change)="setBlogStatus($any($event.target).value)"
+        >
+          <option *ngFor="let option of blogStatusOptions" [value]="option.id">{{ option.label }}</option>
+        </select>
+        <select
+          class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-3 py-2 text-xs text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+          [value]="blogTypeFilter"
+          (change)="setBlogType($any($event.target).value)"
+        >
+          <option *ngFor="let option of blogTypeOptions" [value]="option.id">{{ option.label }}</option>
+        </select>
+        <select
+          class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-3 py-2 text-xs text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+          [value]="blogCategoryFilter"
+          (change)="setBlogCategory($any($event.target).value)"
+        >
+          <option value="all">Todas las categorias</option>
+          <option *ngFor="let category of blogCategories" [value]="category.slug">{{ category.name }}</option>
+        </select>
+        <input
+          type="text"
+          class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-3 py-2 text-xs text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+          placeholder="Buscar articulos"
+          [value]="blogSearchTerm"
+          (input)="onBlogSearchInput($event)"
+          (keydown.enter)="applyBlogFilters()"
+        />
+      </div>
+    </div>
+
+    <div *ngIf="blogLoading" class="text-sm text-[var(--portal-text-muted)] py-6 text-center">
+      Cargando articulos...
+    </div>
+    <div *ngIf="blogError" class="text-sm text-[var(--spotify-negative)] py-3">
+      {{ blogError }}
+    </div>
+    <div *ngIf="!blogLoading && !blogError && blogPosts.length === 0" class="text-sm text-[var(--portal-text-muted)] py-6 text-center">
+      No hay articulos para estos filtros.
+    </div>
+
+    <div *ngIf="blogPosts.length" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <article
+        *ngFor="let post of blogPosts; trackBy: trackByBlogPost"
+        class="p-4 rounded-2xl bg-[var(--portal-surface)] border space-y-3"
+        [ngClass]="selectedBlogPostId === post.id ? 'border-[var(--spotify-negative)]/40' : 'border-[var(--portal-border)]'"
+      >
+        <div class="flex items-start gap-3">
+          <div class="h-20 w-28 rounded-xl bg-[var(--portal-surface)] border border-[var(--portal-border)] overflow-hidden flex-shrink-0">
+            <ng-container *ngIf="getPostImage(post) as image; else noImage">
+              <img [src]="image" alt="" class="h-full w-full object-cover" />
+            </ng-container>
+            <ng-template #noImage>
+              <div class="h-full w-full flex items-center justify-center text-[10px] text-[var(--portal-text-muted)] bg-[var(--portal-bg-elevated)]/40">
+                Sin imagen
+              </div>
+            </ng-template>
+          </div>
+
+          <div class="flex-1 min-w-0 space-y-3">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <h5 class="text-[var(--portal-text)] text-sm font-semibold">{{ getPostTitle(post) }}</h5>
+                <p class="text-xs text-[var(--portal-text-muted)] mt-1 break-all">{{ post.slug }}</p>
+              </div>
+              <div class="flex flex-wrap justify-end gap-2">
+                <span class="text-[10px] px-2 py-1 rounded-full border" [ngClass]="getPostStatusClass(post.status)">
+                  {{ post.status || 'draft' }}
+                </span>
+                <span class="text-[10px] px-2 py-1 rounded-full border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] text-[var(--portal-text)]">
+                  {{ getPostTypeLabel(post) }}
+                </span>
+                <span
+                  class="text-[10px] px-2 py-1 rounded-full border"
+                  [ngClass]="post.origin === 'ai-assisted' || post.origin === 'automated-import'
+                    ? 'border-[var(--accent-streaming)]/40 bg-[var(--accent-streaming)]/10 text-[var(--accent-streaming)]'
+                    : 'border-[var(--portal-border-strong)] bg-[var(--portal-surface)] text-[var(--portal-text-muted)]'"
+                >
+                  {{ getPostOriginLabel(post) }}
+                </span>
+                <span
+                  *ngIf="getPostReviewLabel(post)"
+                  class="text-[10px] px-2 py-1 rounded-full border border-[var(--spotify-warning)]/40 bg-[var(--spotify-warning)]/10 text-[var(--spotify-warning)]"
+                >
+                  {{ getPostReviewLabel(post) }}
+                </span>
+                <span *ngIf="post.featured" class="text-[10px] px-2 py-1 rounded-full border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 text-[var(--spotify-negative)]">
+                  Destacado
+                </span>
+              </div>
+            </div>
+
+            <p class="text-sm text-[var(--portal-text-soft)]">{{ getPostExcerpt(post) }}</p>
+
+            <div class="flex flex-wrap items-center gap-2 text-xs text-[var(--portal-text-muted)]">
+              <span>{{ getPostCategories(post) }}</span>
+              <span *ngIf="post.date">| {{ post.date | date: 'mediumDate' }}</span>
+              <span>| SEO {{ getPostSeoTitle(post).length }}/{{ seoTitleMax }}</span>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 text-xs">
+              <button
+                type="button"
+                class="px-3 py-1.5 rounded-lg border border-[var(--portal-border-strong)] text-[var(--portal-text)] hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)]"
+                (click)="editBlogPost(post)"
+              >
+                Editar
+              </button>
+              <button *ngIf="post.status === 'publish'"
+                type="button"
+                class="px-3 py-1.5 rounded-lg border border-[var(--accent-discover)]/30 text-[var(--accent-discover)] hover:border-[var(--accent-discover)]/40"
+                (click)="togglePublishState(post)"
+              >
+                Retirar publicación
+              </button>
+              <a
+                [href]="getPostUrl(post)"
+                target="_blank"
+                rel="noopener"
+                class="px-3 py-1.5 rounded-lg border border-[var(--portal-border-strong)] text-[var(--portal-text)] hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)]"
+              >
+                Abrir
+              </a>
+              <button
+                type="button"
+                class="px-3 py-1.5 rounded-lg border border-[var(--spotify-negative)]/30 text-[var(--spotify-negative)] hover:border-[var(--spotify-negative)]/40 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+                [disabled]="blogDeletingId === post.id"
+                (click)="requestDeleteBlogPost(post)"
+              >
+                {{ blogDeletingId === post.id ? 'Eliminando...' : 'Eliminar' }}
+              </button>
+            </div>
+          </div>
         </div>
-        <span *ngIf="blogSaving" class="text-xs text-[var(--portal-text-soft)]">Guardando...</span>
-        <span *ngIf="!blogSaving" class="text-xs text-[var(--accent-discover)]">
-          {{ isEditingBlogPost ? 'Modo edicion' : 'Modo alta' }}
-        </span>
-      </div>
+      </article>
+    </div>
+  </div>
 
-      <div *ngIf="blogSaveError" class="bg-[var(--spotify-negative)]/10 border border-[var(--spotify-negative)]/30 text-[var(--spotify-negative)] px-4 py-3 rounded-xl text-sm">
-        {{ blogSaveError }}
+  <form
+    *ngIf="activeBlogTab !== 'posts'"
+    class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6 space-y-6"
+    [formGroup]="blogForm"
+    (ngSubmit)="submitBlogPost()"
+  >
+    <div class="flex items-center justify-between gap-4">
+      <div>
+        <h4 class="text-lg font-semibold text-[var(--portal-text)]">
+          {{ isEditingBlogPost ? 'Editar articulo editorial' : 'Crear articulo editorial' }}
+        </h4>
+        <p class="text-xs text-[var(--portal-text-muted)] mt-1">
+          Modelo SEO first con tipos editoriales, FAQs y relaciones con recursos de la app.
+        </p>
       </div>
-      <div *ngIf="blogSaveSuccess" class="bg-[var(--accent-discover)]/10 border border-[var(--accent-discover)]/30 text-[var(--accent-discover)] px-4 py-3 rounded-xl text-sm">
-        {{ blogSaveSuccess }}
-      </div>
+      <span *ngIf="blogSaving" class="text-xs text-[var(--portal-text-soft)]">Guardando...</span>
+      <span *ngIf="!blogSaving" class="text-xs text-[var(--accent-discover)]">
+        {{ isEditingBlogPost ? 'Modo edicion' : 'Modo alta' }}
+      </span>
+    </div>
 
+    <div *ngIf="blogSaveError" class="bg-[var(--spotify-negative)]/10 border border-[var(--spotify-negative)]/30 text-[var(--spotify-negative)] px-4 py-3 rounded-xl text-sm">
+      {{ blogSaveError }}
+    </div>
+    <div *ngIf="blogSaveSuccess" class="bg-[var(--accent-discover)]/10 border border-[var(--accent-discover)]/30 text-[var(--accent-discover)] px-4 py-3 rounded-xl text-sm">
+      {{ blogSaveSuccess }}
+    </div>
+
+    <div
+      *ngIf="activeBlogTab === 'content'"
+      id="blog-panel-content"
+      role="tabpanel"
+      aria-labelledby="blog-tab-content"
+      class="space-y-6"
+    >
       <div class="grid gap-4 md:grid-cols-2">
         <div class="md:col-span-2">
           <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-title">Titulo</label>
@@ -218,420 +400,294 @@
           />
         </div>
       </div>
+    </div>
 
-      <fieldset class="border border-[var(--portal-border)] rounded-2xl p-4 space-y-4">
-        <legend class="px-2 text-xs text-[var(--portal-text-soft)] uppercase tracking-wider">Relaciones con la app</legend>
+    <div
+      *ngIf="activeBlogTab === 'seo'"
+      id="blog-panel-seo"
+      role="tabpanel"
+      aria-labelledby="blog-tab-seo"
+      class="grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] gap-6"
+    >
+      <div class="space-y-6">
+        <fieldset class="border border-[var(--portal-border)] rounded-2xl p-4 space-y-4">
+          <legend class="px-2 text-xs text-[var(--portal-text-soft)] uppercase tracking-wider">Relaciones con la app</legend>
 
-        <div>
-          <p class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider">Plataformas relacionadas</p>
-          <div class="mt-3 grid gap-3 sm:grid-cols-2">
-            <label
-              *ngFor="let option of platformOptions"
-              class="flex items-start gap-3 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-surface)] px-4 py-3 text-sm text-[var(--portal-text)]"
-            >
-              <input
-                type="checkbox"
-                class="mt-0.5 h-4 w-4 rounded border-[var(--portal-border-strong)] bg-[var(--portal-surface)] text-[var(--spotify-green)] focus:ring-[var(--spotify-green)]"
-                [checked]="isArraySelectionActive('relatedPlatformKeys', option.key)"
-                (change)="toggleArraySelection('relatedPlatformKeys', option.key, $any($event.target).checked)"
-              />
-              <span>{{ option.label }}</span>
-            </label>
-          </div>
-        </div>
-
-        <div>
-          <p class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider">Modulos y CTAs relacionados</p>
-          <div class="mt-3 grid gap-3 sm:grid-cols-2">
-            <label
-              *ngFor="let option of routeOptions"
-              class="flex items-start gap-3 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-surface)] px-4 py-3 text-sm text-[var(--portal-text)]"
-            >
-              <input
-                type="checkbox"
-                class="mt-0.5 h-4 w-4 rounded border-[var(--portal-border-strong)] bg-[var(--portal-surface)] text-[var(--spotify-green)] focus:ring-[var(--spotify-green)]"
-                [checked]="isArraySelectionActive('relatedRouteKeys', option.key)"
-                (change)="toggleArraySelection('relatedRouteKeys', option.key, $any($event.target).checked)"
-              />
-              <span>
-                <span class="block font-semibold text-[var(--portal-text)]">{{ option.label }}</span>
-                <span class="block text-xs text-[var(--portal-text-muted)]">{{ option.description }}</span>
-              </span>
-            </label>
-          </div>
-        </div>
-      </fieldset>
-
-      <fieldset class="border border-[var(--portal-border)] rounded-2xl p-4 space-y-4">
-        <legend class="px-2 text-xs text-[var(--portal-text-soft)] uppercase tracking-wider">Monetizacion editorial</legend>
-        <p class="text-xs text-[var(--portal-text-muted)]">
-          Controla si y como este articulo resuelve ofertas de afiliacion en los bloques
-          <code>blog-inline</code> y <code>blog-footer</code>. Nunca se pegan URLs de afiliado aqui: el
-          motor resuelve ofertas a partir de estas señales en el momento de mostrar la pagina.
-        </p>
-
-        <div>
-          <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-affiliate-mode">Modo</label>
-          <select
-            id="blog-affiliate-mode"
-            formControlName="affiliatePlacementMode"
-            class="mt-2 w-full bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-3 py-2 text-sm text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-          >
-            <option *ngFor="let mode of affiliatePlacementModeOptions" [value]="mode.id">{{ mode.label }}</option>
-          </select>
-          <p class="text-xs text-[var(--portal-text-muted)] mt-1">{{ affiliatePlacementModeDescription }}</p>
-        </div>
-
-        <div>
-          <p class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider">Categorias de oferta relacionadas</p>
-          <div class="mt-3 grid gap-3 sm:grid-cols-2">
-            <label
-              *ngFor="let option of affiliateCategoryOptions"
-              class="flex items-start gap-3 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-surface)] px-4 py-3 text-sm text-[var(--portal-text)]"
-            >
-              <input
-                type="checkbox"
-                class="mt-0.5 h-4 w-4 rounded border-[var(--portal-border-strong)] bg-[var(--portal-surface)] text-[var(--spotify-green)] focus:ring-[var(--spotify-green)]"
-                [checked]="isArraySelectionActive('relatedOfferCategories', option.key)"
-                (change)="toggleArraySelection('relatedOfferCategories', option.key, $any($event.target).checked)"
-              />
-              <span>{{ option.label }}</span>
-            </label>
-          </div>
-          <p class="text-xs text-[var(--portal-text-muted)] mt-1">
-            Opcional. Deja todo sin marcar si el articulo no debe restringirse a una categoria de oferta.
-          </p>
-        </div>
-
-        <div>
-          <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-affiliate-merchants">Merchants relacionados</label>
-          <input
-            id="blog-affiliate-merchants"
-            formControlName="relatedMerchantKeys"
-            type="text"
-            class="mt-2 w-full bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-4 py-2 text-sm text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-            placeholder="pccomponentes, samsung, fnac"
-          />
-          <p class="text-xs text-[var(--portal-text-muted)] mt-1">
-            Nombres o alias de merchant separados por coma, ademas de las plataformas ya marcadas arriba. Util para
-            categorias no streaming (Smart TVs, dispositivos, entradas).
-          </p>
-        </div>
-
-        <div>
-          <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-affiliate-pinned">Ofertas fijadas manualmente</label>
-          <input
-            id="blog-affiliate-pinned"
-            formControlName="manualAffiliateOfferIds"
-            type="text"
-            class="mt-2 w-full bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-4 py-2 text-sm text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-            placeholder="id-de-oferta-1, id-de-oferta-2"
-          />
-          <p class="text-xs text-[var(--portal-text-muted)] mt-1">
-            IDs de AffiliateOffer separados por coma. En modo automatico se muestran primero; en modo manual son las
-            unicas ofertas que se resuelven.
-          </p>
-        </div>
-
-        <div class="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-surface)] p-4 space-y-3">
-          <div class="flex items-center justify-between gap-3">
-            <p class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider">Vista previa de CTA y disclosure</p>
-            <button
-              type="button"
-              class="px-3 py-1.5 rounded-lg border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text)] hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] disabled:opacity-50"
-              [disabled]="affiliatePreviewLoading"
-              (click)="previewAffiliateOffers()"
-            >
-              {{ affiliatePreviewLoading ? 'Cargando…' : 'Vista previa' }}
-            </button>
-          </div>
-
-          <p *ngIf="affiliatePreviewError" class="text-xs text-[var(--spotify-negative)]">{{ affiliatePreviewError }}</p>
-
-          <ng-container *ngIf="affiliatePreviewRequested && !affiliatePreviewLoading && !affiliatePreviewError">
-            <div *ngIf="affiliatePreviewOffers.length; else noAffiliatePreview" class="space-y-3">
-              <div class="flex flex-wrap gap-3">
-                <app-affiliate-cta
-                  *ngFor="let offer of affiliatePreviewOffers"
-                  [offer]="offer"
-                  variant="secondary"
-                ></app-affiliate-cta>
-              </div>
-              <app-affiliate-disclosure [compact]="true"></app-affiliate-disclosure>
+          <div>
+            <p class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider">Plataformas relacionadas</p>
+            <div class="mt-3 grid gap-3 sm:grid-cols-2">
+              <label
+                *ngFor="let option of platformOptions"
+                class="flex items-start gap-3 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-surface)] px-4 py-3 text-sm text-[var(--portal-text)]"
+              >
+                <input
+                  type="checkbox"
+                  class="mt-0.5 h-4 w-4 rounded border-[var(--portal-border-strong)] bg-[var(--portal-surface)] text-[var(--spotify-green)] focus:ring-[var(--spotify-green)]"
+                  [checked]="isArraySelectionActive('relatedPlatformKeys', option.key)"
+                  (change)="toggleArraySelection('relatedPlatformKeys', option.key, $any($event.target).checked)"
+                />
+                <span>{{ option.label }}</span>
+              </label>
             </div>
-            <ng-template #noAffiliatePreview>
-              <p class="text-xs text-[var(--portal-text-muted)]">
-                Sin ofertas para estas señales todavia. El bloque no se mostrara en el articulo publicado.
-              </p>
-            </ng-template>
-          </ng-container>
-        </div>
-      </fieldset>
-
-      <fieldset class="border border-[var(--portal-border)] rounded-2xl p-4 space-y-4">
-        <legend class="px-2 text-xs text-[var(--portal-text-soft)] uppercase tracking-wider">FAQs y snippet SEO</legend>
-
-        <div>
-          <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-faqs">FAQs</label>
-          <textarea
-            id="blog-faqs"
-            formControlName="faqItems"
-            rows="5"
-            class="mt-2 w-full bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-4 py-2 text-sm text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-            placeholder="Pregunta::Respuesta&#10;Otra pregunta::Otra respuesta"
-          ></textarea>
-          <p class="text-xs text-[var(--portal-text-muted)] mt-1">Una FAQ por linea con el formato <code>Pregunta::Respuesta</code>.</p>
-        </div>
-
-        <div>
-          <div class="flex items-center justify-between">
-            <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-meta-title">Meta title</label>
-            <span class="text-xs" [ngClass]="isSeoTitleOk() ? 'text-[var(--accent-discover)]' : 'text-[var(--spotify-warning)]'">
-              {{ blogSeoTitleLength }}/{{ seoTitleMax }}
-            </span>
           </div>
-          <input
-            id="blog-meta-title"
-            formControlName="metaTitle"
-            type="text"
-            class="mt-2 w-full bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-4 py-2 text-sm text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-            placeholder="Por defecto usa el titulo"
-          />
-        </div>
 
-        <div>
-          <div class="flex items-center justify-between">
-            <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-meta-description">Meta description</label>
-            <span class="text-xs" [ngClass]="isSeoDescriptionOk() ? 'text-[var(--accent-discover)]' : 'text-[var(--spotify-warning)]'">
-              {{ blogSeoDescriptionLength }}/{{ seoDescriptionMax }}
-            </span>
-          </div>
-          <textarea
-            id="blog-meta-description"
-            formControlName="metaDescription"
-            rows="3"
-            class="mt-2 w-full bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-4 py-2 text-sm text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-            placeholder="Por defecto usa el extracto"
-          ></textarea>
-        </div>
-
-        <div class="grid gap-4 md:grid-cols-2">
           <div>
-            <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-og">OG image</label>
-            <input
-              id="blog-og"
-              formControlName="ogImage"
-              type="text"
-              class="mt-2 w-full bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-4 py-2 text-sm text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-              placeholder="https://..."
-            />
+            <p class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider">Modulos y CTAs relacionados</p>
+            <div class="mt-3 grid gap-3 sm:grid-cols-2">
+              <label
+                *ngFor="let option of routeOptions"
+                class="flex items-start gap-3 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-surface)] px-4 py-3 text-sm text-[var(--portal-text)]"
+              >
+                <input
+                  type="checkbox"
+                  class="mt-0.5 h-4 w-4 rounded border-[var(--portal-border-strong)] bg-[var(--portal-surface)] text-[var(--spotify-green)] focus:ring-[var(--spotify-green)]"
+                  [checked]="isArraySelectionActive('relatedRouteKeys', option.key)"
+                  (change)="toggleArraySelection('relatedRouteKeys', option.key, $any($event.target).checked)"
+                />
+                <span>
+                  <span class="block font-semibold text-[var(--portal-text)]">{{ option.label }}</span>
+                  <span class="block text-xs text-[var(--portal-text-muted)]">{{ option.description }}</span>
+                </span>
+              </label>
+            </div>
           </div>
-          <div>
-            <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-canonical">Canonical</label>
-            <input
-              id="blog-canonical"
-              formControlName="canonicalUrl"
-              type="text"
-              class="mt-2 w-full bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-4 py-2 text-sm text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-              [ngClass]="{ 'border-[var(--spotify-negative)]/60': !isCanonicalValid() }"
-              placeholder="/guias/slug o https://..."
-            />
-            <p *ngIf="!isCanonicalValid()" class="text-xs text-[var(--spotify-negative)] mt-1">Canonical invalida.</p>
-          </div>
-        </div>
-      </fieldset>
+        </fieldset>
 
-      <div class="flex flex-wrap items-center justify-end gap-3 pt-2">
-        <button
-          type="button"
-          class="px-4 py-2 rounded-xl border border-[var(--portal-border-strong)] text-[var(--portal-text)] text-sm hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-          (click)="resetBlogForm(true)"
-        >
-          Limpiar
-        </button>
-        <button
-          type="submit"
-          class="px-5 py-2 rounded-xl bg-[var(--spotify-negative)]/20 border border-[var(--spotify-negative)]/40 text-[var(--spotify-negative)] text-sm hover:bg-[var(--spotify-negative)]/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-          [disabled]="blogSaving || blogForm.invalid"
-        >
-          {{ isEditingBlogPost ? 'Actualizar borrador' : 'Guardar borrador' }}
-        </button>
-      </div>
-    </form>
-
-    <div class="space-y-6">
-      <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6">
-        <div class="flex items-center justify-between">
-          <h4 class="text-lg font-semibold text-[var(--portal-text)]">Preview SEO</h4>
-          <span class="text-xs text-[var(--portal-text-muted)]">Snippet de busqueda</span>
-        </div>
-        <div class="mt-4 space-y-2">
-          <div class="text-xs text-[var(--portal-text-muted)] break-all">{{ blogPreviewUrl }}</div>
-          <div class="text-xl font-semibold text-[var(--accent-streaming)]">{{ blogPreviewTitle }}</div>
-          <p class="text-sm text-[var(--portal-text-soft)]">
-            {{ blogPreviewDescription || 'Anade una descripcion util para mejorar el CTR.' }}
+        <fieldset class="border border-[var(--portal-border)] rounded-2xl p-4 space-y-4">
+          <legend class="px-2 text-xs text-[var(--portal-text-soft)] uppercase tracking-wider">Monetizacion editorial</legend>
+          <p class="text-xs text-[var(--portal-text-muted)]">
+            Controla si y como este articulo resuelve ofertas de afiliacion en los bloques
+            <code>blog-inline</code> y <code>blog-footer</code>. Nunca se pegan URLs de afiliado aqui: el
+            motor resuelve ofertas a partir de estas señales en el momento de mostrar la pagina.
           </p>
-        </div>
-        <div class="mt-5 grid sm:grid-cols-3 gap-3 text-xs">
-          <div class="p-3 rounded-xl bg-[var(--portal-surface)] border border-[var(--portal-border)]">
-            <p class="text-[var(--portal-text-muted)]">Palabras</p>
-            <p class="text-[var(--portal-text)] font-semibold">{{ blogWordCount }}</p>
-          </div>
-          <div class="p-3 rounded-xl bg-[var(--portal-surface)] border border-[var(--portal-border)]">
-            <p class="text-[var(--portal-text-muted)]">Lectura</p>
-            <p class="text-[var(--portal-text)] font-semibold">{{ blogReadingTime }} min</p>
-          </div>
-          <div class="p-3 rounded-xl bg-[var(--portal-surface)] border border-[var(--portal-border)]">
-            <p class="text-[var(--portal-text-muted)]">Titulo SEO</p>
-            <p class="text-[var(--portal-text)] font-semibold">{{ blogSeoTitleLength }}</p>
-          </div>
-        </div>
-        <button
-          type="button"
-          class="mt-4 w-full px-4 py-2 rounded-xl border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text)] hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-          (click)="openBlogPreview()"
-        >
-          Abrir preview
-        </button>
-      </div>
 
-      <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
-            <h4 class="text-lg font-semibold text-[var(--portal-text)]">Articulos</h4>
-            <p class="text-xs text-[var(--portal-text-muted)]">
-              {{ blogPosts.length }} resultados
-              <span *ngIf="blogLastLoaded"> | actualizado {{ blogLastLoaded | date: 'shortTime' }}</span>
+            <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-affiliate-mode">Modo</label>
+            <select
+              id="blog-affiliate-mode"
+              formControlName="affiliatePlacementMode"
+              class="mt-2 w-full bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-3 py-2 text-sm text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+            >
+              <option *ngFor="let mode of affiliatePlacementModeOptions" [value]="mode.id">{{ mode.label }}</option>
+            </select>
+            <p class="text-xs text-[var(--portal-text-muted)] mt-1">{{ affiliatePlacementModeDescription }}</p>
+          </div>
+
+          <div>
+            <p class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider">Categorias de oferta relacionadas</p>
+            <div class="mt-3 grid gap-3 sm:grid-cols-2">
+              <label
+                *ngFor="let option of affiliateCategoryOptions"
+                class="flex items-start gap-3 rounded-xl border border-[var(--portal-border)] bg-[var(--portal-surface)] px-4 py-3 text-sm text-[var(--portal-text)]"
+              >
+                <input
+                  type="checkbox"
+                  class="mt-0.5 h-4 w-4 rounded border-[var(--portal-border-strong)] bg-[var(--portal-surface)] text-[var(--spotify-green)] focus:ring-[var(--spotify-green)]"
+                  [checked]="isArraySelectionActive('relatedOfferCategories', option.key)"
+                  (change)="toggleArraySelection('relatedOfferCategories', option.key, $any($event.target).checked)"
+                />
+                <span>{{ option.label }}</span>
+              </label>
+            </div>
+            <p class="text-xs text-[var(--portal-text-muted)] mt-1">
+              Opcional. Deja todo sin marcar si el articulo no debe restringirse a una categoria de oferta.
             </p>
           </div>
-          <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-            <select
-              class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-3 py-2 text-xs text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-              [value]="blogStatusFilter"
-              (change)="setBlogStatus($any($event.target).value)"
-            >
-              <option *ngFor="let option of blogStatusOptions" [value]="option.id">{{ option.label }}</option>
-            </select>
-            <select
-              class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-3 py-2 text-xs text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-              [value]="blogTypeFilter"
-              (change)="setBlogType($any($event.target).value)"
-            >
-              <option *ngFor="let option of blogTypeOptions" [value]="option.id">{{ option.label }}</option>
-            </select>
-            <select
-              class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-3 py-2 text-xs text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-              [value]="blogCategoryFilter"
-              (change)="setBlogCategory($any($event.target).value)"
-            >
-              <option value="all">Todas las categorias</option>
-              <option *ngFor="let category of blogCategories" [value]="category.slug">{{ category.name }}</option>
-            </select>
+
+          <div>
+            <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-affiliate-merchants">Merchants relacionados</label>
             <input
+              id="blog-affiliate-merchants"
+              formControlName="relatedMerchantKeys"
               type="text"
-              class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-3 py-2 text-xs text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-              placeholder="Buscar articulos"
-              [value]="blogSearchTerm"
-              (input)="onBlogSearchInput($event)"
-              (keydown.enter)="applyBlogFilters()"
+              class="mt-2 w-full bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-4 py-2 text-sm text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+              placeholder="pccomponentes, samsung, fnac"
+            />
+            <p class="text-xs text-[var(--portal-text-muted)] mt-1">
+              Nombres o alias de merchant separados por coma, ademas de las plataformas ya marcadas arriba. Util para
+              categorias no streaming (Smart TVs, dispositivos, entradas).
+            </p>
+          </div>
+
+          <div>
+            <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-affiliate-pinned">Ofertas fijadas manualmente</label>
+            <input
+              id="blog-affiliate-pinned"
+              formControlName="manualAffiliateOfferIds"
+              type="text"
+              class="mt-2 w-full bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-4 py-2 text-sm text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+              placeholder="id-de-oferta-1, id-de-oferta-2"
+            />
+            <p class="text-xs text-[var(--portal-text-muted)] mt-1">
+              IDs de AffiliateOffer separados por coma. En modo automatico se muestran primero; en modo manual son las
+              unicas ofertas que se resuelven.
+            </p>
+          </div>
+
+          <div class="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-surface)] p-4 space-y-3">
+            <div class="flex items-center justify-between gap-3">
+              <p class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider">Vista previa de CTA y disclosure</p>
+              <button
+                type="button"
+                class="px-3 py-1.5 rounded-lg border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text)] hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] disabled:opacity-50"
+                [disabled]="affiliatePreviewLoading"
+                (click)="previewAffiliateOffers()"
+              >
+                {{ affiliatePreviewLoading ? 'Cargando…' : 'Vista previa' }}
+              </button>
+            </div>
+
+            <p *ngIf="affiliatePreviewError" class="text-xs text-[var(--spotify-negative)]">{{ affiliatePreviewError }}</p>
+
+            <ng-container *ngIf="affiliatePreviewRequested && !affiliatePreviewLoading && !affiliatePreviewError">
+              <div *ngIf="affiliatePreviewOffers.length; else noAffiliatePreview" class="space-y-3">
+                <div class="flex flex-wrap gap-3">
+                  <app-affiliate-cta
+                    *ngFor="let offer of affiliatePreviewOffers"
+                    [offer]="offer"
+                    variant="secondary"
+                  ></app-affiliate-cta>
+                </div>
+                <app-affiliate-disclosure [compact]="true"></app-affiliate-disclosure>
+              </div>
+              <ng-template #noAffiliatePreview>
+                <p class="text-xs text-[var(--portal-text-muted)]">
+                  Sin ofertas para estas señales todavia. El bloque no se mostrara en el articulo publicado.
+                </p>
+              </ng-template>
+            </ng-container>
+          </div>
+        </fieldset>
+
+        <fieldset class="border border-[var(--portal-border)] rounded-2xl p-4 space-y-4">
+          <legend class="px-2 text-xs text-[var(--portal-text-soft)] uppercase tracking-wider">FAQs y snippet SEO</legend>
+
+          <div>
+            <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-faqs">FAQs</label>
+            <textarea
+              id="blog-faqs"
+              formControlName="faqItems"
+              rows="5"
+              class="mt-2 w-full bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-4 py-2 text-sm text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+              placeholder="Pregunta::Respuesta&#10;Otra pregunta::Otra respuesta"
+            ></textarea>
+            <p class="text-xs text-[var(--portal-text-muted)] mt-1">Una FAQ por linea con el formato <code>Pregunta::Respuesta</code>.</p>
+          </div>
+
+          <div>
+            <div class="flex items-center justify-between">
+              <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-meta-title">Meta title</label>
+              <span class="text-xs" [ngClass]="isSeoTitleOk() ? 'text-[var(--accent-discover)]' : 'text-[var(--spotify-warning)]'">
+                {{ blogSeoTitleLength }}/{{ seoTitleMax }}
+              </span>
+            </div>
+            <input
+              id="blog-meta-title"
+              formControlName="metaTitle"
+              type="text"
+              class="mt-2 w-full bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-4 py-2 text-sm text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+              placeholder="Por defecto usa el titulo"
             />
           </div>
-        </div>
 
-        <div *ngIf="blogLoading" class="text-sm text-[var(--portal-text-muted)] py-6 text-center">
-          Cargando articulos...
-        </div>
-        <div *ngIf="blogError" class="text-sm text-[var(--spotify-negative)] py-3">
-          {{ blogError }}
-        </div>
-        <div *ngIf="!blogLoading && !blogError && blogPosts.length === 0" class="text-sm text-[var(--portal-text-muted)] py-6 text-center">
-          No hay articulos para estos filtros.
-        </div>
-
-        <div *ngIf="blogPosts.length" class="space-y-4 max-h-[680px] overflow-auto pr-1">
-          <article
-            *ngFor="let post of blogPosts; trackBy: trackByBlogPost"
-            class="p-4 rounded-2xl bg-[var(--portal-surface)] border space-y-3"
-            [ngClass]="selectedBlogPostId === post.id ? 'border-[var(--spotify-negative)]/40' : 'border-[var(--portal-border)]'"
-          >
-            <div class="flex items-start gap-3">
-              <div class="h-20 w-28 rounded-xl bg-[var(--portal-surface)] border border-[var(--portal-border)] overflow-hidden flex-shrink-0">
-                <ng-container *ngIf="getPostImage(post) as image; else noImage">
-                  <img [src]="image" alt="" class="h-full w-full object-cover" />
-                </ng-container>
-                <ng-template #noImage>
-                  <div class="h-full w-full flex items-center justify-center text-[10px] text-[var(--portal-text-muted)] bg-[var(--portal-bg-elevated)]/40">
-                    Sin imagen
-                  </div>
-                </ng-template>
-              </div>
-
-              <div class="flex-1 min-w-0 space-y-3">
-                <div class="flex items-start justify-between gap-3">
-                  <div>
-                    <h5 class="text-[var(--portal-text)] text-sm font-semibold">{{ getPostTitle(post) }}</h5>
-                    <p class="text-xs text-[var(--portal-text-muted)] mt-1 break-all">{{ post.slug }}</p>
-                  </div>
-                  <div class="flex flex-wrap justify-end gap-2">
-                    <span class="text-[10px] px-2 py-1 rounded-full border" [ngClass]="getPostStatusClass(post.status)">
-                      {{ post.status || 'draft' }}
-                    </span>
-                    <span class="text-[10px] px-2 py-1 rounded-full border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] text-[var(--portal-text)]">
-                      {{ getPostTypeLabel(post) }}
-                    </span>
-                    <span *ngIf="post.featured" class="text-[10px] px-2 py-1 rounded-full border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 text-[var(--spotify-negative)]">
-                      Destacado
-                    </span>
-                  </div>
-                </div>
-
-                <p class="text-sm text-[var(--portal-text-soft)]">{{ getPostExcerpt(post) }}</p>
-
-                <div class="flex flex-wrap items-center gap-2 text-xs text-[var(--portal-text-muted)]">
-                  <span>{{ getPostCategories(post) }}</span>
-                  <span *ngIf="post.date">| {{ post.date | date: 'mediumDate' }}</span>
-                  <span>| SEO {{ getPostSeoTitle(post).length }}/{{ seoTitleMax }}</span>
-                </div>
-
-                <div class="flex flex-wrap items-center gap-2 text-xs">
-                  <button
-                    type="button"
-                    class="px-3 py-1.5 rounded-lg border border-[var(--portal-border-strong)] text-[var(--portal-text)] hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)]"
-                    (click)="editBlogPost(post)"
-                  >
-                    Editar
-                  </button>
-                  <button *ngIf="post.status === 'publish'"
-                    type="button"
-                    class="px-3 py-1.5 rounded-lg border border-[var(--accent-discover)]/30 text-[var(--accent-discover)] hover:border-[var(--accent-discover)]/40"
-                    (click)="togglePublishState(post)"
-                  >
-                    Retirar publicación
-                  </button>
-                  <a
-                    [href]="getPostUrl(post)"
-                    target="_blank"
-                    rel="noopener"
-                    class="px-3 py-1.5 rounded-lg border border-[var(--portal-border-strong)] text-[var(--portal-text)] hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)]"
-                  >
-                    Abrir
-                  </a>
-                  <button
-                    type="button"
-                    class="px-3 py-1.5 rounded-lg border border-[var(--spotify-negative)]/30 text-[var(--spotify-negative)] hover:border-[var(--spotify-negative)]/40 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-                    [disabled]="blogDeletingId === post.id"
-                    (click)="requestDeleteBlogPost(post)"
-                  >
-                    {{ blogDeletingId === post.id ? 'Eliminando...' : 'Eliminar' }}
-                  </button>
-                </div>
-              </div>
+          <div>
+            <div class="flex items-center justify-between">
+              <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-meta-description">Meta description</label>
+              <span class="text-xs" [ngClass]="isSeoDescriptionOk() ? 'text-[var(--accent-discover)]' : 'text-[var(--spotify-warning)]'">
+                {{ blogSeoDescriptionLength }}/{{ seoDescriptionMax }}
+              </span>
             </div>
-          </article>
+            <textarea
+              id="blog-meta-description"
+              formControlName="metaDescription"
+              rows="3"
+              class="mt-2 w-full bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-4 py-2 text-sm text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+              placeholder="Por defecto usa el extracto"
+            ></textarea>
+          </div>
+
+          <div class="grid gap-4 md:grid-cols-2">
+            <div>
+              <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-og">OG image</label>
+              <input
+                id="blog-og"
+                formControlName="ogImage"
+                type="text"
+                class="mt-2 w-full bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-4 py-2 text-sm text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+                placeholder="https://..."
+              />
+            </div>
+            <div>
+              <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-canonical">Canonical</label>
+              <input
+                id="blog-canonical"
+                formControlName="canonicalUrl"
+                type="text"
+                class="mt-2 w-full bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-4 py-2 text-sm text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+                [ngClass]="{ 'border-[var(--spotify-negative)]/60': !isCanonicalValid() }"
+                placeholder="/guias/slug o https://..."
+              />
+              <p *ngIf="!isCanonicalValid()" class="text-xs text-[var(--spotify-negative)] mt-1">Canonical invalida.</p>
+            </div>
+          </div>
+        </fieldset>
+      </div>
+
+      <div class="space-y-6">
+        <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6">
+          <div class="flex items-center justify-between">
+            <h4 class="text-lg font-semibold text-[var(--portal-text)]">Preview SEO</h4>
+            <span class="text-xs text-[var(--portal-text-muted)]">Snippet de busqueda</span>
+          </div>
+          <div class="mt-4 space-y-2">
+            <div class="text-xs text-[var(--portal-text-muted)] break-all">{{ blogPreviewUrl }}</div>
+            <div class="text-xl font-semibold text-[var(--accent-streaming)]">{{ blogPreviewTitle }}</div>
+            <p class="text-sm text-[var(--portal-text-soft)]">
+              {{ blogPreviewDescription || 'Anade una descripcion util para mejorar el CTR.' }}
+            </p>
+          </div>
+          <div class="mt-5 grid sm:grid-cols-3 gap-3 text-xs">
+            <div class="p-3 rounded-xl bg-[var(--portal-surface)] border border-[var(--portal-border)]">
+              <p class="text-[var(--portal-text-muted)]">Palabras</p>
+              <p class="text-[var(--portal-text)] font-semibold">{{ blogWordCount }}</p>
+            </div>
+            <div class="p-3 rounded-xl bg-[var(--portal-surface)] border border-[var(--portal-border)]">
+              <p class="text-[var(--portal-text-muted)]">Lectura</p>
+              <p class="text-[var(--portal-text)] font-semibold">{{ blogReadingTime }} min</p>
+            </div>
+            <div class="p-3 rounded-xl bg-[var(--portal-surface)] border border-[var(--portal-border)]">
+              <p class="text-[var(--portal-text-muted)]">Titulo SEO</p>
+              <p class="text-[var(--portal-text)] font-semibold">{{ blogSeoTitleLength }}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="mt-4 w-full px-4 py-2 rounded-xl border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text)] hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+            (click)="openBlogPreview()"
+          >
+            Abrir preview
+          </button>
         </div>
       </div>
     </div>
-  </div>
+
+    <div class="flex flex-wrap items-center justify-end gap-3 pt-2">
+      <button
+        type="button"
+        class="px-4 py-2 rounded-xl border border-[var(--portal-border-strong)] text-[var(--portal-text)] text-sm hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+        (click)="resetBlogForm(true)"
+      >
+        Limpiar
+      </button>
+      <button
+        type="submit"
+        class="px-5 py-2 rounded-xl bg-[var(--spotify-negative)]/20 border border-[var(--spotify-negative)]/40 text-[var(--spotify-negative)] text-sm hover:bg-[var(--spotify-negative)]/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+        [disabled]="blogSaving || blogForm.invalid"
+      >
+        {{ isEditingBlogPost ? 'Actualizar borrador' : 'Guardar borrador' }}
+      </button>
+    </div>
+  </form>
 
   <app-admin-confirm-dialog
     [open]="confirmDeletePostOpen"

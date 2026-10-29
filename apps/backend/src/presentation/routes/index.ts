@@ -141,7 +141,7 @@ export const createV2Routes = (dependencies: RoutesDependencies): Router => {
   );
   router.use('/admin/ai-analytics', createAdminAIAnalyticsRoutes(dependencies.aiAnalyticsController, dependencies.authService));
   router.use('/auth', createAuthRoutes(dependencies.authController));
-  router.use('/blog', createBlogRoutes(dependencies.blogController));
+  router.use('/blog', createBlogRoutes(dependencies.blogController, dependencies.authService));
   router.get('/editorial/facts', editorialFactsHandler);
   router.use('/monetization', createMonetizationRoutes(dependencies.monetizationController));
   router.use('/affiliate', createAffiliateRoutes(dependencies.affiliateController));

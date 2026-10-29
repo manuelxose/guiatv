@@ -1,20 +1,24 @@
 import { Router } from 'express';
 import { BlogController } from '../controllers/BlogController';
-import { analyticsAdminGuard } from '../middlewares/analyticsAdminGuard';
+import { AuthService } from '../../domain/services/AuthService';
+import { createAdminAccessGuard } from '../middlewares/adminAccessGuard';
+import { createOptionalAdminAccess } from '../middlewares/optionalAdminAccess';
 import { editorialReviewGuard, policyApprovalGuard } from '../middlewares/editorialReviewGuard';
 
-export const createBlogRoutes = (blogController: BlogController): Router => {
+export const createBlogRoutes = (blogController: BlogController, authService: AuthService): Router => {
   const router = Router();
+  const adminAccess = createAdminAccessGuard(authService);
+  const optionalAdminAccess = createOptionalAdminAccess(authService);
 
-  router.get('/', blogController.getPosts);
+  router.get('/', optionalAdminAccess, blogController.getPosts);
   router.get('/categories', blogController.getCategories);
-  router.post('/', analyticsAdminGuard, blogController.createPost);
-  router.post('/:id/approve', analyticsAdminGuard, editorialReviewGuard, blogController.approvePost);
-  router.post('/:id/approve-by-policy', analyticsAdminGuard, policyApprovalGuard, blogController.approveByPolicy);
-  router.post('/:id/revise-by-policy', analyticsAdminGuard, policyApprovalGuard, blogController.reviseByPolicy);
-  router.post('/:id/rollback', analyticsAdminGuard, editorialReviewGuard, blogController.rollbackPost);
-  router.put('/:id', analyticsAdminGuard, blogController.updatePost);
-  router.delete('/:id', analyticsAdminGuard, blogController.deletePost);
+  router.post('/', adminAccess, blogController.createPost);
+  router.post('/:id/approve', adminAccess, editorialReviewGuard, blogController.approvePost);
+  router.post('/:id/approve-by-policy', adminAccess, policyApprovalGuard, blogController.approveByPolicy);
+  router.post('/:id/revise-by-policy', adminAccess, policyApprovalGuard, blogController.reviseByPolicy);
+  router.post('/:id/rollback', adminAccess, editorialReviewGuard, blogController.rollbackPost);
+  router.put('/:id', adminAccess, blogController.updatePost);
+  router.delete('/:id', adminAccess, blogController.deletePost);
 
   return router;
 };
