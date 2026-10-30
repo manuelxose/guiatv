@@ -32,8 +32,8 @@ interface EditorCommand {
     },
   ],
   template: `
-    <div class="rte border border-[var(--portal-border)] rounded-xl overflow-hidden">
-      <div class="flex flex-wrap items-center gap-1 border-b border-[var(--portal-border)] bg-[var(--portal-surface)] px-2 py-1.5" role="toolbar" aria-label="Formato">
+    <div class="rte border border-[var(--portal-border)] rounded-xl max-h-[600px] overflow-auto">
+      <div class="sticky top-0 z-10 flex flex-wrap items-center gap-1 border-b border-[var(--portal-border)] bg-[var(--portal-surface)] px-2 py-1.5" role="toolbar" aria-label="Formato">
         <button
           *ngFor="let cmd of commands"
           type="button"
@@ -49,7 +49,7 @@ interface EditorCommand {
       </div>
       <div
         #editor
-        class="rte-content min-h-[320px] max-h-[600px] overflow-auto px-4 py-3 text-sm text-[var(--portal-text)] bg-[var(--portal-surface)] focus:outline-none"
+        class="rte-content min-h-[320px] px-4 py-3 text-sm text-[var(--portal-text)] bg-[var(--portal-surface)] focus:outline-none"
         contenteditable="true"
         role="textbox"
         aria-multiline="true"

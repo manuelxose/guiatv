@@ -133,6 +133,14 @@ export class AdminBlogSectionComponent implements OnInit {
   public aiError: string | null = null;
   public aiResult: string | null = null;
   public aiResultModel: string | null = null;
+  public aiAppliedMessage: string | null = null;
+  public readonly aiQuickChips = [
+    'Tono cercano y familiar',
+    'Público no técnico',
+    'Enlaza /comparador-streaming y /tendencias',
+    'Añade una sección de FAQs',
+    'Cierra con CTA a la guía TV',
+  ];
   public readonly aiActionOptions: Array<{ id: EditorialAIAction; label: string }> = [
     { id: 'generate', label: 'Redactar desde cero' },
     { id: 'improve', label: 'Mejorar el texto actual' },
@@ -241,11 +249,42 @@ export class AdminBlogSectionComponent implements OnInit {
     this.blogForm.get('origin')?.setValue('ai-assisted');
     this.aiResult = null;
     this.aiResultModel = null;
+    this.aiAppliedMessage = 'Contenido aplicado al editor. Revisa y guarda el borrador.';
+    setTimeout(() => (this.aiAppliedMessage = null), 4000);
   }
 
   discardAiResult(): void {
     this.aiResult = null;
     this.aiResultModel = null;
+  }
+
+  copyAiResult(): void {
+    if (!this.aiResult || typeof navigator === 'undefined' || !navigator.clipboard) return;
+    navigator.clipboard.writeText(this.aiResult).catch(() => undefined);
+  }
+
+  applyQuickChip(chip: string): void {
+    this.aiInstruction = this.aiInstruction ? `${this.aiInstruction}. ${chip}` : chip;
+  }
+
+  onAiInstructionKeydown(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+      event.preventDefault();
+      this.runAiAssist();
+    }
+  }
+
+  get aiProviderGroups(): Array<{ provider: string; models: EditorialAIModel[] }> {
+    const groups: Array<{ provider: string; models: EditorialAIModel[] }> = [];
+    for (const model of this.aiModels) {
+      let group = groups.find((g) => g.provider === model.provider);
+      if (!group) {
+        group = { provider: model.provider, models: [] };
+        groups.push(group);
+      }
+      group.models.push(model);
+    }
+    return groups;
   }
 
   get isEditingBlogPost(): boolean {
