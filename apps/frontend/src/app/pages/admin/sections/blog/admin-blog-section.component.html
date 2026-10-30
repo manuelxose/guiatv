@@ -378,20 +378,107 @@
       </div>
 
       <div>
-        <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-content">Contenido HTML</label>
-        <textarea
-          id="blog-content"
-          formControlName="content"
-          rows="12"
-          class="mt-2 w-full bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-4 py-2 text-sm text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-          placeholder="HTML permitido. Usa enlaces internos a /plataformas, /comparador-streaming, /tendencias..."
-        ></textarea>
+        <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" id="blog-content-label">Contenido</label>
+        <div class="mt-2" role="group" aria-labelledby="blog-content-label">
+          <app-rich-text-editor formControlName="content"></app-rich-text-editor>
+        </div>
         <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-[var(--portal-text-muted)]">
           <span>{{ blogWordCount }} palabras</span>
           <span>{{ blogReadingTime }} min de lectura</span>
           <span>Slug: {{ blogPreviewSlug || '-' }}</span>
         </div>
       </div>
+
+      <fieldset class="border border-[var(--portal-border)] rounded-2xl p-4 space-y-4">
+        <legend class="px-2 text-xs text-[var(--portal-text-soft)] uppercase tracking-wider">Asistencia de IA</legend>
+
+        <div *ngIf="aiModelsLoaded && aiModels.length === 0" class="text-xs text-[var(--portal-text-muted)]">
+          No hay modelos de IA configurados en el backend (DEEPSEEK_API_KEY / ANTHROPIC_API_KEY).
+        </div>
+
+        <ng-container *ngIf="aiModels.length">
+          <div class="grid gap-4 md:grid-cols-2">
+            <div>
+              <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-ai-model">Modelo</label>
+              <select
+                id="blog-ai-model"
+                class="mt-2 w-full bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-3 py-2 text-sm text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+                [value]="aiModel"
+                (change)="aiModel = $any($event.target).value"
+              >
+                <option *ngFor="let model of aiModels" [value]="model.id">{{ model.label }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-ai-action">Acción</label>
+              <select
+                id="blog-ai-action"
+                class="mt-2 w-full bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-3 py-2 text-sm text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+                [value]="aiAction"
+                (change)="aiAction = $any($event.target).value"
+              >
+                <option *ngFor="let option of aiActionOptions" [value]="option.id">{{ option.label }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-ai-instruction">Instrucción (opcional)</label>
+            <input
+              id="blog-ai-instruction"
+              type="text"
+              class="mt-2 w-full bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-4 py-2 text-sm text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+              placeholder="Ej.: tono cercano, público familiar, menciona /comparador-streaming"
+              [value]="aiInstruction"
+              (input)="aiInstruction = $any($event.target).value"
+            />
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              class="px-4 py-2 rounded-xl bg-[var(--accent-streaming)]/20 border border-[var(--accent-streaming)]/40 text-[var(--accent-streaming)] text-sm hover:bg-[var(--accent-streaming)]/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+              [disabled]="aiLoading || !aiModel"
+              (click)="runAiAssist()"
+            >
+              {{ aiLoading ? 'Generando…' : 'Generar con IA' }}
+            </button>
+            <span *ngIf="aiError" class="text-xs text-[var(--spotify-negative)]">{{ aiError }}</span>
+          </div>
+
+          <div *ngIf="aiResult" class="rounded-xl border border-[var(--accent-streaming)]/40 bg-[var(--accent-streaming)]/5 p-4 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <p class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider">
+                Resultado ({{ aiResultModel }})
+              </p>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  class="px-3 py-1.5 rounded-lg border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+                  (click)="applyAiResult('replace')"
+                >
+                  Reemplazar contenido
+                </button>
+                <button
+                  type="button"
+                  class="px-3 py-1.5 rounded-lg border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+                  (click)="applyAiResult('append')"
+                >
+                  Añadir al final
+                </button>
+                <button
+                  type="button"
+                  class="px-3 py-1.5 rounded-lg border border-[var(--portal-border)] text-xs text-[var(--portal-text-muted)] hover:text-[var(--portal-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+                  (click)="discardAiResult()"
+                >
+                  Descartar
+                </button>
+              </div>
+            </div>
+            <div class="max-h-72 overflow-auto rounded-lg bg-[var(--portal-surface)] border border-[var(--portal-border)] p-3 text-sm text-[var(--portal-text)]" [innerHTML]="aiResult"></div>
+          </div>
+        </ng-container>
+      </fieldset>
 
       <div class="grid gap-4 md:grid-cols-2">
         <div>

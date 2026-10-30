@@ -726,6 +726,17 @@ export class Container {
     const aiAnalyticsController = new AIAnalyticsController(aiAnalyticsService, assistantTelemetry);
     this.dependencies.set('aiAnalyticsController', aiAnalyticsController);
 
+    const { EditorialAIAssistantService } = await import('../application/services/EditorialAIAssistantService');
+    const { EditorialAIAssistantController } = await import('../presentation/controllers/EditorialAIAssistantController');
+    const editorialAIAssistantService = new EditorialAIAssistantService({
+      deepseekApiKey: process.env.DEEPSEEK_API_KEY,
+      anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+    });
+    this.dependencies.set(
+      'editorialAIAssistantController',
+      new EditorialAIAssistantController(editorialAIAssistantService)
+    );
+
     const { SitemapController } = await import('../presentation/controllers/SitemapController');
     const sitemapController = new SitemapController(
       this.get('channelRepository'),
