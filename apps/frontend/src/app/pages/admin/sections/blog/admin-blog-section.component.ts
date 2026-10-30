@@ -17,6 +17,12 @@ import { AffiliateResolvedOffer } from '../../../../interfaces/affiliate.interfa
 import { AffiliateCTAComponent } from '../../../../components/affiliate-cta/affiliate-cta.component';
 import { AffiliateDisclosureComponent } from '../../../../components/affiliate-disclosure/affiliate-disclosure.component';
 import { AdminConfirmDialogComponent } from '../../components/admin-confirm-dialog/admin-confirm-dialog.component';
+import { RichTextEditorComponent } from '../../components/rich-text-editor/rich-text-editor.component';
+import {
+  AdminEditorialAIService,
+  EditorialAIAction,
+  EditorialAIModel,
+} from '../../../../services/admin-editorial-ai.service';
 import {
   calculateReadingTime,
   generateExcerpt,
@@ -38,7 +44,7 @@ interface BlogRouteOption {
 @Component({
   selector: 'app-admin-blog-section',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, AffiliateCTAComponent, AffiliateDisclosureComponent, AdminConfirmDialogComponent],
+  imports: [CommonModule, ReactiveFormsModule, AffiliateCTAComponent, AffiliateDisclosureComponent, AdminConfirmDialogComponent, RichTextEditorComponent],
   templateUrl: './admin-blog-section.component.html',
   styleUrls: ['./admin-blog-section.component.scss'],
 })
@@ -118,9 +124,27 @@ export class AdminBlogSectionComponent implements OnInit {
   public affiliatePreviewError: string | null = null;
   public affiliatePreviewRequested = false;
 
+  public aiModels: EditorialAIModel[] = [];
+  public aiModelsLoaded = false;
+  public aiModel = '';
+  public aiAction: EditorialAIAction = 'generate';
+  public aiInstruction = '';
+  public aiLoading = false;
+  public aiError: string | null = null;
+  public aiResult: string | null = null;
+  public aiResultModel: string | null = null;
+  public readonly aiActionOptions: Array<{ id: EditorialAIAction; label: string }> = [
+    { id: 'generate', label: 'Redactar desde cero' },
+    { id: 'improve', label: 'Mejorar el texto actual' },
+    { id: 'expand', label: 'Ampliar el texto actual' },
+    { id: 'summarize', label: 'Resumir (extracto)' },
+    { id: 'seo', label: 'Optimizar para SEO' },
+  ];
+
   constructor(
     private readonly blogService: AdminBlogService,
     private readonly affiliateService: AffiliateService,
+    private readonly editorialAI: AdminEditorialAIService,
     private readonly fb: FormBuilder
   ) {
     this.blogForm = this.fb.group({
@@ -158,6 +182,70 @@ export class AdminBlogSectionComponent implements OnInit {
   ngOnInit(): void {
     this.loadBlogCategories();
     this.loadBlogPosts(true);
+    this.loadAiModels();
+  }
+
+  loadAiModels(): void {
+    this.editorialAI.getModels().subscribe({
+      next: (models) => {
+        this.aiModels = models;
+        this.aiModelsLoaded = true;
+        if (!this.aiModel && models.length) this.aiModel = models[0].id;
+      },
+      error: () => {
+        this.aiModels = [];
+        this.aiModelsLoaded = true;
+      },
+    });
+  }
+
+  runAiAssist(): void {
+    if (!this.aiModel || this.aiLoading) return;
+    const content = String(this.blogForm.get('content')?.value || '');
+    if (this.aiAction !== 'generate' && !content.trim()) {
+      this.aiError = 'Escribe o carga contenido antes de usar esta acción.';
+      return;
+    }
+    this.aiLoading = true;
+    this.aiError = null;
+    this.aiResult = null;
+    this.editorialAI.assist({
+      model: this.aiModel,
+      action: this.aiAction,
+      instruction: this.aiInstruction || undefined,
+      title: String(this.blogForm.get('title')?.value || '') || undefined,
+      content: this.aiAction === 'generate' ? undefined : content,
+    }).subscribe({
+      next: (result) => {
+        this.aiResult = result.text;
+        this.aiResultModel = result.model;
+        this.aiLoading = false;
+      },
+      error: (err) => {
+        this.aiError = err?.error?.error || 'No se pudo completar la asistencia de IA.';
+        this.aiLoading = false;
+      },
+    });
+  }
+
+  applyAiResult(mode: 'replace' | 'append'): void {
+    if (!this.aiResult) return;
+    const control = this.blogForm.get('content');
+    if (!control) return;
+    const current = String(control.value || '');
+    control.setValue(mode === 'replace' ? this.aiResult : `${current}\n${this.aiResult}`);
+    control.markAsDirty();
+    if (this.aiAction === 'summarize') {
+      this.blogForm.get('excerpt')?.setValue(this.aiResult.replace(/<[^>]+>/g, '').trim());
+    }
+    this.blogForm.get('origin')?.setValue('ai-assisted');
+    this.aiResult = null;
+    this.aiResultModel = null;
+  }
+
+  discardAiResult(): void {
+    this.aiResult = null;
+    this.aiResultModel = null;
   }
 
   get isEditingBlogPost(): boolean {

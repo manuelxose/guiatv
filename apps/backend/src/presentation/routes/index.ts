@@ -40,6 +40,8 @@ import { createInteractionRoutes } from './interaction.routes';
 import { createAIRoutes } from './ai.routes';
 import { AIAnalyticsController } from '../controllers/AIAnalyticsController';
 import { createAdminAIAnalyticsRoutes } from './admin-ai-analytics.routes';
+import { EditorialAIAssistantController } from '../controllers/EditorialAIAssistantController';
+import { createAdminEditorialAIRoutes } from './admin-editorial-ai.routes';
 import { createListsPublicRoutes } from './lists-public.routes';
 import { MonetizationController } from '../controllers/MonetizationController';
 import { createMonetizationRoutes } from './monetization.routes';
@@ -77,6 +79,7 @@ export interface RoutesDependencies {
   chatController: ChatController;
   aiController: AIController;
   aiAnalyticsController: AIAnalyticsController;
+  editorialAIAssistantController: EditorialAIAssistantController;
   sitemapController: SitemapController;
 }
 
@@ -140,6 +143,7 @@ export const createV2Routes = (dependencies: RoutesDependencies): Router => {
     createAdminAffiliateRoutes(dependencies.affiliateAdminController, dependencies.authService)
   );
   router.use('/admin/ai-analytics', createAdminAIAnalyticsRoutes(dependencies.aiAnalyticsController, dependencies.authService));
+  router.use('/admin/editorial-ai', createAdminEditorialAIRoutes(dependencies.editorialAIAssistantController, dependencies.authService));
   router.use('/auth', createAuthRoutes(dependencies.authController));
   router.use('/blog', createBlogRoutes(dependencies.blogController, dependencies.authService));
   router.get('/editorial/facts', editorialFactsHandler);

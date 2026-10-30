@@ -48,6 +48,7 @@ async function startServer() {
       chatController: container.get('chatController'),
       aiController: container.get('aiController'),
       aiAnalyticsController: container.get('aiAnalyticsController'),
+      editorialAIAssistantController: container.get('editorialAIAssistantController'),
       sitemapController: container.get('sitemapController'),
     });
 
