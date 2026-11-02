@@ -60,7 +60,7 @@ export const DEFAULT_ROUTES: RouteTable = Object.freeze({
 export const DEFAULT_IMAGE_ROUTES: readonly ImageRoute[] = Object.freeze([]);
 
 /** Providers with a real adapter in this codebase. Policy approval trusts signed provenance only from these. */
-export const LIVE_PROVIDERS: ReadonlySet<string> = new Set(['anthropic']);
+export const LIVE_PROVIDERS: ReadonlySet<string> = new Set(['anthropic', 'openai']);
 export const LIVE_IMAGE_PROVIDERS: ReadonlySet<string> = new Set<string>();
 
 /**
@@ -120,6 +120,7 @@ export interface ModelCall {
   schema: Record<string, unknown>;
   /** Allow up to N web searches (research only). */
   webSearches?: number;
+  webSearchDomains?: string[];
 }
 export interface ModelResult {
   json: unknown;
@@ -147,6 +148,8 @@ export interface EditorialTopic {
   intent: string;
   volatility: EditorialVolatility;
   categories: string[];
+  contentType?: 'guide' | 'ranking' | 'analysis';
+  length?: { min: number; max: number };
   /** GuíaTV public API reads the article may rely on (programmes, channels, catalogue). */
   internalSources: Array<{ id: string; url: string }>;
   /** Starting points the research agent must consider (e.g. the operator's price page). */
@@ -188,7 +191,7 @@ export interface CmsDraft {
   excerpt: string;
   content: string;
   categories: string[];
-  contentType: 'guide';
+  contentType: 'guide' | 'ranking' | 'analysis';
   evergreen: boolean;
   targetQuery: string;
   metaTitle: string;
@@ -240,7 +243,7 @@ const WRITER_FIXABLE = new Set([
   'uncited-factual-statement', 'figure-not-in-claim', 'figure-in-words', 'metadata-figure-not-in-claims', 'invalid-metadata',
   'internal-link-status', 'broken-internal-link', 'unsourced-link', 'invalid-link', 'claim-marker-leak', 'fabricated-experience',
   'placeholder-text', 'unknown-claim', 'faq-not-evidenced', 'unverified-internal-link', 'excessive-internal-links', 'missing-internal-link',
-  'distinct-value-missing', 'distinct-value-unsupported',
+  'distinct-value-missing', 'distinct-value-unsupported', 'invalid-length',
 ]);
 const MAX_GATE_FIXES = 3;
 /** M11-F: a guide links a few relevant GuíaTV pages, not a directory of them. The AI disclosure links the policy page. */
@@ -355,6 +358,12 @@ export function metadataProblems(d: { title: string; metaTitle: string; metaDesc
 
 // ---- the workflow ------------------------------------------------------------------------------
 
+export function lengthProblems(markdown: string, length: EditorialTopic['length']): string[] {
+  if (!length) return [];
+  const words = stripClaimMarkers(markdown).replace(/^# .*$/gm, '').trim().split(/\s+/).filter(Boolean).length;
+  return words >= length.min && words <= length.max ? [] : [`extensión de ${words} palabras (${length.min}-${length.max})`];
+}
+
 export async function runEditorialJob(topic: EditorialTopic, deps: EditorialDeps, limits: EditorialLimits = DEFAULT_EDITORIAL_LIMITS): Promise<EditorialRun> {
   const now = deps.now ?? (() => new Date());
   const ledger = new CostLedger(limits);
@@ -367,7 +376,7 @@ export async function runEditorialJob(topic: EditorialTopic, deps: EditorialDeps
     ledger.assertHeadroom(model, (adapter.maxOutputTokens ?? 0) * (webSearches ? 4 : 1));
     let result: ModelResult;
     try {
-      result = await adapter.call({ role, provider, model, effort, system, prompt, schema, webSearches });
+      result = await adapter.call({ role, provider, model, effort, system, prompt, schema, webSearches, webSearchDomains: webSearches ? [...new Set((topic.seedUrls ?? []).map((url) => new URL(url).hostname))] : undefined });
     } catch (error) {
       // A failed call can still be billed: charge what is known, otherwise the batch keeps the whole allowance.
       if (error instanceof ModelCallFailed) ledger.charge(role, model, error.usage, error.searches);
@@ -493,12 +502,13 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
     let previous = '';
     run.revisions = [];
     type Draft = { title: string; excerpt: string; metaTitle: string; metaDescription: string; markdown: string; distinctValue?: DistinctValue };
-    const writerSystem = `${STYLE}\nEres el agente editorial. Redactas una guía útil y diferente: explica criterios, compara, y aprovecha los datos propios de GuíaTV cuando los haya.\n${EDITORIAL_RUBRIC}`;
+    const format = { guide: 'guía práctica', ranking: 'ranking ordenado con criterios explícitos', analysis: 'análisis comparativo' }[topic.contentType ?? 'guide'];
+    const writerSystem = `${STYLE}\nEres el agente editorial. Redactas un ${format}, útil y diferente, y aprovechas los datos propios de GuíaTV cuando los haya.\n${EDITORIAL_RUBRIC}`;
     // A function: re-research can add sources between drafts.
     const internalLinks = topic.linkTargets?.length
       ? `\n\nPáginas de GuíaTV para enlazar con una ruta relativa (al menos una y como mucho ${MAX_INTERNAL_LINKS}, donde más ayuden al lector; ancla descriptiva y distinta en cada una, nunca «aquí»; enlazar no es un dato, pero una frase con un canal o una cifra sigue necesitando su marcador):\n${topic.linkTargets.map((t) => `- ${t.path}: ${t.label}`).join('\n')}`
       : '';
-    const writerRules = () => `Fuentes que puedes enlazar:\n${sourceList()}${internalLinks}\n\n${GATE_RULES}`;
+    const writerRules = () => `Fuentes que puedes enlazar:\n${sourceList()}${internalLinks}\n\n${GATE_RULES}${topic.length ? `\n- Escribe entre ${topic.length.min} y ${topic.length.max} palabras, sin relleno.` : ''}`;
     // Everything that does not depend on the critic: the HTML, hashes, the unsigned provenance and the CMS fields.
     const assemble = (d: Draft, verifiedOn: Date, critic?: CriticReview) => {
       const html = `<div class="editorial-body">${deps.render(stripClaimMarkers(d.markdown).replace(/^# .*\n?/m, ''))}${aiDisclosure(verifiedOn)}</div>`;
@@ -513,7 +523,7 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
       };
       const cms: CmsDraft = {
         title: d.title, slug: topic.slug, status: 'draft', origin: 'ai-assisted', excerpt: d.excerpt, content: html,
-        categories: topic.categories, contentType: 'guide', evergreen: topic.volatility === 'stable', targetQuery: topic.intent,
+        categories: topic.categories, contentType: topic.contentType ?? 'guide', evergreen: topic.volatility === 'stable', targetQuery: topic.intent,
         metaTitle: d.metaTitle, metaDescription: d.metaDescription, canonicalUrl: `/guias/${topic.slug}`,
         authorName: AI_AUTHOR.name, authorId: AI_AUTHOR.id,
       };
@@ -547,7 +557,7 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
       let repaired: RevisionRecord['repaired'];
       for (let fix = 0; fix < MAX_GATE_FIXES; fix++) {
         const { provenance: unreviewed, cms: candidate } = assemble(draft, now());
-        const gate = (await publisherFindings(candidate, unreviewed, deps, taken, now(), topic.linkTargets)).filter((f) => f.severity === 'block' && !/^critic-/.test(f.code));
+        const gate = (await publisherFindings(candidate, unreviewed, deps, taken, now(), topic.linkTargets, topic.length)).filter((f) => f.severity === 'block' && !/^critic-/.test(f.code));
         if (!gate.length || !gate.every((f) => WRITER_FIXABLE.has(f.code))) break;
         gateFixes++;
         if (gate.every((f) => f.code === 'metadata-figure-not-in-claims' && !/^title:/.test(f.message))) {
@@ -580,7 +590,7 @@ Valor diferencial que declara el redactor: «${draft.distinctValue?.readerBenefi
       const { provenance, cms } = assemble(draft, verifiedOn, critic);
       if (deps.signingKey) provenance.signature = signProvenance(provenance, deps.signingKey);
       // The excerpt and metadata are reviewed and signed with the text (metadataHash), so nothing rewrites them after this.
-      let findings = await publisherFindings(cms, provenance, deps, taken, verifiedOn, topic.linkTargets);
+      let findings = await publisherFindings(cms, provenance, deps, taken, verifiedOn, topic.linkTargets, topic.length);
       Object.assign(run, { draft: cms, provenance, findings, value: measureValue(draft.markdown, bundle) });
       const blocking = findings.filter((f) => f.severity === 'block');
       const revision: RevisionRecord = { attempt: loop, draftHash, verdict: verdict.verdict, issues: verdict.issues.length, blocking: blocking.map((f) => f.code), action: 'pass', gateFixes, ...(repaired ? { repaired } : {}) };
@@ -610,7 +620,7 @@ Valor diferencial que declara el redactor: «${draft.distinctValue?.readerBenefi
         // Only a text that passed gets a cover, so a rejected draft never spends on images.
         if (await addCover(run, cms, provenance, topic, deps, ledger, verifiedOn)) {
           if (deps.signingKey) provenance.signature = signProvenance(provenance, deps.signingKey);
-          findings = run.findings = await publisherFindings(cms, provenance, deps, taken, verifiedOn, topic.linkTargets);
+          findings = run.findings = await publisherFindings(cms, provenance, deps, taken, verifiedOn, topic.linkTargets, topic.length);
         }
         const pending = policyGateFailures(findings);
         return finish(run, pending.length ? 'verified' : 'approved-by-policy', pending.length ? `requiere confirmación: ${pending.map((f) => f.code).join(', ')}` : undefined);
@@ -677,7 +687,7 @@ function partial(bundle: EvidenceBundle): EditorialProvenance {
 }
 
 /** Publisher: the evidence gate, the existing CMS quality gate, metadata and every internal link. */
-async function publisherFindings(cms: CmsDraft, provenance: EditorialProvenance, deps: EditorialDeps, taken: Set<string>, now: Date, linkTargets?: EditorialTopic['linkTargets']): Promise<EditorialFinding[]> {
+async function publisherFindings(cms: CmsDraft, provenance: EditorialProvenance, deps: EditorialDeps, taken: Set<string>, now: Date, linkTargets?: EditorialTopic['linkTargets'], length?: EditorialTopic['length']): Promise<EditorialFinding[]> {
   const post = {
     ...cms, categories: cms.categories.map((name) => ({ name, slug: name })),
     author: { name: cms.authorName, id: cms.authorId }, seo: { metaTitle: cms.metaTitle, metaDescription: cms.metaDescription },
@@ -687,6 +697,7 @@ async function publisherFindings(cms: CmsDraft, provenance: EditorialProvenance,
     ...evaluateEvidence(post, provenance, now),
     ...evaluateEditorialQuality(post, { others: deps.corpus }),
     ...metadataProblems(cms, cms.slug, taken).map((message) => ({ severity: 'block' as const, code: 'invalid-metadata', message })),
+    ...lengthProblems(provenance.draftMarkdown, length).map((message) => ({ severity: 'block' as const, code: 'invalid-length', message })),
   ];
   // Relative and absolute links to the site alike: an absolute URL must not skip the status and allowlist checks.
   const internal = [...new Set([...cms.content.matchAll(/href=["']([^"'#]+)/g)].map((m) => {

@@ -284,15 +284,27 @@ async function adminPolicy(report) {
 }
 
 function liveModels() {
-  return [new (require(join(dist, 'infrastructure/external/AnthropicEditorialModel.js')).AnthropicEditorialModel)()];
+  const models = [new (require(join(dist, 'infrastructure/external/AnthropicEditorialModel.js')).AnthropicEditorialModel)()];
+  if (process.env.OPENAI_API_KEY) models.push(new (require(join(dist, 'infrastructure/external/OpenAIEditorialModel.js')).OpenAIEditorialModel)());
+  return models;
 }
+let activeRoutes = null;
+const generationApi = (report, path, options = {}) => fetch(`${report}/v2/admin/editorial/generation/${path}`, { ...options, headers: { ...adminHeaders(), ...options.headers } });
+const generationPost = (report, path, body = {}) => generationApi(report, path, { method: 'POST', body: JSON.stringify(body) });
+async function reportCycle(report, result, reason, q, generated = 0) {
+  await generationPost(report, 'runner/cycles', { result, reason, queued: q.topics.filter((t) => t.state === 'queued').length, generated, queue: q.topics }).catch(() => null);
+}
+const manualTopic = (topic, settings) => ({
+  ...topic, categories: [topic.category], length: settings.lengths?.[topic.length] ?? { short: { min: 600, max: 900 }, medium: { min: 900, max: 1400 }, long: { min: 1400, max: 2000 } }[topic.length],
+});
 
 /**
  * The `run` job: research → … → gates per topic, then (autopublish) policy publication and the Admin job report.
  * `publish` is publishRun (a new guide) or, for maintenance, a revise-by-policy of the published one.
  */
 async function runTopics(topics, { report, autopublish, replay = null, corpus, publish = publishRun }) {
-  const { routes, imageRoutes } = pipeline.routesFromEnv();
+  const { routes: envRoutes, imageRoutes } = pipeline.routesFromEnv();
+  const routes = activeRoutes ?? envRoutes;
   const mockImages = process.argv.includes('--mock-images');
   const images = mockImages ? [new (require(join(dist, 'infrastructure/external/MockImageModel.js')).MockImageModel)()] : [];
   const deps = (slug) => ({
@@ -433,27 +445,55 @@ async function runCycle(report, discoverOnly) {
   const q = loadQueue();
   const recovered = queueLib.recoverQueue(q, now);
   saveQueue(q);
-  const policy = await adminPolicy(report);
-  if (!policy) { cycleLog({ result: 'admin-unreadable', recovered }); console.error(`cannot read the Admin policy from ${report}`); process.exitCode = 2; return; }
+  await generationPost(report, 'runner/heartbeat', { version: 'm11g-2', providers: ['anthropic', ...(process.env.OPENAI_API_KEY ? ['openai'] : [])], webSearch: true }).catch(() => null);
+  const workResponse = await generationApi(report, 'runner/work').then((r) => r.ok ? r.json() : null).catch(() => null);
+  const work = workResponse?.data;
+  const policy = work?.policy ?? await adminPolicy(report);
+  if (work?.settings) activeRoutes = work.settings.routes;
+  if (!policy) { cycleLog({ result: 'admin-unreadable', recovered }); await reportCycle(report, 'failed', 'No se puede leer la configuración del Admin', q); process.exitCode = 2; return; }
+  serverCapacity = Math.max(0, policy.dailyLimit - policy.approvalsLast24h);
   const corpus = await publicCorpus();
   const log = { recovered, policy: { active: policy.active, dailyLimit: policy.dailyLimit, publishedLast24h: policy.approvalsLast24h } };
   if (!discoverOnly) log.maintenance = (await maintainPublished(report, { apply: policy.active, max: 2, corpus })).map((x) => `${x.slug}: ${x.result}`);
-  // Stopped or inactive: no model call, not even discovery.
-  if (!policy.active) { cycleLog({ ...log, result: 'inactive' }); console.log('publicación automática inactiva o parada de emergencia: no se publica nada'); return; }
-  // A maintenance revision may have used the last slot of the day: read the cap again.
-  if (log.maintenance?.length && !(await adminPolicy(report))?.active) { cycleLog({ ...log, result: 'inactive' }); return; }
+  if (!policy.active) { cycleLog({ ...log, result: 'inactive' }); await reportCycle(report, 'inactive', 'Publicación automática inactiva o parada de emergencia', q); return; }
+  if (work?.settings?.enabled === false) { await reportCycle(report, 'generation-paused', 'Generación programada en pausa', q); return; }
+  if (log.maintenance?.length && !(await adminPolicy(report))?.active) { cycleLog({ ...log, result: 'inactive' }); await reportCycle(report, 'inactive', 'Publicación detenida durante mantenimiento', q); return; }
+  let generated = 0;
+  const manual = (work?.requests ?? []).filter((r) => r.kind === 'discover' || r.kind === 'generate');
+  if (discoverOnly || manual.some((r) => r.kind === 'discover')) {
+    for (const request of manual.filter((r) => r.kind === 'discover')) await generationPost(report, `runner/requests/${request.id}/claim`);
+    log.discovery = await discover(q, corpus, report);
+    for (const request of manual.filter((r) => r.kind === 'discover')) await generationPost(report, `runner/requests/${request.id}/finish`, { status: log.discovery?.error ? 'failed' : 'completed', reason: log.discovery?.error ?? `${log.discovery?.queued?.length ?? 0} temas añadidos` });
+    if (discoverOnly) { cycleLog({ ...log, result: 'discovered' }); await reportCycle(report, log.discovery?.error ? 'discovery-error' : 'ran', log.discovery?.error ?? 'Descubrimiento completado', q); return; }
+  }
+  for (const request of manual.filter((r) => r.kind === 'generate')) {
+    const claimed = await generationPost(report, `runner/requests/${request.id}/claim`).then((r) => r.ok ? r.json() : null).catch(() => null);
+    if (!claimed) continue;
+    const topic = manualTopic(request.topic, work.settings);
+    const seeds = await queueLib.checkSeeds({ title: topic.title, intent: topic.intent, seedUrls: topic.seedUrls }, fetchSource);
+    if (seeds.some((s) => !s.ok)) {
+      const reason = seeds.filter((s) => !s.ok).map((s) => `${s.url}: ${s.note}`).join('; ');
+      await generationPost(report, `runner/requests/${request.id}/finish`, { status: 'failed', reason });
+      continue;
+    }
+    const [run] = await runTopics([topic], { report, autopublish: true, corpus });
+    const ok = run?.state === 'published';
+    generated += ok ? 1 : 0;
+    await generationPost(report, `runner/requests/${request.id}/finish`, { status: ok ? 'completed' : 'failed', reason: run?.reason ?? run?.state ?? 'Sin resultado' });
+    serverCapacity = Math.max(0, serverCapacity - ok);
+  }
   const queued = q.topics.filter((t) => t.state === 'queued').length;
-  // Discovery is one model call: at most every 12 h, and only when fewer than 3 topics wait.
-  if (discoverOnly || (queued < 3 && now - Date.parse(q.lastDiscoveryAt ?? 0) >= 12 * 3600e3)) log.discovery = await discover(q, corpus, report);
-  if (discoverOnly) { cycleLog({ ...log, result: 'discovered' }); return; }
-  const perCycle = integer('EDITORIAL_CYCLE_TOPICS', 1, 10);
+  if (queued < 3 && now - Date.parse(q.lastDiscoveryAt ?? 0) >= 12 * 3600e3) log.discovery = await discover(q, corpus, report);
+  const perCycle = work?.settings?.topicsPerCycle ?? integer('EDITORIAL_CYCLE_TOPICS', 1, 10);
   const room = Math.min(serverCapacity, perCycle);
-  if (room <= 0) { cycleLog({ ...log, result: 'daily-limit' }); console.log('límite diario alcanzado: nada que publicar'); return; }
-  const picks = queueLib.pickTopics(q, room, q.topics.filter((t) => t.startedAt?.slice(0, 10) === today()));
-  if (!picks.length) { cycleLog({ ...log, result: 'no-eligible-topics' }); console.log('sin temas elegibles: nada que publicar'); return; }
+  if (room <= 0) { cycleLog({ ...log, result: 'daily-limit' }); await reportCycle(report, 'daily-limit', 'Límite diario alcanzado', q, generated); return; }
+  const allowed = new Set(work?.settings?.categories ?? []);
+  const picks = queueLib.pickTopics(q, room, q.topics.filter((t) => t.startedAt?.slice(0, 10) === today())).filter((t) => !allowed.size || allowed.has(t.category));
+  if (!picks.length) { cycleLog({ ...log, result: 'no-eligible-topics' }); await reportCycle(report, 'no-eligible-topics', generated ? 'Solicitudes manuales procesadas; no hay más temas elegibles' : 'No hay temas elegibles en la cola', q, generated); return; }
   for (const t of picks) {
-    // Re-checked just before writing: a linked page can change between queueing and the run.
     t.topic.linkTargets = await verifiedTargets(t.topic.linkTargets ?? []);
+    t.topic.length ??= { min: 900, max: 1400 };
+    t.topic.contentType ??= 'guide';
     Object.assign(t, { state: 'running', startedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
   }
   saveQueue(q);
@@ -461,18 +501,17 @@ async function runCycle(report, discoverOnly) {
   for (const t of picks) {
     const run = runs.find((r) => r.slug === t.id);
     t.updatedAt = new Date().toISOString();
-    if (run?.state === 'published') Object.assign(t, { state: 'published', publicUrl: run.publicUrl, reason: undefined });
-    // Out of daily room (runner or server cap) is not the topic's fault: it waits for the next day.
+    if (run?.state === 'published') { Object.assign(t, { state: 'published', publicUrl: run.publicUrl, reason: undefined }); generated++; }
     else if (/^límite diario|limit reached/.test(run?.reason ?? '')) Object.assign(t, { state: 'queued', reason: run.reason });
     else {
       t.attempts++;
-      // A failed article is held or retried later with new research, never published with a weaker gate.
       t.state = t.attempts >= queueLib.DEFAULT_QUEUE_POLICY.maxAttempts ? 'held' : 'queued';
       t.reason = `${run?.state ?? 'sin resultado'}: ${run?.reason ?? (run?.findings ?? []).filter((f) => f.severity === 'block').map((f) => f.code).join(', ')}`.slice(0, 500);
     }
   }
   saveQueue(q);
   cycleLog({ ...log, result: 'ran', topics: picks.map((t) => `${t.id}: ${t.state}`) });
+  await reportCycle(report, 'ran', picks.map((t) => `${t.id}: ${t.state}`).join('; '), q, generated);
 }
 
 /** DISCOVER → SCORE → QUEUE. The model only proposes; screening, seed checks, links and the score are code. */
@@ -482,7 +521,7 @@ async function discover(q, corpus, report) {
   const coverage = coverageItems(corpus, q);
   let result;
   try {
-    result = await queueLib.proposeTopics(liveModels(), pipeline.routesFromEnv().routes, { now, coverage, queue: q.topics, siteInventory: inventoryText(inventory) });
+    result = await queueLib.proposeTopics(liveModels(), activeRoutes ?? pipeline.routesFromEnv().routes, { now, coverage, queue: q.topics, siteInventory: inventoryText(inventory) });
   } catch (e) {
     // Provider outage or bad answer: the cycle goes on with the queue it has; the next cycle may try again.
     console.log(`descubrimiento fallido: ${e.message}`);

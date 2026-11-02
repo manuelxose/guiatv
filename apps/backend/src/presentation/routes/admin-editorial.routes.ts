@@ -19,6 +19,17 @@ export const createAdminEditorialRoutes = (controller: EditorialOpsController, a
   router.post('/policy/pause', strictRateLimit, asyncHandler(controller.pause));
   router.post('/policy/resume', strictRateLimit, humanEditorialReviewGuard, asyncHandler(controller.resume));
   router.post('/policy/daily-limit', strictRateLimit, humanEditorialReviewGuard, asyncHandler(controller.setDailyLimit));
+  router.get('/generation/settings', asyncHandler(controller.generationSettings));
+  router.put('/generation/settings', strictRateLimit, asyncHandler(controller.updateGenerationSettings));
+  router.post('/generation/requests', strictRateLimit, asyncHandler(controller.createGenerationRequest));
+  router.post('/generation/discovery', strictRateLimit, asyncHandler(controller.createDiscoveryRequest));
+  router.post('/generation/requests/:id/cancel', strictRateLimit, asyncHandler(controller.cancelGenerationRequest));
+  router.post('/generation/requests/:id/retry', strictRateLimit, asyncHandler(controller.retryGenerationRequest));
+  router.get('/generation/runner/work', asyncHandler(controller.runnerWork));
+  router.post('/generation/runner/heartbeat', asyncHandler(controller.runnerHeartbeat));
+  router.post('/generation/runner/requests/:id/claim', asyncHandler(controller.claimGenerationRequest));
+  router.post('/generation/runner/requests/:id/finish', asyncHandler(controller.finishGenerationRequest));
+  router.post('/generation/runner/cycles', asyncHandler(controller.runnerCycle));
   router.post('/jobs', asyncHandler(controller.recordJob));
   router.post(
     '/media/:sha256',

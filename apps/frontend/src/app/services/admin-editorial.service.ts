@@ -112,7 +112,43 @@ export interface EditorialSearchConsole {
   }>;
 }
 
-export interface EditorialOverview {
+export type EditorialContentType = 'guide' | 'ranking' | 'analysis';
+export type EditorialLength = 'short' | 'medium' | 'long';
+export interface EditorialModelRoute { provider: 'anthropic' | 'openai'; model: string; effort: 'low' | 'medium' | 'high' }
+export interface EditorialGenerationSettings {
+  enabled: boolean;
+  scheduleHours: 3 | 6 | 12 | 24;
+  topicsPerCycle: number;
+  categories: string[];
+  contentTypes: EditorialContentType[];
+  defaultLength: EditorialLength;
+  sourceDomains: string[];
+  routes: Record<EditorialRole, EditorialModelRoute[]>;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+export interface EditorialGenerationTopic {
+  title: string; slug: string; topic: string; intent: string; category: string;
+  volatility: 'stable' | 'pricing' | 'availability' | 'sports-rights' | 'catalog-ranking';
+  contentType: EditorialContentType; length: EditorialLength; seedUrls: string[];
+  internalSources: Array<{ id: string; url: string }>;
+}
+export interface EditorialQueueItem {
+  id: string; title?: string; category?: string; kind?: 'generate' | 'discover';
+  status?: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'; state?: string;
+  topic?: EditorialGenerationTopic; reason?: string | null; createdAt?: string; updatedAt?: string;
+  createdBy?: string; source: 'manual' | 'discovered'; score?: number; attempts?: number; sources?: string[];
+}
+export interface EditorialOperations {
+  generation: EditorialGenerationSettings;
+  runner: { online: boolean; lastSeenAt: string | null; version: string | null; capabilities: { providers: string[]; webSearch: boolean } };
+  lastCycle: { at: string; result: string; reason: string; queued: number; generated: number } | null;
+  nextRunAt: string | null;
+  queue: EditorialQueueItem[];
+  queueSummary: { manualPending: number; discovered: number; running: number };
+}
+
+export interface EditorialOverview extends EditorialOperations {
   policy: EditorialPolicyStatus;
   /** USD caps are null when the runner reported EDITORIAL_BUDGET=unlimited. */
   limits: { budget: 'capped' | 'unlimited'; maxArticleUsd: number | null; maxDailyUsd: number | null; maxDailyArticles: number };
@@ -217,5 +253,25 @@ export class AdminEditorialService {
     return this.http
       .post<ApiResponse<{ policy: EditorialPolicyStatus }>>(`${this.baseUrl}/policy/daily-limit`, { dailyLimit }, { headers })
       .pipe(map((resp) => resp.data.policy));
+  }
+
+  saveGenerationSettings(settings: EditorialGenerationSettings): Observable<EditorialGenerationSettings> {
+    return this.http.put<ApiResponse<EditorialGenerationSettings>>(`${this.baseUrl}/generation/settings`, settings).pipe(map((resp) => resp.data));
+  }
+
+  generate(topic: EditorialGenerationTopic): Observable<EditorialQueueItem> {
+    return this.http.post<ApiResponse<EditorialQueueItem>>(`${this.baseUrl}/generation/requests`, topic).pipe(map((resp) => resp.data));
+  }
+
+  discover(): Observable<EditorialQueueItem> {
+    return this.http.post<ApiResponse<EditorialQueueItem>>(`${this.baseUrl}/generation/discovery`, {}).pipe(map((resp) => resp.data));
+  }
+
+  cancelRequest(id: string): Observable<EditorialQueueItem> {
+    return this.http.post<ApiResponse<EditorialQueueItem>>(`${this.baseUrl}/generation/requests/${encodeURIComponent(id)}/cancel`, {}).pipe(map((resp) => resp.data));
+  }
+
+  retryRequest(id: string): Observable<EditorialQueueItem> {
+    return this.http.post<ApiResponse<EditorialQueueItem>>(`${this.baseUrl}/generation/requests/${encodeURIComponent(id)}/retry`, {}).pipe(map((resp) => resp.data));
   }
 }

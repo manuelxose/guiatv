@@ -1,0 +1,262 @@
+import { randomUUID } from 'node:crypto';
+import { BlogPostModel } from '../../infrastructure/database/models/BlogPost.model';
+import { DEFAULT_ROUTES, EditorialRole, ModelRoute, RouteTable } from './EditorialAgentPipeline';
+import { MODEL_PRICES, OFFICIAL_DOMAINS } from './EditorialEvidence';
+import { TOPIC_CATEGORIES } from './EditorialTopicQueue';
+import { ConflictError, NotFoundError, ValidationError } from '../../shared/errors';
+
+export const EDITORIAL_CONTENT_TYPES = ['guide', 'ranking', 'analysis'] as const;
+export const EDITORIAL_LENGTHS = {
+  short: { min: 600, max: 900 },
+  medium: { min: 900, max: 1400 },
+  long: { min: 1400, max: 2000 },
+} as const;
+export type EditorialContentType = typeof EDITORIAL_CONTENT_TYPES[number];
+export type EditorialLength = keyof typeof EDITORIAL_LENGTHS;
+
+export interface EditorialGenerationSettings {
+  enabled: boolean;
+  scheduleHours: number;
+  topicsPerCycle: number;
+  categories: string[];
+  contentTypes: EditorialContentType[];
+  defaultLength: EditorialLength;
+  sourceDomains: string[];
+  routes: RouteTable;
+  updatedAt?: string;
+  updatedBy?: string;
+}
+
+export interface EditorialGenerationTopic {
+  title: string;
+  slug: string;
+  topic: string;
+  intent: string;
+  category: string;
+  volatility: 'stable' | 'pricing' | 'availability' | 'sports-rights' | 'catalog-ranking';
+  contentType: EditorialContentType;
+  length: EditorialLength;
+  seedUrls: string[];
+  internalSources: Array<{ id: string; url: string }>;
+}
+
+type GenerationRequest = {
+  _id?: string;
+  id: string;
+  kind: 'generate' | 'discover';
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
+  topic?: EditorialGenerationTopic;
+  reason?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: string;
+};
+
+const db = () => BlogPostModel.db;
+const settings = () => db().collection<{ _id: string; settings?: EditorialGenerationSettings }>('editorial_settings');
+const requests = () => db().collection<GenerationRequest>('editorial_generation_requests');
+const cycles = () => db().collection('editorial_cycles');
+const runner = () => db().collection<{ _id: string; lastSeenAt?: Date; version?: string; capabilities?: unknown }>('editorial_runner');
+const queue = () => db().collection<{ _id: string; items?: any[]; updatedAt?: Date }>('editorial_queue_snapshot');
+
+export const DEFAULT_GENERATION_SETTINGS: EditorialGenerationSettings = {
+  enabled: true,
+  scheduleHours: 3,
+  topicsPerCycle: 1,
+  categories: [...TOPIC_CATEGORIES],
+  contentTypes: ['guide'],
+  defaultLength: 'medium',
+  sourceDomains: [...OFFICIAL_DOMAINS],
+  routes: DEFAULT_ROUTES as RouteTable,
+};
+
+const text = (value: unknown, max: number) => typeof value === 'string' ? value.trim().slice(0, max) : '';
+const fail = (message: string): never => { throw new ValidationError(message, []); };
+const enumValue = <T extends string | number>(value: unknown, allowed: readonly T[], fallback?: T): T => {
+  const candidate = value ?? fallback;
+  if (!candidate || !allowed.includes(candidate as T)) return fail(`Invalid value; expected ${allowed.join(', ')}`);
+  return candidate as T;
+};
+const integer = (value: unknown, min: number, max: number, fallback: number) => {
+  const n = value === undefined ? fallback : Number(value);
+  if (!Number.isInteger(n) || n < min || n > max) return fail(`Expected an integer from ${min} to ${max}`);
+  return n;
+};
+const stringList = (value: unknown, allowed: readonly string[], fallback: string[]) => {
+  const list = value === undefined ? fallback : value;
+  if (!Array.isArray(list) || !list.length || list.length > allowed.length || list.some((x) => typeof x !== 'string' || !allowed.includes(x))) return fail('Invalid selection');
+  return [...new Set(list)] as string[];
+};
+
+function validRoutes(value: unknown): RouteTable {
+  if (!value || typeof value !== 'object') return fail('Routes are required');
+  const input = value as Record<string, unknown>;
+  const roles: EditorialRole[] = ['research', 'evidence', 'editorial', 'seo', 'critic'];
+  const result = {} as Record<EditorialRole, ModelRoute[]>;
+  for (const role of roles) {
+    const list = input[role];
+    if (!Array.isArray(list) || !list.length || list.length > 3) return fail(`${role}: one to three routes are required`);
+    result[role] = list.map((route) => {
+      if (!route || typeof route !== 'object') return fail(`${role}: invalid route`);
+      const r = route as Record<string, unknown>;
+      const provider = enumValue(r.provider, ['anthropic', 'openai'] as const);
+      const model = text(r.model, 80);
+      if (!model || !MODEL_PRICES[model]) return fail(`${role}: unknown or unpriced model`);
+      if (provider === 'anthropic' && !model.startsWith('claude-') || provider === 'openai' && !model.startsWith('gpt-')) return fail(`${role}: model does not belong to ${provider}`);
+      return { provider, model, effort: enumValue(r.effort, ['low', 'medium', 'high'] as const) };
+    });
+  }
+  return result as RouteTable;
+}
+
+function validTopic(value: unknown): EditorialGenerationTopic {
+  if (!value || typeof value !== 'object') return fail('A topic is required');
+  const input = value as Record<string, unknown>;
+  const slug = text(input.slug, 80).toLowerCase();
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+){2,}$/.test(slug)) return fail('Slug must contain at least three lowercase words separated by hyphens');
+  const title = text(input.title, 110);
+  const topic = text(input.topic, 500);
+  const intent = text(input.intent, 500);
+  if (title.length < 20 || topic.length < 20 || intent.length < 20) return fail('Title, topic and intent must contain at least 20 characters');
+  const seedUrls = Array.isArray(input.seedUrls) ? [...new Set(input.seedUrls.map((x) => text(x, 2000)))] : [];
+  if (!seedUrls.length || seedUrls.length > 4) return fail('One to four source URLs are required');
+  for (const source of seedUrls) {
+    let url: URL;
+    try { url = new URL(source); } catch { return fail('Invalid source URL'); }
+    if (url.protocol !== 'https:') return fail('Source URLs must use HTTPS');
+  }
+  const internalSources = Array.isArray(input.internalSources) ? input.internalSources.slice(0, 4).map((source, index) => {
+    const url = text((source as any)?.url, 300);
+    if (!/^\/(?!\/)[\w\-/?=&.]*$/.test(url)) return fail('Internal sources must be local paths');
+    return { id: text((source as any)?.id, 40) || `internal-${index + 1}`, url };
+  }) : [];
+  return {
+    title, slug, topic, intent, seedUrls, internalSources,
+    category: enumValue(input.category, TOPIC_CATEGORIES),
+    volatility: enumValue(input.volatility, ['stable', 'pricing', 'availability', 'sports-rights', 'catalog-ranking'] as const, 'stable'),
+    contentType: enumValue(input.contentType, EDITORIAL_CONTENT_TYPES, 'guide'),
+    length: enumValue(input.length, Object.keys(EDITORIAL_LENGTHS) as EditorialLength[], 'medium'),
+  };
+}
+
+export class EditorialGenerationService {
+  async getSettings(): Promise<EditorialGenerationSettings> {
+    const doc = await settings().findOne({ _id: 'generation' });
+    return { ...DEFAULT_GENERATION_SETTINGS, ...(doc?.settings ?? {}) };
+  }
+
+  async updateSettings(input: unknown, actor: string) {
+    if (!input || typeof input !== 'object') return fail('Settings are required');
+    const value = input as Record<string, unknown>;
+    const current = await this.getSettings();
+    const next: EditorialGenerationSettings = {
+      enabled: typeof value.enabled === 'boolean' ? value.enabled : current.enabled,
+      scheduleHours: enumValue(value.scheduleHours, [3, 6, 12, 24] as const, current.scheduleHours as 3),
+      topicsPerCycle: integer(value.topicsPerCycle, 1, 10, current.topicsPerCycle),
+      categories: stringList(value.categories, TOPIC_CATEGORIES, current.categories),
+      contentTypes: stringList(value.contentTypes, EDITORIAL_CONTENT_TYPES, current.contentTypes) as EditorialContentType[],
+      defaultLength: enumValue(value.defaultLength, Object.keys(EDITORIAL_LENGTHS) as EditorialLength[], current.defaultLength),
+      sourceDomains: stringList(value.sourceDomains, OFFICIAL_DOMAINS, current.sourceDomains),
+      routes: value.routes === undefined ? current.routes : validRoutes(value.routes),
+      updatedAt: new Date().toISOString(), updatedBy: actor,
+    };
+    await settings().updateOne({ _id: 'generation' }, { $set: { settings: next } }, { upsert: true });
+    return next;
+  }
+
+  async createRequest(kind: 'generate' | 'discover', input: unknown, actor: string) {
+    const topic = kind === 'generate' ? validTopic(input) : undefined;
+    if (topic) {
+      const config = await this.getSettings();
+      if (!config.categories.includes(topic.category) || !config.contentTypes.includes(topic.contentType)) fail('The selected category or content type is disabled');
+      const domains = new Set(config.sourceDomains);
+      if (topic.seedUrls.some((url) => !domains.has(new URL(url).hostname.replace(/^www\./, '')))) fail('Every source domain must be enabled in generation settings');
+    }
+    const now = new Date();
+    const request: GenerationRequest = { id: randomUUID(), kind, status: 'queued', topic, createdAt: now, updatedAt: now, createdBy: actor };
+    await requests().insertOne(request);
+    return this.publicRequest(request);
+  }
+
+  async cancelRequest(id: string) {
+    const result = await requests().findOneAndUpdate({ id, status: 'queued' }, { $set: { status: 'cancelled', updatedAt: new Date() } }, { returnDocument: 'after' });
+    if (!result) throw new ConflictError('Only queued requests can be cancelled');
+    return this.publicRequest(result);
+  }
+
+  async retryRequest(id: string) {
+    const result = await requests().findOneAndUpdate({ id, status: { $in: ['failed', 'cancelled'] } }, { $set: { status: 'queued', reason: '', updatedAt: new Date() } }, { returnDocument: 'after' });
+    if (!result) throw new NotFoundError('No failed or cancelled generation request found');
+    return this.publicRequest(result);
+  }
+
+  async pendingRequests() {
+    const items = await requests().find({ status: 'queued' }).sort({ createdAt: 1 }).limit(20).toArray();
+    return items.map((item) => this.publicRequest(item));
+  }
+
+  async claimRequest(id: string) {
+    const result = await requests().findOneAndUpdate({ id, status: 'queued' }, { $set: { status: 'running', updatedAt: new Date() } }, { returnDocument: 'after' });
+    if (!result) throw new ConflictError('Request is no longer queued');
+    return this.publicRequest(result);
+  }
+
+  async finishRequest(id: string, status: 'completed' | 'failed', reason = '') {
+    const result = await requests().findOneAndUpdate({ id, status: 'running' }, { $set: { status, reason: text(reason, 1000), updatedAt: new Date() } }, { returnDocument: 'after' });
+    if (!result) throw new NotFoundError('Running generation request not found');
+    return this.publicRequest(result);
+  }
+
+  async reportRunner(input: any) {
+    const now = new Date();
+    const capabilities = {
+      providers: Array.isArray(input?.providers) ? input.providers.filter((x: unknown) => x === 'anthropic' || x === 'openai') : [],
+      webSearch: input?.webSearch === true,
+    };
+    await runner().updateOne({ _id: 'current' }, { $set: { lastSeenAt: now, version: text(input?.version, 40), capabilities } }, { upsert: true });
+    return { receivedAt: now };
+  }
+
+  async reportCycle(input: any) {
+    const at = new Date();
+    const result = enumValue(input?.result, ['inactive', 'generation-paused', 'daily-limit', 'no-eligible-topics', 'discovery-error', 'ran', 'failed'] as const);
+    const row = { at, result, reason: text(input?.reason, 1000), queued: integer(input?.queued, 0, 10000, 0), generated: integer(input?.generated, 0, 100, 0) };
+    await cycles().insertOne(row);
+    if (Array.isArray(input?.queue)) {
+      const items = input.queue.slice(0, 100).map((item: any) => ({
+        id: text(item.id, 80), title: text(item.title, 110), category: text(item.category, 40),
+        state: text(item.state, 30), score: Number(item.score) || 0, attempts: Number(item.attempts) || 0,
+        reason: text(item.reason, 1000), sources: Array.isArray(item.sourceCandidates) ? item.sourceCandidates.slice(0, 4).map((x: unknown) => text(x, 2000)) : [],
+        updatedAt: text(item.updatedAt, 40),
+      })).filter((item: any) => item.id && item.title);
+      await queue().replaceOne({ _id: 'current' }, { items, updatedAt: at }, { upsert: true });
+    }
+    return row;
+  }
+
+  async operationalState() {
+    const [generation, runnerDoc, lastCycle, queueDoc, manual] = await Promise.all([
+      this.getSettings(), runner().findOne({ _id: 'current' }), cycles().findOne({}, { sort: { at: -1 } }),
+      queue().findOne({ _id: 'current' }), requests().find({ status: { $in: ['queued', 'running', 'failed', 'cancelled'] } }).sort({ createdAt: -1 }).limit(50).toArray(),
+    ]);
+    const lastSeenAt = runnerDoc?.lastSeenAt ?? null;
+    const staleMs = Math.max(15 * 60e3, generation.scheduleHours * 3600e3 + 15 * 60e3);
+    const online = Boolean(lastSeenAt && Date.now() - new Date(lastSeenAt).getTime() <= staleMs);
+    return {
+      generation,
+      runner: { online, lastSeenAt, version: runnerDoc?.version ?? null, capabilities: runnerDoc?.capabilities ?? { providers: [], webSearch: false } },
+      lastCycle: lastCycle ? { at: lastCycle.at, result: lastCycle.result, reason: lastCycle.reason, queued: lastCycle.queued, generated: lastCycle.generated } : null,
+      nextRunAt: generation.enabled && lastSeenAt ? new Date(new Date(lastSeenAt).getTime() + generation.scheduleHours * 3600e3).toISOString() : null,
+      queue: [...manual.map((item) => ({ ...this.publicRequest(item), source: 'manual' })), ...(queueDoc?.items ?? []).map((item: any) => ({ ...item, source: 'discovered' }))].slice(0, 100),
+      queueSummary: {
+        manualPending: manual.filter((item) => item.status === 'queued').length,
+        discovered: queueDoc?.items?.filter((item: any) => item.state === 'queued').length ?? 0,
+        running: manual.filter((item) => item.status === 'running').length + (queueDoc?.items?.filter((item: any) => item.state === 'running').length ?? 0),
+      },
+    };
+  }
+
+  private publicRequest(item: GenerationRequest) {
+    return { id: item.id, kind: item.kind, status: item.status, topic: item.topic, reason: item.reason ?? null, createdAt: item.createdAt, updatedAt: item.updatedAt, createdBy: item.createdBy };
+  }
+}

@@ -9,6 +9,7 @@ function createService(response: unknown, calls: Call[]): AdminEditorialService 
   const http = {
     get: (url: string, options?: Call['options']) => { calls.push({ method: 'GET', url, options }); return of(response); },
     post: (url: string, body: unknown, options?: Call['options']) => { calls.push({ method: 'POST', url, body, options }); return of(response); },
+    put: (url: string, body: unknown, options?: Call['options']) => { calls.push({ method: 'PUT', url, body, options }); return of(response); },
   };
   TestBed.configureTestingModule({ providers: [AdminEditorialService, { provide: HttpClient, useValue: http }] });
   return TestBed.inject(AdminEditorialService);
@@ -68,5 +69,21 @@ describe('AdminEditorialService', () => {
     expect(calls[0].url).toMatch(/\/admin\/editorial\/policy\/daily-limit$/);
     expect(calls[0].body).toEqual({ dailyLimit: 4 });
     expect(calls[0].options?.headers?.get('x-editorial-review-key')).toBe('k3y');
+  });
+
+  it('configures generation and manages queued requests without credentials in bodies', async () => {
+    const calls: Call[] = [];
+    const settings = { enabled: true } as any;
+    const service = createService({ success: true, data: settings }, calls);
+    await firstValueFrom(service.saveGenerationSettings(settings));
+    await firstValueFrom(service.discover());
+    await firstValueFrom(service.cancelRequest('a/b'));
+    await firstValueFrom(service.retryRequest('a/b'));
+    expect(calls.map((c) => c.method)).toEqual(['PUT', 'POST', 'POST', 'POST']);
+    expect(calls.map((c) => c.url)).toEqual([
+      jasmine.stringMatching(/\/generation\/settings$/), jasmine.stringMatching(/\/generation\/discovery$/),
+      jasmine.stringMatching(/\/generation\/requests\/a%2Fb\/cancel$/), jasmine.stringMatching(/\/generation\/requests\/a%2Fb\/retry$/),
+    ]);
+    expect(calls.slice(1).every((c) => JSON.stringify(c.body) === '{}')).toBeTrue();
   });
 });

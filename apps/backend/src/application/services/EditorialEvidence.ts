@@ -690,11 +690,13 @@ export function evaluateEvidence(post: EvidencePost, provenance: EditorialProven
 
 // ---- cost control ---------------------------------------------------------------------------------
 
-/** USD per million tokens (input, output). Anthropic first-party list prices, 2026-10. */
+/** USD per million tokens (input, output), from the providers' first-party price lists. */
 export const MODEL_PRICES: Readonly<Record<string, readonly [number, number]>> = Object.freeze({
   'claude-opus-5-5': [4, 20],
   'claude-sonnet-5-5': [2, 10],
   'claude-haiku-5-5': [0.1, 0.5],
+  'gpt-6.1-terra': [1, 5],
+  'gpt-6-luna': [0.1, 0.5],
 });
 /** Web search is billed per search on top of tokens. */
 export const WEB_SEARCH_USD = 0.01;

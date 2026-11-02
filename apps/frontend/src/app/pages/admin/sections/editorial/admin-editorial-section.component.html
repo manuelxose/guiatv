@@ -1,568 +1,137 @@
-<div class="space-y-6">
-  <div class="flex items-center justify-between">
-    <h2 class="text-lg font-semibold text-[var(--portal-text)]">Operaciones IA</h2>
-    <button
-      type="button"
-      (click)="refresh()"
-      [disabled]="loading"
-      class="rounded-lg border border-[var(--portal-border-strong)] bg-[var(--portal-surface-strong)] px-3 py-1.5 text-xs text-[var(--portal-text-soft)] hover:bg-[var(--portal-border-strong)] transition-colors"
-    >
-      {{ loading ? 'Cargando…' : 'Actualizar' }}
-    </button>
-  </div>
+<div class="editorial-ops" [attr.aria-busy]="loading && !overview">
+  <header class="ops-heading">
+    <div>
+      <p class="eyebrow">AI ASSISTANT</p>
+      <h2>Operaciones IA</h2>
+      <p>Controla la producción, comprueba por qué se detiene y revisa cada resultado.</p>
+    </div>
+    <button type="button" class="button secondary" (click)="refresh()" [disabled]="loading">{{ loading ? 'Actualizando…' : 'Actualizar' }}</button>
+  </header>
 
-  <p *ngIf="error" role="alert" class="text-sm text-[var(--spotify-negative)]">{{ error }}</p>
-  <p *ngIf="!overview && loading" class="py-16 text-center text-sm text-[var(--portal-text-muted)]">Cargando supervisión editorial…</p>
+  <div *ngIf="notice" role="status" class="feedback success">{{ notice }}<button type="button" (click)="notice = ''" aria-label="Cerrar mensaje">×</button></div>
+  <div *ngIf="error" role="alert" class="feedback error"><span>{{ error }}</span><button type="button" class="button secondary" (click)="refresh()">Reintentar</button></div>
+  <div *ngIf="!overview && loading" class="panel skeleton" aria-label="Cargando operaciones"><span></span><span></span><span></span></div>
 
   <ng-container *ngIf="overview as ov">
-    <!-- Policy -->
-    <section class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-5 space-y-4" aria-labelledby="editorial-policy-title">
-      <h3 id="editorial-policy-title" class="text-sm font-medium text-[var(--portal-text-soft)]">Política de publicación</h3>
-      <div class="flex flex-wrap items-center gap-3">
-        <app-admin-status-badge
-          [status]="ov.policy.active ? 'active' : ov.policy.paused ? 'critical' : 'unconfigured'"
-          [label]="ov.policy.active ? 'Activa' : ov.policy.paused ? 'Pausada' : ov.policy.envEnabled && !ov.policy.activated ? 'Sin activar' : 'Desactivada'"
-        ></app-admin-status-badge>
-        <p class="text-sm text-[var(--portal-text)]">{{ policyText }}</p>
-      </div>
-
-      <dl class="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 text-sm">
-        <div>
-          <dt class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Aprobaciones 24 h</dt>
-          <dd class="text-[var(--portal-text)] mt-1">{{ ov.policy.approvalsLast24h }} / {{ ov.policy.dailyLimit }}</dd>
-        </div>
-        <div>
-          <dt class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Clave de firma</dt>
-          <dd class="text-[var(--portal-text)] mt-1">{{ ov.policy.signingKeyConfigured ? 'Configurada' : 'No configurada' }}</dd>
-        </div>
-        <div>
-          <dt class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Gasto hoy</dt>
-          <dd class="text-[var(--portal-text)] mt-1">
-            ${{ ov.spend.todayUsd | number: '1.2-4' }} estimado
-            <ng-container *ngIf="ov.limits.maxDailyUsd !== null; else noCap"> / ${{ ov.limits.maxDailyUsd | number: '1.2-2' }} máx. diario</ng-container>
-          </dd>
-        </div>
-        <div>
-          <dt class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Gasto 30 días</dt>
-          <dd class="text-[var(--portal-text)] mt-1">${{ ov.spend.last30dUsd | number: '1.2-4' }}</dd>
-        </div>
-        <div>
-          <dt class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Límites</dt>
-          <dd class="text-[var(--portal-text)] mt-1">
-            <ng-container *ngIf="ov.limits.maxArticleUsd !== null; else noCap">${{ ov.limits.maxArticleUsd | number: '1.2-2' }} por artículo</ng-container>
-            · {{ ov.limits.maxDailyArticles }} artículos/día
-          </dd>
-        </div>
-        <div>
-          <dt class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Proveedores en vivo</dt>
-          <dd class="text-[var(--portal-text)] mt-1">{{ ov.policy.liveProviders.join(', ') || '—' }}</dd>
-        </div>
-      </dl>
-
-      <!-- Today (M11-E2): attempts and publications are separate counts -->
-      <div class="border-t border-[var(--portal-border)] pt-4 space-y-3">
-        <h4 class="text-xs font-medium uppercase tracking-wider text-[var(--portal-text-muted)]">Hoy (UTC)</h4>
-        <dl class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 text-sm">
-          <div><dt class="text-xs text-[var(--portal-text-muted)]">Generados</dt><dd class="text-[var(--portal-text)] mt-1">{{ ov.today.generated }}</dd></div>
-          <div><dt class="text-xs text-[var(--portal-text-muted)]">Publicados</dt><dd class="text-[var(--portal-text)] mt-1">{{ ov.today.published }}</dd></div>
-          <div><dt class="text-xs text-[var(--portal-text-muted)]">Listos sin publicar</dt><dd class="text-[var(--portal-text)] mt-1">{{ ov.today.ready }}</dd></div>
-          <div><dt class="text-xs text-[var(--portal-text-muted)]">Retenidos (revisión humana)</dt><dd class="text-[var(--portal-text)] mt-1">{{ ov.today.held }}</dd></div>
-          <div><dt class="text-xs text-[var(--portal-text-muted)]">Rechazados</dt><dd class="text-[var(--portal-text)] mt-1">{{ ov.today.rejected }}</dd></div>
-          <div><dt class="text-xs text-[var(--portal-text-muted)]">Revisiones</dt><dd class="text-[var(--portal-text)] mt-1">{{ ov.today.revisions }}</dd></div>
-        </dl>
-        <div class="grid md:grid-cols-2 gap-4 text-xs">
-          <div>
-            <p class="text-[var(--portal-text-muted)] mb-1">Motivos de rechazo</p>
-            <ul *ngIf="topReasons(ov.today.reasons).length; else noneList" class="space-y-1">
-              <li *ngFor="let r of topReasons(ov.today.reasons)"><code>{{ r[0] }}</code> × {{ r[1] }}</li>
-            </ul>
-          </div>
-          <div>
-            <p class="text-[var(--portal-text-muted)] mb-1">Uso de modelos (coste estimado, no factura)</p>
-            <ul *ngIf="(ov.today.models | keyvalue).length; else noneList" class="space-y-1">
-              <li *ngFor="let m of ov.today.models | keyvalue">{{ m.key }}: {{ m.value.calls }} llamadas · {{ m.value.inputTokens | number }} / {{ m.value.outputTokens | number }} tokens · ${{ m.value.usd | number: '1.2-4' }}</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <!-- Emergency stop -->
-      <div *ngIf="!ov.policy.paused" class="border-t border-[var(--portal-border)] pt-4 space-y-2">
-        <label for="editorial-pause-reason" class="block text-xs text-[var(--portal-text-muted)]">Motivo de la parada (obligatorio)</label>
-        <div class="flex flex-wrap gap-3">
-          <input
-            id="editorial-pause-reason"
-            type="text"
-            [(ngModel)]="pauseReason"
-            maxlength="500"
-            class="flex-1 min-w-[240px] rounded-lg border border-[var(--portal-border-strong)] bg-[var(--portal-surface-strong)] px-3 py-1.5 text-sm text-[var(--portal-text)]"
-          />
-          <button
-            type="button"
-            (click)="requestPause()"
-            [disabled]="!pauseReason.trim() || pauseBusy"
-            class="px-3 py-2 rounded-xl text-xs font-medium bg-[var(--spotify-negative)]/20 border border-[var(--spotify-negative)]/40 text-[var(--spotify-negative)] hover:bg-[var(--spotify-negative)]/30 disabled:opacity-50"
-          >
-            Parada de emergencia
-          </button>
-        </div>
-        <p *ngIf="pauseError" role="alert" class="text-xs text-[var(--spotify-negative)]">{{ pauseError }}</p>
-      </div>
-
-      <!-- Activate (once) or resume: an administrative switch for the mode, never an approval of an article -->
-      <form *ngIf="ov.policy.paused || (ov.policy.envEnabled && !ov.policy.activated)" class="border-t border-[var(--portal-border)] pt-4 space-y-2" (ngSubmit)="resume()" autocomplete="off">
-        <p *ngIf="!ov.policy.paused" class="text-xs text-[var(--portal-text-muted)]">
-          Al activarla, los artículos que superen todas las comprobaciones (evidencias, crítico independiente, SEO, firma, límite diario)
-          se publicarán sin aprobación humana por artículo. La parada de emergencia la detiene en cualquier momento.
-        </p>
-        <p class="text-xs text-[var(--portal-text-muted)]">{{ ov.policy.paused ? 'Reanudar' : 'Activar' }} requiere la clave de revisión editorial. No se guarda.</p>
-        <div class="flex flex-wrap gap-3 items-end">
-          <div>
-            <label for="editorial-resume-reviewer" class="block text-xs text-[var(--portal-text-muted)]">Revisor</label>
-            <input
-              id="editorial-resume-reviewer"
-              name="reviewer"
-              type="text"
-              [(ngModel)]="resumeReviewer"
-              required
-              class="rounded-lg border border-[var(--portal-border-strong)] bg-[var(--portal-surface-strong)] px-3 py-1.5 text-sm text-[var(--portal-text)]"
-            />
-          </div>
-          <div>
-            <label for="editorial-resume-key" class="block text-xs text-[var(--portal-text-muted)]">Clave de revisión</label>
-            <input
-              id="editorial-resume-key"
-              name="reviewKey"
-              type="password"
-              autocomplete="off"
-              [(ngModel)]="resumeKey"
-              required
-              class="rounded-lg border border-[var(--portal-border-strong)] bg-[var(--portal-surface-strong)] px-3 py-1.5 text-sm text-[var(--portal-text)]"
-            />
-          </div>
-          <button
-            type="submit"
-            [disabled]="!resumeKey || !resumeReviewer.trim() || resumeBusy"
-            class="px-3 py-2 rounded-xl text-xs font-medium bg-[var(--portal-surface-strong)] border border-[var(--portal-border-strong)] text-[var(--portal-text)] disabled:opacity-50"
-          >
-            {{ resumeBusy ? 'Guardando…' : ov.policy.paused ? 'Reanudar' : 'Activar publicación automática' }}
-          </button>
-        </div>
-        <p *ngIf="resumeError" role="alert" class="text-xs text-[var(--spotify-negative)]">{{ resumeError }}</p>
-      </form>
-
-      <!-- Articles per day -->
-      <form class="border-t border-[var(--portal-border)] pt-4 space-y-2" (ngSubmit)="saveDailyLimit()" autocomplete="off">
-        <p class="text-xs text-[var(--portal-text-muted)]">
-          Artículos IA al día: <strong class="text-[var(--portal-text)]">{{ ov.policy.dailyLimit }}</strong>
-          <span *ngIf="ov.policy.dailyLimitBy"> (fijado por {{ ov.policy.dailyLimitBy }})</span>.
-          Recomendado: {{ ov.policy.dailyLimitRange.recommended }}. Un ritmo constante de guías con fuentes pesa más en SEO que el volumen;
-          súbelo solo si los artículos siguen pasando la revisión. Se aplica al momento a las ejecuciones y a la publicación. Requiere la clave de revisión.
-        </p>
-        <div class="flex flex-wrap gap-3 items-end">
-          <div>
-            <label for="editorial-limit-value" class="block text-xs text-[var(--portal-text-muted)]">Nuevo límite ({{ ov.policy.dailyLimitRange.min }}–{{ ov.policy.dailyLimitRange.max }})</label>
-            <input
-              id="editorial-limit-value"
-              name="dailyLimit"
-              type="number"
-              [min]="ov.policy.dailyLimitRange.min"
-              [max]="ov.policy.dailyLimitRange.max"
-              step="1"
-              [(ngModel)]="limitValue"
-              required
-              class="w-24 rounded-lg border border-[var(--portal-border-strong)] bg-[var(--portal-surface-strong)] px-3 py-1.5 text-sm text-[var(--portal-text)]"
-            />
-          </div>
-          <div>
-            <label for="editorial-limit-reviewer" class="block text-xs text-[var(--portal-text-muted)]">Revisor</label>
-            <input
-              id="editorial-limit-reviewer"
-              name="limitReviewer"
-              type="text"
-              [(ngModel)]="limitReviewer"
-              required
-              class="rounded-lg border border-[var(--portal-border-strong)] bg-[var(--portal-surface-strong)] px-3 py-1.5 text-sm text-[var(--portal-text)]"
-            />
-          </div>
-          <div>
-            <label for="editorial-limit-key" class="block text-xs text-[var(--portal-text-muted)]">Clave de revisión</label>
-            <input
-              id="editorial-limit-key"
-              name="limitKey"
-              type="password"
-              autocomplete="off"
-              [(ngModel)]="limitKey"
-              required
-              class="rounded-lg border border-[var(--portal-border-strong)] bg-[var(--portal-surface-strong)] px-3 py-1.5 text-sm text-[var(--portal-text)]"
-            />
-          </div>
-          <button
-            type="submit"
-            [disabled]="limitValue === null || !limitKey || !limitReviewer.trim() || limitBusy"
-            class="px-3 py-2 rounded-xl text-xs font-medium bg-[var(--portal-surface-strong)] border border-[var(--portal-border-strong)] text-[var(--portal-text)] disabled:opacity-50"
-          >
-            {{ limitBusy ? 'Guardando…' : 'Guardar límite' }}
-          </button>
-        </div>
-        <p *ngIf="limitError" role="alert" class="text-xs text-[var(--spotify-negative)]">{{ limitError }}</p>
-      </form>
-
-      <!-- Routes -->
-      <div class="overflow-x-auto border-t border-[var(--portal-border)] pt-4">
-        <table class="w-full text-xs">
-          <caption class="text-left text-xs text-[var(--portal-text-muted)] pb-2">Rutas de modelos por rol</caption>
-          <thead>
-            <tr class="text-left text-[var(--portal-text-muted)]">
-              <th scope="col" class="pb-2 pr-4">Rol</th>
-              <th scope="col" class="pb-2 pr-4">Principal</th>
-              <th scope="col" class="pb-2">Respaldos (en orden)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let role of roles" class="border-t border-[var(--portal-border)]">
-              <th scope="row" class="py-2 pr-4 text-left font-normal text-[var(--portal-text-soft)]">{{ role }}</th>
-              <td class="py-2 pr-4 text-[var(--portal-text)]">
-                <ng-container *ngIf="(ov.routes[role] || [])[0] as primary; else none">{{ primary.provider }}/{{ primary.model }} ({{ primary.effort }})</ng-container>
-              </td>
-              <td class="py-2 text-[var(--portal-text-soft)]">{{ routeFallbacks(role) }}</td>
-            </tr>
-            <tr class="border-t border-[var(--portal-border)]">
-              <th scope="row" class="py-2 pr-4 text-left font-normal text-[var(--portal-text-soft)]">imagen</th>
-              <td colspan="2" class="py-2 text-[var(--portal-text)]">
-                <span *ngFor="let r of ov.imageRoutes; let last = last">{{ r.provider }}/{{ r.model }}<span *ngIf="!last"> → </span></span>
-                <span *ngIf="!ov.imageRoutes.length">—</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+    <section class="status-grid" aria-label="Estado de la automatización">
+      <article class="status-card">
+        <div><span class="status-dot" [class.on]="ov.generation.enabled"></span><h3>Generación programada</h3></div>
+        <strong>{{ ov.generation.enabled ? 'Activa' : 'En pausa' }}</strong>
+        <p>Cada {{ ov.generation.scheduleHours }} h · hasta {{ ov.generation.topicsPerCycle }} tema(s) por ciclo</p>
+        <button type="button" class="button secondary" (click)="toggleGeneration()" [disabled]="settingsBusy">{{ ov.generation.enabled ? 'Pausar generación' : 'Reanudar generación' }}</button>
+      </article>
+      <article class="status-card">
+        <div><span class="status-dot" [class.on]="ov.policy.active"></span><h3>Publicación automática</h3></div>
+        <strong>{{ ov.policy.active ? 'Autorizada' : ov.policy.paused ? 'Detenida' : 'No activa' }}</strong>
+        <p>{{ policyText }}</p>
+      </article>
+      <article class="status-card">
+        <div><span class="status-dot" [class.on]="ov.runner.online"></span><h3>Runner externo</h3></div>
+        <strong>{{ ov.runner.online ? 'Con señal' : 'Sin señal' }}</strong>
+        <p>{{ ov.runner.lastSeenAt ? 'Última señal: ' + (ov.runner.lastSeenAt | date: 'short') : 'Todavía no se ha conectado' }}</p>
+        <p>Modelos: {{ ov.runner.capabilities.providers.join(', ') || 'sin confirmar' }}</p>
+      </article>
     </section>
 
-    <!-- Detail -->
-    <section *ngIf="detail || detailLoading || detailError" class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-5 space-y-5" aria-labelledby="editorial-detail-title">
-      <div class="flex items-center justify-between gap-3">
-        <h3 id="editorial-detail-title" class="text-sm font-medium text-[var(--portal-text-soft)]">{{ detail?.post?.title || 'Artículo' }}</h3>
-        <button
-          type="button"
-          (click)="closeDetail()"
-          class="rounded-lg border border-[var(--portal-border-strong)] bg-[var(--portal-surface-strong)] px-3 py-1.5 text-xs text-[var(--portal-text-soft)]"
-        >
-          Cerrar
-        </button>
-      </div>
-      <p *ngIf="detailLoading" class="text-sm text-[var(--portal-text-muted)]">Cargando artículo…</p>
-      <p *ngIf="detailError" role="alert" class="text-sm text-[var(--spotify-negative)]">{{ detailError }}</p>
+    <section class="cycle-summary" aria-labelledby="cycle-title">
+      <div><h3 id="cycle-title">Último ciclo</h3><strong>{{ ov.lastCycle ? stateLabel(ov.lastCycle.result) : 'Sin ciclos registrados' }}</strong><p>{{ ov.lastCycle?.reason || 'Cuando el runner informe, aquí verás el motivo de cada parada.' }}</p></div>
+      <dl><div><dt>Ejecutado</dt><dd>{{ ov.lastCycle?.at ? (ov.lastCycle.at | date: 'short') : '—' }}</dd></div><div><dt>Próxima activación estimada</dt><dd>{{ ov.nextRunAt ? (ov.nextRunAt | date: 'short') : 'No disponible' }}</dd></div><div><dt>Trabajos pendientes</dt><dd>{{ ov.queueSummary.manualPending + ov.queueSummary.discovered }}</dd></div></dl>
+    </section>
 
-      <ng-container *ngIf="detail as d">
-        <p class="text-xs text-[var(--portal-text-muted)]">
-          /{{ d.post.slug }} · CMS: {{ d.post.status }} / {{ d.post.reviewState }}
-          <ng-container *ngIf="d.post.reviewedBy"> · revisado por {{ d.post.reviewedBy }}</ng-container>
-          · pipeline {{ d.provenance.pipelineVersion }} ({{ d.provenance.state }}) · {{ d.provenance.backend || '—' }}
-          · {{ d.provenance.signed ? 'firmado' : 'sin firma' }}
-          <ng-container *ngIf="d.provenance.lastVerifiedAt"> · verificado {{ d.provenance.lastVerifiedAt | date: 'short' }}</ng-container>
-          <ng-container *ngIf="d.provenance.nextReviewAt"> · próxima revisión {{ d.provenance.nextReviewAt | date: 'short' }}</ng-container>
-        </p>
-        <p *ngIf="d.post.reviewNotes" class="text-xs text-[var(--portal-text-soft)]">Notas: {{ d.post.reviewNotes }}</p>
-
-        <!-- Blockers and findings -->
-        <div class="grid md:grid-cols-2 gap-5">
-          <div>
-            <h4 class="text-xs font-medium uppercase tracking-wider text-[var(--portal-text-muted)] mb-2">Bloqueos de la política</h4>
-            <ul *ngIf="d.policyBlockers.length; else noneList" class="space-y-1 text-xs">
-              <li *ngFor="let f of d.policyBlockers"><strong>{{ severityLabels[f.severity] }}</strong> · <code>{{ f.code }}</code>: {{ f.message }}</li>
-            </ul>
-          </div>
-          <div>
-            <h4 class="text-xs font-medium uppercase tracking-wider text-[var(--portal-text-muted)] mb-2">Resultado de la puerta</h4>
-            <p *ngIf="!d.findings.length" class="text-xs text-[var(--portal-text-faint)]">Sin hallazgos</p>
-            <ng-container *ngFor="let sev of severities">
-              <div *ngIf="bySeverity(d.findings, sev) as group">
-                <ng-container *ngIf="group.length">
-                  <p class="text-xs font-medium text-[var(--portal-text-soft)] mt-2">{{ severityLabels[sev] }} ({{ group.length }})</p>
-                  <ul class="space-y-1 text-xs">
-                    <li *ngFor="let f of group"><code>{{ f.code }}</code>: {{ f.message }}</li>
-                  </ul>
-                </ng-container>
-              </div>
-            </ng-container>
-          </div>
-        </div>
-
-        <!-- Critic -->
-        <div>
-          <h4 class="text-xs font-medium uppercase tracking-wider text-[var(--portal-text-muted)] mb-2">Crítico</h4>
-          <ng-container *ngIf="d.provenance.critic as critic; else noCritic">
-            <div class="flex items-center gap-2 text-xs">
-              <app-admin-status-badge [status]="badgeStatus(critic.verdict)" [label]="critic.verdict"></app-admin-status-badge>
-              <span class="text-[var(--portal-text-soft)]">{{ critic.model }} · {{ critic.reviewedAt | date: 'short' }}</span>
-            </div>
-            <ul *ngIf="critic.issues.length" class="mt-2 space-y-1 text-xs">
-              <li *ngFor="let issue of critic.issues">
-                <strong>{{ issue.severity }}</strong><ng-container *ngIf="issue.claimId"> · {{ issue.claimId }}</ng-container>: {{ issue.message }}
-              </li>
-            </ul>
-          </ng-container>
-          <ng-template #noCritic><p class="text-xs text-[var(--portal-text-faint)]">Sin revisión del crítico</p></ng-template>
-        </div>
-
-        <!-- Cover + preview -->
-        <div class="grid lg:grid-cols-[minmax(0,1fr)_320px] gap-5">
-          <div>
-            <h4 class="text-xs font-medium uppercase tracking-wider text-[var(--portal-text-muted)] mb-2">Vista previa</h4>
-            <p *ngIf="d.post.metaTitle" class="text-xs text-[var(--portal-text-soft)]">SEO: {{ d.post.metaTitle }} — {{ d.post.metaDescription }}</p>
-            <p *ngIf="d.post.excerpt" class="text-sm italic text-[var(--portal-text-soft)] my-2">{{ d.post.excerpt }}</p>
-            <!-- Stored CMS HTML; Angular's DomSanitizer strips scripts and event handlers from [innerHTML]. -->
-            <div class="max-h-[600px] overflow-y-auto rounded-xl border border-[var(--portal-border)] p-4 text-sm text-[var(--portal-text)] space-y-3" [innerHTML]="d.post.content"></div>
-          </div>
-          <div class="space-y-3">
-            <h4 class="text-xs font-medium uppercase tracking-wider text-[var(--portal-text-muted)]">Portada</h4>
-            <img *ngIf="d.post.coverUrl" [src]="d.post.coverPreview || d.post.coverUrl" [alt]="d.post.coverAlt || ''" class="w-full rounded-xl border border-[var(--portal-border)]" />
-            <p *ngIf="d.post.coverAlt" class="text-xs text-[var(--portal-text-soft)]">Alt: {{ d.post.coverAlt }}</p>
-            <p *ngIf="!d.post.coverUrl" class="text-xs text-[var(--portal-text-faint)]">Sin portada</p>
-            <dl *ngFor="let img of d.provenance.images" class="text-xs grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-              <dt class="text-[var(--portal-text-muted)]">Proveedor</dt><dd>{{ img.provider }} / {{ img.model }}</dd>
-              <dt class="text-[var(--portal-text-muted)]">Derechos</dt><dd>{{ img.rights }}</dd>
-              <dt class="text-[var(--portal-text-muted)]">Dimensiones</dt><dd>{{ img.width }}×{{ img.height }} · {{ img.contentType }}</dd>
-              <dt class="text-[var(--portal-text-muted)]">Coste</dt><dd>${{ img.costUsd | number: '1.2-4' }}</dd>
-              <dt class="text-[var(--portal-text-muted)]">Prompt</dt><dd class="break-words">{{ img.prompt }}</dd>
-            </dl>
-          </div>
-        </div>
-
-        <!-- Evidence -->
-        <div>
-          <h4 class="text-xs font-medium uppercase tracking-wider text-[var(--portal-text-muted)] mb-2">
-            Evidencia · {{ d.provenance.bundle.topic }} ({{ d.provenance.bundle.intent }})
-          </h4>
-          <ol class="space-y-3 text-xs">
-            <li *ngFor="let claim of d.provenance.bundle.claims" class="border-t border-[var(--portal-border)] pt-2">
-              <div class="flex flex-wrap items-center gap-2">
-                <app-admin-status-badge
-                  [status]="claim.status === 'supported' ? 'healthy' : claim.status === 'conflicting' ? 'critical' : 'warning'"
-                  [label]="claim.status || 'unverified'"
-                ></app-admin-status-badge>
-                <span class="text-[var(--portal-text)]">{{ claim.text }}</span>
-                <span class="text-[var(--portal-text-faint)]">({{ claim.id }} · {{ claim.volatility }})</span>
-              </div>
-              <p *ngIf="claim.note" class="mt-1 text-[var(--portal-text-soft)]">{{ claim.note }}</p>
-              <ul class="mt-1 space-y-1 pl-4">
-                <li *ngFor="let q of claim.quotes">
-                  <span [attr.aria-label]="q.verified ? 'Cita verificada' : 'Cita no verificada'">{{ q.verified ? '✓' : '✗' }}</span>
-                  «{{ q.quote }}» —
-                  <ng-container *ngIf="source(q.sourceId) as src; else rawSource">
-                    <a [href]="src.url" target="_blank" rel="noopener noreferrer nofollow" class="underline">{{ src.publisher }}</a>
-                    ({{ src.kind }})
-                  </ng-container>
-                  <ng-template #rawSource>{{ q.sourceId }}</ng-template>
-                </li>
-              </ul>
-            </li>
-          </ol>
-          <div *ngIf="d.provenance.bundle.conflicts.length" class="mt-3">
-            <p class="text-xs font-medium text-[var(--portal-text-soft)]">Conflictos</p>
-            <ul class="space-y-1 text-xs">
-              <li *ngFor="let c of d.provenance.bundle.conflicts">{{ c.claimIds.join(', ') }}: {{ c.note }}</li>
-            </ul>
-          </div>
-        </div>
-
-        <!-- Cost -->
-        <div class="overflow-x-auto">
-          <table class="w-full text-xs">
-            <caption class="text-left text-xs font-medium uppercase tracking-wider text-[var(--portal-text-muted)] pb-2">
-              Coste
-              <ng-container *ngIf="d.provenance.cost as cost">
-                · ${{ cost.usd | number: '1.2-4' }} · {{ cost.sourceFetches }} descargas · {{ cost.draftAttempts }} borradores · {{ cost.reviewFailures }} revisiones fallidas
-              </ng-container>
-            </caption>
-            <thead>
-              <tr class="text-left text-[var(--portal-text-muted)]">
-                <th scope="col" class="pb-2 pr-4">Rol</th>
-                <th scope="col" class="pb-2 pr-4">Modelo</th>
-                <th scope="col" class="pb-2 pr-4 text-right">Tokens entrada</th>
-                <th scope="col" class="pb-2 pr-4 text-right">Tokens salida</th>
-                <th scope="col" class="pb-2 pr-4 text-right">Búsquedas</th>
-                <th scope="col" class="pb-2 text-right">USD</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let e of d.provenance.cost?.entries || []" class="border-t border-[var(--portal-border)]">
-                <td class="py-1.5 pr-4">{{ e.role }}</td>
-                <td class="py-1.5 pr-4">{{ e.model }}</td>
-                <td class="py-1.5 pr-4 text-right">{{ e.inputTokens | number }}</td>
-                <td class="py-1.5 pr-4 text-right">{{ e.outputTokens | number }}</td>
-                <td class="py-1.5 pr-4 text-right">{{ e.searches }}</td>
-                <td class="py-1.5 text-right">${{ e.usd | number: '1.2-4' }}</td>
-              </tr>
-              <tr *ngIf="!d.provenance.cost?.entries?.length"><td colspan="6" class="py-1.5 text-[var(--portal-text-faint)]">Sin datos de coste</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Revisions -->
-        <div>
-          <h4 class="text-xs font-medium uppercase tracking-wider text-[var(--portal-text-muted)] mb-2">Revisiones</h4>
-          <ul *ngIf="d.revisions.length; else noneList" class="space-y-1 text-xs">
-            <li *ngFor="let r of d.revisions">v{{ r.version }} · {{ r.savedAt | date: 'short' }} · {{ r.status }} · {{ r.reason }}</li>
-          </ul>
-        </div>
+    <section class="panel danger-zone" aria-labelledby="stop-title">
+      <div><h3 id="stop-title">Control de emergencia</h3><p>Detiene nuevas generaciones y publicaciones. No afecta a artículos ya publicados.</p></div>
+      <ng-container *ngIf="!ov.policy.paused && ov.policy.activated; else resumeControl">
+        <label for="editorial-pause-reason">Motivo de la parada</label>
+        <div class="inline-form"><input id="editorial-pause-reason" [(ngModel)]="pauseReason" maxlength="500" placeholder="Por ejemplo: fuentes no disponibles" /><button type="button" class="button danger" (click)="requestPause()" [disabled]="!pauseReason.trim() || pauseBusy">Parada de emergencia</button></div>
+        <p *ngIf="pauseError" role="alert" class="field-error">{{ pauseError }}</p>
       </ng-container>
+      <ng-template #resumeControl>
+        <form (ngSubmit)="resume()" autocomplete="off" class="inline-form">
+          <div><label for="editorial-resume-reviewer">Revisor</label><input id="editorial-resume-reviewer" [(ngModel)]="resumeReviewer" name="reviewer" required /></div>
+          <div><label for="editorial-resume-key">Clave humana (no se guarda)</label><input id="editorial-resume-key" [(ngModel)]="resumeKey" name="reviewKey" type="password" autocomplete="off" required /></div>
+          <button type="submit" class="button primary" [disabled]="!resumeKey || !resumeReviewer.trim() || resumeBusy">{{ resumeBusy ? 'Reanudando…' : 'Reanudar publicación' }}</button>
+        </form>
+        <p *ngIf="resumeError" role="alert" class="field-error">{{ resumeError }}</p>
+      </ng-template>
     </section>
 
-    <!-- AI posts -->
-    <section class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-5">
-      <div class="overflow-x-auto">
-        <table class="w-full text-xs">
-          <caption class="text-left text-sm font-medium text-[var(--portal-text-soft)] pb-3">Artículos IA</caption>
-          <thead>
-            <tr class="text-left text-[var(--portal-text-muted)]">
-              <th scope="col" class="pb-2 pr-3">Título</th>
-              <th scope="col" class="pb-2 pr-3">CMS</th>
-              <th scope="col" class="pb-2 pr-3">Pipeline</th>
-              <th scope="col" class="pb-2 pr-3">Crítico</th>
-              <th scope="col" class="pb-2 pr-3">Afirmaciones (✓ / ⚠ / ?)</th>
-              <th scope="col" class="pb-2 pr-3">Firmado</th>
-              <th scope="col" class="pb-2 pr-3 text-right">Coste</th>
-              <th scope="col" class="pb-2">Próxima revisión</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let p of ov.posts" class="border-t border-[var(--portal-border)]">
-              <td class="py-2 pr-3">
-                <button type="button" (click)="openPost(p.id)" class="text-left underline text-[var(--portal-text)] hover:text-[var(--spotify-green)]">{{ p.title || p.slug }}</button>
-              </td>
-              <td class="py-2 pr-3">{{ p.status }} / {{ p.reviewState }}</td>
-              <td class="py-2 pr-3"><app-admin-status-badge [status]="badgeStatus(p.pipelineState)" [label]="p.pipelineState"></app-admin-status-badge></td>
-              <td class="py-2 pr-3">
-                <app-admin-status-badge *ngIf="p.criticVerdict; else none" [status]="badgeStatus(p.criticVerdict)" [label]="p.criticVerdict"></app-admin-status-badge>
-              </td>
-              <td class="py-2 pr-3">{{ p.claims.supported }} / {{ p.claims.conflicting }} / {{ p.claims.unverified }}</td>
-              <td class="py-2 pr-3">{{ p.signed ? 'Sí' : 'No' }}</td>
-              <td class="py-2 pr-3 text-right">${{ p.costUsd | number: '1.2-4' }}</td>
-              <td class="py-2">{{ p.nextReviewAt ? (p.nextReviewAt | date: 'short') : '—' }}</td>
-            </tr>
-            <tr *ngIf="!ov.posts.length"><td colspan="8" class="py-2 text-[var(--portal-text-faint)]">No hay artículos IA</td></tr>
-          </tbody>
-        </table>
-      </div>
+    <nav class="tabs" role="tablist" aria-label="Secciones de Operaciones IA" tabindex="0" (keydown)="tabKeydown($event)">
+      <button *ngFor="let tab of tabs; let i = index" type="button" role="tab" [id]="'editorial-tab-' + tab" [attr.aria-selected]="activeTab === tab" [attr.aria-controls]="'editorial-panel-' + tab" [tabindex]="activeTab === tab ? 0 : -1" (click)="selectTab(tab)">{{ { activity: 'Actividad', queue: 'Cola', generate: 'Generar', settings: 'Configuración' }[tab] }}<span *ngIf="tab === 'queue' && ov.queue.length" class="tab-count">{{ ov.queue.length }}</span></button>
+    </nav>
+
+    <section *ngIf="activeTab === 'activity'" role="tabpanel" id="editorial-panel-activity" aria-labelledby="editorial-tab-activity" class="tab-content">
+      <dl class="metrics"><div><dt>Intentos hoy</dt><dd>{{ ov.today.generated }}</dd></div><div><dt>Publicados</dt><dd>{{ ov.today.published }}</dd></div><div><dt>Retenidos</dt><dd>{{ ov.today.held }}</dd></div><div><dt>Rechazados</dt><dd>{{ ov.today.rejected }}</dd></div><div><dt>Gasto hoy</dt><dd>${{ ov.spend.todayUsd | number: '1.2-4' }}</dd></div><div><dt>Gasto 30 días</dt><dd>${{ ov.spend.last30dUsd | number: '1.2-4' }}</dd></div></dl>
+      <section class="panel">
+        <div class="section-heading"><div><h3>Artículos IA</h3><p>Los 50 más recientes. Selecciona un título para revisar evidencias, crítico y coste.</p></div><span>{{ ov.posts.length }}</span></div>
+        <div class="mobile-list"><article *ngFor="let p of ov.posts; trackBy: trackId" class="data-card"><button class="card-title" (click)="openPost(p.id)">{{ p.title || p.slug }}</button><div class="card-meta"><app-admin-status-badge [status]="badgeStatus(p.pipelineState)" [label]="stateLabel(p.pipelineState)" /><span>{{ p.updatedAt | date: 'short' }}</span></div><dl><div><dt>Evidencias</dt><dd>{{ p.claims.supported }} verificadas · {{ p.sources }} fuentes</dd></div><div><dt>Crítico</dt><dd>{{ stateLabel(p.criticVerdict) }}</dd></div><div><dt>Coste</dt><dd>${{ p.costUsd | number: '1.2-4' }}</dd></div></dl></article></div>
+        <div class="table-scroll desktop-table" tabindex="0" role="region" aria-label="Artículos IA, tabla con desplazamiento"><table><caption class="sr-only">Artículos IA más recientes</caption><thead><tr><th>Título</th><th>Estado</th><th>Crítico</th><th>Afirmaciones</th><th>Firmado</th><th class="numeric">Coste</th><th>Próxima revisión</th></tr></thead><tbody><tr *ngFor="let p of ov.posts; trackBy: trackId"><td><button class="table-link" (click)="openPost(p.id)">{{ p.title || p.slug }}</button><small>{{ p.updatedAt | date: 'short' }}</small></td><td><app-admin-status-badge [status]="badgeStatus(p.pipelineState)" [label]="stateLabel(p.pipelineState)" /></td><td>{{ stateLabel(p.criticVerdict) }}</td><td>{{ p.claims.supported }} ✓ / {{ p.claims.conflicting }} ⚠ / {{ p.claims.unverified }} ?</td><td>{{ p.signed ? 'Sí' : 'No' }}</td><td class="numeric">${{ p.costUsd | number: '1.2-4' }}</td><td>{{ p.nextReviewAt ? (p.nextReviewAt | date: 'short') : '—' }}</td></tr></tbody></table></div>
+        <p *ngIf="!ov.posts.length" class="empty">Aún no hay artículos IA. Crea una solicitud en «Generar».</p>
+      </section>
+      <section class="panel"><div class="section-heading"><div><h3>Ejecuciones</h3><p>Las 50 ejecuciones más recientes, incluidas las bloqueadas.</p></div></div>
+        <div class="mobile-list"><article *ngFor="let j of ov.jobs; trackBy: trackJob" class="data-card"><div class="card-meta"><app-admin-status-badge [status]="badgeStatus(j.state)" [label]="stateLabel(j.state)" /><time>{{ j.startedAt | date: 'short' }}</time></div><h4>{{ j.slug }}</h4><p>{{ j.reason || 'Sin incidencias' }}</p><small>{{ j.backend || 'Sin backend' }} · ${{ j.costUsd | number: '1.2-4' }} · {{ j.revisions || 0 }} revisiones</small></article></div>
+        <div class="table-scroll desktop-table" tabindex="0" role="region" aria-label="Ejecuciones, tabla con desplazamiento"><table><thead><tr><th>Fecha</th><th>Documento</th><th>Estado</th><th>Motivo</th><th>Modelos</th><th>Revisiones</th><th class="numeric">Coste</th></tr></thead><tbody><tr *ngFor="let j of ov.jobs; trackBy: trackJob"><td>{{ j.startedAt | date: 'short' }}</td><td><a *ngIf="j.publicUrl" [href]="j.publicUrl" target="_blank" rel="noopener">{{ j.slug }}</a><ng-container *ngIf="!j.publicUrl">{{ j.slug }}</ng-container></td><td><app-admin-status-badge [status]="badgeStatus(j.state)" [label]="stateLabel(j.state)" /></td><td class="wide-cell">{{ j.reason || '—' }}<small *ngIf="j.blockingCodes.length">{{ j.blockingCodes.join(', ') }}</small></td><td>{{ j.backend || '—' }}</td><td>{{ j.revisions ?? '—' }}</td><td class="numeric">${{ j.costUsd | number: '1.2-4' }}</td></tr></tbody></table></div><p *ngIf="!ov.jobs.length" class="empty">Todavía no hay ejecuciones registradas.</p>
+      </section>
+      <section *ngIf="ov.searchConsole as gsc" class="panel"><div class="section-heading"><div><h3>Search Console</h3><p>Rendimiento de guías públicas. Los datos de Google pueden ser preliminares.</p></div></div>
+        <div class="mobile-list"><article *ngFor="let g of gsc.guides" class="data-card"><a [href]="g.url" target="_blank" rel="noopener">{{ g.slug }}</a><p>{{ g.inspection?.indexed ? 'Indexada según Google' : 'No confirmada como indexada' }}</p><small *ngIf="g.performance as p">{{ p.clicks }} clics · {{ p.impressions }} impresiones · posición {{ p.position ?? '—' }}</small></article></div>
+        <div class="table-scroll desktop-table" tabindex="0" role="region" aria-label="Search Console, tabla con desplazamiento"><table><thead><tr><th>Guía</th><th>Google</th><th>Último rastreo</th><th class="numeric">Clics</th><th class="numeric">Impresiones</th><th class="numeric">CTR</th><th class="numeric">Posición</th><th>Días</th></tr></thead><tbody><tr *ngFor="let g of gsc.guides"><td><a [href]="g.url" target="_blank" rel="noopener">{{ g.slug }}</a></td><td>{{ g.inspection?.indexed ? 'Indexada' : g.inspection?.coverageState || 'Sin inspeccionar' }}</td><td>{{ g.inspection?.lastCrawlTime ? (g.inspection?.lastCrawlTime | date: 'short') : '—' }}</td><ng-container *ngIf="g.performance as p; else noPerf"><td class="numeric">{{ p.clicks }}</td><td class="numeric">{{ p.impressions }}</td><td class="numeric">{{ p.ctr !== null ? (p.ctr | percent: '1.1-1') : '—' }}</td><td class="numeric">{{ p.position !== null ? (p.position | number: '1.1-1') : '—' }}</td><td>{{ p.days }}/{{ gsc.windowDays }}</td></ng-container></tr></tbody></table></div><p *ngIf="!gsc.guides.length" class="empty">No hay datos públicos de Search Console.</p>
+      </section>
     </section>
 
-    <!-- Search Console (read-only): what we serve vs what Google reports -->
-    <section *ngIf="ov.searchConsole as gsc" class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-5 space-y-3" aria-labelledby="editorial-gsc-title">
-      <h3 id="editorial-gsc-title" class="text-sm font-medium text-[var(--portal-text-soft)]">Search Console (guías públicas)</h3>
-      <div class="flex flex-wrap items-center gap-3 text-xs">
-        <app-admin-status-badge *ngIf="gsc.lastRun as run; else noGscRun" [status]="badgeStatus(run.status)" [label]="run.status"></app-admin-status-badge>
-        <span *ngIf="gsc.lastRun as run" class="text-[var(--portal-text-soft)]">
-          Última consulta {{ run.startedAt | date: 'short' }} · {{ run.inspected }} inspeccionadas · {{ run.skipped }} omitidas (&lt; 24 h)<ng-container *ngIf="run.message"> · {{ run.message }}</ng-container>
-        </span>
-        <span class="text-[var(--portal-text-muted)]">
-          Programada: {{ gsc.enabled ? 'sí' : 'no (GSC_MONITOR_ENABLED)' }} · Datos de rendimiento: {{ gsc.baseline.days }}/{{ gsc.windowDays }} días{{ gsc.baseline.complete ? '' : ' (línea base incompleta)' }}
-        </span>
-      </div>
-      <p class="text-xs text-[var(--portal-text-muted)]">
-        «Publicada» es el estado en nuestro CMS (no una comprobación de HTTP ni del sitemap). «Indexada» solo según la inspección de URL de Google. Clics e impresiones: últimos {{ gsc.windowDays }} días, sin rellenar días sin datos.
-      </p>
-      <div class="overflow-x-auto">
-        <table class="w-full text-xs">
-          <thead>
-            <tr class="text-left text-[var(--portal-text-muted)]">
-              <th scope="col" class="pb-2 pr-3">Guía</th>
-              <th scope="col" class="pb-2 pr-3">Publicada</th>
-              <th scope="col" class="pb-2 pr-3">Google</th>
-              <th scope="col" class="pb-2 pr-3">Último rastreo</th>
-              <th scope="col" class="pb-2 pr-3">Canónica Google</th>
-              <th scope="col" class="pb-2 pr-3 text-right">Clics</th>
-              <th scope="col" class="pb-2 pr-3 text-right">Impresiones</th>
-              <th scope="col" class="pb-2 pr-3 text-right">CTR</th>
-              <th scope="col" class="pb-2 pr-3 text-right">Posición</th>
-              <th scope="col" class="pb-2">Días con datos</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let g of gsc.guides" class="border-t border-[var(--portal-border)] align-top">
-              <td class="py-2 pr-3"><a [href]="g.url" target="_blank" rel="noopener" class="underline">{{ g.slug }}</a></td>
-              <td class="py-2 pr-3">Pública en el CMS</td>
-              <td class="py-2 pr-3">
-                <ng-container *ngIf="g.inspection as i; else notInspected">
-                  <app-admin-status-badge [status]="i.indexed ? 'healthy' : 'warning'" [label]="i.indexed ? 'Indexada' : 'No indexada'"></app-admin-status-badge>
-                  <span class="block text-[var(--portal-text-soft)]">{{ i.verdict || '—' }} · {{ i.coverageState || '—' }}</span>
-                  <span *ngIf="i.error" class="block text-[var(--spotify-negative)]">{{ i.error }}</span>
-                </ng-container>
-              </td>
-              <td class="py-2 pr-3 whitespace-nowrap">{{ g.inspection?.lastCrawlTime ? (g.inspection?.lastCrawlTime | date: 'short') : '—' }}</td>
-              <td class="py-2 pr-3" [title]="g.inspection?.googleCanonical || ''">
-                {{ g.inspection?.canonicalMatch === true ? 'Coincide' : g.inspection?.canonicalMatch === false ? 'Distinta' : '—' }}
-              </td>
-              <ng-container *ngIf="g.performance as p; else noPerf">
-                <td class="py-2 pr-3 text-right">{{ p.clicks | number }}</td>
-                <td class="py-2 pr-3 text-right">{{ p.impressions | number }}</td>
-                <td class="py-2 pr-3 text-right">{{ p.ctr !== null ? (p.ctr | percent: '1.1-1') : '—' }}</td>
-                <td class="py-2 pr-3 text-right">{{ p.position !== null ? (p.position | number: '1.1-1') : '—' }}</td>
-                <td class="py-2">{{ p.days }}/{{ gsc.windowDays }}{{ p.baselineComplete ? '' : ' (incompleta)' }}{{ p.preliminary ? ' · incluye datos preliminares' : '' }}</td>
-              </ng-container>
-            </tr>
-            <tr *ngIf="!gsc.guides.length"><td colspan="10" class="py-2 text-[var(--portal-text-faint)]">No hay guías públicas</td></tr>
-          </tbody>
-        </table>
-      </div>
+    <section *ngIf="activeTab === 'queue'" role="tabpanel" id="editorial-panel-queue" aria-labelledby="editorial-tab-queue" class="tab-content">
+      <div class="section-heading"><div><h3>Cola de trabajo</h3><p>Solicitudes manuales y último snapshot de temas descubiertos por el runner.</p></div><button type="button" class="button secondary" (click)="discover()" [disabled]="requestBusy">Descubrir temas</button></div>
+      <div *ngIf="!ov.runner.online" role="note" class="notice-box">El runner no tiene señal reciente. Las nuevas solicitudes quedarán pendientes hasta que se conecte.</div>
+      <div class="queue-list"><article *ngFor="let item of ov.queue; trackBy: trackId" class="queue-card"><div class="queue-main"><div class="card-meta"><app-admin-status-badge [status]="badgeStatus(item.status || item.state)" [label]="stateLabel(item.status || item.state)" /><span>{{ item.source === 'manual' ? 'Solicitud manual' : 'Descubierto' }}</span><span *ngIf="item.kind === 'discover'">Descubrimiento</span></div><h3>{{ item.title || item.topic?.title || 'Descubrimiento de nuevos temas' }}</h3><p *ngIf="item.topic?.intent">{{ item.topic.intent }}</p><p *ngIf="item.reason" class="reason">{{ item.reason }}</p><div class="source-links"><a *ngFor="let url of item.sources || item.topic?.seedUrls || []" [href]="url" target="_blank" rel="noopener">{{ url }}</a></div><small>{{ item.category || item.topic?.category || '—' }}<ng-container *ngIf="item.score !== undefined"> · puntuación {{ item.score }}</ng-container> · {{ item.updatedAt || item.createdAt | date: 'short' }}</small></div><div class="queue-actions"><button *ngIf="item.source === 'manual' && item.status === 'queued'" class="button secondary" (click)="queueAction(item.id, 'cancel')" [disabled]="queueBusy === item.id">Cancelar</button><button *ngIf="item.source === 'manual' && (item.status === 'failed' || item.status === 'cancelled')" class="button secondary" (click)="queueAction(item.id, 'retry')" [disabled]="queueBusy === item.id">Reintentar</button></div></article></div>
+      <p *ngIf="!ov.queue.length" class="empty panel">La cola está vacía. Solicita descubrimiento o crea un documento.</p>
     </section>
 
-    <!-- Jobs -->
-    <section class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-5">
-      <div class="overflow-x-auto">
-        <table class="w-full text-xs">
-          <caption class="text-left text-sm font-medium text-[var(--portal-text-soft)] pb-3">Ejecuciones del pipeline</caption>
-          <thead>
-            <tr class="text-left text-[var(--portal-text-muted)]">
-              <th scope="col" class="pb-2 pr-3">Fecha</th>
-              <th scope="col" class="pb-2 pr-3">Slug</th>
-              <th scope="col" class="pb-2 pr-3">Estado</th>
-              <th scope="col" class="pb-2 pr-3">Motivo</th>
-              <th scope="col" class="pb-2 pr-3">Revisiones</th>
-              <th scope="col" class="pb-2 pr-3">Backend</th>
-              <th scope="col" class="pb-2 pr-3 text-right">Coste</th>
-              <th scope="col" class="pb-2 pr-3">Códigos bloqueantes</th>
-              <th scope="col" class="pb-2">Fallo de imagen</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let j of ov.jobs" class="border-t border-[var(--portal-border)] align-top">
-              <td class="py-2 pr-3 whitespace-nowrap">{{ j.startedAt | date: 'short' }}</td>
-              <td class="py-2 pr-3">
-                <a *ngIf="j.publicUrl; else plainSlug" [href]="j.publicUrl" target="_blank" rel="noopener" class="underline">{{ j.slug }}</a>
-                <ng-template #plainSlug>{{ j.slug }}</ng-template>
-              </td>
-              <td class="py-2 pr-3"><app-admin-status-badge [status]="badgeStatus(j.state)" [label]="j.state"></app-admin-status-badge></td>
-              <td class="py-2 pr-3">{{ j.reason || '—' }}</td>
-              <td class="py-2 pr-3" [title]="(j.revisionLog || []).join(' → ')">{{ j.revisions ?? '—' }}</td>
-              <td class="py-2 pr-3">{{ j.backend || '—' }}</td>
-              <td class="py-2 pr-3 text-right">${{ j.costUsd | number: '1.2-4' }}<span *ngIf="j.budget === 'unlimited'" class="text-[var(--portal-text-faint)]"> (sin tope)</span></td>
-              <td class="py-2 pr-3">{{ j.blockingCodes.join(', ') || '—' }}</td>
-              <td class="py-2">{{ j.imageFailure || '—' }}</td>
-            </tr>
-            <tr *ngIf="!ov.jobs.length"><td colspan="9" class="py-2 text-[var(--portal-text-faint)]">No hay ejecuciones</td></tr>
-          </tbody>
-        </table>
-      </div>
+    <section *ngIf="activeTab === 'generate'" role="tabpanel" id="editorial-panel-generate" aria-labelledby="editorial-tab-generate" class="tab-content form-layout">
+      <form (ngSubmit)="submitGeneration()" class="panel form-grid">
+        <div class="section-heading full"><div><h3>Generar un documento</h3><p>Se añade a la cola; no empieza hasta la próxima activación del runner. Publicación automática solo tras superar evidencia, crítico, firma y límites.</p></div></div>
+        <div class="full"><label for="gen-title">Título orientativo</label><input id="gen-title" [(ngModel)]="request.title" name="title" minlength="20" maxlength="110" required placeholder="Qué debe encontrar el lector" /></div>
+        <div class="full"><label for="gen-topic">Tema y alcance</label><textarea id="gen-topic" [(ngModel)]="request.topic" name="topic" minlength="20" maxlength="500" required rows="3"></textarea></div>
+        <div class="full"><label for="gen-intent">Pregunta o intención del lector</label><textarea id="gen-intent" [(ngModel)]="request.intent" name="intent" minlength="20" maxlength="500" required rows="2"></textarea></div>
+        <div><label for="gen-slug">Slug</label><input id="gen-slug" [(ngModel)]="request.slug" name="slug" pattern="[a-z0-9]+(-[a-z0-9]+){2,}" required /><small>Tres palabras o más, minúsculas y guiones.</small></div>
+        <div><label for="gen-category">Categoría</label><select id="gen-category" [(ngModel)]="request.category" name="category"><option *ngFor="let c of ov.generation.categories" [value]="c">{{ c }}</option></select></div>
+        <div><label for="gen-type">Tipo de documento</label><select id="gen-type" [(ngModel)]="request.contentType" name="contentType"><option *ngFor="let t of contentTypes" [value]="t.id">{{ t.label }}</option></select></div>
+        <div><label for="gen-length">Longitud objetivo</label><select id="gen-length" [(ngModel)]="request.length" name="length"><option *ngFor="let l of lengths" [value]="l.id">{{ l.label }} palabras</option></select></div>
+        <div><label for="gen-volatility">Cadencia de revisión</label><select id="gen-volatility" [(ngModel)]="request.volatility" name="volatility"><option value="stable">Contenido estable</option><option value="pricing">Precios</option><option value="availability">Disponibilidad</option><option value="sports-rights">Derechos deportivos</option><option value="catalog-ranking">Ranking de catálogo</option></select></div>
+        <div class="full"><label for="gen-sources">Páginas de ingesta externas (1–4)</label><textarea id="gen-sources" [(ngModel)]="seedUrlsText" name="sources" required rows="4" placeholder="Una URL HTTPS por línea"></textarea><small>Solo dominios oficiales habilitados en Configuración. El runner comprobará que cada página sea legible y pertinente.</small></div>
+        <div class="full"><label for="gen-internal">Páginas internas de GuíaTV (opcional, máximo 4)</label><textarea id="gen-internal" [(ngModel)]="internalUrlsText" name="internal" rows="2" placeholder="/api/..."></textarea></div>
+        <div class="full submit-row"><p>Usa las rutas de modelos de Configuración. El coste queda limitado por los presupuestos existentes.</p><button type="submit" class="button primary" [disabled]="requestBusy">{{ requestBusy ? 'Encolando…' : 'Generar en la próxima activación' }}</button></div>
+      </form>
+    </section>
+
+    <section *ngIf="activeTab === 'settings' && settingsDraft as config" role="tabpanel" id="editorial-panel-settings" aria-labelledby="editorial-tab-settings" class="tab-content settings-layout">
+      <form (ngSubmit)="saveSettings()" class="panel form-grid">
+        <div class="section-heading full"><div><h3>Producción programada</h3><p>El runner externo aplica estos valores en su siguiente activación.</p></div></div>
+        <div><label for="cfg-enabled">Estado</label><select id="cfg-enabled" [(ngModel)]="config.enabled" name="enabled" (ngModelChange)="settingsDirty = true"><option [ngValue]="true">Activa</option><option [ngValue]="false">En pausa</option></select></div>
+        <div><label for="cfg-frequency">Frecuencia</label><select id="cfg-frequency" [(ngModel)]="config.scheduleHours" name="frequency" (ngModelChange)="settingsDirty = true"><option [ngValue]="3">Cada 3 horas</option><option [ngValue]="6">Cada 6 horas</option><option [ngValue]="12">Cada 12 horas</option><option [ngValue]="24">Cada 24 horas</option></select></div>
+        <div><label for="cfg-topics">Temas por ciclo</label><input id="cfg-topics" type="number" min="1" max="10" [(ngModel)]="config.topicsPerCycle" name="topics" (ngModelChange)="settingsDirty = true" /></div>
+        <div><label for="cfg-length">Longitud predeterminada</label><select id="cfg-length" [(ngModel)]="config.defaultLength" name="length" (ngModelChange)="settingsDirty = true"><option *ngFor="let l of lengths" [value]="l.id">{{ l.label }}</option></select></div>
+        <fieldset class="full"><legend>Categorías habilitadas</legend><div class="check-grid"><label *ngFor="let c of categories"><input type="checkbox" [checked]="config.categories.includes(c)" (change)="toggleList(config.categories, c)" />{{ c }}</label></div></fieldset>
+        <fieldset class="full"><legend>Tipos permitidos</legend><div class="check-grid"><label *ngFor="let t of contentTypes"><input type="checkbox" [checked]="config.contentTypes.includes(t.id)" (change)="toggleList(config.contentTypes, t.id)" />{{ t.label }}</label></div></fieldset>
+        <fieldset class="full routes-field"><legend>Rutas de modelos por rol</legend><p>Principal y hasta dos respaldos, en orden. La investigación exige búsqueda web.</p><div *ngFor="let role of roles; trackBy: trackRole" class="route-row"><strong>{{ roleLabels[role] }}</strong><div *ngFor="let route of config.routes[role]; let i = index" class="route-editor"><span>Ruta {{ i + 1 }}</span><select [attr.aria-label]="'Proveedor ' + roleLabels[role] + ' ruta ' + (i + 1)" [(ngModel)]="route.provider" [name]="role + '-provider-' + i" (ngModelChange)="route.model = models[route.provider][0]; settingsDirty = true"><option value="anthropic">Anthropic</option><option value="openai">OpenAI</option></select><select [attr.aria-label]="'Modelo ' + roleLabels[role] + ' ruta ' + (i + 1)" [(ngModel)]="route.model" [name]="role + '-model-' + i" (ngModelChange)="settingsDirty = true"><option *ngFor="let m of models[route.provider]" [value]="m">{{ m }}</option></select><select [attr.aria-label]="'Esfuerzo ' + roleLabels[role] + ' ruta ' + (i + 1)" [(ngModel)]="route.effort" [name]="role + '-effort-' + i" (ngModelChange)="settingsDirty = true"><option value="low">Bajo</option><option value="medium">Medio</option><option value="high">Alto</option></select></div><p *ngIf="role === 'critic' && config.routes.editorial[0].provider === config.routes.critic[0].provider" class="warning-text">Escritor y crítico usan el mismo proveedor: la revisión es independiente de rol, no de proveedor.</p></div></fieldset>
+        <fieldset class="full"><legend>Dominios de ingesta permitidos</legend><div class="domain-list"><label *ngFor="let d of ov.generation.sourceDomains"><input type="checkbox" [checked]="config.sourceDomains.includes(d)" (change)="toggleList(config.sourceDomains, d)" />{{ d }}</label></div><small>Para ampliar la lista oficial hace falta una revisión del catálogo de fuentes del backend.</small></fieldset>
+        <div class="full submit-row"><span>{{ settingsDirty ? 'Hay cambios sin guardar' : 'Configuración sincronizada' }}</span><button type="submit" class="button primary" [disabled]="settingsBusy">{{ settingsBusy ? 'Guardando…' : 'Guardar configuración' }}</button></div>
+      </form>
+      <form class="panel form-grid" (ngSubmit)="saveDailyLimit()" autocomplete="off"><div class="section-heading full"><div><h3>Límite diario</h3><p>Actual: {{ ov.policy.dailyLimit }} artículos. Recomendado: {{ ov.policy.dailyLimitRange.recommended }}. Requiere clave humana.</p></div></div><div><label for="editorial-limit-value">Nuevo límite</label><input id="editorial-limit-value" type="number" [min]="ov.policy.dailyLimitRange.min" [max]="ov.policy.dailyLimitRange.max" [(ngModel)]="limitValue" name="dailyLimit" required /></div><div><label for="editorial-limit-reviewer">Revisor</label><input id="editorial-limit-reviewer" [(ngModel)]="limitReviewer" name="limitReviewer" required /></div><div><label for="editorial-limit-key">Clave humana (no se guarda)</label><input id="editorial-limit-key" type="password" [(ngModel)]="limitKey" name="limitKey" autocomplete="off" required /></div><div class="submit-row"><span></span><button type="submit" class="button secondary" [disabled]="limitValue === null || !limitKey || !limitReviewer.trim() || limitBusy">{{ limitBusy ? 'Guardando…' : 'Guardar límite' }}</button></div><p *ngIf="limitError" role="alert" class="field-error full">{{ limitError }}</p></form>
     </section>
   </ng-container>
 </div>
 
-<ng-template #none>—</ng-template>
-<ng-template #noCap><span> · presupuesto sin tope (modo de prueba)</span></ng-template>
-<ng-template #noGscRun><span class="text-[var(--portal-text-faint)]">Sin consultas a Search Console todavía</span></ng-template>
-<ng-template #notInspected><span class="text-[var(--portal-text-faint)]">Sin inspeccionar</span></ng-template>
-<ng-template #noPerf><td colspan="5" class="py-2 text-[var(--portal-text-faint)]">Sin datos de Google</td></ng-template>
-<ng-template #noneList><p class="text-xs text-[var(--portal-text-faint)]">Ninguno</p></ng-template>
-
-<app-admin-confirm-dialog
-  [open]="pauseDialogOpen"
-  title="Parada de emergencia"
-  [description]="'Se detendrá toda publicación automática hasta que alguien con la clave de revisión la reanude. Motivo: ' + pauseReason"
-  confirmLabel="Pausar publicación"
-  cancelLabel="Cancelar"
-  [busy]="pauseBusy"
-  (confirmed)="confirmPause()"
-  (cancelled)="pauseDialogOpen = false"
-></app-admin-confirm-dialog>
+<button *ngIf="detailOpen" type="button" class="drawer-backdrop" aria-label="Cerrar detalle" tabindex="-1" (click)="closeDetail()"></button>
+<aside *ngIf="detailOpen" #detailDrawer class="detail-drawer" role="dialog" aria-modal="true" aria-labelledby="editorial-detail-title" cdkTrapFocus cdkTrapFocusAutoCapture>
+  <header><div><p class="eyebrow">REVISIÓN EDITORIAL</p><h2 id="editorial-detail-title">{{ detail?.post?.title || 'Detalle del artículo' }}</h2></div><button type="button" class="button secondary" cdkFocusInitial (click)="closeDetail()">Cerrar</button></header>
+  <div class="drawer-content">
+    <p *ngIf="detailLoading" aria-busy="true">Cargando artículo, evidencias y revisión…</p><div *ngIf="detailError" role="alert" class="feedback error">{{ detailError }}</div>
+    <ng-container *ngIf="detail as d"><p class="detail-meta">{{ d.post.slug }} · {{ d.provenance.backend || 'Sin backend' }} · {{ d.provenance.signed ? 'Firmado' : 'Sin firma' }}<br />{{ d.provenance.state }} · verificado {{ d.provenance.lastVerifiedAt | date: 'short' }}</p>
+      <section><h3>Controles de publicación</h3><ul *ngIf="d.findings.length; else noFindings"><li *ngFor="let f of d.findings"><strong>{{ severityLabels[f.severity] }} · {{ f.code }}</strong><p>{{ f.message }}</p></li></ul><ng-template #noFindings><p>Sin hallazgos.</p></ng-template></section>
+      <section><h3>Vista previa</h3><p><strong>{{ d.post.metaTitle }}</strong></p><p>{{ d.post.metaDescription }}</p><div class="article-preview" [innerHTML]="d.post.content"></div><img *ngIf="d.post.coverUrl" [src]="d.post.coverPreview || d.post.coverUrl" [alt]="d.post.coverAlt || ''" /></section>
+      <section><h3>Crítico independiente</h3><ng-container *ngIf="d.provenance.critic as critic"><p><app-admin-status-badge [status]="badgeStatus(critic.verdict)" [label]="stateLabel(critic.verdict)" /> {{ critic.model }}</p><ul><li *ngFor="let issue of critic.issues"><strong>{{ issue.severity }}</strong> {{ issue.message }}</li></ul></ng-container></section>
+      <section><h3>Evidencias</h3><p>{{ d.provenance.bundle.intent }}</p><ol class="claims"><li *ngFor="let claim of d.provenance.bundle.claims"><strong>{{ claim.id }} · {{ claim.status || 'unverified' }}</strong><p>{{ claim.text }}</p><blockquote *ngFor="let q of claim.quotes">«{{ q.quote }}» <a *ngIf="source(q.sourceId) as src" [href]="src.url" target="_blank" rel="noopener nofollow">{{ src.publisher }}</a></blockquote></li></ol></section>
+      <section><h3>Coste y modelos</h3><p *ngIf="d.provenance.cost as cost">Total estimado: ${{ cost.usd | number: '1.2-4' }} · {{ cost.draftAttempts }} borradores</p><div class="table-scroll"><table><thead><tr><th>Rol</th><th>Modelo</th><th class="numeric">Tokens</th><th class="numeric">USD</th></tr></thead><tbody><tr *ngFor="let e of d.provenance.cost?.entries || []"><td>{{ e.role }}</td><td>{{ e.model }}</td><td class="numeric">{{ e.inputTokens + e.outputTokens | number }}</td><td class="numeric">${{ e.usd | number: '1.2-4' }}</td></tr></tbody></table></div></section>
+    </ng-container>
+  </div>
+</aside>
+<ng-template #noPerf><td colspan="5">Sin datos de Google</td></ng-template>
+<app-admin-confirm-dialog [open]="pauseDialogOpen" title="Parada de emergencia" [description]="'Se detendrán la generación y la publicación automáticas. Motivo: ' + pauseReason" confirmLabel="Detener automatización" cancelLabel="Cancelar" [busy]="pauseBusy" (confirmed)="confirmPause()" (cancelled)="pauseDialogOpen = false" />

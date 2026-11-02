@@ -16,6 +16,7 @@ import { EditorialMediaRejected, storeEditorialCover } from '../../infrastructur
 import { generatedImageFindings } from '../../application/services/EditorialImages';
 import { editorialCoverPreview } from '../middlewares/editorialMediaGate';
 import { searchConsoleOverview } from '../../application/services/SearchConsoleMonitor';
+import { EditorialGenerationService } from '../../application/services/EditorialGenerationService';
 
 /**
  * M11-C Admin supervision of the AI editorial pipeline (/v2/admin/editorial, admin role enforced by the router).
@@ -66,6 +67,8 @@ const actor = (req: Request) => {
 const usdOf = (p?: EditorialProvenance) => p?.cost?.usd ?? 0;
 
 export class EditorialOpsController {
+  private readonly generation = new EditorialGenerationService();
+
   constructor(private readonly storage: IStorageRepository) {}
 
   /** Cover upload from the runner (raw image body); re-validated here because this is the trust boundary. */
@@ -87,7 +90,7 @@ export class EditorialOpsController {
   overview = async (_req: Request, res: Response): Promise<void> => {
     const since = (ms: number) => new Date(Date.now() - ms);
     const today = new Date().toISOString().slice(0, 10);
-    const [policy, approvalsLast24h, recentJobs, todayJobs, posts, spend, searchConsole] = await Promise.all([
+    const [policy, approvalsLast24h, recentJobs, todayJobs, posts, spend, searchConsole, operations] = await Promise.all([
       editorialPolicyState(),
       db().collection('editorial_policy_approvals').countDocuments({ at: { $gte: since(DAY) } }),
       jobs().find({}, { projection: { _id: 0 } }).sort({ startedAt: -1 }).limit(50).toArray(),
@@ -103,6 +106,7 @@ export class EditorialOpsController {
       ]).toArray(),
       // Monitoring only: a GSC read failure must not take the runner's overview (its cap and stop source) down.
       searchConsoleOverview().catch(() => null),
+      this.generation.operationalState(),
     ]);
     const { routes, imageRoutes } = routesFromEnv();
     // The runner owns the money caps; its latest report says which budget it ran under (M11-E2 testing: unlimited).
@@ -136,6 +140,7 @@ export class EditorialOpsController {
         held: count('verified'), rejected: count('blocked'),
         revisions: todayJobs.reduce((sum, j) => sum + (Number(j.revisions) || 0), 0), models, reasons,
       },
+      ...operations,
       routes, imageRoutes,
       spend: {
         todayUsd: +(spend.find((d) => d._id === today)?.usd ?? 0).toFixed(4),
@@ -268,5 +273,51 @@ export class EditorialOpsController {
       throw error;
     }
     res.status(201).json(successResponse({ jobId: job.jobId }));
+  };
+
+  generationSettings = async (_req: Request, res: Response): Promise<void> => {
+    res.json(successResponse(await this.generation.getSettings()));
+  };
+
+  updateGenerationSettings = async (req: Request, res: Response): Promise<void> => {
+    res.json(successResponse(await this.generation.updateSettings(req.body, actor(req))));
+  };
+
+  createGenerationRequest = async (req: Request, res: Response): Promise<void> => {
+    res.status(201).json(successResponse(await this.generation.createRequest('generate', req.body, actor(req))));
+  };
+
+  createDiscoveryRequest = async (req: Request, res: Response): Promise<void> => {
+    res.status(201).json(successResponse(await this.generation.createRequest('discover', {}, actor(req))));
+  };
+
+  cancelGenerationRequest = async (req: Request, res: Response): Promise<void> => {
+    res.json(successResponse(await this.generation.cancelRequest(String(req.params.id))));
+  };
+
+  retryGenerationRequest = async (req: Request, res: Response): Promise<void> => {
+    res.json(successResponse(await this.generation.retryRequest(String(req.params.id))));
+  };
+
+  runnerWork = async (_req: Request, res: Response): Promise<void> => {
+    res.json(successResponse({ settings: await this.generation.getSettings(), requests: await this.generation.pendingRequests(), policy: await editorialPolicyState() }));
+  };
+
+  runnerHeartbeat = async (req: Request, res: Response): Promise<void> => {
+    res.json(successResponse(await this.generation.reportRunner(req.body)));
+  };
+
+  claimGenerationRequest = async (req: Request, res: Response): Promise<void> => {
+    res.json(successResponse(await this.generation.claimRequest(String(req.params.id))));
+  };
+
+  finishGenerationRequest = async (req: Request, res: Response): Promise<void> => {
+    const status = req.body?.status;
+    if (status !== 'completed' && status !== 'failed') throw new ValidationError('Status must be completed or failed', []);
+    res.json(successResponse(await this.generation.finishRequest(String(req.params.id), status, req.body?.reason)));
+  };
+
+  runnerCycle = async (req: Request, res: Response): Promise<void> => {
+    res.status(201).json(successResponse(await this.generation.reportCycle(req.body)));
   };
 }
