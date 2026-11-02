@@ -94,6 +94,9 @@ export function buildDetailPath(
  * legacy slug still resolves and declares this one as canonical.
  */
 export function slugifyTitle(text: string): string {
+  // M10-D: a non-string title (an object from the EPG feed) must not become the slug "object-object". Returning an
+  // empty slug makes `buildDetailPath` fall back to `sin-titulo`, which the cards already refuse to link.
+  if (text !== null && text !== undefined && typeof text !== 'string' && typeof text !== 'number') return '';
   const safe = String(text || '').toString();
   const transliterated = safe.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   return (

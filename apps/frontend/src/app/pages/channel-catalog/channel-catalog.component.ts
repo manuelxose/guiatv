@@ -119,7 +119,7 @@ export function filterChannelDirectory(
   const normalizedQuery = normalizeSearch(query);
   return entries.filter((entry) => {
     const channel = entry.channel;
-    if (isRawFeedName(channel.name)) return false;
+    if (isRawFeedName(channel.name) && !SITEMAP_CHANNEL_GROUPS.has(String(channel.group))) return false;
     if (access !== 'all' && channel.access !== access) return false;
     if (!normalizedQuery) return true;
     const haystack = [
@@ -132,8 +132,17 @@ export function filterChannelDirectory(
   });
 }
 
-// ponytail: names like "Xarxa_TVMataro.TV" or "ETB1.TV" are raw ids from a secondary EPG feed (mostly duplicates
-// of a properly named channel); hide them from the directory. Proper fix: name or merge them in the channel import.
+/**
+ * M10-D: the groups `sitemap-channels.xml` publishes (SitemapController.buildChannelsSitemap: every `tdt` or
+ * `autonomico` channel of the day that is not a verified feed alias). The directory is the only internal path to a
+ * channel page, so hiding one of those would leave an indexable sitemap URL orphaned. Feed aliases never reach this
+ * filter: the API drops them from the directory and their page answers 301.
+ */
+const SITEMAP_CHANNEL_GROUPS = new Set(['tdt', 'autonomico']);
+
+// Names like "Xarxa_TVMataro.TV" or "ETB1.TV" are raw ids from a secondary EPG feed. Outside the sitemap groups they
+// are mostly duplicates of a properly named channel and stay hidden; inside them the channel is published, so the
+// ugly name is shown rather than the page left unreachable. Proper fix: name them in the channel import.
 function isRawFeedName(name?: string): boolean {
   return /_|\.TV$/.test(String(name || ''));
 }
