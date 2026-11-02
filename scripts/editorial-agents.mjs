@@ -149,6 +149,10 @@ function apiBase(value) {
   return api;
 }
 const adminHeaders = () => ({ 'content-type': 'application/json', 'x-admin-key': process.env.ANALYTICS_ADMIN_KEY || '' });
+// Declared before the command dispatch below: it runs at module top level and reaches these (TDZ otherwise).
+let activeRoutes = null;
+const generationApi = (report, path, options = {}) => fetch(`${report}/v2/admin/editorial/generation/${path}`, { ...options, headers: { ...adminHeaders(), ...options.headers } });
+const generationPost = (report, path, body = {}) => generationApi(report, path, { method: 'POST', body: JSON.stringify(body) });
 
 if (command === 'run') {
   const topics = readJson(target);
@@ -288,9 +292,6 @@ function liveModels() {
   if (process.env.OPENAI_API_KEY) models.push(new (require(join(dist, 'infrastructure/external/OpenAIEditorialModel.js')).OpenAIEditorialModel)());
   return models;
 }
-let activeRoutes = null;
-const generationApi = (report, path, options = {}) => fetch(`${report}/v2/admin/editorial/generation/${path}`, { ...options, headers: { ...adminHeaders(), ...options.headers } });
-const generationPost = (report, path, body = {}) => generationApi(report, path, { method: 'POST', body: JSON.stringify(body) });
 async function reportCycle(report, result, reason, q, generated = 0) {
   await generationPost(report, 'runner/cycles', { result, reason, queued: q.topics.filter((t) => t.state === 'queued').length, generated, queue: q.topics }).catch(() => null);
 }
