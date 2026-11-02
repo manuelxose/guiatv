@@ -1,0 +1,191 @@
+{
+  "at": "2026-11-02T21:58:34.964Z",
+  "base": "https://guiaprogramaciontv.com",
+  "channelPages": 320,
+  "channelRedirectsSkipped": 0,
+  "sitemapProgrammes": 22,
+  "sameSnapshot": true,
+  "linked": 0,
+  "unlinked": [
+    "/programas/comicos-nuestros",
+    "/programas/los-green-en-la-gran-ciudad",
+    "/programas/aida",
+    "/programas/parques-naturales",
+    "/programas/escapate",
+    "/programas/escritores",
+    "/programas/com-si-fos-ahir",
+    "/programas/quien-da-mas",
+    "/programas/un-mundo-por-delante",
+    "/programas/diagnostico",
+    "/programas/ben-hur",
+    "/programas/telediario-2",
+    "/programas/el-perro-andaluz-by-manu-sanchez",
+    "/programas/el-verdugo",
+    "/programas/el-sueno-eterno",
+    "/programas/manicomics",
+    "/programas/desmontando-el-cosmos",
+    "/programas/aunque-la-hormona-se-vista-de-seda",
+    "/programas/el-enigma-de-los-circulos-marinos",
+    "/programas/mr-cocodrilo",
+    "/programas/pepi-luci-bom-y-otras-chicas-del-monton",
+    "/programas/vietnam-50-years-of-forgetting"
+  ],
+  "programmeLinksOutsideSitemap": [],
+  "badLinks": [],
+  "destinations": {
+    "/programas/comicos-nuestros": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/comicos-nuestros",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/los-green-en-la-gran-ciudad": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/los-green-en-la-gran-ciudad",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/aida": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/aida",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/parques-naturales": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/parques-naturales",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/escapate": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/escapate",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/escritores": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/escritores",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/com-si-fos-ahir": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/com-si-fos-ahir",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/quien-da-mas": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/quien-da-mas",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/un-mundo-por-delante": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/un-mundo-por-delante",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/diagnostico": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/diagnostico",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/ben-hur": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/ben-hur",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/telediario-2": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/telediario-2",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/el-perro-andaluz-by-manu-sanchez": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/el-perro-andaluz-by-manu-sanchez",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/el-verdugo": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/el-verdugo",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/el-sueno-eterno": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/el-sueno-eterno",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/manicomics": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/manicomics",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/desmontando-el-cosmos": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/desmontando-el-cosmos",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/aunque-la-hormona-se-vista-de-seda": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/aunque-la-hormona-se-vista-de-seda",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/el-enigma-de-los-circulos-marinos": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/el-enigma-de-los-circulos-marinos",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/mr-cocodrilo": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/mr-cocodrilo",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/pepi-luci-bom-y-otras-chicas-del-monton": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/pepi-luci-bom-y-otras-chicas-del-monton",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/vietnam-50-years-of-forgetting": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/vietnam-50-years-of-forgetting",
+      "channels": [],
+      "inSitemap": true
+    }
+  }
+}

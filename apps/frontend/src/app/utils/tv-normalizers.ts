@@ -86,8 +86,9 @@ export function normalizeToCard(item: TvReadItemDTO | CatalogItem): UnifiedCardD
       category,
       platforms,
       sport,
-      // M10: the API-verified work page first; then the airing's own page; older cached responses fall back to the channel.
-      detailPath: item.program.workPath || item.detailPath || (item.channel.id ? channelCanonicalPath(item.channel, item.channel.id) : APP_PATHS.guide),
+      // M10: the API-verified work page first; M10-E: then the indexable programme page; then the airing's own page;
+      // older cached responses fall back to the channel.
+      detailPath: item.program.workPath || item.program.programmePath || item.detailPath || (item.channel.id ? channelCanonicalPath(item.channel, item.channel.id) : APP_PATHS.guide),
       badges: buildTvBadges(item, category),
       progressPercent: computeProgress(item.airing.start, item.airing.end),
       contentType,

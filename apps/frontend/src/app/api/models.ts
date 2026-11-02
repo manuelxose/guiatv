@@ -83,6 +83,8 @@ export interface TvReadProgramDTO {
   tmdbId?: number;
   /** M10: verified `/peliculas|/series` work page; absent unless the API proved the identity. */
   workPath?: string;
+  /** M10-E: indexable `/programas/:slug` page of a standalone programme (channel schedule); never set with workPath. */
+  programmePath?: string;
   description?: string;
   titleResolutionState?:
     | 'specific_source_title'

@@ -59,6 +59,8 @@ export interface TvReadProgramDTO {
   mediaId?: string;
   /** M10: verified `/peliculas|/series` work page (`VerifiedWorkLinks`); absent unless identity is proven. */
   workPath?: string;
+  /** M10-E: the indexable `/programas/:slug` page of this standalone programme (ProgrammeEligibility); never with workPath. */
+  programmePath?: string;
   description?: string;
   titleResolutionState?:
     | 'specific_source_title'
