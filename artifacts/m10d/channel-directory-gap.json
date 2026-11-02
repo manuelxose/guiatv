@@ -1,0 +1,38 @@
+{
+ "milestone": "M10-D",
+ "measuredAt": "2026-11-02T14:32Z",
+ "source": "GET /sitemap-channels.xml, GET /canales, GET /v2/tv/read/channels?date=today",
+ "method": "Exact set difference between the channel sitemap and the anchors of /canales, the only page that lists channels. Complete enumeration, not a crawl sample: it does not depend on any crawl budget.",
+ "sitemapChannels": 67,
+ "directoryChannelLinks": 304,
+ "inSitemapButNotLinkedByDirectory": 14,
+ "verifiedAliasesExposedByTheFix": 0,
+ "sitemapChannelsLeftWithoutADirectoryEntryAfterTheFix": 0,
+ "cause": "filterChannelDirectory hid every channel whose display name looks like a raw EPG feed id (_ or .TV). M10-C removed the 15 verified feed aliases from the sitemap with a 301 and deliberately kept the channels it could not prove duplicates; those 14 stayed indexable and in the sitemap while the only page that links channels dropped them.",
+ "channels": [
+  { "path": "/canales/etb1-tv", "name": "ETB1.TV", "group": "autonomico", "access": "free", "airings": 35, "status": 200, "canonical": "self", "robots": "index, follow", "m10cClassification": "unresolved: id matches ETB1.es, schedule only 44 %", "action": "shown in the directory; identity preserved, no merge" },
+  { "path": "/canales/telemadridint-tv", "name": "TeleMadridInt.TV", "group": "autonomico", "access": "free", "airings": 29, "status": 200, "canonical": "self", "robots": "index, follow", "m10cClassification": "distinct channel (international): 61 % schedule, no id match", "action": "shown in the directory" },
+  { "path": "/canales/sx3-tv", "name": "SX3.TV", "group": "autonomico", "access": "free", "airings": 82, "status": 200, "canonical": "self", "robots": "index, follow", "m10cClassification": "own channel (0-4 %)", "action": "shown in the directory" },
+  { "path": "/canales/punt3-tv", "name": "Punt3.TV", "group": "autonomico", "access": "unknown", "airings": 8, "status": 200, "canonical": "self", "robots": "index, follow", "m10cClassification": "own channel (0-4 %)", "action": "shown in the directory" },
+  { "path": "/canales/7tv-andalucia-tv", "name": "7TV_Andalucia.TV", "group": "autonomico", "access": "free", "airings": 16, "status": 200, "canonical": "self", "robots": "index, follow", "m10cClassification": "own channel (0-4 %)", "action": "shown in the directory" },
+  { "path": "/canales/7televalencia-tv", "name": "7Televalencia.TV", "group": "autonomico", "access": "free", "airings": 23, "status": 200, "canonical": "self", "robots": "index, follow", "m10cClassification": "own channel (0-4 %)", "action": "shown in the directory" },
+  { "path": "/canales/aragon-noticias-tv", "name": "Aragon_Noticias.TV", "group": "autonomico", "access": "free", "airings": 2, "status": 200, "canonical": "self", "robots": "index, follow", "m10cClassification": "own channel (0-4 %)", "action": "shown in the directory" },
+  { "path": "/canales/etb1on-tv", "name": "ETB1ON.TV", "group": "autonomico", "access": "free", "airings": 38, "status": 200, "canonical": "self", "robots": "index, follow", "m10cClassification": "own channel (32-37 %)", "action": "shown in the directory" },
+  { "path": "/canales/etb2on-tv", "name": "ETB2ON.TV", "group": "autonomico", "access": "free", "airings": 48, "status": 200, "canonical": "self", "robots": "index, follow", "m10cClassification": "own channel (32-37 %)", "action": "shown in the directory" },
+  { "path": "/canales/etbon-conquistador-tv", "name": "ETBON_Conquistador.TV", "group": "autonomico", "access": "free", "airings": 12, "status": 200, "canonical": "self", "robots": "index, follow", "m10cClassification": "own channel", "action": "shown in the directory" },
+  { "path": "/canales/etbon-herritxiki-tv", "name": "ETBON_Herritxiki.TV", "group": "autonomico", "access": "free", "airings": 21, "status": 200, "canonical": "self", "robots": "index, follow", "m10cClassification": "own channel", "action": "shown in the directory" },
+  { "path": "/canales/etbon-oca1-tv", "name": "ETBON_Oca1.TV", "group": "autonomico", "access": "free", "airings": 2, "status": 200, "canonical": "self", "robots": "index, follow", "m10cClassification": "own channel", "action": "shown in the directory" },
+  { "path": "/canales/etbon-vascos-mundo-tv", "name": "ETBON_Vascos_mundo.TV", "group": "autonomico", "access": "free", "airings": 7, "status": 200, "canonical": "self", "robots": "index, follow", "m10cClassification": "own channel", "action": "shown in the directory" },
+  { "path": "/canales/etbon-vayasemanita-tv", "name": "ETBON_VayaSemanita.TV", "group": "autonomico", "access": "free", "airings": 29, "status": 200, "canonical": "self", "robots": "index, follow", "m10cClassification": "own channel", "action": "shown in the directory" }
+ ],
+ "protectedIdentitiesUnchanged": {
+  "cmm-tv vs castilla-la-mancha-tv": "both 200, self-canonical, and already reachable from the directory: their names are not raw feed ids. Which URL is canonical stays the owner's decision.",
+  "etb1-tv vs etb-1": "44 % shared schedule. Not merged; made discoverable as its own channel.",
+  "-tv suffix": "does not prove duplication. Aragon TV, Andalucia TV and Castilla la Mancha TV are channel names."
+ },
+ "inTheCrawlOfTheSameDay": {
+  "note": "A truncated 4,000-page full-scope crawl, for context only. It does not establish orphanhood.",
+  "reachedAtDepth3ViaEphemeralAiringPages": ["/canales/punt3-tv", "/canales/7tv-andalucia-tv", "/canales/etbon-vayasemanita-tv"],
+  "notDiscoveredWithinTheBudget": 11
+ }
+}

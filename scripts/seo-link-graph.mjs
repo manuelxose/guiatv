@@ -278,6 +278,14 @@ const concurrency = Number(opt('--concurrency', 3));
 const out = opt('--out');
 // M10-D: pages matching this are recorded as destinations but never fetched or expanded (EXCLUDED_BY_POLICY).
 const skipTraverse = opt('--skip-traverse');
+// A path-shaped argument is rewritten by MSYS/Git-Bash on Windows: `^/contenido/` arrives as
+// `^C:/Program Files/Git/contenido/`, which matches nothing, so the crawl silently runs unscoped and the result
+// looks valid. A wrong measurement is worse than no measurement: refuse it.
+if (skipTraverse && /^[^:]*[A-Za-z]:[\\/]/.test(skipTraverse)) {
+  console.error(`--skip-traverse looks like a rewritten Windows path: ${skipTraverse}\n` +
+    'Run it from PowerShell, or set MSYS_NO_PATHCONV=1, so the pattern reaches node unchanged.');
+  process.exit(2);
+}
 const skipRe = skipTraverse ? new RegExp(skipTraverse) : undefined;
 
 const get = async (url) => {

@@ -1,7 +1,9 @@
 # M10-D: rastreabilidad determinista, canales inalcanzables y títulos que no son texto
 
 Fecha: 2026-11-02. Rama `feature/m10d-deterministic-reachability`, base `origin/main` @ `76c0bbe` (PR #132).
-PR [#133](https://github.com/manuelxose/guiatv/pull/133).
+PR [#133](https://github.com/manuelxose/guiatv/pull/133), fusionado con squash como **`10a2a9b`** el 2026-11-02 a
+las 15:40 UTC, con CI 4/4 en verde. Producción sigue en el release de M10-C: el despliegue lo lanza el
+propietario.
 
 A diferencia de M10-C, **este entorno de agente sí tiene ruta a producción**, así que todas las mediciones se
 hicieron por HTTP directo contra `https://guiaprogramaciontv.com` (solo GET, sin escrituras). No hizo falta el
@@ -14,16 +16,16 @@ workflow temporal que M10-C necesitó.
 | Criterio | Estado | Base |
 |---|---|---|
 | Metodología de medición reproducible y con cobertura explícita | **PASS** | §3 |
-| Ninguna huérfana inventada a partir de un crawl incompleto | **PARTIAL**: se exige además ausencia de errores de traversal; pendiente CI final | §3 |
+| Ninguna huérfana inventada a partir de un crawl incompleto | **PASS**: 0 afirmadas, y la orfandad exige cola agotada, presupuesto no agotado y cero fuentes ilegibles | §3 |
 | Corrección temporal (ventana de observación registrada) | **PASS** | §3 |
 | Inventario de canales del sitemap sin ruta interna, clasificado | **PASS**: 14 de 67, uno a uno | §5 |
 | Defectos de descubrimiento de canal corregidos y con test de regresión | **PASS** (ingeniería); pendiente de despliegue | §5, §7 |
 | Población de programas medida, sin exponer páginas pobres | **PASS** | §6 |
-| Alcance de obras medido lo suficiente para separar defecto de no medido | **PARCIAL**: el grafo perenne excede el presupuesto seguro de un crawl de producción | §4, §6 |
+| Alcance de obras medido lo suficiente para separar defecto de no medido | **PARCIAL**: 1.356 a ≤3 clics medidas y 2.101 más profundas, pero 368 sin medir; ningún defecto confirmado | §4, §6 |
 | Seguridad SEO (sin desindexación, canonical ni inflación de sitemap) | **PASS** | §7, §9 |
-| Tests, CI y revisión independiente | **PENDIENTE**: CI final y re-review | §8 |
+| Tests, CI y revisión independiente | **PASS**: CI 4/4 sobre el HEAD final, fusionado como `10a2a9b`; dos revisiones independientes, 10 hallazgos, todos corregidos | §8 |
 | Despliegue y verificación en producción | **PENDIENTE**: requiere que el propietario lance el workflow | §9 |
-| **M10-D** | **PARCIAL**: hardening implementado; aún faltan CI, SSR y producción | |
+| **M10-D** | **PARCIAL**: ingeniería completa, revisada, con CI verde y fusionada; la verificación en producción falta porque el despliegue lo lanza el propietario | |
 
 ---
 
@@ -123,25 +125,85 @@ node scripts/seo-link-graph.mjs --reachability after-evergreen.json --urls popul
 node scripts/seo-link-graph.mjs --compare before-evergreen.json after-evergreen.json
 ```
 
+### Un fallo de la propia medición, y cómo salió a la luz
+
+Los dos primeros rastreos de producción **se ejecutaron sin ámbito y sin decirlo**. Git-Bash reescribe un
+argumento con forma de ruta, así que `--skip-traverse '^/contenido/'` llegó a node como
+`^C:/Program Files/Git/contenido/`, que no encaja con nada: las páginas de emisión se recorrieron igual, el
+presupuesto se fue en ellas exactamente como antes de M10-D, y el grafo guardado registró el patrón deformado
+como su ámbito. El primero murió además por memoria a los 47 minutos. **Lo delató la propia salida de la
+puerta**, que imprime el ámbito efectivo — razón suficiente para que el ámbito se registre y se imprima.
+
+El patrón se rechaza ahora si llega reescrito, en lugar de producir una medición que parece válida. Un rastreo
+con ámbito correcto debe lanzarse desde PowerShell o con `MSYS_NO_PATHCONV=1`.
+
 ### Límite demostrado
 
-Último avance del rastreo de producción comunicado: **1.841 páginas descargadas**, nivel 4 y **frontera de 8.355 URLs**. No se dispone de un artefacto exhaustivo de resultados; el número de huérfanas globales **NO está verificado**. La lógica se ha endurecido: un crawl terminado pero con errores de descarga tampoco puede verificar huérfanas. Los fallos dejan URLs en UNMEASURED, los ámbitos excluidos quedan en ORPHAN_IN_SCOPE solo si la traversía es fiable; confirmedOrphans cuenta exclusivamente VERIFIED_ORPHAN. El control de canales devuelve PASS (0), FAIL (1) o INCONCLUSIVE (2), sin PASSES engañosos.
+El rastreo que sí completó es por tanto de **ámbito completo** (`/contenido` recorrido), el mismo ámbito que usó
+M10-C, y es la línea base que se reporta en §4:
+
+| Dato | Valor |
+|---|---|
+| Ventana de observación | 2026-11-02 16:28:08 .. 16:56:39 (Madrid), 29 min, día EPG 2026-11-02 |
+| Presupuesto gastado | 4.000 / 4.000 |
+| URLs descubiertas | 12.469 |
+| Profundidad exacta hasta | **3** (niveles 0, 1 y 2 descargados completos: 1 + 76 + 1.085) |
+| Frontera pendiente | 8.469 |
+| `crawlComplete` / `crawlReliable` | **false / false** |
+| Huecos de traversía | 8.469 |
+| Fallos de descarga | 0 |
+| De las 12.469 URLs, `/contenido/program:*` | **7.665 (61 %)** |
+
+**Ninguna huérfana es verificable con este grafo, y el informe no afirma ninguna.** El presupuesto fue el motivo
+de parar, así que la cola no está agotada; y 8.469 páginas descubiertas quedaron sin leer, cualquiera de las
+cuales podría contener el único enlace a una URL dada. Las 398 URLs del sitemap no descubiertas son
+`UNMEASURED`, no huérfanas.
+
+**La evidencia de los 14 canales no depende de este rastreo.** Es la diferencia exacta de conjuntos entre las 67
+URLs de `sitemap-channels.xml` y los anclajes de `/canales`, ambas enumeraciones completas (§5). El rastreo solo
+aporta la distribución de profundidad y la higiene de enlaces.
 
 ---
 
 ## 4. Alcance antes / después
 
-| Indicador | Línea base verificada | Tras los cambios |
+Línea base medida en la ventana 16:28–16:56 (Madrid) del 2026-11-02, ámbito completo, profundidad exacta hasta 3.
+La columna «después» solo puede llenarse con un rastreo sobre la **misma población** (`--urls-from`) tras el
+despliegue; nada de lo que hay aquí se compara con las cifras de M10-C, tomadas con otro método y otra hora.
+
+| Clase (de las 3.962 URLs del sitemap) | Línea base | Tras los cambios |
 |---|---:|---|
-| Sitemap total, 2026-11-02 | 3.962 | Pendiente de deploy |
-| Canales en sitemap | 67 | 67 previstos; sin verificación productiva |
-| Canales del sitemap fuera del directorio | **14** | **0 sobre datos reales con el nuevo predicado; SSR pendiente** |
-| Alias verificados visibles | 0 | 0 según predicado; SSR pendiente |
-| Programas indexables en sitemap | 29 | 28 previstos; sitemap en prod pendiente |
-| Obras en sitemap | 3.825 | Pendiente |
-| URLs dentro de 3 clics | No comparable con M10-C | Pendiente de crawl fiable |
-| Confirmed global orphans | No medido | **No medido** |
-| Unmeasured / scoped orphans | No medido | Pendiente de crawl fiable |
+| `REACHED_WITHIN_3` (hecho medido) | **1.455** | pendiente de despliegue |
+| `REACHED_DEEPER` (cota superior) | 2.109 | pendiente |
+| `UNMEASURED` | 398 | pendiente |
+| `VERIFIED_ORPHAN` | **0, y no afirmable** (§3) | no afirmable sin rastreo agotado |
+| `ORPHAN_IN_SCOPE` | 0 | pendiente |
+| `INVALID_DESTINATION` | 0 | pendiente |
+| `TEMPORARY_FETCH_FAILURE` | 0 | pendiente |
+
+Por fichero de sitemap, con la profundidad mínima medida:
+
+| Sitemap | URLs | ≤3 clics | Más profundas | No medidas |
+|---|---:|---:|---:|---:|
+| `sitemap-static.xml` | 23 | **23** | 0 | 0 |
+| `sitemap-channels.xml` | 67 | **56** (4 a 1 clic, 49 a 2, 3 a 3) | 0 | **11** |
+| `sitemap-programs.xml` | 29 | **2** | 8 | **19** |
+| `sitemap-blog.xml` | 18 | **18** | 0 | 0 |
+| `sitemap-works.xml` | 3.825 | **1.356** (12 a 1, 168 a 2, 1.176 a 3) | 2.101 | **368** |
+
+Higiene de enlaces internos en la misma ventana:
+
+| Indicador | Línea base | Nota |
+|---|---:|---|
+| Destinos internos rotos | **1** | `/series/2020-britains-most-notorious-crime-investigations` (404) desde `/plataformas`: residual M10 conocido, slug de búsqueda TMDB |
+| Enlaces a URLs no canónicas | **0** | invariante M10-C preservada |
+| Destinos que redirigen / instancias | **4 / 19** | alias de canal verificados enlazados desde fichas de obra: defecto confirmado, **sin corregir** (§11) |
+| Cadenas de redirección | **0** | |
+| Anclajes vacíos / genéricos | **0 / 0** | |
+| Destinos `noindex` enlazados | 2.016 | las páginas de emisión, por diseño |
+| Destinos con parámetros | 1.327 | filtros de plataforma y `/v2/affiliate/go/*` |
+| Programa → obra / obra → programa | 151 / 20 | |
+| Obra → canal / programa → canal | 235 / 133 | |
 
 No comparar muestras de distintas ventanas EPG como mejoras causales.
 
@@ -208,9 +270,50 @@ ingesta de canales, no de enlazado interno: queda como deuda (§11).
 
 ## 6. Programas y obras
 
-**Programas:** la evaluación previa identificó **29 fichas indexables** del sitemap sin enlaces entrantes desde páginas perennes; los enlaces observados procedían de emisiones efímeras noindex. Esto no demuestra que sean 29 huérfanas globales, porque el ámbito perenne excluye las emisiones. Se exige decisión posterior sobre contenido realmente valioso y una navegación legítima, sin enlazado masivo ni noindex indiscriminado.
+### Programas
 
-**Obras:** sitemap-works contenía 3.825 URLs. Sin grafo final exhaustivo y libre de errores no hay conteos de profundidad definitivos ni huérfanas verificadas.
+Las 29 URLs de `sitemap-programs.xml` son todas **200, indexables y autocanónicas** (comprobadas una a una). Su
+problema no es la elegibilidad sino la entrada:
+
+- **0 de 29** están enlazadas desde `/canales`, desde ninguna de las 67 fichas de canal del sitemap, ni desde
+  ninguno de los seis hubs (`/`, `que-ver-hoy`, `en-directo`, `peliculas`, `series`, `/canales`). Enumeración
+  directa y completa, no muestreo.
+- **0 de 29** tienen el enlace gemelo de diseño («Ficha completa de la película / de la serie»): ninguna es una
+  ficha de obra verificada, son páginas de programa puro.
+- En el rastreo, solo **10 de 29** fueron alcanzadas, a profundidad 3–4, y la ruta es una página de emisión
+  `/contenido/program:<id>` («Ver emisiones en TV»). Un muestreo de 60 páginas de emisión de cinco canales
+  enlazaba 27 URLs `/programas/` distintas, de las cuales **1** está en el sitemap.
+
+Es decir: la única ruta interna a una ficha de programa indexable es una página `noindex` que se regenera cada
+día. No son 29 huérfanas globales — las emisiones sí las enlazan mientras existen — pero su descubribilidad
+depende de páginas efímeras, que es un hallazgo estructural, no un defecto puntual.
+
+**No se expone ninguna.** Enlazarlas en masa desde los hubs sería exponer contenido pobre para satisfacer una
+métrica de enlazado interno, que es justamente lo que M10-D prohíbe, y además es una decisión de indexación. Lo
+que procede es decidir qué fichas de programa tienen valor propio y darles una navegación legítima: queda como
+el siguiente hito acotado (§12).
+
+Una de las 29 desaparece con este PR: `/programas/object-object` (§7.2).
+
+### Obras
+
+| Dato | Valor |
+|---|---:|
+| URLs en `sitemap-works.xml` | 3.825 |
+| Alcanzadas a ≤3 clics (medido) | **1.356** |
+| Alcanzadas más profundas (cota superior, nivel 4) | 2.101 |
+| No medidas en este presupuesto | 368 |
+
+Las obras **sí están interconectadas**: de las 12.469 URLs descubiertas, 3.142 son `/peliculas/:slug` y 439
+`/series/:slug`, y aparecen sobre todo a profundidad 3–4, alcanzadas desde las 6.977 páginas de emisión de nivel
+3 y desde los raíles de contenido relacionado de otras obras. Los hubs, en cambio, enlazan muy pocas: 2 en
+`/programacion-tv/peliculas`, 21 en `/series`, 26 en `que-ver-hoy`, 11 en `/plataformas` — solo las obras que
+emiten hoy y tienen identidad verificada.
+
+**Ningún defecto de obra está confirmado.** La diferencia entre «profunda» y «sin ruta» no se puede resolver con
+este presupuesto, y no hay base para una corrección dirigida. No se construye ningún índice A–Z ni se promueve
+ninguna identidad TMDB ambigua. Un rediseño de la navegación de obras es un hito aparte, no una ampliación
+silenciosa de M10-D.
 
 **Identidad:** se mantienen protegidas las 353 relaciones TMDB sin verificar registradas en M10-C.
 
@@ -262,9 +365,46 @@ nombre accesible, sin cambio visual. Sin esto no se puede verificar el CI de M10
 
 ## 8. Tests y revisión independiente
 
-Resultados reportados por la implementación original, no por la última revisión: frontend 382/382, pruebas de detalle backend, 10 pruebas de workflows y self-check de crawler, con lint frontend limpio. El último HEAD debe superar nuevamente CI.
+Comandos reales y resultados, ejecutados en Windows contra el HEAD de la rama:
 
-La revisión Graphify del PR destacó cinco advertencias: (1) ejecución de shell por interpolación del destino del proxy; (2) envío silencioso del proxy local a producción; (3) posibles falsos huérfanos cuando hay errores de fetch; (4) huérfanas solo del ámbito contadas como confirmadas; (5) salida --urls-from susceptible a cierre prematuro de pipe.
+| Comando | Resultado |
+|---|---|
+| `node scripts/seo-link-graph.mjs --self-check` | **ok** (incluye la semántica M10-D y que las clases particionan el sitemap) |
+| `node scripts/seo-crawl.mjs --self-check` | **ok** |
+| `npm run test:frontend` | **382/382** (incluye las dos suites nuevas) |
+| `npm run test:backend` | 750 tests, **718 pasan**, 29 omitidos, **3 fallan solo en Windows** |
+| `node --test scripts/workflows.test.mjs` | **10/10** |
+| `npm run test:ops` | 38 tests, **32 pasan**, **6 fallan solo en Windows** |
+| `npm run lint:frontend` | **0 errores**, 708 avisos preexistentes |
+| `npm run build:backend` | ok |
+
+Los 9 fallos son de entorno, no de comportamiento, y el CI de Linux los pasa:
+
+- backend (3): `tar xzf C:\…` — GNU tar interpreta `C:` como host remoto; y «the private key is owner-only»,
+  que compara bits de permiso POSIX (`54 !== 0`) que Windows no expresa.
+- ops (6): `bash: /C:/…/deploy-ssh.sh: No such file or directory` — resolución de ruta Windows/POSIX en el
+  arnés de pruebas.
+
+**CI del PR #133: 4/4 en verde** sobre el HEAD final, fusionado como `10a2a9b` el 2026-11-02 a las 15:40 UTC.
+
+**Revisión independiente del diff antes de abrir el PR (5 hallazgos, todos corregidos):**
+
+1. **La guarda de título rechazaba todo lo que no fuera cadena**, arrays incluidos. XMLTV produce un array cuando
+   una emisión trae varios `<title>`, y `['Telediario 2']` ya daba el slug `telediario-2` bajo el que su página
+   resuelve: la guarda lo habría convertido en `sin-titulo`, sacándolo del sitemap y de los enlaces — una
+   desindexación accidental de páginas que funcionan. Ahora solo se rechaza la forma `[object …]`, la única que
+   produjo `/programas/object-object`. Mismo arreglo en el slugificador de cliente.
+2. **`${{ inputs.link_graph_scope }}` se interpolaba dentro del `run:`**, donde su texto se ejecuta en lugar de
+   pasarse como argumento — y es precisamente el input que contiene metacaracteres de shell. Ambos inputs pasan
+   por `env:` y van citados.
+3. **La puerta decía «sin ruta interna»** en un rastreo con una familia sin expandir, donde la evidencia solo
+   sostiene «sin ruta dentro del ámbito recorrido».
+4. **El contexto de observación sellaba solo la hora de fin**, aunque un rastreo de miles de páginas SSR abarca
+   buena parte de una hora y la parrilla se mueve dentro. Registra inicio, fin, ventana de Madrid, minutos y día
+   EPG en ambos extremos.
+5. Un comentario duplicado.
+
+La revisión Graphify del PR destacó otras cinco advertencias: (1) ejecución de shell por interpolación del destino del proxy; (2) envío silencioso del proxy local a producción; (3) posibles falsos huérfanos cuando hay errores de fetch; (4) huérfanas solo del ámbito contadas como confirmadas; (5) salida --urls-from susceptible a cierre prematuro de pipe.
 
 Hardening realizado en la rama:
 - Proxy de desarrollo restaurado al de main; sin probe shell ni fallback automático a producción.
@@ -275,7 +415,13 @@ Hardening realizado en la rama:
 - --urls-from admite --out y gestiona EPIPE.
 - Self-check obligatorio de crawler añadido al job backend de performance.yml en PR.
 
-**Pendiente:** CI verde del nuevo HEAD, revisión final y verificación SSR real de los 14 canales. No hay declaración de tests completos sin esas evidencias.
+**Pendiente:** la verificación SSR real de los 14 canales, que solo da el despliegue. Lo cubierto hasta aquí es
+el predicado por test unitario y la respuesta real de la API, no el HTML renderizado.
+
+**No cubierto por ninguna puerta automática:** que `/canales` siga enlazando las 67 URLs del sitemap. El test
+unitario cubre el predicado; la invariante de extremo a extremo es `--require-reached sitemap-channels.xml`, y
+hoy devuelve `INCONCLUSIVE` porque ningún rastreo acotado de producción la puede sostener (§11). Mientras eso no
+se resuelva, la comprobación es el smoke manual de §9.
 
 ---
 
@@ -289,20 +435,20 @@ Smoke tests exigidos tras el despliegue: directorio SSR enlaza los 14 canales re
 
 ## 10. Criterios de aceptación
 
-| AC | Estado provisional |
-|---|---|
-| 01 Reproducibilidad | PARTIAL: no artefacto completo |
-| 02 No falsos huérfanos | PARTIAL: corrección pendiente de CI |
-| 03 Temporalidad | PASS de implementación |
-| 04 Inventario de canales | PASS de diagnóstico: 14/67 |
-| 05 Remediación canales | PARTIAL: SSR real pendiente |
-| 06 Programas | PARTIAL: 29 dependientes de emisiones |
-| 07 Obras | PARTIAL: crawl no exhaustivo |
-| 08 SEO seguro | PARTIAL: producción sin validar |
-| 09 Calidad y release | PARTIAL: CI/merge/deploy pendientes |
-| 10 Roadmap honesto | PASS: M10 sigue PARTIAL |
-| 11 Operaciones seguras | PARTIAL: pruebas actualizadas pendientes |
-| 12 Documentación | PARTIAL: falta evidencia final |
+| AC | Estado | Base |
+|---|---|---|
+| 01 Reproducibilidad | **PASS**: clasificación versionada, comandos en §3, ámbito y ventana grabados en el artefacto | §3 |
+| 02 Sin falsas huérfanas | **PASS**: 0 afirmadas; la orfandad exige cola agotada, presupuesto no agotado y cero fuentes ilegibles; el self-check lo exige | §3 |
+| 03 Corrección temporal | **PASS**: ventana de observación completa; comparación sobre población fija con `--urls-from` | §3 |
+| 04 Inventario de canales | **PASS**: 14 de 67 clasificados uno a uno con evidencia por canal | §5 |
+| 05 Remediación de canales | **PARTIAL**: corregido y con test; 0 canales fuera del directorio sobre la API real; **SSR en producción sin verificar** | §5, §9 |
+| 06 Programas | **PASS**: 29 medidas, con la ruta identificada (emisiones efímeras) y sin exponer ninguna | §6 |
+| 07 Obras | **PARTIAL**: 1.356 a ≤3 clics medidas, 2.101 más profundas, 368 no medidas; ningún defecto confirmado, ninguna corrección inventada | §6 |
+| 08 SEO seguro | **PARTIAL**: 0 enlaces no canónicos, 0 cambios de canonical/robots/elegibilidad, sitemap −1 URL de basura; producción sin validar | §4, §7 |
+| 09 Calidad y release | **PARTIAL**: CI 4/4 y merge `10a2a9b`; **despliegue y verificación pendientes** | §8, §9 |
+| 10 Roadmap honesto | **PASS**: M10 sigue PARTIAL | §12 |
+| 11 Operaciones seguras | **PASS**: solo GET, concurrencia 4, 0 escrituras, API `healthy` durante toda la medición; la guarda de patrón evita repetir un rastreo inútil | §3 |
+| 12 Documentación | **PARTIAL**: este registro; falta la evidencia de producción | — |
 
 **M10-D = PARTIAL**, sin fingir implementación ni despliegue completos.
 
@@ -310,7 +456,38 @@ Smoke tests exigidos tras el despliegue: directorio SSR enlaza los 14 canales re
 
 ## 11. Riesgos y deuda restante
 
+### Defecto confirmado y **sin corregir**: las fichas de obra enlazan alias de canal que redirigen
+
+Medido en la ventana del 2026-11-02: **4 URLs de canal que responden 301 reciben 19 enlaces internos** —
+`/canales/etb2-tv` (11), `/canales/veo7-tv` (4), `/canales/energy-tv` (3), `/canales/tv3-tv` (1). Rompe la
+invariante que M10-C declaró cerrada («0 enlaces internos a redirects»), aunque el rastreo acotado de M10-C
+probablemente nunca llegó a las páginas que los producen.
+
+**Origen localizado.** La ficha de obra construye el enlace de canal con el nombre de canal crudo de la emisión.
+Muestra de 70 fichas de obra: `/series/navy-investigacion-criminal` enlaza `/canales/veo7-tv` con el anclaje
+«Veo7.TV». `ChannelFeedAliasResolver` existe justamente para esto y está inyectado en `TvSurfaceService`
+(superficies de canal y guía) y en `TvController` (endpoints de lectura), **pero no en `CatalogService`**, que
+es quien sirve las fichas de obra y emite `normalizedName: item.channel.normalizedName` en crudo
+(`CatalogService.ts:963` y `:2130`).
+
+**Por qué no se corrige aquí.** La corrección es wiring de DI en el contenedor más el mapeo en esos dos puntos.
+Es pequeña, pero es backend y cae fuera del defecto de descubribilidad que M10-D aprobó; un 301 es además un
+destino que Google resuelve sin pérdida, así que el daño es de higiene, no de indexación. Queda con causa y
+punto de corrección identificados para el hito siguiente, en lugar de ampliar M10-D en silencio.
+
+### Resto
+
 - El crawler de producción puede detenerse por presupuesto o fallos de lectura; INCONCLUSIVE es un resultado válido y no debe degradarse a PASS.
+- Con `crawlReliable` exigiendo cero huecos de traversía y cero fallos de descarga, **un rastreo acotado de
+  producción casi nunca podrá sostener una afirmación de orfandad**. Es correcto, y significa que el criterio
+  original de M10 («ninguna página de detalle indexable huérfana») necesita o un rastreo con ámbito que agote el
+  grafo perenne, o un grafo construido desde una instantánea de sólo lectura de la base de datos y validado
+  contra SSR. Ese es el trabajo que queda, no una afirmación que se pueda cerrar con la herramienta actual.
+- El nombre visible de los 14 canales recuperados es el id crudo del feed («ETBON_VayaSemanita.TV»). El anclaje
+  es veraz y distingue la ficha, pero nombrarlos bien es trabajo de ingesta.
+- El `[object Object]` sigue apareciendo como **título mostrado** en la tarjeta de guía de esa emisión: M10-D
+  corta el slug y la URL indexable, no el texto de presentación. Normalizar títulos no-texto en la ingesta es
+  deuda aparte.
 - 29 fichas de programa indexables dependen de enlaces de emisiones efímeras. Su política SEO necesita una decisión posterior basada en calidad y utilidad.
 - CMM TV / Castilla la Mancha TV y ETB1.TV / ETB 1 mantienen identidades separadas hasta pruebas concluyentes.
 - 353 identidades TMDB ambiguas siguen protegidas.
@@ -322,8 +499,30 @@ Smoke tests exigidos tras el despliegue: directorio SSR enlaza los 14 canales re
 
 ## 12. Estado del roadmap
 
-- **M10-D:** PARTIAL; hardening subido a PR #133, faltan tests finales, review independiente, merge, deploy, SSR y evidencias de crawl.
-- **M10 global:** PARTIAL; criterio original de páginas indexables sin rutas internas no cerrado globalmente.
+- **M10-D:** **PARCIAL**. Ingeniería completa, revisada (10 hallazgos, todos corregidos), CI 4/4 y fusionada
+  como `10a2a9b`. Falta el despliegue — lo lanza el propietario — y con él la verificación SSR de los 14 canales
+  y la columna «después» de §4 sobre la misma población.
+- **M10 global:** **PARCIAL**. Su criterio original — «ninguna página de detalle indexable huérfana» — sigue sin
+  cerrarse, y ahora se sabe *por qué* no se puede cerrar con la herramienta actual: un rastreo acotado de
+  producción nunca reúne la evidencia que una afirmación de orfandad exige (§11). No se marca DONE.
 - **M11-B:** PARTIAL, con dependencia M04-B sin cumplir.
-- **M12:** NO-GO conforme a M12-ENTRY-GATE.md.
-- **Siguiente milestone propuesto, no iniciado:** decisión acotada sobre navegación y elegibilidad SEO de programas indexables sin entrada perenne. No comenzar hasta el cierre de M10-D.
+- **M12:** **NO-GO** conforme a [M12-ENTRY-GATE.md](M12-ENTRY-GATE.md): M10 sigue parcial, M11-B sin cumplir, y
+  no hay kill switch de indexación, tope de lote, puerta por URL ni línea base de GSC. M10-D no cambia ninguna
+  de esas condiciones.
+
+### Siguiente hito propuesto, **no iniciado**
+
+**Alcance perenne de obras y programas: construir el grafo desde una instantánea de sólo lectura.** Es lo único
+que convierte el criterio de M10 en algo demostrable, y lo que desbloquea los dos defectos que M10-D midió pero
+no pudo cerrar:
+
+1. construir el grafo de enlaces desde los modelos del repositorio y los datos de navegación generados, validado
+   contra una muestra de respuestas SSR — el «Modo 2» que M10-D no implementó — para que la orfandad se decida
+   sobre un grafo completo en lugar de un presupuesto de HTTP;
+2. con ese grafo, decidir qué fichas de programa indexables merecen una entrada perenne y dar a esas una
+   navegación legítima, sin enlazado masivo ni `noindex` indiscriminado;
+3. inyectar `ChannelFeedAliasResolver` en `CatalogService` para que las fichas de obra dejen de enlazar alias de
+   canal que redirigen (§11).
+
+Alternativa más pequeña si se prefiere cerrar valor antes que evidencia: solo el punto 3, que es una corrección
+acotada con causa ya localizada.
