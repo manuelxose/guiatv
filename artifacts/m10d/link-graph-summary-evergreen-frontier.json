@@ -1,0 +1,190 @@
+{
+ "milestone": "M10-D",
+ "note": "Evergreen-scope frontier probe: proves --skip-traverse works and that the evergreen graph cannot be exhausted from a bounded production crawl. Its CHANNEL numbers are void: /canales answered 503 during this run.",
+ "base": "https://guiaprogramaciontv.com",
+ "observation": {
+  "at": "2026-11-02T16:34:29.727Z",
+  "startedAt": "2026-11-02T16:24:23.789Z",
+  "madridWindow": "2026-11-02 17:24:23 .. 2026-11-02 17:34:29",
+  "elapsedMinutes": 10,
+  "epgDay": "2026-11-02",
+  "epgDayAtStart": "2026-11-02",
+  "scope": "excludes ^/contenido/",
+  "frontierLeft": 1553,
+  "budgetSpent": "700/700",
+  "crawlComplete": false
+ },
+ "summary": {
+  "fetched": 700,
+  "discovered": 2999,
+  "brokenTargets": 1,
+  "brokenLinkInstances": 26,
+  "redirectTargets": 2,
+  "redirectChains": 0,
+  "linkInstancesToRedirects": 4,
+  "noindexTargetsLinked": 175,
+  "nonCanonicalTargetsLinked": 0,
+  "parameterisedTargets": 335,
+  "emptyAnchors": 0,
+  "genericAnchors": 0,
+  "sitemapUrls": 3962,
+  "sitemapReached": 1841,
+  "sitemapNotReached": 2121,
+  "programmeToWorkLinks": 0,
+  "workToProgrammeLinks": 7,
+  "workToChannelLinks": 77,
+  "programmeToChannelLinks": 0,
+  "edgeInjectedTargets": 1,
+  "excludedByPolicy": 746,
+  "fetchFailures": 0
+ },
+ "depthByFamily": {
+  "/": {
+   "0": 1
+  },
+  "/programacion-tv": {
+   "1": 3,
+   "2": 1
+  },
+  "/plataformas": {
+   "1": 1
+  },
+  "/deportes/futbol": {
+   "1": 1
+  },
+  "/guias": {
+   "1": 1
+  },
+  "/iniciar-sesion": {
+   "1": 1
+  },
+  "/contenido/:slug": {
+   "1": 15,
+   "2": 406,
+   "3": 245,
+   "4": 80
+  },
+  "/canales/:slug": {
+   "1": 8,
+   "2": 13,
+   "3": 36,
+   "4": 15
+  },
+  "/canales": {
+   "1": 1
+  },
+  "/peliculas/:slug": {
+   "1": 9,
+   "2": 110,
+   "3": 748,
+   "4": 590
+  },
+  "/series/:slug": {
+   "1": 11,
+   "2": 114,
+   "3": 259,
+   "4": 22
+  },
+  "/deportes/futbol/partido/:slug": {
+   "1": 4,
+   "2": 8,
+   "3": 105,
+   "4": 32
+  },
+  "/guias/:slug": {
+   "1": 8,
+   "2": 7
+  },
+  "/tendencias": {
+   "1": 1
+  },
+  "/comparador-streaming": {
+   "1": 1
+  },
+  "/perfil": {
+   "1": 1
+  },
+  "/registro": {
+   "1": 1
+  },
+  "/sobre-nosotros": {
+   "1": 1
+  },
+  "/prensa": {
+   "1": 1
+  },
+  "/embed": {
+   "1": 1,
+   "2": 1
+  },
+  "/developers": {
+   "1": 1
+  },
+  "/avisolegal": {
+   "1": 1
+  },
+  "/politica-editorial": {
+   "1": 1
+  },
+  "/privacidad": {
+   "1": 1
+  },
+  "/cookies": {
+   "1": 1
+  },
+  "/sitemap": {
+   "1": 1
+  },
+  "/deportes/futbol/partidos-hoy": {
+   "2": 1
+  },
+  "/deportes/futbol/competiciones": {
+   "2": 1
+  },
+  "/deportes/futbol/noticias": {
+   "2": 1
+  },
+  "/deportes/futbol/competiciones/:slug": {
+   "2": 9,
+   "3": 27
+  },
+  "/deportes/futbol/calendario": {
+   "2": 1
+  },
+  "/guias/categoria/:slug": {
+   "2": 4,
+   "3": 5
+  },
+  "/deportes/futbol/equipos/:slug": {
+   "2": 26,
+   "3": 15,
+   "4": 30
+  },
+  "/terminos": {
+   "2": 1
+  },
+  "/accesibilidad": {
+   "2": 1
+  },
+  "/v2": {
+   "2": 1
+  },
+  "/programas/:slug": {
+   "3": 5,
+   "4": 2
+  }
+ },
+ "brokenInternalDestinations": [
+  {
+   "path": "/canales",
+   "status": 503,
+   "from": [
+    "/",
+    "/programacion-tv/en-directo",
+    "/canales/la-1",
+    "/canales/antena-3",
+    "/canales/la-2"
+   ]
+  }
+ ]
+}

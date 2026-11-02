@@ -1,0 +1,160 @@
+{
+ "at": "2026-11-02T15:56:39.467Z",
+ "observation": {
+  "at": "2026-11-02T15:56:39.467Z",
+  "startedAt": "2026-11-02T15:28:08.305Z",
+  "madridWindow": "2026-11-02 16:28:08 .. 2026-11-02 16:56:39",
+  "elapsedMinutes": 29,
+  "epgDay": "2026-11-02",
+  "epgDayAtStart": "2026-11-02",
+  "scope": "excludes ^C:/Program Files/Git/contenido/",
+  "frontierLeft": 8469,
+  "budgetSpent": "4000/4000",
+  "crawlComplete": false
+ },
+ "max": 4000,
+ "fetched": 4000,
+ "urls": 3962,
+ "exactThroughDepth": 3,
+ "crawlComplete": false,
+ "crawlReliable": false,
+ "traversalGaps": 8469,
+ "scope": "excludes ^C:/Program Files/Git/contenido/",
+ "classes": {
+  "REACHED_WITHIN_3": 1455,
+  "REACHED_DEEPER": 2109,
+  "VERIFIED_ORPHAN": 0,
+  "ORPHAN_IN_SCOPE": 0,
+  "UNMEASURED": 398,
+  "EXCLUDED_BY_POLICY": 0,
+  "TEMPORARY_FETCH_FAILURE": 0,
+  "INVALID_DESTINATION": 0
+ },
+ "measured": {
+  "0": 1,
+  "1": 40,
+  "2": 233,
+  "3": 1181
+ },
+ "within3": 1455,
+ "deeperThanMeasured": 2109,
+ "omittedByCrawlLimit": 398,
+ "confirmedOrphans": 0,
+ "scopedOrphans": 0,
+ "orphanSample": [],
+ "unknownSample": [
+  "/canales/7televalencia-tv",
+  "/canales/aragon-noticias-tv",
+  "/canales/etb1-tv",
+  "/canales/etb1on-tv",
+  "/canales/etb2on-tv",
+  "/canales/etbon-conquistador-tv",
+  "/canales/etbon-herritxiki-tv",
+  "/canales/etbon-oca1-tv",
+  "/canales/etbon-vascos-mundo-tv",
+  "/canales/sx3-tv",
+  "/canales/telemadridint-tv",
+  "/programas/adictos-al-amor",
+  "/programas/aida",
+  "/programas/a-jugar-amb-en-tito-i-els-fa-la-la",
+  "/programas/parques-naturales",
+  "/programas/escapate",
+  "/programas/escritores",
+  "/programas/com-si-fos-ahir",
+  "/programas/grizzy-y-los-lemmings",
+  "/programas/un-mundo-por-delante"
+ ],
+ "beyond3": 2507,
+ "bySitemap": {
+  "sitemap-static.xml": {
+   "urls": 23,
+   "within3": 23,
+   "deeperThanMeasured": 0,
+   "omittedByCrawlLimit": 0,
+   "confirmedOrphans": 0,
+   "scopedOrphans": 0,
+   "classes": {
+    "REACHED_WITHIN_3": 23,
+    "REACHED_DEEPER": 0,
+    "VERIFIED_ORPHAN": 0,
+    "ORPHAN_IN_SCOPE": 0,
+    "UNMEASURED": 0,
+    "EXCLUDED_BY_POLICY": 0,
+    "TEMPORARY_FETCH_FAILURE": 0,
+    "INVALID_DESTINATION": 0
+   }
+  },
+  "sitemap-channels.xml": {
+   "urls": 67,
+   "within3": 56,
+   "deeperThanMeasured": 0,
+   "omittedByCrawlLimit": 11,
+   "confirmedOrphans": 0,
+   "scopedOrphans": 0,
+   "classes": {
+    "REACHED_WITHIN_3": 56,
+    "REACHED_DEEPER": 0,
+    "VERIFIED_ORPHAN": 0,
+    "ORPHAN_IN_SCOPE": 0,
+    "UNMEASURED": 11,
+    "EXCLUDED_BY_POLICY": 0,
+    "TEMPORARY_FETCH_FAILURE": 0,
+    "INVALID_DESTINATION": 0
+   }
+  },
+  "sitemap-programs.xml": {
+   "urls": 29,
+   "within3": 2,
+   "deeperThanMeasured": 8,
+   "omittedByCrawlLimit": 19,
+   "confirmedOrphans": 0,
+   "scopedOrphans": 0,
+   "classes": {
+    "REACHED_WITHIN_3": 2,
+    "REACHED_DEEPER": 8,
+    "VERIFIED_ORPHAN": 0,
+    "ORPHAN_IN_SCOPE": 0,
+    "UNMEASURED": 19,
+    "EXCLUDED_BY_POLICY": 0,
+    "TEMPORARY_FETCH_FAILURE": 0,
+    "INVALID_DESTINATION": 0
+   }
+  },
+  "sitemap-blog.xml": {
+   "urls": 18,
+   "within3": 18,
+   "deeperThanMeasured": 0,
+   "omittedByCrawlLimit": 0,
+   "confirmedOrphans": 0,
+   "scopedOrphans": 0,
+   "classes": {
+    "REACHED_WITHIN_3": 18,
+    "REACHED_DEEPER": 0,
+    "VERIFIED_ORPHAN": 0,
+    "ORPHAN_IN_SCOPE": 0,
+    "UNMEASURED": 0,
+    "EXCLUDED_BY_POLICY": 0,
+    "TEMPORARY_FETCH_FAILURE": 0,
+    "INVALID_DESTINATION": 0
+   }
+  },
+  "sitemap-works.xml": {
+   "urls": 3825,
+   "within3": 1356,
+   "deeperThanMeasured": 2101,
+   "omittedByCrawlLimit": 368,
+   "confirmedOrphans": 0,
+   "scopedOrphans": 0,
+   "classes": {
+    "REACHED_WITHIN_3": 1356,
+    "REACHED_DEEPER": 2101,
+    "VERIFIED_ORPHAN": 0,
+    "ORPHAN_IN_SCOPE": 0,
+    "UNMEASURED": 368,
+    "EXCLUDED_BY_POLICY": 0,
+    "TEMPORARY_FETCH_FAILURE": 0,
+    "INVALID_DESTINATION": 0
+   }
+  }
+ }
+}

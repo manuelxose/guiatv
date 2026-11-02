@@ -1,0 +1,440 @@
+{
+ "milestone": "M10-D",
+ "note": "Compact summary of the EXHAUSTED evergreen-scope crawl, taken after the #133 deploy. The full graph is not committed: reproduce it with the commands in docs/roadmap/M10D-DELIVERY.md section 3.",
+ "base": "https://guiaprogramaciontv.com",
+ "observation": {
+  "at": "2026-11-02T16:42:27.615Z",
+  "startedAt": "2026-11-02T16:01:07.879Z",
+  "madridWindow": "2026-11-02 17:01:07 .. 2026-11-02 17:42:27",
+  "elapsedMinutes": 41,
+  "epgDay": "2026-11-02",
+  "epgDayAtStart": "2026-11-02",
+  "scope": "excludes ^/contenido/",
+  "frontierLeft": 0,
+  "budgetSpent": "4727/9000",
+  "crawlComplete": true
+ },
+ "skipTraverse": "^/contenido/",
+ "summary": {
+  "fetched": 4727,
+  "discovered": 12830,
+  "brokenTargets": 17,
+  "brokenLinkInstances": 147,
+  "redirectTargets": 12,
+  "redirectChains": 0,
+  "linkInstancesToRedirects": 19,
+  "noindexTargetsLinked": 284,
+  "nonCanonicalTargetsLinked": 0,
+  "parameterisedTargets": 2433,
+  "emptyAnchors": 0,
+  "genericAnchors": 0,
+  "sitemapUrls": 3962,
+  "sitemapReached": 3934,
+  "sitemapNotReached": 28,
+  "programmeToWorkLinks": 190,
+  "workToProgrammeLinks": 33,
+  "workToChannelLinks": 414,
+  "programmeToChannelLinks": 12,
+  "edgeInjectedTargets": 1,
+  "excludedByPolicy": 8103,
+  "fetchFailures": 0
+ },
+ "result": {
+  "sitemapUrls": 3962,
+  "reached": 3934,
+  "notReached": 28,
+  "notReachedAreAllProgrammePages": true,
+  "notReachedUrls": [
+   "/programas/comicos-nuestros",
+   "/programas/adictos-al-amor",
+   "/programas/los-green-en-la-gran-ciudad",
+   "/programas/la-patrulla-canina",
+   "/programas/aida",
+   "/programas/a-jugar-amb-en-tito-i-els-fa-la-la",
+   "/programas/parques-naturales",
+   "/programas/el-cazador",
+   "/programas/escapate",
+   "/programas/escritores",
+   "/programas/com-si-fos-ahir",
+   "/programas/grizzy-y-los-lemmings",
+   "/programas/quien-da-mas",
+   "/programas/un-mundo-por-delante",
+   "/programas/diagnostico",
+   "/programas/ben-hur",
+   "/programas/telediario-2",
+   "/programas/el-perro-andaluz-by-manu-sanchez",
+   "/programas/el-verdugo",
+   "/programas/el-sueno-eterno",
+   "/programas/manicomics",
+   "/programas/exodus-dioses-y-reyes",
+   "/programas/desmontando-el-cosmos",
+   "/programas/aunque-la-hormona-se-vista-de-seda",
+   "/programas/el-enigma-de-los-circulos-marinos",
+   "/programas/mr-cocodrilo",
+   "/programas/pepi-luci-bom-y-otras-chicas-del-monton",
+   "/programas/vietnam-50-years-of-forgetting"
+  ]
+ },
+ "whyNotReliable": {
+  "reason": "17 source pages answered 503 under the crawl own concurrency; all answer 200 at rest, so they are load-induced, not site defects. A source that cannot be read may hide the only link to a URL, so unreached URLs stay UNMEASURED rather than ORPHAN_IN_SCOPE.",
+  "traversalGaps": [
+   {
+    "path": "/canales/rtve-cuentame-tv",
+    "status": 503,
+    "depth": 4,
+    "inlinks": 2
+   },
+   {
+    "path": "/peliculas/afterburn-zona-cero",
+    "status": 503,
+    "depth": 4,
+    "inlinks": 10
+   },
+   {
+    "path": "/peliculas/interstella-5555-the-5tory-of-the-5ecret-5tar-5ystem",
+    "status": 503,
+    "depth": 4,
+    "inlinks": 11
+   },
+   {
+    "path": "/peliculas/normandia-al-desnudo",
+    "status": 503,
+    "depth": 4,
+    "inlinks": 7
+   },
+   {
+    "path": "/peliculas/corazones-solitarios",
+    "status": 503,
+    "depth": 4,
+    "inlinks": 12
+   },
+   {
+    "path": "/peliculas/blaze",
+    "status": 503,
+    "depth": 4,
+    "inlinks": 9
+   },
+   {
+    "path": "/peliculas/todas-las-azafatas-van-al-cielo",
+    "status": 503,
+    "depth": 4,
+    "inlinks": 7
+   },
+   {
+    "path": "/peliculas/cuando-acecha-la-maldad",
+    "status": 503,
+    "depth": 4,
+    "inlinks": 9
+   },
+   {
+    "path": "/peliculas/mira-quien-habla-tambien",
+    "status": 503,
+    "depth": 4,
+    "inlinks": 7
+   },
+   {
+    "path": "/peliculas/momentum",
+    "status": 503,
+    "depth": 4,
+    "inlinks": 7
+   },
+   {
+    "path": "/peliculas/el-secreto-de-mi-exito",
+    "status": 503,
+    "depth": 4,
+    "inlinks": 4
+   },
+   {
+    "path": "/peliculas/un-pez-llamado-wanda",
+    "status": 503,
+    "depth": 4,
+    "inlinks": 9
+   },
+   {
+    "path": "/peliculas/happy-feet-2",
+    "status": 503,
+    "depth": 4,
+    "inlinks": 9
+   },
+   {
+    "path": "/peliculas/bob-esponja-la-pelicula",
+    "status": 503,
+    "depth": 4,
+    "inlinks": 13
+   },
+   {
+    "path": "/peliculas/marte-the-martian",
+    "status": 503,
+    "depth": 4,
+    "inlinks": 8
+   },
+   {
+    "path": "/peliculas/cara-a-cara",
+    "status": 503,
+    "depth": 4,
+    "inlinks": 10
+   },
+   {
+    "path": "/peliculas/pasion-salvaje",
+    "status": 503,
+    "depth": 4,
+    "inlinks": 13
+   }
+  ]
+ },
+ "sitemapByDepth": {
+  "sitemap-static.xml": {
+   "0": 1,
+   "1": 16,
+   "2": 6,
+   "3": 0,
+   ">3": 0
+  },
+  "sitemap-channels.xml": {
+   "0": 0,
+   "1": 4,
+   "2": 63,
+   "3": 0,
+   ">3": 0
+  },
+  "sitemap-programs.xml": {
+   "0": 0,
+   "1": 0,
+   "2": 0,
+   "3": 0,
+   ">3": 28
+  },
+  "sitemap-blog.xml": {
+   "0": 0,
+   "1": 8,
+   "2": 10,
+   "3": 0,
+   ">3": 0
+  },
+  "sitemap-works.xml": {
+   "0": 0,
+   "1": 12,
+   "2": 159,
+   "3": 1054,
+   ">3": 2601
+  }
+ },
+ "depthByFamily": {
+  "/": {
+   "0": 1
+  },
+  "/programacion-tv": {
+   "1": 3,
+   "2": 1
+  },
+  "/plataformas": {
+   "1": 1
+  },
+  "/deportes/futbol": {
+   "1": 1
+  },
+  "/guias": {
+   "1": 1
+  },
+  "/iniciar-sesion": {
+   "1": 1
+  },
+  "/contenido/:slug": {
+   "1": 15,
+   "2": 381,
+   "3": 7377,
+   "4": 91,
+   "5": 239
+  },
+  "/canales/:slug": {
+   "1": 8,
+   "2": 312,
+   "3": 6,
+   "4": 13,
+   "5": 3
+  },
+  "/canales": {
+   "1": 1
+  },
+  "/peliculas/:slug": {
+   "1": 9,
+   "2": 103,
+   "3": 807,
+   "4": 2127,
+   "5": 448,
+   "6": 1
+  },
+  "/series/:slug": {
+   "1": 11,
+   "2": 118,
+   "3": 276,
+   "4": 28
+  },
+  "/deportes/futbol/partido/:slug": {
+   "1": 4,
+   "2": 8,
+   "3": 105,
+   "4": 32
+  },
+  "/guias/:slug": {
+   "1": 8,
+   "2": 7
+  },
+  "/tendencias": {
+   "1": 1
+  },
+  "/comparador-streaming": {
+   "1": 1
+  },
+  "/perfil": {
+   "1": 1
+  },
+  "/registro": {
+   "1": 1
+  },
+  "/sobre-nosotros": {
+   "1": 1
+  },
+  "/prensa": {
+   "1": 1
+  },
+  "/embed": {
+   "1": 1,
+   "2": 1
+  },
+  "/developers": {
+   "1": 1
+  },
+  "/avisolegal": {
+   "1": 1
+  },
+  "/politica-editorial": {
+   "1": 1
+  },
+  "/privacidad": {
+   "1": 1
+  },
+  "/cookies": {
+   "1": 1
+  },
+  "/sitemap": {
+   "1": 1
+  },
+  "/guias/categoria/:slug": {
+   "2": 4,
+   "3": 5
+  },
+  "/deportes/futbol/partidos-hoy": {
+   "2": 1
+  },
+  "/deportes/futbol/competiciones": {
+   "2": 1
+  },
+  "/deportes/futbol/noticias": {
+   "2": 1
+  },
+  "/deportes/futbol/competiciones/:slug": {
+   "2": 9,
+   "3": 27
+  },
+  "/deportes/futbol/calendario": {
+   "2": 1
+  },
+  "/deportes/futbol/equipos/:slug": {
+   "2": 21,
+   "3": 30,
+   "4": 120,
+   "5": 13
+  },
+  "/v2": {
+   "2": 1
+  },
+  "/terminos": {
+   "2": 1
+  },
+  "/accesibilidad": {
+   "2": 1
+  },
+  "/programas/:slug": {
+   "3": 5,
+   "4": 26,
+   "5": 2
+  }
+ },
+ "internalLinksToRedirects": [
+  {
+   "path": "/canales/veo7-tv",
+   "status": 301,
+   "location": "/canales/veo7",
+   "inlinks": 4
+  },
+  {
+   "path": "/canales/energy-tv",
+   "status": 301,
+   "location": "/canales/energy",
+   "inlinks": 2
+  },
+  {
+   "path": "/canales/tv3-tv",
+   "status": 301,
+   "location": "/canales/tv3",
+   "inlinks": 1
+  },
+  {
+   "path": "/canales/ib3-tv",
+   "status": 301,
+   "location": "/canales/ib3",
+   "inlinks": 1
+  },
+  {
+   "path": "/canales/tvg2-tv",
+   "status": 301,
+   "location": "/canales/tvg-2",
+   "inlinks": 2
+  },
+  {
+   "path": "/canales/divinity-tv",
+   "status": 301,
+   "location": "/canales/divinity",
+   "inlinks": 1
+  },
+  {
+   "path": "/canales/extremadura-tv",
+   "status": 301,
+   "location": "/canales/canal-extremadura",
+   "inlinks": 1
+  },
+  {
+   "path": "/canales/laotra-tv",
+   "status": 301,
+   "location": "/canales/la-otra",
+   "inlinks": 2
+  },
+  {
+   "path": "/canales/tv5monde-tv",
+   "status": 301,
+   "location": "/canales/tv5monde",
+   "inlinks": 1
+  },
+  {
+   "path": "/canales/canarias-tv",
+   "status": 301,
+   "location": "/canales/tv-canaria",
+   "inlinks": 1
+  },
+  {
+   "path": "/canales/tvgal-tv",
+   "status": 301,
+   "location": "/canales/tvg-tv-galicia",
+   "inlinks": 1
+  },
+  {
+   "path": "/canales/la7-tv",
+   "status": 301,
+   "location": "/canales/la-7",
+   "inlinks": 2
+  }
+ ],
+ "brokenInternalDestinations": [],
+ "nonCanonicalLinked": []
+}

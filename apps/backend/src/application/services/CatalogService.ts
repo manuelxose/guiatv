@@ -58,6 +58,7 @@ import { airingDetailSlug, buildDetailPath, episodeWorkTitle, inferContentType, 
 import { programmeCanonicalSlug, programmeDisposition, programmePolicyApplies, programmeSeo, type ProgrammeDisposition } from './ProgrammeSeoPolicy';
 import { readWorkSeo, workPolicyApplies } from './WorkSeoPolicy';
 import { RelatedWorkIndex, relatedWorkIndex } from './RelatedWorks';
+import type { ChannelFeedAliasResolver, FeedAliasTarget } from './ChannelFeedAliases';
 
 export interface CatalogQueryParams {
   userId?: string;
@@ -120,8 +121,34 @@ export class CatalogService {
     private readonly mediaCatalogService?: MediaCatalogService,
     private readonly legacyEnrichment?: LegacyEnrichmentService,
     /** M10-B: the indexable works the "Relacionados" rail of a work page may link (RelatedWorks). */
-    private readonly relatedWorks: Pick<RelatedWorkIndex, 'get'> = relatedWorkIndex
+    private readonly relatedWorks: Pick<RelatedWorkIndex, 'get'> = relatedWorkIndex,
+    /**
+     * M10-D: today's verified feed aliases, so a work page names the channel GuíaTV publishes instead of the
+     * second feed. Without it every airing is served under its own channel, exactly as before M10-D.
+     */
+    private readonly channelFeedAliases?: Pick<ChannelFeedAliasResolver, 'current'>
   ) {}
+
+  /** Never waits nor fails the page, same contract the TV surfaces use. */
+  private feedAliases(): Map<string, FeedAliasTarget> {
+    try {
+      return this.channelFeedAliases?.current('today') ?? new Map();
+    } catch {
+      return new Map();
+    }
+  }
+
+  /**
+   * M10-D: the channel a work page should name for an airing. The airing itself is real and is kept — the two
+   * feeds carry the same schedule, which is what made the pair a verified alias — but its channel page answers a
+   * 301, so naming the alias made the work page link a redirect. The TV surfaces already refuse to list an alias
+   * among related channels; this is the same rule for the airings of a work page.
+   */
+  private canonicalChannelOf(channel: TvReadItemDTO['channel']): TvReadItemDTO['channel'] {
+    const target = this.feedAliases().get(channel.id);
+    if (!target) return channel;
+    return { ...channel, id: target.id, name: target.name ?? channel.name, normalizedName: target.normalizedName };
+  }
 
   /** Single choke point for TMDB *detail* fetches (movie/tv by id) so the
    * local-catalog-first strategy applies uniformly across the service. */
@@ -956,16 +983,19 @@ export class CatalogService {
       liveNow: item.airing.liveNow,
       primaryPlatforms: this.extractPrimaryPlatforms(providers),
       whereToWatch: providers,
-      channel: {
-        id: item.channel.id,
-        name: item.channel.name,
-        icon: item.channel.icon,
-        normalizedName: item.channel.normalizedName,
-        aliases: item.channel.aliases,
-        sourceIds: item.channel.sourceIds,
-        type: item.channel.group,
-        region: item.channel.region,
-      },
+      channel: (() => {
+        const channel = this.canonicalChannelOf(item.channel);
+        return {
+          id: channel.id,
+          name: channel.name,
+          icon: channel.icon,
+          normalizedName: channel.normalizedName,
+          aliases: channel.aliases,
+          sourceIds: channel.sourceIds,
+          type: channel.group,
+          region: channel.region,
+        };
+      })(),
       airings: [this.mapTvReadItemToAiring(item)],
     };
   }
@@ -2125,11 +2155,12 @@ export class CatalogService {
   }
 
   private mapTvReadItemToAiring(item: TvReadItemDTO): CatalogAiringDTO {
+    const channel = this.canonicalChannelOf(item.channel);
     return {
-      channelId: item.channel.id,
-      channelNormalizedName: item.channel.normalizedName,
-      channelName: item.channel.name,
-      channelIcon: item.channel.icon,
+      channelId: channel.id,
+      channelNormalizedName: channel.normalizedName,
+      channelName: channel.name,
+      channelIcon: channel.icon,
       start: item.airing.start,
       end: item.airing.end,
       title: item.program.title,
