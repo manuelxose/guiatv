@@ -10,16 +10,20 @@ test('programDetailPath uses the known airing id without guessing public work sl
 
 // M10-D: an EPG row whose title is an object (some feeds send a structured node) stringified to "[object Object]"
 // and published the indexable page /programas/object-object, with "[object Object]" as its title and H1.
-test('a title that is not text is no title, so it never becomes a slug', () => {
-  for (const notATitle of [{}, { _: 'Rosario desde Lourdes' }, [], ['a'], true, () => 'x']) {
+test('a title that stringifies to [object Object] is no title, so it never becomes a slug', () => {
+  for (const notATitle of [{}, { _: 'Rosario desde Lourdes' }, new Map()]) {
     assert.equal(slugifyTitle(notATitle as unknown as string), 'sin-titulo');
     assert.equal(slugify(notATitle as unknown as string), 'sin-titulo');
   }
   assert.equal(slugifyTitle(null as unknown as string), 'sin-titulo');
   assert.equal(slugifyTitle(undefined as unknown as string), 'sin-titulo');
   assert.equal(slugifyTitle(''), 'sin-titulo');
-  // Real titles are untouched, accents included.
+  assert.equal(slugifyTitle([] as unknown as string), 'sin-titulo');
+  // Only that shape is rejected: anything that already stringifies to a usable title keeps the slug its page
+  // resolves under, so no working programme URL leaves the sitemap or loses its internal links.
+  assert.equal(slugifyTitle(['Telediario 2'] as unknown as string), 'telediario-2');
   assert.equal(slugifyTitle('El último de la fila'), 'el-ultimo-de-la-fila');
+  assert.equal(slugifyTitle(['El último de la fila'] as unknown as string), 'el-ultimo-de-la-fila');
   assert.equal(slugifyTitle('Telediario 2'), 'telediario-2');
   assert.equal(slugifyTitle(2 as unknown as string), '2');
 });

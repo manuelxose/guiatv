@@ -33,15 +33,16 @@ describe('splitAiringsByTime', () => {
 // "object-object". A value that is not text has no slug, so `buildDetailPath` falls back to the `sin-titulo`
 // path the cards refuse to link.
 describe('slugifyTitle', () => {
-  it('gives a title that is not text no slug at all', () => {
-    for (const notATitle of [{}, { _: 'Rosario desde Lourdes' }, [], true]) {
+  it('gives a title that stringifies to [object Object] no slug at all', () => {
+    for (const notATitle of [{}, { _: 'Rosario desde Lourdes' }, new Map()]) {
       expect(slugifyTitle(notATitle as unknown as string)).toBe('');
       expect(buildDetailPath('program', notATitle as unknown as string, slugifyTitle)).toBe('/programas/sin-titulo');
     }
   });
 
-  it('keeps real titles, accents included', () => {
+  it('keeps every title that already stringifies to one, accents included', () => {
     expect(slugifyTitle('El último de la fila')).toBe('el-ultimo-de-la-fila');
+    expect(slugifyTitle(['El último de la fila'] as unknown as string)).toBe('el-ultimo-de-la-fila');
     expect(buildDetailPath('movie', 'Gladiator', slugifyTitle)).toBe('/peliculas/gladiator');
   });
 });

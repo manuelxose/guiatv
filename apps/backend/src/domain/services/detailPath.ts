@@ -7,13 +7,13 @@ import { parseEpgTitle } from './contentIdentity';
 export type DetailContentType = 'movie' | 'series' | 'program';
 
 export function slugify(text: string): string {
-  // M10-D: an EPG row whose title is an object (not every feed sends a bare string) used to stringify to
-  // "[object Object]" and publish the indexable page `/programas/object-object`. A value that is not text is not a
-  // title: it takes the same `sin-titulo` path as an empty one, which every caller already excludes from sitemaps,
-  // links and slug lookups.
-  if (text !== null && text !== undefined && typeof text !== 'string' && typeof text !== 'number') return 'sin-titulo';
+  // M10-D: an EPG row whose title is an object (not every feed sends a bare string) stringified to
+  // "[object Object]" and published the indexable page `/programas/object-object`. Such a value is not a title: it
+  // takes the same `sin-titulo` path as an empty one, which every caller already excludes from sitemaps, links and
+  // slug lookups. Only the `[object …]` shape is rejected, so values that already stringify to a usable title
+  // (an array of one title, say) keep the slug their page resolves under.
   const s = String(text || '').trim();
-  if (!s) return 'sin-titulo';
+  if (!s || s.startsWith('[object ')) return 'sin-titulo';
   return s
     .toLowerCase()
     .replace(/\s+/g, '-')
@@ -32,9 +32,7 @@ export function slugify(text: string): string {
  * resolves and declares this one as canonical (ProgrammeSeoPolicy).
  */
 export function slugifyTitle(text: string): string {
-  // Anything that is not a string goes straight to `slugify`, which decides whether it is a title at all.
-  if (typeof text !== 'string') return slugify(text);
-  return slugify(text.normalize('NFD').replace(/[̀-ͯ]/g, ''));
+  return slugify(String(text || '').normalize('NFD').replace(/[̀-ͯ]/g, ''));
 }
 
 export function normalizeToken(value: string): string {

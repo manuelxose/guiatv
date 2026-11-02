@@ -169,7 +169,6 @@ export function reachability(data, urls) {
       out.measured[p.d] = (out.measured[p.d] ?? 0) + 1;
       if (p.d <= 3) out.within3 += 1;
     } else out.deeperThanMeasured += 1;
-    // One class per URL: a destination that does not answer is reported as such, not as a depth.
     // One class per URL. A not-yet-fetched page is still *reached* (an anchor pointed at it), so only a page
     // this crawl actually read can be reported as a failing or invalid destination.
     const unread = p.s === undefined || p.s === null;
@@ -202,10 +201,13 @@ if (args.includes('--reachability')) {
   if (gate) {
     const r = bySitemap[gate];
     if (!r) { console.error(`--require-reached: ${gate} is not in this crawl's sitemap`); process.exit(2); }
-    const unreached = r.confirmedOrphans;
-    if (!all.crawlComplete) console.error(`--require-reached: crawl incomplete, ${r.omittedByCrawlLimit} URLs of ${gate} unmeasured`);
-    else if (unreached) { console.error(`--require-reached: ${unreached} URLs of ${gate} have no internal path`); process.exit(1); }
-    else console.error(`--require-reached: every URL of ${gate} has an internal path`);
+    // The wording follows the class, never the count: outside the full scope the evidence only supports
+    // "no path among the pages this crawl expanded". `--probe-skipped` is what settles the rest.
+    const unreached = r.classes.VERIFIED_ORPHAN + r.classes.ORPHAN_IN_SCOPE;
+    const where = all.scope === 'full' ? 'no internal path' : `no path within the crawled scope (${all.scope})`;
+    if (!all.crawlComplete) console.error(`--require-reached: crawl incomplete, ${r.classes.UNMEASURED} URLs of ${gate} unmeasured`);
+    else if (unreached) { console.error(`--require-reached: ${unreached} URLs of ${gate} have ${where}`); process.exit(1); }
+    else console.error(`--require-reached: every URL of ${gate} is reached within the crawled scope (${all.scope})`);
   }
   process.exit(0);
 }
@@ -360,6 +362,7 @@ const visit = async (path) => {
 };
 
 // Level-synchronous BFS so a page's recorded depth is its minimum click depth from `/`.
+const startedAt = new Date();
 let level = ['/'];
 pages.set('/', { depth: 0 });
 let fetched = 0;
@@ -437,12 +440,17 @@ const summary = {
 };
 
 // M10-D observation context: EPG-driven links change through the day, so a comparison is only meaningful against
-// the window it was taken in. Madrid is the schedule's own day boundary (the read model rebuilds at 00:15 local).
+// the window it was taken in. A crawl of thousands of SSR pages spans a good part of an hour, so the window is the
+// evidence, not one instant. Madrid is the schedule's own day boundary (the read model rebuilds at 00:15 local).
 const observedAt = new Date();
+const madrid = (d) => d.toLocaleString('sv-SE', { timeZone: 'Europe/Madrid' });
 const observation = {
   at: observedAt.toISOString(),
-  madrid: observedAt.toLocaleString('sv-SE', { timeZone: 'Europe/Madrid' }),
+  startedAt: startedAt.toISOString(),
+  madridWindow: `${madrid(startedAt)} .. ${madrid(observedAt)}`,
+  elapsedMinutes: Math.round((observedAt - startedAt) / 60000),
   epgDay: observedAt.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' }),
+  epgDayAtStart: startedAt.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' }),
   scope: skipTraverse ? `excludes ${skipTraverse}` : 'full',
   frontierLeft: level.length,
   crawlComplete: level.length === 0,

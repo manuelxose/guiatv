@@ -89,7 +89,14 @@ jobs:
           node-version: 22
       # M10-D: with `^/contenido/` unexpanded the ephemeral airing pages stop eating the budget, so the crawl
       # exhausts the evergreen graph and every sitemap URL gets a measured class instead of UNMEASURED.
-      - run: node scripts/seo-link-graph.mjs --max "${{ inputs.link_graph_max }}" --concurrency 4 ${{ inputs.link_graph_scope && format('--skip-traverse ''{0}''', inputs.link_graph_scope) || '' }} --out link-graph.json
+      # The inputs go through `env`, never `${{ }}` inside the script: a dispatch input expanded into the command
+      # line would be executed, and this one holds a regex full of shell metacharacters.
+      - env:
+          LINK_GRAPH_MAX: ${{ inputs.link_graph_max }}
+          LINK_GRAPH_SCOPE: ${{ inputs.link_graph_scope }}
+        run: |
+          node scripts/seo-link-graph.mjs --max "$LINK_GRAPH_MAX" --concurrency 4 \
+            ${LINK_GRAPH_SCOPE:+--skip-traverse "$LINK_GRAPH_SCOPE"} --out link-graph.json
       # The channel directory is the only internal path to a channel page: every channel the sitemap publishes
       # must be reachable. Fails only on an exhausted crawl, never because the budget ran out (AC-02/AC-05).
       - run: node scripts/seo-link-graph.mjs --reachability link-graph.json --require-reached sitemap-channels.xml
