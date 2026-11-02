@@ -12,6 +12,8 @@
 //
 // Usage: node scripts/seo-link-graph.mjs [baseUrl] [--max 1200] [--concurrency 3] [--out file.json]
 //                                        [--skip-traverse '^/contenido/']
+//   The graph is held in memory and nothing is written until the crawl ends, so give node room above a few
+//   thousand pages: `node --max-old-space-size=8192 scripts/seo-link-graph.mjs … --max 10000`.
 //        node scripts/seo-link-graph.mjs --compare before.json after.json
 //        node scripts/seo-link-graph.mjs --reachability file.json [--urls urls.txt]
 //        node scripts/seo-link-graph.mjs --urls-from file.json > urls.txt   (fixed population, see §B4)
@@ -318,9 +320,13 @@ if (args.includes('--probe-skipped')) {
 
 const attr = (html, re) => { const v = html.match(re)?.[1]; return v === undefined ? undefined : decode(v).trim(); };
 
-const pages = new Map(); // path -> { depth, status?, location?, robots?, canonical?, out?: [[path, text]] }
+const pages = new Map(); // path -> { depth, status?, location?, robots?, canonical?, out?: [path] }
 const inlinks = new Map(); // path -> Set(source path)
-const anchors = new Map(); // path -> Map(text -> count)
+// M10-D: only the first ANCHOR_TEXTS distinct texts per destination are kept. The report asks whether a
+// destination is linked under many different anchors, which 5 already answers; keeping every text made the
+// crawler hold a string per link instance and run out of heap at a few thousand pages.
+const ANCHOR_TEXTS = 5;
+const anchors = new Map(); // path -> Set(text), capped
 const params = new Set();
 let emptyAnchors = 0, genericAnchors = 0;
 // M10-C: Cloudflare's email obfuscation rewrites `mailto:` anchors at the edge into `/cdn-cgi/l/email-protection#…`.
@@ -342,19 +348,19 @@ const visit = async (path) => {
       return [];
     }
     if (r.status !== 200) return [];
-    const seen = new Map();
+    const seen = new Set();
     for (const l of extractLinks(body, base + path, host)) {
       if (!l.text) emptyAnchors++; else if (GENERIC.test(l.text)) genericAnchors++;
       if (l.path.startsWith('/cdn-cgi/')) { (edgeInjected.get(l.path) ?? edgeInjected.set(l.path, new Set()).get(l.path)).add(path); continue; }
       if (l.query) { params.add(l.path + l.query); continue; }
       if (l.path === path || seen.has(l.path)) continue;
-      seen.set(l.path, l.text);
+      seen.add(l.path);
       (inlinks.get(l.path) ?? inlinks.set(l.path, new Set()).get(l.path)).add(path);
-      const a = anchors.get(l.path) ?? anchors.set(l.path, new Map()).get(l.path);
-      a.set(l.text, (a.get(l.text) ?? 0) + 1);
+      const a = anchors.get(l.path) ?? anchors.set(l.path, new Set()).get(l.path);
+      if (a.size < ANCHOR_TEXTS) a.add(l.text);
     }
     page.out = [...seen];
-    return page.out.map(([p]) => ({ path: p, depth: page.depth + 1 }));
+    return page.out.map((p) => ({ path: p, depth: page.depth + 1 }));
   } catch (e) {
     page.status = `error ${e.message}`;
     return [];
@@ -374,7 +380,10 @@ while (level.length && fetched < max) {
   await Promise.all(Array.from({ length: concurrency }, async () => {
     for (let p; (p = queue.shift()); ) next.push(...await visit(p));
   }));
-  level = [];
+  // M10-D: `splice` already left this level's unfetched remainder in `level`, and it stays there. Clearing it
+  // discarded the frontier when `--max` cut a level in half, so a truncated crawl whose last batch happened to
+  // discover nothing new ended with an empty frontier and reported `complete: true` — which is what licenses a
+  // VERIFIED_ORPHAN. Depths stay correct because each page carries the depth it was discovered at.
   // A redirect target keeps the redirecting URL's depth (no extra click) but is fetched one pass later.
   for (const n of next) {
     if (pages.has(n.path)) continue;
@@ -392,7 +401,7 @@ const isBroken = (p) => typeof p.status !== 'number' || p.status >= 400;
 const isRedirect = (p) => p.status >= 300 && p.status < 400;
 const linkCount = (path) => inlinks.get(path)?.size ?? 0;
 const canonicalPath = (p) => { try { return new URL(p.canonical).pathname.replace(/(.)\/$/, '$1'); } catch { return undefined; } };
-const sumLinks = (pred) => done.reduce((n, [src, p]) => n + (p.out ?? []).filter(([dst]) => pred(src, dst)).length, 0);
+const sumLinks = (pred) => done.reduce((n, [src, p]) => n + (p.out ?? []).filter((dst) => pred(src, dst)).length, 0);
 const fam = (re) => (p) => re.test(p);
 const isProg = fam(/^\/programas\/[^/]+$/), isWork = fam(/^\/(?:peliculas|series)\/[^/]+$/), isChannel = fam(/^\/canales\/[^/]+$/);
 
@@ -407,7 +416,8 @@ const depthByFamily = {};
 for (const [path, p] of pages) { const d = (depthByFamily[family(path)] ??= {}); d[p.depth] = (d[p.depth] ?? 0) + 1; }
 const notReachedByFamily = {};
 for (const p of notReached) notReachedByFamily[family(p)] = (notReachedByFamily[family(p)] ?? 0) + 1;
-const inconsistentAnchors = [...anchors].filter(([, m]) => m.size >= 4).map(([p, m]) => [p, [...m.keys()].slice(0, 6)]).slice(0, 25);
+// ">= 4 of the first ANCHOR_TEXTS distinct texts": enough to show a destination linked under varying anchors.
+const inconsistentAnchors = [...anchors].filter(([, t]) => t.size >= 4).map(([p, t]) => [p, [...t]]).slice(0, 25);
 const lowInlinkSitemap = [...sitemap.keys()].filter((p) => pages.has(p) && linkCount(p) <= 1).map((p) => [p, linkCount(p), pages.get(p).depth]);
 // M10-B: minimum click depth of each sitemap URL ('>3' = not discovered within three clicks), per sitemap file.
 const depthBucket = (p) => { const d = pages.get(p)?.depth; return d === undefined || d > 3 ? '>3' : String(d); };
@@ -453,7 +463,10 @@ const observation = {
   epgDayAtStart: startedAt.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' }),
   scope: skipTraverse ? `excludes ${skipTraverse}` : 'full',
   frontierLeft: level.length,
-  crawlComplete: level.length === 0,
+  budgetSpent: `${fetched}/${max}`,
+  // Exhausted means two things: nothing left to follow *and* the budget was not the reason we stopped. A crawl
+  // that spent its whole budget is never known to be exhausted, and only an exhausted crawl licenses an orphan.
+  crawlComplete: level.length === 0 && fetched < max,
 };
 
 console.log(JSON.stringify({ observation, ...summary }, null, 1));
@@ -481,7 +494,7 @@ if (out) {
     noindexLinked: noindex.map(([p, x]) => ({ path: p, robots: x.robots, inlinks: linkCount(p) })),
     nonCanonicalLinked: nonCanonical.map(([p, x]) => ({ path: p, canonical: x.canonical, inlinks: linkCount(p) })),
     parameterised: [...params], inconsistentAnchors, lowInlinkSitemap, notReached, sitemapByDepth,
-    complete: level.length === 0, sitemap: Object.fromEntries(sitemap),
+    complete: observation.crawlComplete, sitemap: Object.fromEntries(sitemap),
     pages: Object.fromEntries([...pages].map(([p, x]) => [p, { d: x.depth, s: x.status, in: linkCount(p), out: x.out?.length }])),
   }, null, 1));
 }
