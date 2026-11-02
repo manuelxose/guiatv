@@ -56,7 +56,7 @@ const db = () => BlogPostModel.db;
 const settings = () => db().collection<{ _id: string; settings?: EditorialGenerationSettings }>('editorial_settings');
 const requests = () => db().collection<GenerationRequest>('editorial_generation_requests');
 const cycles = () => db().collection('editorial_cycles');
-const runner = () => db().collection<{ _id: string; lastSeenAt?: Date; version?: string; capabilities?: unknown }>('editorial_runner');
+const runner = () => db().collection<{ _id: string; lastSeenAt?: Date; version?: string; status?: string; lastError?: string; capabilities?: unknown }>('editorial_runner');
 const queue = () => db().collection<{ _id: string; items?: any[]; updatedAt?: Date }>('editorial_queue_snapshot');
 
 export const DEFAULT_GENERATION_SETTINGS: EditorialGenerationSettings = {
@@ -213,7 +213,7 @@ export class EditorialGenerationService {
       providers: Array.isArray(input?.providers) ? input.providers.filter((x: unknown) => x === 'anthropic' || x === 'openai') : [],
       webSearch: input?.webSearch === true,
     };
-    await runner().updateOne({ _id: 'current' }, { $set: { lastSeenAt: now, version: text(input?.version, 40), capabilities } }, { upsert: true });
+    await runner().updateOne({ _id: 'current' }, { $set: { lastSeenAt: now, version: text(input?.version, 40), status: text(input?.status, 30) || 'ready', lastError: text(input?.error, 1000), capabilities } }, { upsert: true });
     return { receivedAt: now };
   }
 
@@ -244,7 +244,12 @@ export class EditorialGenerationService {
     const online = Boolean(lastSeenAt && Date.now() - new Date(lastSeenAt).getTime() <= staleMs);
     return {
       generation,
-      runner: { online, lastSeenAt, version: runnerDoc?.version ?? null, capabilities: runnerDoc?.capabilities ?? { providers: [], webSearch: false } },
+      runner: {
+        online, lastSeenAt, version: runnerDoc?.version ?? null,
+        status: !lastSeenAt ? 'never-connected' : online ? (runnerDoc?.status || 'ready') : 'offline',
+        lastError: runnerDoc?.lastError || null,
+        capabilities: runnerDoc?.capabilities ?? { providers: [], webSearch: false },
+      },
       lastCycle: lastCycle ? { at: lastCycle.at, result: lastCycle.result, reason: lastCycle.reason, queued: lastCycle.queued, generated: lastCycle.generated } : null,
       nextRunAt: generation.enabled && lastSeenAt ? new Date(new Date(lastSeenAt).getTime() + generation.scheduleHours * 3600e3).toISOString() : null,
       queue: [...manual.map((item) => ({ ...this.publicRequest(item), source: 'manual' })), ...(queueDoc?.items ?? []).map((item: any) => ({ ...item, source: 'discovered' }))].slice(0, 100),

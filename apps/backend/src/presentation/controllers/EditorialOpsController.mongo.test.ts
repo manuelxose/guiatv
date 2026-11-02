@@ -146,6 +146,23 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     assert.equal(overview.routes.research[0].provider, 'anthropic');
     assert.deepEqual([overview.searchConsole.lastRun, overview.searchConsole.baseline], [null, { days: 0, complete: false }], 'no GSC run yet: nothing invented');
 
+    // Draft operations stay inside this admin surface: edit, refuse deleting live content, then replace a blocked draft with a fresh request.
+    const retryRun = await pipelineRun('requeue-m11c');
+    const retryId = await create(retryRun);
+    assert.equal((await call(ops.updatePost, { params: { id: retryId }, body: { title: 'corto' } })).error?.name, 'ValidationError');
+    const edited = await call(ops.updatePost, { params: { id: retryId }, body: { title: 'Título corregido para una recuperación editorial completa', excerpt: 'Resumen editorial corregido' } });
+    assert.equal(edited.code, 200, JSON.stringify(edited.error));
+    assert.equal((await call(ops.deletePost, { params: { id: coverId }, body: {} })).code, 200, 'the blocked cover draft can be deleted');
+    assert.equal((await call(ops.deletePost, { params: { id }, body: {} })).error?.name, 'ConflictError', 'published articles cannot be deleted here');
+    const requeued = await call(ops.requeuePost, { params: { id: retryId } });
+    assert.equal(requeued.code, 201, JSON.stringify(requeued.error));
+    assert.equal(requeued.body.data.status, 'queued');
+    assert.equal(await BlogPostModel.countDocuments({ _id: retryId }), 0);
+    await call(ops.runnerHeartbeat, { body: { version: 'test', providers: ['openai'], webSearch: true, status: 'error', error: 'OPENAI_API_KEY missing' } });
+    const operational = await ops['generation'].operationalState();
+    const capabilities = operational.runner.capabilities as { providers: string[] };
+    assert.deepEqual([operational.runner.status, operational.runner.lastError, capabilities.providers], ['error', 'OPENAI_API_KEY missing', ['openai']]);
+
     // Router authorization over HTTP: no session, a non-admin session, and resume without the review key.
     process.env.ANALYTICS_ADMIN_KEY = 'admin-key-test';
     process.env.EDITORIAL_REVIEW_KEY = 'review-key-test';

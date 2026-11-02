@@ -16,6 +16,9 @@ export const createAdminEditorialRoutes = (controller: EditorialOpsController, a
 
   router.get('/overview', asyncHandler(controller.overview));
   router.get('/posts/:id', asyncHandler(controller.post));
+  router.patch('/posts/:id', strictRateLimit, asyncHandler(controller.updatePost));
+  router.delete('/posts/:id', strictRateLimit, asyncHandler(controller.deletePost));
+  router.post('/posts/:id/requeue', strictRateLimit, asyncHandler(controller.requeuePost));
   router.post('/policy/pause', strictRateLimit, asyncHandler(controller.pause));
   router.post('/policy/resume', strictRateLimit, humanEditorialReviewGuard, asyncHandler(controller.resume));
   router.post('/policy/daily-limit', strictRateLimit, humanEditorialReviewGuard, asyncHandler(controller.setDailyLimit));
@@ -25,6 +28,11 @@ export const createAdminEditorialRoutes = (controller: EditorialOpsController, a
   router.post('/generation/discovery', strictRateLimit, asyncHandler(controller.createDiscoveryRequest));
   router.post('/generation/requests/:id/cancel', strictRateLimit, asyncHandler(controller.cancelGenerationRequest));
   router.post('/generation/requests/:id/retry', strictRateLimit, asyncHandler(controller.retryGenerationRequest));
+  router.get('/generation/runner/process', asyncHandler(controller.runnerProcessState));
+  router.get('/generation/runner/logs', asyncHandler(controller.runnerProcessLogs));
+  router.post('/generation/runner/process/start', strictRateLimit, asyncHandler(controller.startRunnerProcess));
+  router.post('/generation/runner/process/stop', strictRateLimit, asyncHandler(controller.stopRunnerProcess));
+  router.post('/generation/runner/process/restart', strictRateLimit, asyncHandler(controller.restartRunnerProcess));
   router.get('/generation/runner/work', asyncHandler(controller.runnerWork));
   router.post('/generation/runner/heartbeat', asyncHandler(controller.runnerHeartbeat));
   router.post('/generation/runner/requests/:id/claim', asyncHandler(controller.claimGenerationRequest));

@@ -10,6 +10,8 @@ function createService(response: unknown, calls: Call[]): AdminEditorialService 
     get: (url: string, options?: Call['options']) => { calls.push({ method: 'GET', url, options }); return of(response); },
     post: (url: string, body: unknown, options?: Call['options']) => { calls.push({ method: 'POST', url, body, options }); return of(response); },
     put: (url: string, body: unknown, options?: Call['options']) => { calls.push({ method: 'PUT', url, body, options }); return of(response); },
+    patch: (url: string, body: unknown, options?: Call['options']) => { calls.push({ method: 'PATCH', url, body, options }); return of(response); },
+    delete: (url: string, options?: Call['options']) => { calls.push({ method: 'DELETE', url, options }); return of(response); },
   };
   TestBed.configureTestingModule({ providers: [AdminEditorialService, { provide: HttpClient, useValue: http }] });
   return TestBed.inject(AdminEditorialService);
@@ -85,5 +87,21 @@ describe('AdminEditorialService', () => {
       jasmine.stringMatching(/\/generation\/requests\/a%2Fb\/cancel$/), jasmine.stringMatching(/\/generation\/requests\/a%2Fb\/retry$/),
     ]);
     expect(calls.slice(1).every((c) => JSON.stringify(c.body) === '{}')).toBeTrue();
+  });
+
+  it('edits, deletes and requeues only through the editorial post endpoints', async () => {
+    const calls: Call[] = [];
+    const service = createService({ success: true, data: { updated: true, deleted: true, id: 'a/b' } }, calls);
+
+    await firstValueFrom(service.updatePost('a/b', { title: 'Título corregido con suficiente longitud' }));
+    await firstValueFrom(service.deletePost('a/b'));
+    await firstValueFrom(service.requeuePost('a/b'));
+
+    expect(calls.map((c) => c.method)).toEqual(['PATCH', 'DELETE', 'POST']);
+    expect(calls.map((c) => c.url)).toEqual([
+      jasmine.stringMatching(/\/admin\/editorial\/posts\/a%2Fb$/),
+      jasmine.stringMatching(/\/admin\/editorial\/posts\/a%2Fb$/),
+      jasmine.stringMatching(/\/admin\/editorial\/posts\/a%2Fb\/requeue$/),
+    ]);
   });
 });

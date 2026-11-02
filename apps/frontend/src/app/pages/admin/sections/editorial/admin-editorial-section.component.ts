@@ -64,7 +64,10 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
   readonly severityLabels: Record<EditorialSeverity, string> = { block: 'Bloqueante', warn: 'Aviso', human: 'Revisión humana' };
   readonly stateLabels: Record<string, string> = { queued: 'En cola', running: 'En ejecución', completed: 'Completada', failed: 'Fallida', cancelled: 'Cancelada', published: 'Publicado', held: 'Retenido', rejected: 'Rechazado', 'approved-by-policy': 'Aprobado por política', verified: 'Revisión humana', blocked: 'Bloqueado' };
   readonly tabs = ['activity', 'queue', 'generate', 'settings'] as const;
+  readonly activityTabs = ['articles', 'jobs', 'search'] as const;
+  readonly activityLabels: Record<typeof this.activityTabs[number], string> = { articles: 'Artículos', jobs: 'Ejecuciones', search: 'Search Console' };
   activeTab: typeof this.tabs[number] = 'activity';
+  activityTab: typeof this.activityTabs[number] = 'articles';
   overview: EditorialOverview | null = null;
   loading = false;
   error = '';
@@ -96,6 +99,13 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
   limitReviewer = '';
   limitBusy = false;
   limitError = '';
+  editDraft: { title: string; excerpt: string; content: string; metaTitle: string; metaDescription: string } | null = null;
+  editBusy = false;
+  editError = '';
+  postActionBusy = '';
+  deleteDialogOpen = false;
+  runnerBusy = '';
+  runnerLogLines: string[] | null = null;
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(AdminEditorialService);
 
@@ -117,6 +127,17 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
   }
 
   get policyText(): string { return this.overview ? policyStateText(this.overview.policy) : ''; }
+  get runnerStatusText(): string {
+    const runner = this.overview?.runner;
+    if (!runner?.lastSeenAt) return 'Sin señal: el proceso externo nunca ha contactado con este servidor';
+    if (runner.status === 'error') return `Error reportado: ${runner.lastError || 'sin detalle'}`;
+    return runner.online ? 'Conectado' : 'Sin señal reciente';
+  }
+  get runnerDetailText(): string {
+    const runner = this.overview?.runner;
+    if (!runner?.lastSeenAt) return 'Comprueba que el runner está iniciado, actualizado y que puede autenticarse contra esta API.';
+    return runner.online ? `Versión ${runner.version || 'sin informar'} · última señal ${formatDate(runner.lastSeenAt)}` : `Última señal ${formatDate(runner.lastSeenAt)}${runner.lastError ? ` · ${runner.lastError}` : ''}`;
+  }
   readonly topReasons = topReasons;
   badgeStatus(state: string | null | undefined): string { return STATE_BADGE[state || ''] || 'queued'; }
   stateLabel(state: string | null | undefined): string { return this.stateLabels[state || ''] || state || 'Sin estado'; }
@@ -143,7 +164,7 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
     this.detailOpen = true;
     document.body.style.overflow = 'hidden';
     this.service.getPost(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (data) => { this.detail = data; this.sourceIndex = new Map(data.provenance.bundle.sources.map((s) => [s.id, s])); this.detailLoading = false; },
+      next: (data) => { this.detail = data; this.sourceIndex = new Map(data.provenance.bundle.sources.map((s) => [s.id, s])); this.editDraft = { title: data.post.title, excerpt: data.post.excerpt, content: data.post.content, metaTitle: data.post.metaTitle, metaDescription: data.post.metaDescription }; this.editError = ''; this.detailLoading = false; },
       error: (e) => { this.detailLoading = false; this.detailError = errorMessage(e, 'No se pudo cargar el artículo'); },
     });
   }
@@ -153,6 +174,8 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
     this.detail = null;
     this.detailError = '';
     this.detailLoading = false;
+    this.editDraft = null;
+    this.editError = '';
     document.body.style.overflow = '';
     this.returnFocus?.focus();
   }
@@ -160,6 +183,57 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
   @HostListener('document:keydown.escape') onEscape(): void { if (this.detailOpen) this.closeDetail(); }
   source(id: string) { return this.sourceIndex.get(id); }
   bySeverity(list: EditorialFinding[], severity: EditorialSeverity): EditorialFinding[] { return list.filter((f) => f.severity === severity); }
+
+  selectActivityTab(tab: typeof this.activityTabs[number]): void { this.activityTab = tab; }
+  canManagePost(post: { status: string; pipelineState: string }): boolean { return post.status === 'draft' && ['blocked', 'verified', 'requires-update', 'rejected'].includes(post.pipelineState); }
+
+  savePostEdit(): void {
+    if (!this.detail || !this.editDraft || this.editBusy) return;
+    this.editBusy = true;
+    this.editError = '';
+    this.service.updatePost(this.detail.post.id, this.editDraft).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => { this.editBusy = false; this.notice = 'Artículo actualizado; vuelve a revisión sin aprobar'; this.openPost(this.detail!.post.id); this.refresh(); },
+      error: (e) => { this.editBusy = false; this.editError = errorMessage(e, 'No se pudo guardar el artículo'); },
+    });
+  }
+
+  requestDeletePost(): void { this.deleteDialogOpen = true; }
+  confirmDeletePost(): void {
+    const id = this.detail?.post.id;
+    if (!id || this.postActionBusy) return;
+    this.postActionBusy = id;
+    this.service.deletePost(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => { this.postActionBusy = ''; this.deleteDialogOpen = false; this.notice = 'Borrador eliminado'; this.closeDetail(); this.refresh(); },
+      error: (e) => { this.postActionBusy = ''; this.deleteDialogOpen = false; this.detailError = errorMessage(e, 'No se pudo eliminar el borrador'); },
+    });
+  }
+
+  requeuePost(id: string): void {
+    if (this.postActionBusy) return;
+    this.postActionBusy = id;
+    this.service.requeuePost(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => { this.postActionBusy = ''; this.notice = 'Artículo recuperado: nueva solicitud en cola y borrador bloqueado retirado'; if (this.detailOpen) this.closeDetail(); this.activeTab = 'queue'; this.refresh(); },
+      error: (e) => { this.postActionBusy = ''; this.error = errorMessage(e, 'No se pudo recuperar el artículo'); this.detailError = this.error; },
+    });
+  }
+
+  runnerProcessAction(action: 'start' | 'stop' | 'restart'): void {
+    if (this.runnerBusy) return;
+    this.runnerBusy = action;
+    this.error = '';
+    this.service.runnerProcess(action).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => { this.runnerBusy = ''; this.notice = action === 'start' ? 'Runner iniciado' : action === 'stop' ? 'Runner detenido' : 'Runner reiniciado'; this.refresh(); },
+      error: (e) => { this.runnerBusy = ''; this.error = errorMessage(e, `No se pudo ${action === 'start' ? 'iniciar' : action === 'stop' ? 'detener' : 'reiniciar'} el runner`); },
+    });
+  }
+
+  toggleRunnerLogs(): void {
+    if (this.runnerLogLines !== null) { this.runnerLogLines = null; return; }
+    this.service.runnerLogs().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (logs) => { this.runnerLogLines = logs.lines; },
+      error: (e) => { this.error = errorMessage(e, 'No se pudieron leer los registros del runner'); },
+    });
+  }
 
   requestPause(): void { if (this.pauseReason.trim()) { this.pauseError = ''; this.pauseDialogOpen = true; } }
   confirmPause(): void {

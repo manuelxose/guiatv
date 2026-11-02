@@ -6,7 +6,11 @@ const POLICY = { envEnabled: true, paused: false, activated: true, activatedAt: 
 const ROUTES = Object.fromEntries(['research', 'evidence', 'editorial', 'seo', 'critic'].map((role) => [role, [{ provider: 'anthropic', model: 'claude-opus-5-5', effort: 'high' }]]));
 const GENERATION = { enabled: true, scheduleHours: 3, topicsPerCycle: 1, categories: ['Televisión', 'Cine', 'Series', 'Streaming', 'Fútbol', 'Deportes', 'Tecnología'], contentTypes: ['guide', 'ranking', 'analysis'], defaultLength: 'medium', sourceDomains: ['boe.es'], routes: ROUTES };
 const OVERVIEW = {
-  policy: POLICY, generation: GENERATION, runner: { online: false, lastSeenAt: null, version: null, capabilities: { providers: [], webSearch: false } },
+  policy: POLICY, generation: GENERATION,
+  runner: {
+    online: false, lastSeenAt: null, version: null, capabilities: { providers: [], webSearch: false },
+    process: { configured: true, managed: true, running: false, pid: null, command: 'node', cwd: '/srv/guiatv', envKeys: [], logPath: '/srv/guiatv/runner.log' },
+  },
   lastCycle: { at: '2026-10-27T15:00:00Z', result: 'no-eligible-topics', reason: 'No hay temas elegibles en la cola', queued: 0, generated: 0 }, nextRunAt: null,
   queue: [], queueSummary: { manualPending: 0, discovered: 0, running: 0 },
   limits: { budget: 'capped', maxArticleUsd: 3, maxDailyUsd: 4, maxDailyArticles: 3 }, today: { generated: 1, published: 0, ready: 0, held: 0, rejected: 1, revisions: 2, models: {}, reasons: {} },
@@ -25,11 +29,16 @@ async function openSection(page: Page, context: BrowserContext, captured: Reques
     if (!url.includes('/admin/editorial/')) return route.fulfill({ json: { success: true, data: [] } });
     captured.push(req);
     if (url.endsWith('/overview')) return route.fulfill({ json: { success: true, data: overview } });
+    if (url.includes('/posts/') && url.endsWith('/requeue')) return route.fulfill({ status: 201, json: { success: true, data: { id: 'manual-1', status: 'queued', kind: 'generate', source: 'manual' } } });
+    if (url.includes('/posts/') && req.method() === 'PATCH') return route.fulfill({ json: { success: true, data: { updated: true, id: OVERVIEW.posts[0].id } } });
+    if (url.includes('/posts/') && req.method() === 'DELETE') return route.fulfill({ json: { success: true, data: { deleted: true, id: OVERVIEW.posts[0].id } } });
     if (url.includes('/posts/')) return route.fulfill({ json: { success: true, data: DETAIL } });
     if (url.endsWith('/policy/pause')) return route.fulfill({ json: { success: true, data: { policy: { ...POLICY, active: false, paused: true, pausedBy: 'e2e', pausedReason: req.postDataJSON().reason } } } });
     if (url.endsWith('/policy/resume')) return route.fulfill({ json: { success: true, data: { policy: { ...POLICY, activatedBy: req.headers()['x-editorial-reviewer'] } } } });
     if (url.endsWith('/policy/daily-limit')) return route.fulfill({ status: 403, json: { success: false, message: 'Clave de revisión no válida' } });
     if (url.endsWith('/generation/requests')) return route.fulfill({ status: 201, json: { success: true, data: { id: 'manual-1', source: 'manual', status: 'queued', ...req.postDataJSON() } } });
+    if (url.includes('/generation/runner/process/')) return route.fulfill({ json: { success: true, data: { configured: true, managed: true, running: true, pid: 1234, command: 'node', cwd: '/srv/guiatv', envKeys: [], logPath: '/srv/guiatv/runner.log' } } });
+    if (url.includes('/generation/runner/logs')) return route.fulfill({ json: { success: true, data: { configured: true, path: '/srv/guiatv/runner.log', lines: ['runner ready'] } } });
     if (url.endsWith('/generation/settings')) return route.fulfill({ json: { success: true, data: req.postDataJSON() } });
     if (url.endsWith('/generation/discovery')) return route.fulfill({ status: 201, json: { success: true, data: { id: 'discovery-1', status: 'queued' } } });
     return route.fulfill({ json: { success: true, data: { id: 'manual-1', status: 'cancelled' } } });
@@ -55,6 +64,25 @@ test('separates states, explains inactivity and opens an accessible private deta
   await page.keyboard.press('Escape');
   await expect(drawer).toHaveCount(0);
   await expect(page.getByRole('button', { name: OVERVIEW.posts[0].title }).first()).toBeFocused();
+});
+
+test('edits, recovers and deletes an unfinished AI draft with confirmation', async ({ page, context }) => {
+  const captured: Request[] = [];
+  await openSection(page, context, captured);
+  await page.getByRole('button', { name: OVERVIEW.posts[0].title }).click();
+  await page.getByLabel('Título', { exact: true }).fill('Guía corregida para recuperar el borrador');
+  await page.getByRole('button', { name: 'Guardar cambios' }).click();
+  expect(captured.find((r) => r.method() === 'PATCH')?.postDataJSON()).toMatchObject({ title: 'Guía corregida para recuperar el borrador' });
+
+  await page.getByRole('button', { name: 'Recuperar y volver a encolar' }).click();
+  expect(captured.some((r) => r.url().endsWith('/requeue'))).toBe(true);
+  await expect(page.getByRole('tab', { name: /Cola/ })).toHaveAttribute('aria-selected', 'true');
+
+  await page.getByRole('tab', { name: 'Actividad' }).click();
+  await page.getByRole('button', { name: OVERVIEW.posts[0].title }).click();
+  await page.getByRole('button', { name: 'Eliminar borrador' }).click();
+  await page.getByRole('button', { name: 'Eliminar borrador', exact: true }).last().click();
+  expect(captured.some((r) => r.method() === 'DELETE')).toBe(true);
 });
 
 test('passes axe on light and dark themes', async ({ page, context }) => {
@@ -115,6 +143,17 @@ test('changes provider configuration and keeps human key only in headers', async
   await expect(page.locator('#editorial-limit-key')).toHaveValue('');
   const stored = await page.evaluate(() => JSON.stringify({ ...localStorage }) + JSON.stringify({ ...sessionStorage }));
   expect(stored).not.toContain('not-the-key');
+});
+
+test('starts the managed runner process and reads its logs without exposing secrets', async ({ page, context }) => {
+  const captured: Request[] = [];
+  await openSection(page, context, captured);
+  await expect(page.locator('.status-card').filter({ hasText: 'Runner externo' })).toContainText('detenido');
+  await page.getByRole('button', { name: 'Iniciar', exact: true }).click();
+  expect(captured.some((r) => r.url().endsWith('/generation/runner/process/start'))).toBe(true);
+  await page.getByRole('button', { name: 'Ver registros' }).click();
+  await expect(page.locator('.runner-log')).toContainText('runner ready');
+  expect(captured.some((r) => r.url().includes('/generation/runner/logs'))).toBe(true);
 });
 
 for (const width of [360, 390, 768, 1440]) test(`responsive at ${width}px without page overflow`, async ({ page, context }) => {

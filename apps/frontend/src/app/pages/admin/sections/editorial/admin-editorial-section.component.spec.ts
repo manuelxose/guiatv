@@ -51,6 +51,8 @@ describe('Operaciones IA', () => {
   it('separates Google indexing and performance without zero-filling', () => {
     const fixture = TestBed.createComponent(AdminEditorialSectionComponent);
     fixture.detectChanges();
+    fixture.componentInstance.selectActivityTab('search');
+    fixture.detectChanges();
     const rows = Array.from(fixture.nativeElement.querySelectorAll('.desktop-table tbody tr')).slice(-2).map((r: any) => (r.textContent || '').replace(/\s+/g, ' '));
     expect(rows[0]).toContain('Indexada');
     expect(rows[0]).toContain('3/28');

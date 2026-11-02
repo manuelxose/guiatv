@@ -48,6 +48,14 @@ small, .detail-meta { display: block; color: var(--portal-text-muted); margin-to
 .tabs button { position: relative; min-height: 48px; padding: 0 18px; border: 0; background: transparent; color: var(--portal-text-soft); font-weight: 700; white-space: nowrap; }
 .tabs button[aria-selected='true'] { color: var(--portal-text); }
 .tabs button[aria-selected='true']::after { content: ''; position: absolute; left: 12px; right: 12px; bottom: 0; height: 3px; background: var(--spotify-green); border-radius: 3px 3px 0 0; }
+.sub-tabs { display: flex; gap: 8px; overflow-x: auto; }
+.sub-tabs button { min-height: 40px; padding: 7px 14px; border: 1px solid var(--portal-border-strong); border-radius: var(--radius-pill); background: var(--portal-surface); color: var(--portal-text-soft); font-weight: 700; }
+.sub-tabs button[aria-pressed='true'] { background: var(--portal-surface-strong); color: var(--portal-text); border-color: var(--spotify-green); }
+.table-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.editor-form { border: 1px solid var(--portal-border); border-radius: var(--radius-lg); padding: 16px; background: var(--portal-surface); }
+.runner-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.runner-actions .button { min-height: 40px; padding: 7px 12px; }
+.runner-log { max-height: 260px; overflow: auto; margin: 0; padding: 12px; border-radius: var(--radius-md); background: #050505; color: #e8f5e9; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.5; }
 .tab-count { display: inline-grid; place-items: center; min-width: 22px; min-height: 22px; margin-left: 8px; padding: 2px 6px; border-radius: var(--radius-pill); background: var(--portal-surface-strong); font-size: 12px; }
 .tab-content { display: grid; gap: 20px; }
 .metrics { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin: 0; }

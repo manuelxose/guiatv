@@ -17,6 +17,7 @@ import { generatedImageFindings } from '../../application/services/EditorialImag
 import { editorialCoverPreview } from '../middlewares/editorialMediaGate';
 import { searchConsoleOverview } from '../../application/services/SearchConsoleMonitor';
 import { EditorialGenerationService } from '../../application/services/EditorialGenerationService';
+import { EditorialRunnerService } from '../../application/services/EditorialRunnerService';
 
 /**
  * M11-C Admin supervision of the AI editorial pipeline (/v2/admin/editorial, admin role enforced by the router).
@@ -68,6 +69,7 @@ const usdOf = (p?: EditorialProvenance) => p?.cost?.usd ?? 0;
 
 export class EditorialOpsController {
   private readonly generation = new EditorialGenerationService();
+  private readonly runnerProcess = new EditorialRunnerService();
 
   constructor(private readonly storage: IStorageRepository) {}
 
@@ -141,6 +143,7 @@ export class EditorialOpsController {
         revisions: todayJobs.reduce((sum, j) => sum + (Number(j.revisions) || 0), 0), models, reasons,
       },
       ...operations,
+      runner: { ...operations.runner, process: this.runnerProcess.state() },
       routes, imageRoutes,
       spend: {
         todayUsd: +(spend.find((d) => d._id === today)?.usd ?? 0).toFixed(4),
@@ -199,6 +202,60 @@ export class EditorialOpsController {
       policyBlockers: policyGateFailures(findings),
       revisions: (post.revisions ?? []).map((r) => ({ version: r.version, savedAt: r.savedAt, reason: r.reason, status: r.snapshot?.status })),
     }));
+  };
+
+  updatePost = async (req: Request, res: Response): Promise<void> => {
+    const post = await BlogPostModel.findById(String(req.params.id)).exec().catch(() => null);
+    if (!post?.editorial) throw new NotFoundError('AI editorial post not found');
+    if (post.status !== 'draft') throw new ConflictError('Only unpublished drafts can be edited');
+    const body = req.body ?? {};
+    const updates: Record<string, unknown> = { reviewState: 'unreviewed' };
+    for (const field of ['title', 'excerpt', 'content'] as const) {
+      if (body[field] !== undefined) updates[field] = String(body[field]).trim().slice(0, field === 'content' ? 100_000 : 500);
+    }
+    if (body.metaTitle !== undefined) updates['seo.metaTitle'] = String(body.metaTitle).trim().slice(0, 120);
+    if (body.metaDescription !== undefined) updates['seo.metaDescription'] = String(body.metaDescription).trim().slice(0, 220);
+    if (updates.title !== undefined && String(updates.title).length < 20) throw new ValidationError('Title must contain at least 20 characters', []);
+    await BlogPostModel.updateOne({ _id: post._id, status: 'draft' }, { $set: updates, $unset: { reviewedBy: 1, reviewNotes: 1 } });
+    await audit().insertOne({ at: new Date(), action: 'editorial-post-edit', by: actor(req), postId: String(post._id), slug: post.slug });
+    res.json(successResponse({ updated: true, id: String(post._id) }));
+  };
+
+  deletePost = async (req: Request, res: Response): Promise<void> => {
+    const post = await BlogPostModel.findById(String(req.params.id)).select({ slug: 1, status: 1, editorial: 1 }).lean().exec().catch(() => null);
+    if (!post?.editorial) throw new NotFoundError('AI editorial post not found');
+    if (post.status !== 'draft') throw new ConflictError('Only unpublished drafts can be deleted');
+    await BlogPostModel.deleteOne({ _id: post._id, status: 'draft' });
+    await audit().insertOne({ at: new Date(), action: 'editorial-post-delete', by: actor(req), postId: String(post._id), slug: post.slug });
+    res.json(successResponse({ deleted: true, id: String(post._id) }));
+  };
+
+  requeuePost = async (req: Request, res: Response): Promise<void> => {
+    const post = await BlogPostModel.findById(String(req.params.id)).lean().exec().catch(() => null);
+    if (!post?.editorial) throw new NotFoundError('AI editorial post not found');
+    if (post.status !== 'draft') throw new ConflictError('Only unpublished drafts can be requeued');
+    const p = post.editorial as EditorialProvenance;
+    if (!['blocked', 'requires-update', 'verified'].includes(p.state)) throw new ConflictError('Only blocked or unfinished editorial drafts can be requeued');
+    const words = String(post.content ?? '').split(/\s+/).filter(Boolean).length;
+    const categoryName = (post.categories ?? []).map((category) => String((category as { name?: string }).name || '')).find((name) => ['Televisión', 'Cine', 'Series', 'Streaming', 'Fútbol', 'Deportes', 'Tecnología'].includes(name));
+    const request = await this.generation.createRequest('generate', {
+      title: post.title, slug: post.slug,
+      topic: p.bundle.topic, intent: p.bundle.intent,
+      category: categoryName || 'Streaming',
+      volatility: p.bundle.claims[0]?.volatility || 'stable',
+      contentType: ['guide', 'ranking', 'analysis'].includes(String(post.contentType)) ? post.contentType : 'guide',
+      length: words > 1400 ? 'long' : words > 900 ? 'medium' : 'short',
+      seedUrls: (p.bundle.sources ?? []).map((source) => source.url).filter((url) => /^https:\/\//.test(url)).slice(0, 4),
+      internalSources: [],
+    }, actor(req));
+    try {
+      await BlogPostModel.deleteOne({ _id: post._id, status: 'draft' });
+    } catch (error) {
+      await this.generation.cancelRequest(request.id).catch(() => undefined);
+      throw error;
+    }
+    await audit().insertOne({ at: new Date(), action: 'editorial-post-requeue', by: actor(req), postId: String(post._id), slug: post.slug, requestId: request.id });
+    res.status(201).json(successResponse(request));
   };
 
   /** Emergency stop: any admin may switch automatic publication off at once, without a deploy. */
@@ -297,6 +354,33 @@ export class EditorialOpsController {
 
   retryGenerationRequest = async (req: Request, res: Response): Promise<void> => {
     res.json(successResponse(await this.generation.retryRequest(String(req.params.id))));
+  };
+
+  runnerProcessState = async (_req: Request, res: Response): Promise<void> => {
+    res.json(successResponse(this.runnerProcess.state()));
+  };
+
+  startRunnerProcess = async (req: Request, res: Response): Promise<void> => {
+    const state = await this.runnerProcess.start();
+    await audit().insertOne({ at: new Date(), action: 'runner-process-start', by: actor(req), pid: state.pid });
+    res.json(successResponse(state));
+  };
+
+  stopRunnerProcess = async (req: Request, res: Response): Promise<void> => {
+    const before = this.runnerProcess.state();
+    const state = await this.runnerProcess.stop();
+    await audit().insertOne({ at: new Date(), action: 'runner-process-stop', by: actor(req), pid: before.pid });
+    res.json(successResponse(state));
+  };
+
+  restartRunnerProcess = async (req: Request, res: Response): Promise<void> => {
+    const state = await this.runnerProcess.restart();
+    await audit().insertOne({ at: new Date(), action: 'runner-process-restart', by: actor(req), pid: state.pid });
+    res.json(successResponse(state));
+  };
+
+  runnerProcessLogs = async (req: Request, res: Response): Promise<void> => {
+    res.json(successResponse(this.runnerProcess.logs(Number(req.query.lines || 120))));
   };
 
   runnerWork = async (_req: Request, res: Response): Promise<void> => {

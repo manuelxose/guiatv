@@ -139,9 +139,20 @@ export interface EditorialQueueItem {
   topic?: EditorialGenerationTopic; reason?: string | null; createdAt?: string; updatedAt?: string;
   createdBy?: string; source: 'manual' | 'discovered'; score?: number; attempts?: number; sources?: string[];
 }
+export interface EditorialRunnerProcess {
+  configured: boolean;
+  managed: boolean;
+  running: boolean;
+  pid: number | null;
+  command: string | null;
+  cwd: string | null;
+  envKeys: string[];
+  logPath: string | null;
+}
+
 export interface EditorialOperations {
   generation: EditorialGenerationSettings;
-  runner: { online: boolean; lastSeenAt: string | null; version: string | null; capabilities: { providers: string[]; webSearch: boolean } };
+  runner: { online: boolean; lastSeenAt: string | null; version: string | null; status?: 'never-connected' | 'offline' | 'ready' | 'error' | string; lastError?: string | null; capabilities: { providers: string[]; webSearch: boolean }; process?: EditorialRunnerProcess };
   lastCycle: { at: string; result: string; reason: string; queued: number; generated: number } | null;
   nextRunAt: string | null;
   queue: EditorialQueueItem[];
@@ -273,5 +284,25 @@ export class AdminEditorialService {
 
   retryRequest(id: string): Observable<EditorialQueueItem> {
     return this.http.post<ApiResponse<EditorialQueueItem>>(`${this.baseUrl}/generation/requests/${encodeURIComponent(id)}/retry`, {}).pipe(map((resp) => resp.data));
+  }
+
+  updatePost(id: string, changes: { title?: string; excerpt?: string; content?: string; metaTitle?: string; metaDescription?: string }): Observable<{ updated: boolean; id: string }> {
+    return this.http.patch<ApiResponse<{ updated: boolean; id: string }>>(`${this.baseUrl}/posts/${encodeURIComponent(id)}`, changes).pipe(map((resp) => resp.data));
+  }
+
+  deletePost(id: string): Observable<{ deleted: boolean; id: string }> {
+    return this.http.delete<ApiResponse<{ deleted: boolean; id: string }>>(`${this.baseUrl}/posts/${encodeURIComponent(id)}`).pipe(map((resp) => resp.data));
+  }
+
+  requeuePost(id: string): Observable<EditorialQueueItem> {
+    return this.http.post<ApiResponse<EditorialQueueItem>>(`${this.baseUrl}/posts/${encodeURIComponent(id)}/requeue`, {}).pipe(map((resp) => resp.data));
+  }
+
+  runnerProcess(action: 'start' | 'stop' | 'restart'): Observable<EditorialRunnerProcess> {
+    return this.http.post<ApiResponse<EditorialRunnerProcess>>(`${this.baseUrl}/generation/runner/process/${action}`, {}).pipe(map((resp) => resp.data));
+  }
+
+  runnerLogs(lines = 120): Observable<{ configured: boolean; path: string | null; lines: string[] }> {
+    return this.http.get<ApiResponse<{ configured: boolean; path: string | null; lines: string[] }>>(`${this.baseUrl}/generation/runner/logs?lines=${lines}`).pipe(map((resp) => resp.data));
   }
 }

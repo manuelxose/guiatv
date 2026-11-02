@@ -176,7 +176,14 @@ if (command === 'run') {
   limits();
   const report = apiBase(arg('report'));
   acquireLock();
-  await runCycle(report, command === 'discover');
+  try {
+    await runCycle(report, command === 'discover');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await generationPost(report, 'runner/heartbeat', { version: 'm11g-2', status: 'error', error: message }).catch(() => null);
+    await reportCycle(report, 'failed', message, loadQueue()).catch(() => null);
+    throw error;
+  }
 } else if (command === 'verify') {
   const run = readJson(target);
   const r = await reverify(run.provenance);
