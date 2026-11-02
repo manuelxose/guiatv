@@ -1,0 +1,163 @@
+{
+ "at": "2026-11-02T20:23:41.071Z",
+ "observation": {
+  "at": "2026-11-02T20:23:41.071Z",
+  "startedAt": "2026-11-02T19:47:09.404Z",
+  "madridWindow": "2026-11-02 20:47:09 .. 2026-11-02 21:23:41",
+  "elapsedMinutes": 37,
+  "epgDay": "2026-11-02",
+  "epgDayAtStart": "2026-11-02",
+  "scope": "excludes ^/contenido/",
+  "frontierLeft": 0,
+  "budgetSpent": "4657/9000",
+  "stoppedBy": "frontier exhausted",
+  "crawlComplete": true
+ },
+ "max": 9000,
+ "fetched": 4657,
+ "urls": 3983,
+ "exactThroughDepth": 9,
+ "crawlComplete": true,
+ "crawlReliable": true,
+ "traversalGaps": 0,
+ "scope": "excludes ^/contenido/",
+ "classes": {
+  "REACHED_WITHIN_3": 1441,
+  "REACHED_DEEPER": 2520,
+  "VERIFIED_ORPHAN": 0,
+  "ORPHAN_IN_SCOPE": 22,
+  "UNMEASURED": 0,
+  "EXCLUDED_BY_POLICY": 0,
+  "TEMPORARY_FETCH_FAILURE": 0,
+  "INVALID_DESTINATION": 0
+ },
+ "measured": {
+  "0": 1,
+  "1": 40,
+  "2": 255,
+  "3": 1145,
+  "4": 2164,
+  "5": 356
+ },
+ "within3": 1441,
+ "deeperThanMeasured": 0,
+ "omittedByCrawlLimit": 0,
+ "confirmedOrphans": 0,
+ "scopedOrphans": 22,
+ "orphanSample": [
+  "/programas/comicos-nuestros",
+  "/programas/los-green-en-la-gran-ciudad",
+  "/programas/aida",
+  "/programas/parques-naturales",
+  "/programas/escapate",
+  "/programas/escritores",
+  "/programas/com-si-fos-ahir",
+  "/programas/quien-da-mas",
+  "/programas/un-mundo-por-delante",
+  "/programas/diagnostico",
+  "/programas/ben-hur",
+  "/programas/telediario-2",
+  "/programas/el-perro-andaluz-by-manu-sanchez",
+  "/programas/el-verdugo",
+  "/programas/el-sueno-eterno",
+  "/programas/manicomics",
+  "/programas/desmontando-el-cosmos",
+  "/programas/aunque-la-hormona-se-vista-de-seda",
+  "/programas/el-enigma-de-los-circulos-marinos",
+  "/programas/mr-cocodrilo"
+ ],
+ "unknownSample": [],
+ "beyond3": 2542,
+ "bySitemap": {
+  "sitemap-static.xml": {
+   "urls": 23,
+   "within3": 23,
+   "deeperThanMeasured": 0,
+   "omittedByCrawlLimit": 0,
+   "confirmedOrphans": 0,
+   "scopedOrphans": 0,
+   "classes": {
+    "REACHED_WITHIN_3": 23,
+    "REACHED_DEEPER": 0,
+    "VERIFIED_ORPHAN": 0,
+    "ORPHAN_IN_SCOPE": 0,
+    "UNMEASURED": 0,
+    "EXCLUDED_BY_POLICY": 0,
+    "TEMPORARY_FETCH_FAILURE": 0,
+    "INVALID_DESTINATION": 0
+   }
+  },
+  "sitemap-channels.xml": {
+   "urls": 67,
+   "within3": 67,
+   "deeperThanMeasured": 0,
+   "omittedByCrawlLimit": 0,
+   "confirmedOrphans": 0,
+   "scopedOrphans": 0,
+   "classes": {
+    "REACHED_WITHIN_3": 67,
+    "REACHED_DEEPER": 0,
+    "VERIFIED_ORPHAN": 0,
+    "ORPHAN_IN_SCOPE": 0,
+    "UNMEASURED": 0,
+    "EXCLUDED_BY_POLICY": 0,
+    "TEMPORARY_FETCH_FAILURE": 0,
+    "INVALID_DESTINATION": 0
+   }
+  },
+  "sitemap-programs.xml": {
+   "urls": 22,
+   "within3": 0,
+   "deeperThanMeasured": 0,
+   "omittedByCrawlLimit": 0,
+   "confirmedOrphans": 0,
+   "scopedOrphans": 22,
+   "classes": {
+    "REACHED_WITHIN_3": 0,
+    "REACHED_DEEPER": 0,
+    "VERIFIED_ORPHAN": 0,
+    "ORPHAN_IN_SCOPE": 22,
+    "UNMEASURED": 0,
+    "EXCLUDED_BY_POLICY": 0,
+    "TEMPORARY_FETCH_FAILURE": 0,
+    "INVALID_DESTINATION": 0
+   }
+  },
+  "sitemap-blog.xml": {
+   "urls": 18,
+   "within3": 18,
+   "deeperThanMeasured": 0,
+   "omittedByCrawlLimit": 0,
+   "confirmedOrphans": 0,
+   "scopedOrphans": 0,
+   "classes": {
+    "REACHED_WITHIN_3": 18,
+    "REACHED_DEEPER": 0,
+    "VERIFIED_ORPHAN": 0,
+    "ORPHAN_IN_SCOPE": 0,
+    "UNMEASURED": 0,
+    "EXCLUDED_BY_POLICY": 0,
+    "TEMPORARY_FETCH_FAILURE": 0,
+    "INVALID_DESTINATION": 0
+   }
+  },
+  "sitemap-works.xml": {
+   "urls": 3853,
+   "within3": 1333,
+   "deeperThanMeasured": 0,
+   "omittedByCrawlLimit": 0,
+   "confirmedOrphans": 0,
+   "scopedOrphans": 0,
+   "classes": {
+    "REACHED_WITHIN_3": 1333,
+    "REACHED_DEEPER": 2520,
+    "VERIFIED_ORPHAN": 0,
+    "ORPHAN_IN_SCOPE": 0,
+    "UNMEASURED": 0,
+    "EXCLUDED_BY_POLICY": 0,
+    "TEMPORARY_FETCH_FAILURE": 0,
+    "INVALID_DESTINATION": 0
+   }
+  }
+ }
+}
