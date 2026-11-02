@@ -132,16 +132,24 @@ en producción en ningún momento.
 
 ### Reproducir
 
-```sh
-node scripts/seo-link-graph.mjs https://guiaprogramaciontv.com \
-  --max 9000 --concurrency 4 --skip-traverse '^/contenido/' --out before-evergreen.json
-node scripts/seo-link-graph.mjs --reachability before-evergreen.json --require-reached sitemap-channels.xml
-node scripts/seo-link-graph.mjs --urls-from before-evergreen.json > population.txt
-node scripts/seo-link-graph.mjs --probe-skipped before-evergreen.json --sample 150
+**Concurrencia 2, no más.** A 4 reiniciamos la API (§ más abajo). El rastreo se detiene solo si `/v2/health`
+deja de responder `healthy`, pero eso evita empeorarlo, no lo vuelve seguro a cualquier ritmo. Y **desde
+PowerShell**, no desde Git-Bash, o el patrón de ámbito llega reescrito (el rastreo lo rechaza si lo detecta).
+
+```powershell
+# el grafo se guarda solo al final: dale memoria si subes --max
+node --max-old-space-size=8192 scripts/seo-link-graph.mjs https://guiaprogramaciontv.com `
+  --max 9000 --concurrency 2 --skip-traverse '^/contenido/' --out before.json
+node scripts/seo-link-graph.mjs --reachability before.json --require-reached sitemap-channels.xml
+node scripts/seo-link-graph.mjs --urls-from before.json --out population.txt
+node scripts/seo-link-graph.mjs --probe-skipped before.json --sample 150
 # después del despliegue, sobre la misma población:
-node scripts/seo-link-graph.mjs --reachability after-evergreen.json --urls population.txt
-node scripts/seo-link-graph.mjs --compare before-evergreen.json after-evergreen.json
+node scripts/seo-link-graph.mjs --reachability after.json --urls population.txt
+node scripts/seo-link-graph.mjs --compare before.json after.json
 ```
+
+`--require-reached` devuelve 0 (PASS), 1 (FAIL) o 2 (INCONCLUSIVE). Hoy devuelve **2** contra producción, y eso
+es el resultado correcto: la evidencia no alcanza (§«Límite demostrado»).
 
 ### Un fallo de la propia medición, y cómo salió a la luz
 
