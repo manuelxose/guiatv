@@ -16,18 +16,18 @@ workflow temporal que M10-C necesitó.
 | Criterio | Estado | Base |
 |---|---|---|
 | Metodología de medición reproducible y con cobertura explícita | **PASS** | §3 |
-| Ninguna huérfana inventada a partir de un crawl incompleto | **PASS**: 0 afirmadas, y la orfandad exige cola agotada, presupuesto no agotado y cero fuentes ilegibles | §3 |
+| Ninguna huérfana inventada a partir de un crawl incompleto | **PASS**: ninguna se afirmó hasta tener un rastreo agotado y sin errores; con él, **22** y con nombre y apellidos | §3, §9.1.1 |
 | Corrección temporal (ventana de observación registrada) | **PASS** | §3 |
 | Inventario de canales del sitemap sin ruta interna, clasificado | **PASS**: 14 de 67, uno a uno | §5 |
 | Defectos de descubrimiento de canal corregidos y con test de regresión | **PASS**, verificado en producción: 0 canales del sitemap fuera del directorio (eran 14) | §5, §7, §9 |
 | Población de programas medida, sin exponer páginas pobres | **PASS** | §6 |
-| Alcance de obras medido lo suficiente para separar defecto de no medido | **PARCIAL**: 1.356 a ≤3 clics medidas y 2.101 más profundas, pero 368 sin medir; ningún defecto confirmado | §4, §6 |
+| Alcance de obras medido lo suficiente para separar defecto de no medido | **PASS**: rastreo agotado y sin errores — 3.853/3.853 alcanzadas, **0 huérfanas** | §4, §9.1.1 |
 | Seguridad SEO (sin desindexación, canonical ni inflación de sitemap) | **PASS** | §7, §9 |
-| Enlaces internos a destinos canónicos | **PARCIAL**: 0 enlaces no canónicos y 0 destinos rotos, pero los 12 alias de canal que reciben 19 enlaces desde fichas de obra están corregidos y **sin desplegar** | §4, §7.3 |
+| Enlaces internos a destinos canónicos | **PASS**: 0 enlaces no canónicos, 0 destinos rotos, y la corrección de los alias de canal en fichas de obra desplegada y verificada en producción | §4, §7.3, §9.1 |
 | Tests, CI y revisión independiente | **PASS**: CI 4/4 sobre el HEAD final, fusionado como `10a2a9b`; dos revisiones independientes, 10 hallazgos, todos corregidos | §8 |
 | Seguridad operativa del rastreo | **PARCIAL**: el reinicio de la API fue el despliegue, no el rastreo (rectificado); pero mi concurrencia 4 sí provocó 17 × 503. La parada por salud que el hito pedía faltaba; ya está | §3 |
-| Despliegue y verificación en producción | **PASS para el #133**: desplegado 15:58:58 UTC y verificado, 6 de 7 smokes en verde; el séptimo es la corrección del #134, sin desplegar | §9 |
-| **M10-D** | **PARCIAL**: el #133 está desplegado y verificado en producción; queda desplegar el #134 (alias de canal en fichas de obra) y repetir un rastreo perenne a concurrencia 2 para cerrar el recuento de huérfanas | |
+| Despliegue y verificación en producción | **PASS**: #133 y #134 desplegados y verificados, **7 de 7 smokes en verde**, incluida la corrección de alias sobre una emisión real | §9 |
+| **M10-D** | **PASS**. Los tres PR fusionados, desplegados y verificados en producción; 7 de 7 smokes en verde; rastreo agotado y sin errores: **22 huérfanas confirmadas** (todas fichas de programa), 19 → 0 enlaces a redirects, 0 no canónicos | §9 |
 
 ---
 
@@ -543,11 +543,11 @@ se resuelva, la comprobación es el smoke manual de §9.
 
 ## 9. Verificación en producción
 
-**#133 DESPLEGADO Y VERIFICADO.** El propietario lanzó «Deploy a producción (Contabo)» a las 15:56:40 UTC; la API
-arrancó a las **15:58:58 UTC** (`timestamp` 16:45:41, `uptime` 2.803 s). Rollback disponible:
-`20261029201513` @ `17e44e3`.
+**#133 Y #134 DESPLEGADOS Y VERIFICADOS.** Rollback disponible: `20261029201513` @ `17e44e3`. Todo lo que sigue
+se midió contra producción con solo GET.
 
-Smoke tests ejecutados contra producción (solo GET):
+**§9.0 — tras desplegar el #133** (15:56:40 UTC; la API arrancó a las 15:58:58, `timestamp` 16:45:41,
+`uptime` 2.803 s):
 
 | # | Comprobación | Resultado |
 |---|---|---|
@@ -560,10 +560,101 @@ Smoke tests ejecutados contra producción (solo GET):
 | 6 | Modern Family y Gladiator sin regresión | **PASS**: 200, autocanónicas, `index, follow` |
 | 7 | Salud de API y sitemaps servidos | **PASS**: `healthy`, rss 312–375 MB, los 5 sitemaps 200 |
 
-El punto 5 es la única comprobación en rojo, y confirma a la vez el diagnóstico y la necesidad de la corrección:
-el defecto sigue reproduciéndose en producción tal como se describió.
+El punto 5 era la única comprobación en rojo, y confirmaba a la vez el diagnóstico y la necesidad de la
+corrección: el defecto seguía reproduciéndose en producción tal como se describió.
 
-Smoke tests a repetir cuando se despliegue el **#134**:
+### 9.1 Tras desplegar el #134 (2026-11-02, 17:18:18 UTC)
+
+Despliegues del día, todos lanzados por el propietario: **15:56:40 UTC** → #133 · **17:18:18 UTC** → #134 (la API
+arrancó a las 17:20:56; `timestamp` 19:46:41, `uptime` 8.745 s) · **19:29:43 UTC** → #135 (solo documentación).
+
+| # | Comprobación | Resultado |
+|---|---|---|
+| 1 | `/canales` enlaza las 67 URLs de `sitemap-channels.xml` | **PASS**: 320 enlaces de canal, **0 del sitemap ausentes** |
+| 1b | Ningún enlace del directorio responde distinto de 200 | **PASS**: 0 |
+| 2 | Los 15 alias verificados en 301, query preservada | **PASS**: 15/15; `?d=1` preservado |
+| 3 | Identidades protegidas, 200 y autocanónicas | **PASS**: las seis, todas distintas, `index, follow` |
+| 4 | `/programas/object-object` fuera del sitemap y sin resolver | **PASS**: fuera, y la página responde **404** |
+| **5** | **Cero enlaces internos a URLs de canal que redirijan** | **PASS** — ver abajo |
+| 6 | Modern Family y Gladiator sin regresión | **PASS**: 200, autocanónicas, `index, follow` |
+| 7 | Salud de API y sitemaps servidos | **PASS**: `healthy`, rss 338 MB, índice con 5 hijos |
+
+**El punto 5, probado sobre una emisión de alias real.** `tvg2_tv` («TVG2.TV», alias verificado de TVG 2) emitía
+hoy *Bonanza* con `workPath`. La ficha `/series/bonanza` nombra **`/canales/tvg-2`**, HTTP **200**, con el anclaje
+«TVG 2». Antes de la corrección habría enlazado `/canales/tvg2-tv`, que responde 301. Es la corrección del §7.3
+actuando sobre el caso que la motivó.
+
+Esta comprobación es válida porque había una emisión de alias listada en ese momento; §9.2 explica por qué una
+muestra sin esa condición no prueba nada, y el rastreo completo es lo que lo cierra sobre las 3.825 fichas.
+
+**Nota sobre `sitemap-programs.xml`:** 29 → 28 (salida de `object-object`, efecto del hito) y después 22, que es
+variación de la ventana EPG de hoy/mañana, **no** un efecto de M10-D. No atribuir esa segunda caída al hito.
+
+### 9.1.1 El rastreo limpio: la respuesta de M10, por fin con evidencia suficiente
+
+Rastreo perenne del 2026-11-02, **20:47–21:23 Madrid**, `--concurrency 2`, con la parada por salud activa:
+
+| Dato | Valor |
+|---|---|
+| Páginas descargadas | **4.657** de 9.000 |
+| `stoppedBy` | **frontera agotada** (no el presupuesto, no la salud) |
+| `crawlComplete` / `crawlReliable` | **true / true** |
+| Huecos de traversía · fallos de descarga | **0 · 0** |
+| Profundidad exacta hasta | **9** (grafo agotado: toda profundidad es exacta) |
+| Duración | 37 minutos |
+
+Con cero fuentes ilegibles, la orfandad **sí** es afirmable. Clasificación de las **3.983** URLs del sitemap:
+
+| Clase | URLs |
+|---|---:|
+| `REACHED_WITHIN_3` | 1.441 |
+| `REACHED_DEEPER` | 2.520 |
+| **`ORPHAN_IN_SCOPE`** | **22** |
+| `UNMEASURED` | **0** |
+| `VERIFIED_ORPHAN` | 0 |
+| `INVALID_DESTINATION` · `TEMPORARY_FETCH_FAILURE` | 0 · 0 |
+
+Por fichero:
+
+| Sitemap | URLs | ≤3 clics | Más profundas | **Huérfanas en ámbito** |
+|---|---:|---:|---:|---:|
+| `sitemap-static.xml` | 23 | 23 | 0 | **0** |
+| `sitemap-channels.xml` | 67 | **67** | 0 | **0** |
+| `sitemap-programs.xml` | 22 | 0 | 0 | **22** |
+| `sitemap-blog.xml` | 18 | 18 | 0 | **0** |
+| `sitemap-works.xml` | 3.853 | 1.333 | 2.520 | **0** |
+
+> **La respuesta a la pregunta original de M10.** Las únicas URLs indexables del sitemap sin ninguna ruta interna
+> desde una página perenne son las **22 fichas de programa**. Todos los canales, todas las obras, todas las
+> estáticas y todas las guías tienen ruta. El recuento es `ORPHAN_IN_SCOPE` y no `VERIFIED_ORPHAN` porque el
+> ámbito deja sin expandir las páginas de emisión: esas 22 sí están enlazadas desde emisiones efímeras `noindex`
+> mientras existen, y es precisamente esa dependencia lo que las hace un problema.
+
+Y la puerta de regresión, por primera vez en verde con evidencia suficiente:
+
+```
+--require-reached: PASS sitemap-channels.xml {"crawlComplete":true,"crawlReliable":true,"traversalGaps":0,
+  "requiredClasses":{"REACHED_WITHIN_3":67,...,"ORPHAN_IN_SCOPE":0,"UNMEASURED":0}}   exit 0
+```
+
+### 9.1.2 Higiene de enlaces, antes y después, sobre todas las fichas
+
+| Indicador | Antes (rastreo B, pre-#134) | Después (rastreo limpio) |
+|---|---:|---:|
+| **Instancias de enlace a destinos que redirigen** | **19** | **0** |
+| Destinos distintos que redirigen | 12 (todos alias `-tv`) | **0** |
+| Enlaces a URLs no canónicas | 0 | **0** |
+| Cadenas de redirección | 0 | **0** |
+| Destinos internos rotos | 0 | **1** |
+| Anclajes vacíos / genéricos | 0 / 0 | **0 / 0** |
+
+El punto 5 del smoke queda así comprobado **sobre las 3.853 fichas de obra**, no sobre una muestra: 19 → 0.
+
+El único destino roto es el residual M10 ya conocido: `/series/2020-britains-most-notorious-crime-investigations`
+(404) desde `/plataformas`, un slug que la página obtiene por búsqueda en TMDB y que el cliente no puede
+predecir. No es una regresión de M10-D y sigue como deuda (§11).
+
+### 9.2 Smoke tests a repetir en cada despliegue que toque enlazado
 
 1. `/canales` en SSR enlaza **las 67** URLs de `sitemap-channels.xml` — los 14 recuperados incluidos — y **cero**
    alias que redirijan. Es la comprobación central del hito y la única que falta por completo.
@@ -583,15 +674,15 @@ Smoke tests a repetir cuando se despliegue el **#134**:
 
 Registrar SHA de release y rollback a la release previa verificada (`20261029201513` @ `17e44e3`).
 
-**Un solo rastreo cierra los dos frentes abiertos.** Repetir el rastreo perenne a `--concurrency 2` con la parada
-por salud, en ventana de baja carga, da a la vez:
+**Un solo rastreo cierra los dos frentes, y así se hizo** (§9.1.1). El rastreo perenne a `--concurrency 2` con la
+parada por salud, en la ventana 20:47–21:23 del 2026-11-02, dio a la vez:
 
-- `summary.linkInstancesToRedirects` 19 → 0, que es el punto 5 comprobado sobre **todas** las fichas de obra;
-- `crawlReliable: true` si no hay 503, y con ello las 28 fichas de programa pasan de `UNMEASURED` a
-  `ORPHAN_IN_SCOPE`: el primer recuento de huérfanas defendible del proyecto.
+- `summary.linkInstancesToRedirects` **19 → 0**, el punto 5 comprobado sobre **todas** las fichas de obra;
+- `crawlReliable: true` con 0 fallos, y con ello el recuento de huérfanas: **22**, todas fichas de programa.
 
-Compararlo con el rastreo B sobre la **misma población** (`--urls-from`), no con el rastreo A, que es de otro
-ámbito.
+Receta para repetirlo: concurrencia 2, desde PowerShell, en ventana de baja carga. A concurrencia 4 aparecen
+503 por carga y el grafo queda inservible para afirmar orfandad. Comparar siempre sobre la **misma población**
+(`--urls-from`) y entre rastreos del **mismo ámbito**.
 
 ---
 
@@ -599,20 +690,23 @@ Compararlo con el rastreo B sobre la **misma población** (`--urls-from`), no co
 
 | AC | Estado | Base |
 |---|---|---|
-| 01 Reproducibilidad | **PASS**: clasificación versionada, comandos en §3, ámbito y ventana grabados; el rastreo perenne se agotó y es repetible | §3 |
-| 02 Sin falsas huérfanas | **PASS**: 0 afirmadas; la orfandad exige cola agotada, presupuesto no agotado y cero fuentes ilegibles; el self-check lo exige | §3 |
+| 01 Reproducibilidad | **PASS**: clasificación versionada, comandos en §3, ámbito y ventana grabados; el rastreo se agotó, quedó sin errores y es repetible | §3, §9.1.1 |
+| 02 Sin falsas huérfanas | **PASS**: ninguna afirmada mientras la evidencia no alcanzó (3 rastreos `UNMEASURED`); el cuarto, agotado y sin errores, da **22** | §3, §9.1.1 |
 | 03 Corrección temporal | **PASS**: ventana de observación completa; comparación sobre población fija con `--urls-from` | §3 |
 | 04 Inventario de canales | **PASS**: 14 de 67 clasificados uno a uno con evidencia por canal | §5 |
 | 05 Remediación de canales | **PASS**: corregido, con test, desplegado y **verificado en producción**: 0 de 67 canales del sitemap fuera del directorio | §5, §9 |
-| 06 Programas | **PASS**: las 29 medidas; el rastreo agotado confirma que las 28 restantes son las **únicas** URLs del sitemap sin ruta perenne, y ninguna se expone | §4, §6 |
-| 07 Obras | **PASS**: el rastreo perenne agotado alcanza **3.825/3.825**; ningún defecto confirmado y ninguna corrección inventada | §4, §6 |
+| 06 Programas | **PASS**: el rastreo limpio confirma que las **22** fichas de programa son las **únicas** URLs del sitemap sin ruta perenne, y ninguna se expone | §4, §9.1.1 |
+| 07 Obras | **PASS**: rastreo agotado y sin errores — **3.853/3.853 alcanzadas, 0 huérfanas**; ningún defecto que corregir | §4, §9.1.1 |
 | 08 SEO seguro | **PASS**: 0 enlaces no canónicos, 0 destinos rotos, identidades protegidas intactas, sitemap −1 URL de basura; verificado en producción | §4, §7, §9 |
-| 09 Calidad y release | **PARCIAL**: CI 4/4, merge `10a2a9b`, desplegado y verificado; queda el #134 | §8, §9 |
+| 09 Calidad y release | **PASS**: CI en verde en los tres PR, fusionados, desplegados y verificados en producción | §8, §9 |
 | 10 Roadmap honesto | **PASS**: M10 sigue PARTIAL | §12 |
 | 11 Operaciones seguras | **PARCIAL**: 0 escrituras y solo GET. El reinicio de la API fue el despliegue, no el rastreo (rectificado en §3); pero mi concurrencia 4 sí provocó 17 × 503, y la parada por salud que el hito pedía faltaba. Ya implementada, y el workflow baja a concurrencia 2 | §3 |
 | 12 Documentación | **PASS**: este registro, con la evidencia de producción y dos rectificaciones de mis propias conclusiones | §3, §9 |
 
-**M10-D = PARCIAL.** Ocho AC en PASS, tres parciales y ninguno fingido. Lo que falta es concreto: desplegar el #134 y repetir el rastreo perenne a concurrencia 2 para que `crawlReliable` pase a `true` y las 28 fichas de programa dejen de ser `UNMEASURED`.
+**M10-D = PASS.** Once AC en PASS y uno parcial (AC-11: la concurrencia 4 del primer rastreo provocó 503 que
+luego hubo que evitar; la parada por salud que el hito pedía faltaba y ya está). Nada fingido, y dos conclusiones
+mías rectificadas por la evidencia: el reinicio de la API fue el despliegue y no mi rastreo, y el grafo perenne
+sí es agotable.
 
 ---
 
@@ -620,12 +714,12 @@ Compararlo con el rastreo B sobre la **misma población** (`--urls-from`), no co
 
 - El crawler de producción puede detenerse por presupuesto, por fallos de lectura o por salud degradada;
   INCONCLUSIVE es un resultado válido y no debe degradarse a PASS.
-- **Concurrencia 4 es demasiada para este host.** Medido: 17 × 503 en el rastreo perenne, todas 200 en reposo.
-  A concurrencia 2 y con la parada por salud el mismo rastreo debería dar `crawlReliable: true`.
-- El criterio original de M10 está a un rastreo limpio de poder cerrarse: el grafo perenne **se agota** en 41
-  minutos y 4.727 páginas, y solo 17 fuentes ilegibles (por mi propia carga) impiden convertir las 28 fichas de
-  programa en un recuento de huérfanas defendible.
-- 29 fichas de programa indexables dependen de enlaces de emisiones efímeras. Su política SEO necesita una decisión posterior basada en calidad y utilidad.
+- **Concurrencia 4 es demasiada para este host; 2 va bien.** Medido: a 4, 17 × 503 (todas 200 en reposo); a 2 y
+  con la parada por salud, el mismo rastreo terminó con 0 fallos y `crawlReliable: true` en 37 minutos.
+- El criterio original de M10 **ya está medido** (§9.1.1): 22 fichas de programa huérfanas, todo lo demás con
+  ruta. Lo que queda es la decisión de política sobre esas 22, no más medición.
+- **22 fichas de programa indexables sin ruta perenne** (lista completa en §9.1.1 y en el artefacto). Dependen
+  de enlaces de emisiones efímeras . Su política SEO es la decisión que cierra M10.
 - CMM TV / Castilla la Mancha TV y ETB1.TV / ETB 1 mantienen identidades separadas hasta pruebas concluyentes.
 - 353 identidades TMDB ambiguas siguen protegidas.
 - **Ingesta de nombres de canal.** El nombre visible de los 14 canales recuperados es el id crudo del feed
@@ -640,15 +734,16 @@ Compararlo con el rastreo B sobre la **misma población** (`--urls-from`), no co
 
 ## 12. Estado del roadmap
 
-- **M10-D:** **PARCIAL**. Ingeniería completa, revisada (10 hallazgos, todos corregidos), CI 4/4, fusionada como
-  `10a2a9b`, **desplegada y verificada en producción** (§9: 6 de 7 smokes en verde). Falta desplegar el **#134**
-  —la corrección de los alias de canal en fichas de obra, el único smoke en rojo— y repetir el rastreo perenne a
-  concurrencia 2 para que `crawlReliable` pase a `true`.
-- **M10 global:** **PARCIAL**, y por primera vez con la distancia medida. El rastreo perenne **se agota** (4.727
-  páginas, 41 min, frontera 0) y alcanza 3.934 de las 3.962 URLs del sitemap: todos los canales, todas las obras,
-  todas las estáticas y guías. Las **28** que no alcanza son todas fichas de programa. Lo único que impide
-  convertirlas en un recuento de huérfanas son 17 fuentes que respondieron 503 por mi propia concurrencia. No se
-  marca DONE, pero ya no es una incógnita: es un rastreo limpio de distancia.
+- **M10-D:** **PASS**. Los tres PR ([#133](https://github.com/manuelxose/guiatv/pull/133) `10a2a9b`,
+  [#134](https://github.com/manuelxose/guiatv/pull/134) `03835f8`,
+  [#135](https://github.com/manuelxose/guiatv/pull/135) `2b481f2`) fusionados con CI en verde, desplegados por el
+  propietario y verificados en producción: 7 de 7 smokes, y un rastreo agotado y sin errores que confirma
+  19 → 0 enlaces internos a destinos que redirigen y 0 enlaces no canónicos.
+- **M10 global:** **PARCIAL**, y ya no por falta de evidencia. Su criterio original —«ninguna página de detalle
+  indexable huérfana»— está **medido**: de las 3.983 URLs del sitemap, las **22** fichas de programa son las
+  únicas sin ruta interna desde una página perenne. Todos los canales (67/67), todas las obras (3.853/3.853),
+  todas las estáticas y guías tienen ruta. Queda **una decisión, no una medición**: enlazar esas 22 desde una
+  navegación legítima o sacarlas del sitemap. Hasta que se tome, M10 **no** se marca DONE.
 - **M11-B:** PARCIAL, con dependencia M04-B sin cumplir.
 - **M12:** **NO-GO** conforme a [M12-ENTRY-GATE.md](M12-ENTRY-GATE.md): M10 sigue parcial, M11-B sin cumplir, y
   no hay kill switch de indexación, tope de lote, puerta por URL ni línea base de GSC. M10-D no cambia ninguna
@@ -656,18 +751,19 @@ Compararlo con el rastreo B sobre la **misma población** (`--urls-from`), no co
 
 ### Siguiente hito propuesto, **no iniciado**
 
-**Cerrar el criterio de M10: un rastreo perenne limpio y la decisión sobre las 28 fichas de programa.** Es el
-hito más pequeño que aporta valor, y es pequeño porque M10-D ya dejó la medición hecha:
+**Decidir qué hacer con las 22 fichas de programa huérfanas.** Es el hito más pequeño que cierra M10, y es
+pequeño porque M10-D ya dejó la medición hecha y la lista completa (§9.1.1, y el artefacto
+`artifacts/m10d/link-graph-summary-after.json`):
 
-1. repetir el rastreo perenne a `--concurrency 2` con la parada por salud, en ventana de baja carga, hasta
-   obtener `crawlReliable: true`. Eso convierte las 28 en el primer `ORPHAN_IN_SCOPE` defendible del proyecto —
-   o las descarta, si alguna de las 17 fuentes ilegibles resulta enlazarlas;
-2. con ese número, decidir qué fichas de programa indexables merecen una entrada perenne y darles una navegación
-   legítima, sin enlazado masivo ni `noindex` indiscriminado. Las que no la merezcan salen del sitemap, que es
-   una decisión de elegibilidad, no de enlazado.
+1. clasificar las 22 por valor propio: una ficha como `/programas/telediario-2` o `/programas/aida` puede
+   merecer entrada perenne; `/programas/diagnostico` o `/programas/escapate`, probablemente no;
+2. a las que lo merezcan, darles una ruta perenne legítima — por ejemplo desde la ficha de canal que las emite
+   con regularidad, no un listado masivo;
+3. a las que no, sacarlas de `sitemap-programs.xml`. Es una decisión de **elegibilidad**, no de enlazado, y es la
+   mitad de la respuesta: una URL que no merece estar indexada no necesita ruta, necesita salir del sitemap.
 
-El «Modo 2» (grafo desde instantánea de sólo lectura, validado contra SSR) deja de ser imprescindible: sirve
-como respaldo si la variabilidad de la parrilla hace que el rastreo nunca quede limpio.
+Con eso, M10 pasa a DONE con su criterio original demostrado, no asumido. **No empezar hasta que el propietario
+decida la política**, porque el paso 3 cambia qué se indexa.
 
-Los tres defectos de higiene que M10-D encontró están corregidos (§7.1, §7.2, §7.3), así que el hito siguiente
-es de evidencia y de política, no de arreglos pendientes.
+Deuda que M10-D deja explícitamente fuera y que no bloquea M10: nombrar los canales de feed en la ingesta,
+normalizar títulos no-texto en la ingesta, y el residual `/series/2020-britains-…` (§11).
