@@ -94,8 +94,10 @@ jobs:
       - env:
           LINK_GRAPH_MAX: ${{ inputs.link_graph_max }}
           LINK_GRAPH_SCOPE: ${{ inputs.link_graph_scope }}
+        # Concurrency 2: a 4,000-page run at 4 coincided with an API restart and a 503 on /canales
+        # (M10D-DELIVERY.md §3). The crawl also stops itself if /v2/health stops reporting healthy.
         run: |
-          node scripts/seo-link-graph.mjs --max "$LINK_GRAPH_MAX" --concurrency 4 \
+          node scripts/seo-link-graph.mjs --max "$LINK_GRAPH_MAX" --concurrency 2 \
             ${LINK_GRAPH_SCOPE:+--skip-traverse "$LINK_GRAPH_SCOPE"} --out link-graph.json
       # The channel directory is the only internal path to a channel page: every channel the sitemap publishes
       # must be reachable. Fails only on an exhausted crawl, never because the budget ran out (AC-02/AC-05).

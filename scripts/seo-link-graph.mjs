@@ -14,6 +14,8 @@
 //                                        [--skip-traverse '^/contenido/']
 //   The graph is held in memory and nothing is written until the crawl ends, so give node room above a few
 //   thousand pages: `node --max-old-space-size=8192 scripts/seo-link-graph.mjs … --max 10000`.
+//   It stops itself if the site stops answering `--health` (default /v2/health, `off` to disable) as healthy:
+//   read-only is not free, and a crawl that degrades the site is worthless as evidence. Keep --concurrency low.
 //        node scripts/seo-link-graph.mjs --compare before.json after.json
 //        node scripts/seo-link-graph.mjs --reachability file.json [--urls urls.txt]
 //        node scripts/seo-link-graph.mjs --urls-from file.json > urls.txt   (fixed population, see §B4)
@@ -381,6 +383,27 @@ let emptyAnchors = 0, genericAnchors = 0;
 // The origin HTML has no such link and the URL is not a page of the site: counted apart, never as a broken page.
 const edgeInjected = new Map(); // path -> Set(source path)
 
+/**
+ * M10-D: stop the crawl if the site stops being healthy. A 4,000-page run at concurrency 4 on 2026-11-02
+ * coincided with an API restart (uptime 3.2 days -> 36 minutes) and a 503 on `/canales`, the one page that lists
+ * channels — which silently wrecked that run's channel measurement. Checking before and after is not enough:
+ * read-only does not mean free, and a crawl that degrades the site is both unsafe and worthless as evidence.
+ */
+const HEALTH_EVERY = Number(opt('--health-every', 250));
+const healthPath = opt('--health', '/v2/health');
+let abortReason;
+const healthy = async () => {
+  if (healthPath === 'off') return true;
+  try {
+    const r = await fetch(base + healthPath, { headers: { 'user-agent': 'guiatv-link-graph/1.0' }, signal: AbortSignal.timeout(15000) });
+    if (!r.ok) return false;
+    const body = await r.json();
+    return (body?.data?.status ?? body?.status) === 'healthy';
+  } catch {
+    return false; // Unreachable health is a degraded site, not a reason to keep going.
+  }
+};
+
 const visit = async (path) => {
   const page = pages.get(path);
   try {
@@ -420,13 +443,21 @@ const startedAt = new Date();
 let level = ['/'];
 pages.set('/', { depth: 0 });
 let fetched = 0;
-while (level.length && fetched < max) {
+let probed = 0;
+while (level.length && fetched < max && !abortReason) {
   const batch = level.splice(0, max - fetched);
   fetched += batch.length;
   const next = [];
   const queue = [...batch];
   await Promise.all(Array.from({ length: concurrency }, async () => {
-    for (let p; (p = queue.shift()); ) next.push(...await visit(p));
+    for (let p; !abortReason && (p = queue.shift()); ) {
+      if (++probed % HEALTH_EVERY === 0 && !(await healthy())) {
+        abortReason = `site not healthy after ${probed} pages`;
+        console.error(abortReason);
+        break;
+      }
+      next.push(...await visit(p));
+    }
   }));
   // M10-D: `splice` already left this level's unfetched remainder in `level`, and it stays there. Clearing it
   // discarded the frontier when `--max` cut a level in half, so a truncated crawl whose last batch happened to
@@ -512,9 +543,10 @@ const observation = {
   scope: skipTraverse ? `excludes ${skipTraverse}` : 'full',
   frontierLeft: level.length,
   budgetSpent: `${fetched}/${max}`,
-  // Exhausted means two things: nothing left to follow *and* the budget was not the reason we stopped. A crawl
-  // that spent its whole budget is never known to be exhausted, and only an exhausted crawl licenses an orphan.
-  crawlComplete: level.length === 0 && fetched < max,
+  stoppedBy: abortReason ?? (fetched >= max ? 'budget' : 'frontier exhausted'),
+  // Exhausted means three things: nothing left to follow, the budget was not the reason we stopped, and the
+  // crawl was not cut short for the site's health. Only an exhausted crawl licenses an orphan.
+  crawlComplete: level.length === 0 && fetched < max && !abortReason,
 };
 
 console.log(JSON.stringify({ observation, ...summary }, null, 1));
