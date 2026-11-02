@@ -180,6 +180,8 @@ despliegue; nada de lo que hay aquí se compara con las cifras de M10-C, tomadas
 | `ORPHAN_IN_SCOPE` | 0 | pendiente |
 | `INVALID_DESTINATION` | 0 | pendiente |
 | `TEMPORARY_FETCH_FAILURE` | 0 | pendiente |
+| Canales del sitemap sin entrada en el directorio | **14** | **0** sobre la API real; SSR tras el despliegue |
+| Destinos internos que redirigen / instancias | **4 / 19** | **0 / 0** previstos (§7.3) |
 
 Por fichero de sitemap, con la profundidad mínima medida:
 
@@ -197,7 +199,7 @@ Higiene de enlaces internos en la misma ventana:
 |---|---:|---|
 | Destinos internos rotos | **1** | `/series/2020-britains-most-notorious-crime-investigations` (404) desde `/plataformas`: residual M10 conocido, slug de búsqueda TMDB |
 | Enlaces a URLs no canónicas | **0** | invariante M10-C preservada |
-| Destinos que redirigen / instancias | **4 / 19** | alias de canal verificados enlazados desde fichas de obra: defecto confirmado, **sin corregir** (§11) |
+| Destinos que redirigen / instancias | **4 / 19** | alias de canal verificados enlazados desde fichas de obra: **corregido** en §7.3, 0 previstos tras el despliegue |
 | Cadenas de redirección | **0** | |
 | Anclajes vacíos / genéricos | **0 / 0** | |
 | Destinos `noindex` enlazados | 2.016 | las páginas de emisión, por diseño |
@@ -350,11 +352,38 @@ de la revisión independiente (§8).
 Efecto previsto tras el despliegue: `sitemap-programs.xml` 29 → 28 URLs, y `/programas/object-object` deja de
 resolver (404, el mismo trato que cualquier slug sin título). No es desindexación de contenido con valor.
 
-### 7.3 Herramienta de medición
+### 7.3 Las fichas de obra ya no enlazan alias de canal que redirigen
+
+**El defecto.** Medido en la ventana del 2026-11-02: **4 URLs de canal que responden 301 recibían 19 enlaces
+internos** — `/canales/etb2-tv` (11), `/canales/veo7-tv` (4), `/canales/energy-tv` (3), `/canales/tv3-tv` (1).
+Rompía la invariante que M10-C declaró cerrada («0 enlaces internos a redirects»); el rastreo acotado de M10-C
+nunca llegó a las páginas que los producen.
+
+**El origen.** La ficha de obra nombraba el canal propio de la emisión. En una muestra de 70 fichas,
+`/series/navy-investigacion-criminal` enlazaba `/canales/veo7-tv` con el anclaje «Veo7.TV».
+`ChannelFeedAliasResolver` existe exactamente para esto y estaba inyectado en `TvSurfaceService` (superficies de
+canal y guía) y en `TvController` (endpoints de lectura), **pero no en `CatalogService`**, que es quien sirve las
+fichas de obra y emitía `item.channel.normalizedName` en crudo.
+
+**La corrección.** `CatalogService` recibe el resolutor y presenta cada emisión bajo el canal que el sitio
+publica. **La emisión se conserva**: los dos feeds llevan la misma parrilla — eso es justamente lo que convirtió
+al par en alias verificado — así que no se pierde ninguna emisión real, solo deja de nombrarse el feed cuya
+página redirige. Es la misma regla que las superficies de TV ya aplican («ninguna página lista un alias entre sus
+canales relacionados: sería enlazar un redirect»), extendida a las emisiones de una ficha de obra.
+
+Un efecto secundario deseable: la clave de deduplicación de emisiones (`channelId:start:end`) pasa a ser
+canónica, así que una misma emisión publicada por los dos feeds se funde en una sola fila en vez de aparecer
+repetida.
+
+Sin lista de alias, o si el resolutor lanza, cada emisión se sirve como antes de M10-D: una ficha nunca falla por
+esto. Tres tests cubren el alias, el canal que no lo es (incluidas las `.TV` que M10-C mantuvo como canales
+propios, que **no** deben tocarse) y la ausencia de lista.
+
+### 7.4 Herramienta de medición
 
 §3. Sin dependencias nuevas; `scripts/seo-link-graph.mjs` sigue siendo el único crawler.
 
-### 7.4 Fuera de ámbito, necesario para la puerta de CI
+### 7.5 Fuera de ámbito, necesario para la puerta de CI
 
 `main` estaba **rojo antes de esta rama**: PR #132 se fusionó con `frontend` y `verify` en fallo por un error de
 lint (`label-has-associated-control`) en el Blog Studio. Un `<label>` nombraba un `role="group"` mediante
@@ -456,42 +485,20 @@ Smoke tests exigidos tras el despliegue: directorio SSR enlaza los 14 canales re
 
 ## 11. Riesgos y deuda restante
 
-### Defecto confirmado y **sin corregir**: las fichas de obra enlazan alias de canal que redirigen
-
-Medido en la ventana del 2026-11-02: **4 URLs de canal que responden 301 reciben 19 enlaces internos** —
-`/canales/etb2-tv` (11), `/canales/veo7-tv` (4), `/canales/energy-tv` (3), `/canales/tv3-tv` (1). Rompe la
-invariante que M10-C declaró cerrada («0 enlaces internos a redirects»), aunque el rastreo acotado de M10-C
-probablemente nunca llegó a las páginas que los producen.
-
-**Origen localizado.** La ficha de obra construye el enlace de canal con el nombre de canal crudo de la emisión.
-Muestra de 70 fichas de obra: `/series/navy-investigacion-criminal` enlaza `/canales/veo7-tv` con el anclaje
-«Veo7.TV». `ChannelFeedAliasResolver` existe justamente para esto y está inyectado en `TvSurfaceService`
-(superficies de canal y guía) y en `TvController` (endpoints de lectura), **pero no en `CatalogService`**, que
-es quien sirve las fichas de obra y emite `normalizedName: item.channel.normalizedName` en crudo
-(`CatalogService.ts:963` y `:2130`).
-
-**Por qué no se corrige aquí.** La corrección es wiring de DI en el contenedor más el mapeo en esos dos puntos.
-Es pequeña, pero es backend y cae fuera del defecto de descubribilidad que M10-D aprobó; un 301 es además un
-destino que Google resuelve sin pérdida, así que el daño es de higiene, no de indexación. Queda con causa y
-punto de corrección identificados para el hito siguiente, en lugar de ampliar M10-D en silencio.
-
-### Resto
-
 - El crawler de producción puede detenerse por presupuesto o fallos de lectura; INCONCLUSIVE es un resultado válido y no debe degradarse a PASS.
 - Con `crawlReliable` exigiendo cero huecos de traversía y cero fallos de descarga, **un rastreo acotado de
   producción casi nunca podrá sostener una afirmación de orfandad**. Es correcto, y significa que el criterio
   original de M10 («ninguna página de detalle indexable huérfana») necesita o un rastreo con ámbito que agote el
   grafo perenne, o un grafo construido desde una instantánea de sólo lectura de la base de datos y validado
   contra SSR. Ese es el trabajo que queda, no una afirmación que se pueda cerrar con la herramienta actual.
-- El nombre visible de los 14 canales recuperados es el id crudo del feed («ETBON_VayaSemanita.TV»). El anclaje
-  es veraz y distingue la ficha, pero nombrarlos bien es trabajo de ingesta.
-- El `[object Object]` sigue apareciendo como **título mostrado** en la tarjeta de guía de esa emisión: M10-D
-  corta el slug y la URL indexable, no el texto de presentación. Normalizar títulos no-texto en la ingesta es
-  deuda aparte.
 - 29 fichas de programa indexables dependen de enlaces de emisiones efímeras. Su política SEO necesita una decisión posterior basada en calidad y utilidad.
 - CMM TV / Castilla la Mancha TV y ETB1.TV / ETB 1 mantienen identidades separadas hasta pruebas concluyentes.
 - 353 identidades TMDB ambiguas siguen protegidas.
-- Los nombres crudos de feeds deben mejorar en la ingesta, sin resolverlo con fusiones incorrectas.
+- **Ingesta de nombres de canal.** El nombre visible de los 14 canales recuperados es el id crudo del feed
+  («ETBON_VayaSemanita.TV»). El anclaje es veraz y distingue la ficha de la del canal principal, pero nombrarlos
+  bien es trabajo de ingesta — y debe resolverse nombrando, nunca fusionando canales distintos.
+- **Títulos no-texto en la ingesta.** El `[object Object]` sigue apareciendo como *título mostrado* en la tarjeta
+  de guía de esa emisión: M10-D corta el slug y la URL indexable, no el texto de presentación.
 - Sitemap enviado a GSC no equivale a indexación comprobada.
 - Producción sigue en release anterior hasta verificar un nuevo despliegue.
 
@@ -520,9 +527,7 @@ no pudo cerrar:
    contra una muestra de respuestas SSR — el «Modo 2» que M10-D no implementó — para que la orfandad se decida
    sobre un grafo completo en lugar de un presupuesto de HTTP;
 2. con ese grafo, decidir qué fichas de programa indexables merecen una entrada perenne y dar a esas una
-   navegación legítima, sin enlazado masivo ni `noindex` indiscriminado;
-3. inyectar `ChannelFeedAliasResolver` en `CatalogService` para que las fichas de obra dejen de enlazar alias de
-   canal que redirigen (§11).
+   navegación legítima, sin enlazado masivo ni `noindex` indiscriminado.
 
-Alternativa más pequeña si se prefiere cerrar valor antes que evidencia: solo el punto 3, que es una corrección
-acotada con causa ya localizada.
+Los dos defectos de higiene que M10-D encontró ya están corregidos aquí (§7.1, §7.2, §7.3), así que el hito
+siguiente es de evidencia, no de arreglos pendientes.

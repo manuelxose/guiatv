@@ -509,7 +509,11 @@ export class Container {
       interactionRepository,
       this.get('tvReadQueryService'),
       this.get('mediaCatalogService'),
-      new LegacyEnrichmentService({ catalog: this.get('mediaCatalogRepository') })
+      new LegacyEnrichmentService({ catalog: this.get('mediaCatalogRepository') }),
+      // `undefined` keeps the default related-works index; M10-D needs the alias resolver after it, so that a
+      // work page names the channel GuíaTV publishes instead of the second feed, whose page answers a 301.
+      undefined,
+      this.get('channelFeedAliases')
     );
     this.dependencies.set('catalogService', catalogService);
 
