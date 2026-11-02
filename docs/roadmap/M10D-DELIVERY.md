@@ -742,28 +742,68 @@ sí es agotable.
 - **M10 global:** **PARCIAL**, y ya no por falta de evidencia. Su criterio original —«ninguna página de detalle
   indexable huérfana»— está **medido**: de las 3.983 URLs del sitemap, las **22** fichas de programa son las
   únicas sin ruta interna desde una página perenne. Todos los canales (67/67), todas las obras (3.853/3.853),
-  todas las estáticas y guías tienen ruta. Queda **una decisión, no una medición**: enlazar esas 22 desde una
-  navegación legítima o sacarlas del sitemap. Hasta que se tome, M10 **no** se marca DONE.
+  todas las estáticas y guías tienen ruta. La decisión está **tomada y razonada** (§12): esas 22 **no se sacan** del
+  sitemap — pasan la puerta de contenido del propio proyecto y son programas reales (*Aída*, *Com si fos ahir*,
+  *¿Quién da más?*…). Lo que queda es darles la ruta perenne, con el diseño ya acotado en §12. Hasta entonces
+  M10 **no** se marca DONE.
 - **M11-B:** PARCIAL, con dependencia M04-B sin cumplir.
 - **M12:** **NO-GO** conforme a [M12-ENTRY-GATE.md](M12-ENTRY-GATE.md): M10 sigue parcial, M11-B sin cumplir, y
   no hay kill switch de indexación, tope de lote, puerta por URL ni línea base de GSC. M10-D no cambia ninguna
   de esas condiciones.
 
-### Siguiente hito propuesto, **no iniciado**
+### Veredicto sobre las 22: **no se sacan del sitemap**
 
-**Decidir qué hacer con las 22 fichas de programa huérfanas.** Es el hito más pequeño que cierra M10, y es
-pequeño porque M10-D ya dejó la medición hecha y la lista completa (§9.1.1, y el artefacto
-`artifacts/m10d/link-graph-summary-after.json`):
+El propietario delegó la decisión («si consideras que hay que sacarlas, sácalas»). Examinadas una a una, la
+respuesta es **no**, y por tres razones de evidencia, no de criterio:
 
-1. clasificar las 22 por valor propio: una ficha como `/programas/telediario-2` o `/programas/aida` puede
-   merecer entrada perenne; `/programas/diagnostico` o `/programas/escapate`, probablemente no;
-2. a las que lo merezcan, darles una ruta perenne legítima — por ejemplo desde la ficha de canal que las emite
-   con regularidad, no un listado masivo;
-3. a las que no, sacarlas de `sitemap-programs.xml`. Es una decisión de **elegibilidad**, no de enlazado, y es la
-   mitad de la respuesta: una URL que no merece estar indexada no necesita ruta, necesita salir del sitemap.
+**1. Ya pasan una puerta de contenido que el propio proyecto diseñó.** Una ficha de programa solo llega al
+sitemap con disposición `standalone` (`ProgrammeSeoPolicy`), que exige: sin `workPath` verificado, **sin
+`tmdbId`** —así que no duplica ninguna ficha de obra—, no ser un episodio suelto, y **≥20 palabras de
+descripción**. Además `filterEligible` comprueba que el slug resuelve de verdad. Las que no pasan esa puerta ya
+son `noindex`. Sacar estas 22 sería revertir esa clasificación, no aplicarla.
 
-Con eso, M10 pasa a DONE con su criterio original demostrado, no asumido. **No empezar hasta que el propietario
-decida la política**, porque el paso 3 cambia qué se indexa.
+**2. Son programas reales, y varios conocidos.** Muestra medida el 2026-11-02:
+
+| URL | Descripción | Emisiones hoy |
+|---|---:|---:|
+| `/programas/comicos-nuestros` | 26 palabras, serie documental sobre cómicos del cine español | 18 |
+| `/programas/aida` | *Aída*, spin-off de una telecomedia popular | 17 |
+| `/programas/com-si-fos-ahir` | serie diaria de TV3 | 22 |
+| `/programas/quien-da-mas` | subastas de guardamuebles (A&E) | 19 |
+| `/programas/parques-naturales` | 28 palabras, patrimonio natural de Castilla y León | 18 |
+| `/programas/escapate` | 22 palabras, patrimonio y gastronomía por territorios | 14 |
+| `/programas/escritores` | 26 palabras, Saramago, Cocteau y otros | 14 |
+
+«Cuándo echan *Aída*» es exactamente la consulta para la que existe una guía de TV. Desindexar estas páginas
+sería mejorar una métrica de alcanzabilidad **borrando valor**, que es lo contrario de lo que pide el hito.
+
+**3. El problema no es la elegibilidad, es la incoherencia.** Hoy el sitio dice «indexa estas 22» y a la vez no
+les da ninguna ruta perenne. Cada afirmación por separado es defendible; juntas se contradicen. La corrección
+barata y correcta es **la ruta**, no el borrado — y el borrado es la opción irreversible de las dos.
+
+Una observación de paso: en dos de las 22 (`aida`, `com-si-fos-ahir`) la `meta description` servida tiene 5
+palabras aunque la puerta exige 20, porque la descripción de la página y la sinopsis que mide la puerta no salen
+del mismo campo. No cambia el veredicto y no es un defecto de M10-D, pero conviene mirarlo al dar la ruta.
+
+### Siguiente hito propuesto, **no iniciado**: la ruta perenne de las 22
+
+El diseño está acotado y **reutiliza lo que ya existe**, sin conceptos nuevos ni granjas de enlaces:
+
+1. `buildProgramsSitemap` ya calcula, una vez por periodo de caché, **exactamente** el conjunto de slugs
+   `standalone` elegibles — con su comprobación de que el slug resuelve. Extraer ese cálculo a un proveedor
+   cacheado y compartido.
+2. La ficha de canal ya lista su parrilla. Enlazar la fila a `/programas/<slug>` **solo** si su slug está en ese
+   conjunto. Así los enlaces internos y el sitemap no pueden discrepar nunca: son la misma lista.
+3. Sin consultas por fila: el conjunto se calcula una vez, no por petición. `CatalogService.standaloneProgrammePath`
+   ya resuelve el caso individual y tiene test (su ejemplo es literalmente `/programas/comicos-nuestros`), pero
+   hoy solo alimenta la ficha de emisión efímera `/contenido`, que es `noindex` y desaparece cada día.
+
+Eso cierra el criterio original de M10 con la evidencia ya medida, y **sin tocar qué se indexa**: no añade ni
+quita ninguna URL del sitemap, solo le da entrada a lo que el sitio ya declara indexable.
+
+Por qué no va en M10-D: atraviesa el modelo de lectura, el DTO, la superficie de canal y el frontend, y necesita
+su propia tanda de tests. Es el hito siguiente, no la cola de este.
 
 Deuda que M10-D deja explícitamente fuera y que no bloquea M10: nombrar los canales de feed en la ingesta,
-normalizar títulos no-texto en la ingesta, y el residual `/series/2020-britains-…` (§11).
+normalizar títulos no-texto en la ingesta, el desajuste de la `meta description` de arriba, y el residual
+`/series/2020-britains-…` (§11).
