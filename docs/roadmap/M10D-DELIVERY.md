@@ -14,16 +14,16 @@ workflow temporal que M10-C necesitó.
 | Criterio | Estado | Base |
 |---|---|---|
 | Metodología de medición reproducible y con cobertura explícita | **PASS** | §3 |
-| Ninguna huérfana inventada a partir de un crawl incompleto | **PASS**: `VERIFIED_ORPHAN` solo lo emite un crawl que agotó la frontera *y* expandió todo lo que encontró | §3 |
+| Ninguna huérfana inventada a partir de un crawl incompleto | **PARTIAL**: se exige además ausencia de errores de traversal; pendiente CI final | §3 |
 | Corrección temporal (ventana de observación registrada) | **PASS** | §3 |
 | Inventario de canales del sitemap sin ruta interna, clasificado | **PASS**: 14 de 67, uno a uno | §5 |
 | Defectos de descubrimiento de canal corregidos y con test de regresión | **PASS** (ingeniería); pendiente de despliegue | §5, §7 |
 | Población de programas medida, sin exponer páginas pobres | **PASS** | §6 |
 | Alcance de obras medido lo suficiente para separar defecto de no medido | **PARCIAL**: el grafo perenne excede el presupuesto seguro de un crawl de producción | §4, §6 |
 | Seguridad SEO (sin desindexación, canonical ni inflación de sitemap) | **PASS** | §7, §9 |
-| Tests, CI y revisión independiente | **PASS** | §8 |
+| Tests, CI y revisión independiente | **PENDIENTE**: CI final y re-review | §8 |
 | Despliegue y verificación en producción | **PENDIENTE**: requiere que el propietario lance el workflow | §9 |
-| **M10-D** | **PARCIAL**: ingeniería completa y revisada; producción pendiente de despliegue del propietario | |
+| **M10-D** | **PARCIAL**: hardening implementado; aún faltan CI, SSR y producción | |
 
 ---
 
@@ -88,22 +88,20 @@ evidencia:
 | `EXCLUDED_BY_POLICY` | dentro de la familia no expandida |
 | `UNMEASURED` | el crawl paró en `--max` con frontera pendiente: alcance desconocido |
 | `ORPHAN_IN_SCOPE` | crawl agotado, pero con una familia sin expandir: huérfana **solo en el ámbito recorrido** |
-| `VERIFIED_ORPHAN` | no existe ruta interna. Solo cuando el crawl agotó la frontera **y** expandió todo |
+| `VERIFIED_ORPHAN` | no existe ruta interna. Solo cuando el crawl agotó la frontera **sin fallos** y expandió todo |
 
 Un crawl truncado no puede producir un `VERIFIED_ORPHAN` por construcción. El `--self-check` lo exige, junto con
 fronteras truncadas, fallos reintentables, redirecciones y alias, ciclos, duplicados, destinos solo-sitemap y
 destinos `noindex`, y comprueba que las clases **particionan** el sitemap.
 
-**`--probe-skipped`.** Muestrea la familia no expandida y dice qué URLs no alcanzadas enlaza de verdad, para
-subir (o no) `ORPHAN_IN_SCOPE` sobre evidencia en lugar de suposición.
+**`--probe-skipped`.** Muestrea la familia no expandida y dice qué URLs no alcanzadas enlaza de verdad, para identificar rutas positivas; la ausencia en una muestra no verifica orfandad.
 
 **Normalización temporal.** `--urls-from` escribe la población de URLs de un crawl, para comparar dos crawls
 sobre las mismas URLs. El grafo guardado lleva su **ventana** de observación: inicio, fin, horas de Madrid,
 minutos transcurridos, día EPG en ambos extremos, ámbito y frontera pendiente. Un crawl de miles de páginas SSR
 abarca buena parte de una hora y la parrilla se mueve dentro: la ventana es la evidencia, no un instante.
 
-**Puerta de regresión.** `--require-reached <sitemap>` falla solo con evidencia — una URL no alcanzada en un
-crawl agotado — nunca por falta de presupuesto, y su mensaje sigue a la clase: fuera del ámbito completo dice
+**Puerta de regresión.** `--require-reached <sitemap>` distingue PASS, FAIL e INCONCLUSIVE por cobertura, errores y URL requerida, y su mensaje sigue a la clase: fuera del ámbito completo dice
 «sin ruta dentro del ámbito recorrido», no «sin ruta interna». Está cableada en `seo-regression.yml` para
 `sitemap-channels.xml`.
 
@@ -127,13 +125,25 @@ node scripts/seo-link-graph.mjs --compare before-evergreen.json after-evergreen.
 
 ### Límite demostrado
 
-PENDIENTE_CRAWL_LIMITE
+Último avance del rastreo de producción comunicado: **1.841 páginas descargadas**, nivel 4 y **frontera de 8.355 URLs**. No se dispone de un artefacto exhaustivo de resultados; el número de huérfanas globales **NO está verificado**. La lógica se ha endurecido: un crawl terminado pero con errores de descarga tampoco puede verificar huérfanas. Los fallos dejan URLs en UNMEASURED, los ámbitos excluidos quedan en ORPHAN_IN_SCOPE solo si la traversía es fiable; confirmedOrphans cuenta exclusivamente VERIFIED_ORPHAN. El control de canales devuelve PASS (0), FAIL (1) o INCONCLUSIVE (2), sin PASSES engañosos.
 
 ---
 
 ## 4. Alcance antes / después
 
-PENDIENTE_TABLA_ALCANCE
+| Indicador | Línea base verificada | Tras los cambios |
+|---|---:|---|
+| Sitemap total, 2026-11-02 | 3.962 | Pendiente de deploy |
+| Canales en sitemap | 67 | 67 previstos; sin verificación productiva |
+| Canales del sitemap fuera del directorio | **14** | **0 sobre datos reales con el nuevo predicado; SSR pendiente** |
+| Alias verificados visibles | 0 | 0 según predicado; SSR pendiente |
+| Programas indexables en sitemap | 29 | 28 previstos; sitemap en prod pendiente |
+| Obras en sitemap | 3.825 | Pendiente |
+| URLs dentro de 3 clics | No comparable con M10-C | Pendiente de crawl fiable |
+| Confirmed global orphans | No medido | **No medido** |
+| Unmeasured / scoped orphans | No medido | Pendiente de crawl fiable |
+
+No comparar muestras de distintas ventanas EPG como mejoras causales.
 
 ---
 
@@ -198,7 +208,11 @@ ingesta de canales, no de enlazado interno: queda como deuda (§11).
 
 ## 6. Programas y obras
 
-PENDIENTE_PROGRAMAS_OBRAS
+**Programas:** la evaluación previa identificó **29 fichas indexables** del sitemap sin enlaces entrantes desde páginas perennes; los enlaces observados procedían de emisiones efímeras noindex. Esto no demuestra que sean 29 huérfanas globales, porque el ámbito perenne excluye las emisiones. Se exige decisión posterior sobre contenido realmente valioso y una navegación legítima, sin enlazado masivo ni noindex indiscriminado.
+
+**Obras:** sitemap-works contenía 3.825 URLs. Sin grafo final exhaustivo y libre de errores no hay conteos de profundidad definitivos ni huérfanas verificadas.
+
+**Identidad:** se mantienen protegidas las 353 relaciones TMDB sin verificar registradas en M10-C.
 
 ---
 
@@ -248,28 +262,68 @@ nombre accesible, sin cambio visual. Sin esto no se puede verificar el CI de M10
 
 ## 8. Tests y revisión independiente
 
-PENDIENTE_TESTS
+Resultados reportados por la implementación original, no por la última revisión: frontend 382/382, pruebas de detalle backend, 10 pruebas de workflows y self-check de crawler, con lint frontend limpio. El último HEAD debe superar nuevamente CI.
+
+La revisión Graphify del PR destacó cinco advertencias: (1) ejecución de shell por interpolación del destino del proxy; (2) envío silencioso del proxy local a producción; (3) posibles falsos huérfanos cuando hay errores de fetch; (4) huérfanas solo del ámbito contadas como confirmadas; (5) salida --urls-from susceptible a cierre prematuro de pipe.
+
+Hardening realizado en la rama:
+- Proxy de desarrollo restaurado al de main; sin probe shell ni fallback automático a producción.
+- Traversal gaps detectados para fuentes fallidas; un grafo incompleto no puede verificar huérfanas.
+- Separación de counters de confirmedOrphans y scopedOrphans.
+- Gate de alcance con PASS / FAIL / INCONCLUSIVE, inconcluso también para URLs requeridas excluidas.
+- Los niveles BFS con error no se tratan como totalmente medidos.
+- --urls-from admite --out y gestiona EPIPE.
+- Self-check obligatorio de crawler añadido al job backend de performance.yml en PR.
+
+**Pendiente:** CI verde del nuevo HEAD, revisión final y verificación SSR real de los 14 canales. No hay declaración de tests completos sin esas evidencias.
 
 ---
 
 ## 9. Verificación en producción
 
-PENDIENTE_PRODUCCION
+**NO DESPLEGADO**. PR #133 continúa abierto a fecha de esta actualización. No hay release M10-D verificada ni ID de rollback asignado. El agente no dispone de disparo del workflow deploy-artifact.yml.
+
+Smoke tests exigidos tras el despliegue: directorio SSR enlaza los 14 canales recuperados y cero alias; 15 redirecciones 301 y parámetros preservados; identidades ETB1.TV, CMM TV y Telemadrid internacional autocanónicas; /programas/object-object excluida del sitemap; Modern Family y Gladiator sin regresiones; sitemap, robots, canonical y salud de la API y SSR. Registrar SHA de release y rollback a la release previa verificada.
 
 ---
 
 ## 10. Criterios de aceptación
 
-PENDIENTE_AC
+| AC | Estado provisional |
+|---|---|
+| 01 Reproducibilidad | PARTIAL: no artefacto completo |
+| 02 No falsos huérfanos | PARTIAL: corrección pendiente de CI |
+| 03 Temporalidad | PASS de implementación |
+| 04 Inventario de canales | PASS de diagnóstico: 14/67 |
+| 05 Remediación canales | PARTIAL: SSR real pendiente |
+| 06 Programas | PARTIAL: 29 dependientes de emisiones |
+| 07 Obras | PARTIAL: crawl no exhaustivo |
+| 08 SEO seguro | PARTIAL: producción sin validar |
+| 09 Calidad y release | PARTIAL: CI/merge/deploy pendientes |
+| 10 Roadmap honesto | PASS: M10 sigue PARTIAL |
+| 11 Operaciones seguras | PARTIAL: pruebas actualizadas pendientes |
+| 12 Documentación | PARTIAL: falta evidencia final |
+
+**M10-D = PARTIAL**, sin fingir implementación ni despliegue completos.
 
 ---
 
 ## 11. Riesgos y deuda restante
 
-PENDIENTE_RIESGOS
+- El crawler de producción puede detenerse por presupuesto o fallos de lectura; INCONCLUSIVE es un resultado válido y no debe degradarse a PASS.
+- 29 fichas de programa indexables dependen de enlaces de emisiones efímeras. Su política SEO necesita una decisión posterior basada en calidad y utilidad.
+- CMM TV / Castilla la Mancha TV y ETB1.TV / ETB 1 mantienen identidades separadas hasta pruebas concluyentes.
+- 353 identidades TMDB ambiguas siguen protegidas.
+- Los nombres crudos de feeds deben mejorar en la ingesta, sin resolverlo con fusiones incorrectas.
+- Sitemap enviado a GSC no equivale a indexación comprobada.
+- Producción sigue en release anterior hasta verificar un nuevo despliegue.
 
 ---
 
 ## 12. Estado del roadmap
 
-PENDIENTE_ROADMAP
+- **M10-D:** PARTIAL; hardening subido a PR #133, faltan tests finales, review independiente, merge, deploy, SSR y evidencias de crawl.
+- **M10 global:** PARTIAL; criterio original de páginas indexables sin rutas internas no cerrado globalmente.
+- **M11-B:** PARTIAL, con dependencia M04-B sin cumplir.
+- **M12:** NO-GO conforme a M12-ENTRY-GATE.md.
+- **Siguiente milestone propuesto, no iniciado:** decisión acotada sobre navegación y elegibilidad SEO de programas indexables sin entrada perenne. No comenzar hasta el cierre de M10-D.
