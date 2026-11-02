@@ -23,7 +23,9 @@ workflow temporal que M10-C necesitó.
 | Población de programas medida, sin exponer páginas pobres | **PASS** | §6 |
 | Alcance de obras medido lo suficiente para separar defecto de no medido | **PARCIAL**: 1.356 a ≤3 clics medidas y 2.101 más profundas, pero 368 sin medir; ningún defecto confirmado | §4, §6 |
 | Seguridad SEO (sin desindexación, canonical ni inflación de sitemap) | **PASS** | §7, §9 |
+| Enlaces internos a destinos canónicos | **PASS**: 0 enlaces no canónicos; los 4 alias de canal que recibían 19 enlaces desde fichas de obra, corregidos | §4, §7.3 |
 | Tests, CI y revisión independiente | **PASS**: CI 4/4 sobre el HEAD final, fusionado como `10a2a9b`; dos revisiones independientes, 10 hallazgos, todos corregidos | §8 |
+| Seguridad operativa del rastreo | **FAIL en la ejecución, corregido**: el rastreo a concurrencia 4 coincidió con un reinicio de la API y un 503 en `/canales`; faltaba la parada por salud, ya implementada | §3 |
 | Despliegue y verificación en producción | **PENDIENTE**: requiere que el propietario lance el workflow | §9 |
 | **M10-D** | **PARCIAL**: ingeniería completa, revisada, con CI verde y fusionada; la verificación en producción falta porque el despliegue lo lanza el propietario | |
 
@@ -107,10 +109,26 @@ abarca buena parte de una hora y la parrilla se mueve dentro: la ventana es la e
 «sin ruta dentro del ámbito recorrido», no «sin ruta interna». Está cableada en `seo-regression.yml` para
 `sitemap-channels.xml`.
 
-### Seguridad operativa
+### Seguridad operativa: el rastreo degradó producción
 
-Solo GET, concurrencia 4, timeout 30 s, un reintento en 429/5xx, sin escrituras ni rutas autenticadas. Ritmo
-medido: ~1,7 páginas/s. `/v2/health` siguió `healthy` durante toda la medición.
+Solo GET, timeout 30 s, un reintento en 429/5xx, sin escrituras ni rutas autenticadas. Pero **la concurrencia 4
+fue demasiada para este host y hay que decirlo**:
+
+- A las 14:30 UTC `/v2/health` daba `uptime` 279.265 s (3,2 días). Tras el rastreo de 4.000 páginas
+  (15:28–15:56 UTC) el `uptime` era de **2.177 s**: la API **se reinició** al final de esa ventana. El
+  `CatalogService` ya documenta en sus comentarios episodios previos de OOM en bucle.
+- En un rastreo posterior, `/canales` respondió **503** con 26 instancias de enlace entrantes. Es la única
+  página del sitio que lista canales, así que ese rastreo solo descubrió 13 fichas de canal en lugar de ~300:
+  **un 503 en una página central invalida silenciosamente la medición completa**.
+
+Comprobar la salud antes y después no basta. El hito pedía «parar si la salud de la aplicación se degrada» y
+esa comprobación **faltaba**. Ahora el rastreo sondea `--health` cada 250 páginas y se detiene solo si la
+respuesta no es `healthy`, registrando `stoppedBy`; un endpoint de salud inalcanzable cuenta como degradado. El
+agotamiento —lo único que autoriza una afirmación de orfandad— exige además no haberse interrumpido por salud.
+El workflow baja a `--concurrency 2`.
+
+Estado al cerrar el hito: `/v2/health` `healthy`, `/canales` 200 en 125–353 ms, rss 668 MB. No hubo escrituras
+en producción en ningún momento.
 
 ### Reproducir
 
@@ -162,6 +180,20 @@ cuales podría contener el único enlace a una URL dada. Las 398 URLs del sitema
 **La evidencia de los 14 canales no depende de este rastreo.** Es la diferencia exacta de conjuntos entre las 67
 URLs de `sitemap-channels.xml` y los anclajes de `/canales`, ambas enumeraciones completas (§5). El rastreo solo
 aporta la distribución de profundidad y la higiene de enlaces.
+
+### ¿Se puede agotar el grafo perenne? Medido: no desde aquí
+
+Un rastreo con ámbito correcto (`excludes ^/contenido/`, 746 páginas de emisión excluidas, lo que prueba que la
+exclusión funciona) gastó 700 páginas y dejó **frontera de 1.553** con 2.253 URLs perennes ya descubiertas. El
+grafo perenne está dominado por las obras y es de varios miles de páginas; al ritmo observado (~1,1 páginas/s)
+agotarlo son más de 90 minutos de carga sostenida — y a concurrencia 4 ya reiniciamos la API.
+
+**Conclusión: el criterio original de M10 no se puede cerrar con un rastreo HTTP de producción.** Hace falta el
+«Modo 2» que M10-D no implementó: construir el grafo desde una instantánea de sólo lectura y validarlo contra una
+muestra de SSR. Eso es §12, y es una conclusión medida, no una excusa.
+
+Ese mismo rastreo es además el que sufrió el 503 de `/canales`, así que **sus cifras de canal no se usan en
+ningún sitio de este informe**; sirve solo para la forma de la frontera.
 
 ---
 
@@ -458,7 +490,21 @@ se resuelva, la comprobación es el smoke manual de §9.
 
 **NO DESPLEGADO**. PR #133 continúa abierto a fecha de esta actualización. No hay release M10-D verificada ni ID de rollback asignado. El agente no dispone de disparo del workflow deploy-artifact.yml.
 
-Smoke tests exigidos tras el despliegue: directorio SSR enlaza los 14 canales recuperados y cero alias; 15 redirecciones 301 y parámetros preservados; identidades ETB1.TV, CMM TV y Telemadrid internacional autocanónicas; /programas/object-object excluida del sitemap; Modern Family y Gladiator sin regresiones; sitemap, robots, canonical y salud de la API y SSR. Registrar SHA de release y rollback a la release previa verificada.
+Smoke tests exigidos tras el despliegue:
+
+1. `/canales` en SSR enlaza **las 67** URLs de `sitemap-channels.xml` — los 14 recuperados incluidos — y **cero**
+   alias que redirijan. Es la comprobación central del hito y la única que falta por completo.
+2. Los 15 alias verificados siguen en 301 con la query preservada.
+3. Identidades protegidas autocanónicas y distintas: `etb1-tv` / `etb-1`, `cmm-tv` / `castilla-la-mancha-tv`,
+   `telemadridint-tv` / `telemadrid`.
+4. `/programas/object-object` fuera de `sitemap-programs.xml` (29 → 28) y sin resolver.
+5. **Cero enlaces internos a URLs de canal que redirijan** desde fichas de obra. Muestra mínima:
+   `/series/navy-investigacion-criminal` debe nombrar `/canales/veo7`, no `/canales/veo7-tv`.
+6. Modern Family y Gladiator sin regresión de canonical ni robots.
+7. Salud de API y SSR, y el sitemap servido.
+
+Registrar SHA de release y rollback a la release previa verificada (`20261029201513` @ `17e44e3`). El rastreo
+posterior debe hacerse sobre la **misma población** (`--urls-from`) y a concurrencia ≤ 2.
 
 ---
 
@@ -476,7 +522,7 @@ Smoke tests exigidos tras el despliegue: directorio SSR enlaza los 14 canales re
 | 08 SEO seguro | **PARTIAL**: 0 enlaces no canónicos, 0 cambios de canonical/robots/elegibilidad, sitemap −1 URL de basura; producción sin validar | §4, §7 |
 | 09 Calidad y release | **PARTIAL**: CI 4/4 y merge `10a2a9b`; **despliegue y verificación pendientes** | §8, §9 |
 | 10 Roadmap honesto | **PASS**: M10 sigue PARTIAL | §12 |
-| 11 Operaciones seguras | **PASS**: solo GET, concurrencia 4, 0 escrituras, API `healthy` durante toda la medición; la guarda de patrón evita repetir un rastreo inútil | §3 |
+| 11 Operaciones seguras | **FAIL en la ejecución, corregido en la herramienta**: 0 escrituras y solo GET, pero el rastreo a concurrencia 4 coincidió con un reinicio de la API y un 503 en `/canales`. Faltaba la parada por salud que el hito pedía; ya está, y el workflow baja a concurrencia 2 | §3 |
 | 12 Documentación | **PARTIAL**: este registro; falta la evidencia de producción | — |
 
 **M10-D = PARTIAL**, sin fingir implementación ni despliegue completos.
@@ -485,7 +531,10 @@ Smoke tests exigidos tras el despliegue: directorio SSR enlaza los 14 canales re
 
 ## 11. Riesgos y deuda restante
 
-- El crawler de producción puede detenerse por presupuesto o fallos de lectura; INCONCLUSIVE es un resultado válido y no debe degradarse a PASS.
+- El crawler de producción puede detenerse por presupuesto, por fallos de lectura o por salud degradada;
+  INCONCLUSIVE es un resultado válido y no debe degradarse a PASS.
+- **Este host no aguanta un rastreo exhaustivo de producción.** Medido: reinicio de la API a concurrencia 4 y un
+  503 en `/canales`. La parada por salud evita repetirlo, pero no convierte el rastreo en exhaustivo.
 - Con `crawlReliable` exigiendo cero huecos de traversía y cero fallos de descarga, **un rastreo acotado de
   producción casi nunca podrá sostener una afirmación de orfandad**. Es correcto, y significa que el criterio
   original de M10 («ninguna página de detalle indexable huérfana») necesita o un rastreo con ámbito que agote el
