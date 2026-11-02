@@ -251,12 +251,14 @@ if (args.includes('--urls-from')) {
   const data = JSON.parse(readFileSync(opt('--urls-from'), 'utf8'));
   const entries = Object.keys(data.sitemap ?? {}).sort().join('\n') + '\n';
   const destination = opt('--out');
-  if (destination) writeFileSync(destination, entries);
-  else {
-    process.stdout.on('error', (err) => { if (err.code === 'EPIPE') process.exit(0); throw err; });
-    process.stdout.write(entries);
+  if (destination) {
+    writeFileSync(destination, entries);
+    process.exit(0);
   }
-  process.exit(0);
+  // Do not call process.exit() immediately after a write to a pipe: Node may discard buffered bytes.
+  process.stdout.on('error', (err) => { if (err.code === 'EPIPE') process.exit(0); throw err; });
+  process.stdout.write(entries);
+  process.exitCode = 0;
 }
 
 if (args.includes('--compare')) {
