@@ -98,11 +98,11 @@ if (args.includes('--self-check')) {
   assert.equal(reachabilityGate(reachability(graph), reachability(graph, ['/a'])).status, 'INCONCLUSIVE');
   assert.equal(reachabilityGate(reachability(fullyFetched), reachability(fullyFetched, ['/a'])).status, 'PASS');
   assert.equal(reachabilityGate(reachability(fullyFetched), reachability(fullyFetched, ['/z'])).status, 'FAIL');
-  assert.equal(reachabilityGate(scoped, reachability({ ...fullyFetched, skipTraverse: '^/contenido/' }, ['/a'])).status, 'PASS');
   // Exhausted but with a family left unexpanded: orphaned in scope only, never "verified".
   const scoped = reachability({ ...fullyFetched, skipTraverse: '^/contenido/' });
   assert.deepEqual([scoped.classes.VERIFIED_ORPHAN, scoped.classes.ORPHAN_IN_SCOPE], [0, 1]);
   assert.equal(scoped.scope, 'excludes ^/contenido/');
+  assert.equal(reachabilityGate(scoped, reachability({ ...fullyFetched, skipTraverse: '^/contenido/' }, ['/a'])).status, 'PASS');
   // Retryable failures, invalid destinations, cycles, redirects/aliases, duplicates and sitemap-only URLs.
   const mixed = { complete: true, skipTraverse: '^/contenido/',
     pages: { '/': { d: 0, s: 200 }, '/cycle': { d: 1, s: 200 }, '/dup': { d: 1, s: 200 },
