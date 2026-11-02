@@ -1,0 +1,134 @@
+{
+  "at": "2026-11-02T23:13:33.266Z",
+  "base": "https://guiaprogramaciontv.com",
+  "channelPages": 298,
+  "channelRedirectsSkipped": 0,
+  "sitemapProgrammes": 14,
+  "sameSnapshot": true,
+  "linked": 6,
+  "unlinked": [
+    "/programas/el-sueno-eterno",
+    "/programas/manicomics",
+    "/programas/cazatesoros",
+    "/programas/los-secretos-del-bunny-ranch",
+    "/programas/una-pareja-perfecta",
+    "/programas/segunda-guerra-mundial-el-desenlace",
+    "/programas/animal-einsteins",
+    "/programas/el-precio-de-la-historia"
+  ],
+  "programmeLinksOutsideSitemap": [],
+  "badLinks": [],
+  "destinations": {
+    "/programas/comicos-nuestros": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/comicos-nuestros",
+      "channels": [
+        "/canales/somos"
+      ],
+      "inSitemap": true
+    },
+    "/programas/el-sueno-eterno": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/el-sueno-eterno",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/manicomics": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/manicomics",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/aunque-la-hormona-se-vista-de-seda": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/aunque-la-hormona-se-vista-de-seda",
+      "channels": [
+        "/canales/somos"
+      ],
+      "inSitemap": true
+    },
+    "/programas/el-enigma-de-los-circulos-marinos": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/el-enigma-de-los-circulos-marinos",
+      "channels": [
+        "/canales/odisea"
+      ],
+      "inSitemap": true
+    },
+    "/programas/aida": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/aida",
+      "channels": [
+        "/canales/factoria-de-ficcion"
+      ],
+      "inSitemap": true
+    },
+    "/programas/pepi-luci-bom-y-otras-chicas-del-monton": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/pepi-luci-bom-y-otras-chicas-del-monton",
+      "channels": [
+        "/canales/somos"
+      ],
+      "inSitemap": true
+    },
+    "/programas/com-si-fos-ahir": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/com-si-fos-ahir",
+      "channels": [
+        "/canales/tv3",
+        "/canales/tv3-cat"
+      ],
+      "inSitemap": true
+    },
+    "/programas/cazatesoros": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/cazatesoros",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/los-secretos-del-bunny-ranch": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/los-secretos-del-bunny-ranch",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/una-pareja-perfecta": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/una-pareja-perfecta",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/segunda-guerra-mundial-el-desenlace": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/segunda-guerra-mundial-el-desenlace",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/animal-einsteins": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/animal-einsteins",
+      "channels": [],
+      "inSitemap": true
+    },
+    "/programas/el-precio-de-la-historia": {
+      "status": 200,
+      "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+      "canonical": "/programas/el-precio-de-la-historia",
+      "channels": [],
+      "inSitemap": true
+    }
+  }
+}

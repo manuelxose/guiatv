@@ -1,7 +1,8 @@
 # M10-E — Elegibilidad compartida de programas y enlazado perenne
 
-Estado: **PARTIAL (2026-11-02)**. Implementado, revisado y probado; PR [#138](https://github.com/manuelxose/guiatv/pull/138)
-abierto. **No fusionado ni desplegado**: ver §9.
+Estado: **PASS por aceptación del propietario (2026-11-03)**, con los límites medidos y documentados en §7 y §9.
+Desplegado como release `20261102233444` @ `5c849f9` (PR [#138](https://github.com/manuelxose/guiatv/pull/138)) y
+verificado en producción (§8).
 
 ## 1. Línea base
 
@@ -163,20 +164,109 @@ debilitar ninguna regla.
 
 ## 8. Producción después del despliegue
 
-Pendiente: requiere fusionar y desplegar (§9). Comando de verificación:
+**Release y pasos previos**
 
-```
-node scripts/programme-reachability.mjs --out artifacts/m10e/after-reachability.json
-```
+- Antes de fusionar hubo que dejar `main` en verde. `22e4405` había dejado 8 tests de `test:ops` en rojo: en
+  `scripts/editorial-agents.mjs`, `activeRoutes`, `generationApi` y `generationPost` se declaraban después del
+  `if (command === …)` que se ejecuta a nivel de módulo (TDZ). La corrección mueve las tres declaraciones, sin
+  cambios, por encima. PR [#139](https://github.com/manuelxose/guiatv/pull/139), fusionado como `25bac43`. Se hizo
+  a petición explícita del propietario.
+- #138 se rebasó sobre ese `main`, con CI 4/4 en verde en `67b4fba`, y se fusionó como `5c849f9`.
+- Desplegado con «Deploy a producción por artefacto» (`deploy-artifact.yml`, run
+  [41538156977](https://github.com/manuelxose/guiatv/actions/runs/41538156977)): build en CI, release unificada
+  `20261102233444`. Los smoke checks del host pasaron; los autenticados se omitieron por falta de token, como en
+  despliegues anteriores.
+- Rollback: release de M10-D (#136).
 
-Más un rastreo perenne agotado de M10-D con concurrencia 2 y control de salud.
+**Alcance, mismo sitemap al empezar y al terminar cada medición**
 
-## 9. Bloqueo de release
+| Medición | URLs en el sitemap | Con `<a href>` SSR desde una ficha de `/canales` | Enlaces malos | Enlaces fuera del sitemap |
+|---|---:|---:|---:|---:|
+| Antes (2026-11-02 22:58 Madrid) | 22 | **0** | 0 | 0 |
+| Después (23:43 Madrid) | 22 | **13** | 0 | 0 |
+| Tras la medianoche (2026-11-03 00:13) | 14 | **6** | 0 | 0 |
 
-- El check `backend` de #138 falla **solo** en `test:ops`, con 8 tests del ciclo editorial
-  (`ReferenceError: Cannot access 'generationPost' before initialization`).
-- El mismo fallo está en `main` desde `22e4405`, que es trabajo editorial ajeno a M10-E y que este milestone no
-  puede tocar.
-- Cualquier despliegue de `main` incluiría además ese cambio editorial sin verde.
-- Fusionar y desplegar queda a decisión del propietario.
-- Rollback si se despliega: la release de M10-D (#136).
+- Todas las URLs del sitemap responden 200, `index` y canonical propio.
+- Ningún enlace apunta a una redirección, a una página `noindex` ni a una URL no canónica.
+- Evidencia: `artifacts/m10e/{before,after,after-midnight}-reachability.json`.
+
+**Las 22 URLs de M10-D** (medición de las 23:43)
+
+| URL | Resultado | Canal de entrada |
+|---|---|---|
+| `comicos-nuestros` | enlazada | `/canales/somos` |
+| `los-green-en-la-gran-ciudad` | enlazada | `/canales/clan` |
+| `aida` | enlazada | `/canales/factoria-de-ficcion` |
+| `parques-naturales` | enlazada | `/canales/la-8-burgos` |
+| `escritores` | enlazada | `/canales/la-8-burgos` |
+| `com-si-fos-ahir` | enlazada | `/canales/tv3` |
+| `quien-da-mas` | enlazada | `/canales/mega` |
+| `diagnostico` | enlazada | `/canales/la-7` |
+| `ben-hur` | enlazada | `/canales/hollywood` |
+| `telediario-2` | enlazada | `/canales/la-1` |
+| `el-verdugo` | enlazada | `/canales/somos` |
+| `manicomics` | enlazada | `/canales/super-3` |
+| `mr-cocodrilo` | enlazada | `/canales/nick-jr` |
+| `aunque-la-hormona-se-vista-de-seda` | solo mañana; **enlazada tras la medianoche** | `/canales/somos` |
+| `pepi-luci-bom-y-otras-chicas-del-monton` | solo mañana; **enlazada tras la medianoche** | `/canales/somos` |
+| `el-enigma-de-los-circulos-marinos` | solo mañana; **enlazada tras la medianoche** | `/canales/odisea` |
+| `desmontando-el-cosmos` | solo mañana; fuera del sitemap del día siguiente | — |
+| `escapate` | enlace solo desde canal de feed | `la8cyl-tv` (*) |
+| `un-mundo-por-delante` | enlace solo desde canal de feed | `la8cyl-tv` (*) |
+| `el-sueno-eterno` | enlace solo desde canal de feed | `la2-cat-tv` (*) |
+| `vietnam-50-years-of-forgetting` | enlace solo desde canal de feed | `aljq-tv` (*) |
+| `el-perro-andaluz-by-manu-sanchez` | sin enlace (diseño) | — |
+
+(*) La ficha de ese canal lleva el enlace, pero `/canales` no la lista, y no aparece enlazada en las páginas
+perennes muestreadas. En los canales que sí lista, la misma emisión tiene una obra verificada y enlaza
+correctamente a ella (`/series/escapate`, `/peliculas/el-sueno-eterno`…).
+
+`el-perro-andaluz-by-manu-sanchez`: la página carga «El Perro Andaluz By Manu Sanchez» y ninguna emisión tiene ese
+título exacto. La regla de identidad no la enlaza, por diseño.
+
+Tras la medianoche, `manicomics` y 6 URLs nuevas del sitemap del día (`cazatesoros`,
+`los-secretos-del-bunny-ranch`, `una-pareja-perfecta`, `segunda-guerra-mundial-el-desenlace`, `animal-einsteins`,
+`el-precio-de-la-historia`) no tenían enlace. No se han diagnosticado una a una: por el patrón anterior,
+probablemente son de solo mañana.
+
+**Regresiones históricas** (producción, 23:37 Madrid)
+
+| URL | Resultado |
+|---|---|
+| `/programas/object-object` | 404 |
+| `/programas/modern-family` | `noindex` |
+| `/series/modern-family` | `index` |
+| `/programas/gladiator` | canonical `/peliculas/gladiator` |
+| `/peliculas/gladiator` | `index` |
+| `/canales/telemadrid_tv` | 301 → `/canales/telemadrid` |
+| `/canales/la-1` | 200, `index` |
+| `/programas/comicos-nuestros`, `aida`, `com-si-fos-ahir`, `quien-da-mas` | 200, `index`, canonical propio |
+
+Además:
+
+- `sitemap.xml` con sus 5 hijos.
+- `robots.txt` responde 200.
+- `/v2/health` daba `healthy` antes del despliegue y la API respondió durante todas las mediciones.
+
+**Rastreo perenne:** se lanzó con concurrencia 2 y se detuvo a petición del propietario a profundidad 3 (unas 1.900
+páginas), sin guardar el grafo. **No se afirma un grafo agotado** ni ninguna cifra de huérfanas a partir de él.
+
+## 9. Veredicto y aceptación
+
+El propietario acepta M10-E con estas mediciones. En sentido estricto, AC-04 («0 sin ruta perenne en la misma
+instantánea») **no** se cumple. Las URLs sin ruta tienen tres causas conocidas y ninguna debilita una regla:
+
+- programas que solo se emiten mañana: se enlazan al llegar su día, como prueba la medición de la medianoche;
+- programas cuyo único enlace está en canales de feed que `/canales` no lista;
+- un programa cuyo título no coincide con el de la página, que la regla de identidad no enlaza.
+
+**Deuda no bloqueante**
+
+- **Canales de feed sin entrada.** Las fichas de canal con nombre de feed (`la8cyl-tv`, `la2-cat-tv`, `aljq-tv`…)
+  son indexables, pero el directorio no las enlaza. Es el mismo defecto que M10-D corrigió solo para los canales
+  del sitemap.
+- **`escapate` y `el-sueno-eterno`, posible duplicado.** Tienen ficha `/programas/` indexable y también obra
+  verificada (`/series/escapate`, `/peliculas/el-sueno-eterno`). Es una decisión de identidad para otro milestone.
+- **Huecos sin enlaces por proceso** durante cada construcción de la instantánea (arranque, invalidación,
+  medianoche).
+- **Ventana de mañana sin ruta.** Mientras el sitemap incluya mañana, habrá URLs sin ruta perenne hasta su día.
