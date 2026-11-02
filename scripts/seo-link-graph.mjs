@@ -81,15 +81,25 @@ if (args.includes('--self-check')) {
   const r = reachability(graph);
   assert.equal(r.exactThroughDepth, 2);
   assert.deepEqual([r.within3, r.deeperThanMeasured, r.omittedByCrawlLimit, r.confirmedOrphans], [2, 1, 1, 0]);
-  assert.equal(reachability({ ...graph, complete: true }).confirmedOrphans, 1, 'only an exhausted crawl confirms an orphan');
+  const fullyFetched = { ...graph, complete: true, pages: {
+    ...graph.pages, '/c': { d: 2, s: 200 }, '/d': { d: 3, s: 200 },
+  } };
+  assert.equal(reachability(fullyFetched).confirmedOrphans, 1, 'only an exhaustive, error-free crawl confirms an orphan');
   assert.equal(reachability(graph, ['/a', '/q']).urls, 2);
 
   // M10-D graph semantics. A truncated crawl never produces a VERIFIED_ORPHAN, whatever else it reports.
   assert.deepEqual(r.classes, { REACHED_WITHIN_3: 2, REACHED_DEEPER: 1, VERIFIED_ORPHAN: 0, ORPHAN_IN_SCOPE: 0,
     UNMEASURED: 1, EXCLUDED_BY_POLICY: 0, TEMPORARY_FETCH_FAILURE: 0, INVALID_DESTINATION: 0 });
-  assert.equal(reachability({ ...graph, complete: true }).classes.VERIFIED_ORPHAN, 1);
+  assert.equal(reachability(fullyFetched).classes.VERIFIED_ORPHAN, 1);
+  const failedTraversal = { ...fullyFetched, pages: { ...fullyFetched.pages, '/c': { d: 2, s: 'error fetch failed' } } };
+  assert.equal(reachability(failedTraversal).classes.VERIFIED_ORPHAN, 0);
+  assert.equal(reachability(failedTraversal).classes.UNMEASURED, 1, 'a failed source can hide links');
+  assert.equal(reachabilityGate(reachability(failedTraversal), reachability(failedTraversal, ['/a'])).status, 'INCONCLUSIVE');
+  assert.equal(reachabilityGate(reachability(graph), reachability(graph, ['/a'])).status, 'INCONCLUSIVE');
+  assert.equal(reachabilityGate(reachability(fullyFetched), reachability(fullyFetched, ['/a'])).status, 'PASS');
+  assert.equal(reachabilityGate(reachability(fullyFetched), reachability(fullyFetched, ['/z'])).status, 'FAIL');
   // Exhausted but with a family left unexpanded: orphaned in scope only, never "verified".
-  const scoped = reachability({ ...graph, complete: true, skipTraverse: '^/contenido/' });
+  const scoped = reachability({ ...fullyFetched, skipTraverse: '^/contenido/' });
   assert.deepEqual([scoped.classes.VERIFIED_ORPHAN, scoped.classes.ORPHAN_IN_SCOPE], [0, 1]);
   assert.equal(scoped.scope, 'excludes ^/contenido/');
   // Retryable failures, invalid destinations, cycles, redirects/aliases, duplicates and sitemap-only URLs.
@@ -100,9 +110,11 @@ if (args.includes('--self-check')) {
     sitemap: { '/cycle': 's', '/dup': 's', '/canonical': 's', '/gone': 's', '/flaky': 's',
       '/contenido/program:1': 's', '/deep': 's', '/never-linked': 's' } };
   assert.deepEqual(reachability(mixed).classes, { REACHED_WITHIN_3: 3, REACHED_DEEPER: 1, VERIFIED_ORPHAN: 0,
-    ORPHAN_IN_SCOPE: 1, UNMEASURED: 0, EXCLUDED_BY_POLICY: 1, TEMPORARY_FETCH_FAILURE: 1, INVALID_DESTINATION: 1 });
+    ORPHAN_IN_SCOPE: 0, UNMEASURED: 1, EXCLUDED_BY_POLICY: 1, TEMPORARY_FETCH_FAILURE: 1, INVALID_DESTINATION: 1 });
+  assert.equal(reachability(mixed).confirmedOrphans, 0);
+  assert.equal(reachability({ ...fullyFetched, skipTraverse: '^/contenido/' }).scopedOrphans, 1);
   // Every sitemap URL lands in exactly one class.
-  for (const g of [r, reachability({ ...graph, complete: true }), scoped, reachability(mixed)]) {
+  for (const g of [r, reachability(fullyFetched), reachability(failedTraversal), scoped, reachability(mixed)]) {
     assert.equal(Object.values(g.classes).reduce((a, b) => a + b, 0), g.urls, 'classes must partition the sitemap');
   }
   console.log('self-check ok');
@@ -124,9 +136,8 @@ const SUMMARY_KEYS = ['fetched', 'discovered', 'brokenTargets', 'brokenLinkInsta
  * - `INVALID_DESTINATION`: reached, but the page answers 4xx/5xx.
  * - `TEMPORARY_FETCH_FAILURE`: reached, but this crawl could not read it (network/timeout). Never an orphan.
  * - `EXCLUDED_BY_POLICY`: inside the `--skip-traverse` family, deliberately not expanded.
- * - `VERIFIED_ORPHAN`: no internal path exists. Claimed **only** when the crawl exhausted its frontier *and*
- *   expanded every page it found (`skipTraverse` unset): otherwise an unexpanded page could have been the path.
- * - `ORPHAN_IN_SCOPE`: the crawl was exhausted, but a page family was left unexpanded, so the URL is orphaned
+ * - `VERIFIED_ORPHAN`: no internal path exists. Claimed only with an exhausted, error-free full crawl.
+ * - `ORPHAN_IN_SCOPE`: an error-free crawl was exhausted, but a page family was left unexpanded, so the URL is orphaned
  *   within the crawled scope only. Upgrading this to `VERIFIED_ORPHAN` needs evidence about the skipped family.
  * - `UNMEASURED`: the crawl stopped at `--max` with a frontier left; reachability is simply unknown.
  *
@@ -150,18 +161,25 @@ export function reachability(data, urls) {
   let exactThrough = -1;
   for (let d = 0; byDepth.has(d) && byDepth.get(d).fetched === byDepth.get(d).total; d++) exactThrough = d + 1;
   const complete = data.complete === true;
+  // An exhausted queue is not an exhaustive graph when a source fails: that page could contain a unique link.
+  // 404/410 have no valid public page to traverse; other HTTP failures are inconclusive for traversal.
+  const traversalGaps = Object.entries(pages).filter(([path, p]) => !skip?.test(path) &&
+    (p.s == null || typeof p.s !== 'number' || (p.s >= 400 && p.s !== 404 && p.s !== 410))).map(([path]) => path);
+  const reliable = complete && traversalGaps.length === 0 && !(data.summary?.fetchFailures > 0);
   const classes = { REACHED_WITHIN_3: 0, REACHED_DEEPER: 0, VERIFIED_ORPHAN: 0, ORPHAN_IN_SCOPE: 0,
     UNMEASURED: 0, EXCLUDED_BY_POLICY: 0, TEMPORARY_FETCH_FAILURE: 0, INVALID_DESTINATION: 0 };
   const out = { urls: sitemap.length, exactThroughDepth: exactThrough, crawlComplete: complete,
+    crawlReliable: reliable, traversalGaps: traversalGaps.length,
     scope: data.skipTraverse ? `excludes ${data.skipTraverse}` : 'full', classes, measured: {}, within3: 0,
-    deeperThanMeasured: 0, omittedByCrawlLimit: 0, confirmedOrphans: 0, orphanSample: [], unknownSample: [] };
+    deeperThanMeasured: 0, omittedByCrawlLimit: 0, confirmedOrphans: 0, scopedOrphans: 0,
+    orphanSample: [], unknownSample: [] };
   const sample = (key, path) => { const a = key === 'orphanSample' ? out.orphanSample : out.unknownSample; if (a.length < 20) a.push(path); };
   for (const path of sitemap) {
     const p = pages[path];
     if (!p) {
       // Unreached. Which of the three it is depends on how complete the crawl was, never on the sitemap.
-      if (!complete) { classes.UNMEASURED += 1; out.omittedByCrawlLimit += 1; sample('unknownSample', path); }
-      else if (skip) { classes.ORPHAN_IN_SCOPE += 1; out.confirmedOrphans += 1; sample('orphanSample', path); }
+      if (!reliable) { classes.UNMEASURED += 1; out.omittedByCrawlLimit += 1; sample('unknownSample', path); }
+      else if (skip) { classes.ORPHAN_IN_SCOPE += 1; out.scopedOrphans += 1; sample('orphanSample', path); }
       else { classes.VERIFIED_ORPHAN += 1; out.confirmedOrphans += 1; sample('orphanSample', path); }
       continue;
     }
@@ -184,6 +202,19 @@ export function reachability(data, urls) {
   return out;
 }
 
+/** Required-URL gate. Inconclusive evidence is never a successful verification. */
+export function reachabilityGate(all, required) {
+  if (!all.crawlComplete || !all.crawlReliable ||
+      required.classes.UNMEASURED || required.classes.TEMPORARY_FETCH_FAILURE) {
+    return { status: 'INCONCLUSIVE', exitCode: 2 };
+  }
+  if (required.classes.INVALID_DESTINATION ||
+      required.classes.VERIFIED_ORPHAN || required.classes.ORPHAN_IN_SCOPE) {
+    return { status: 'FAIL', exitCode: 1 };
+  }
+  return { status: 'PASS', exitCode: 0 };
+}
+
 if (args.includes('--reachability')) {
   const data = JSON.parse(readFileSync(opt('--reachability'), 'utf8'));
   const urls = opt('--urls') ? readFileSync(opt('--urls'), 'utf8').split(/\s+/).filter(Boolean) : undefined;
@@ -193,7 +224,8 @@ if (args.includes('--reachability')) {
     const subset = Object.entries(data.sitemap).filter(([, f]) => f === file).map(([p]) => p);
     const r = reachability(data, subset);
     bySitemap[file] = { urls: r.urls, within3: r.within3, deeperThanMeasured: r.deeperThanMeasured,
-      omittedByCrawlLimit: r.omittedByCrawlLimit, confirmedOrphans: r.confirmedOrphans, classes: r.classes };
+      omittedByCrawlLimit: r.omittedByCrawlLimit, confirmedOrphans: r.confirmedOrphans,
+      scopedOrphans: r.scopedOrphans, classes: r.classes };
   }
   console.log(JSON.stringify({ at: data.at, observation: data.observation, max: data.max,
     fetched: data.summary?.fetched, ...all, bySitemap }, null, 1));
@@ -203,13 +235,11 @@ if (args.includes('--reachability')) {
   if (gate) {
     const r = bySitemap[gate];
     if (!r) { console.error(`--require-reached: ${gate} is not in this crawl's sitemap`); process.exit(2); }
-    // The wording follows the class, never the count: outside the full scope the evidence only supports
-    // "no path among the pages this crawl expanded". `--probe-skipped` is what settles the rest.
-    const unreached = r.classes.VERIFIED_ORPHAN + r.classes.ORPHAN_IN_SCOPE;
-    const where = all.scope === 'full' ? 'no internal path' : `no path within the crawled scope (${all.scope})`;
-    if (!all.crawlComplete) console.error(`--require-reached: crawl incomplete, ${r.classes.UNMEASURED} URLs of ${gate} unmeasured`);
-    else if (unreached) { console.error(`--require-reached: ${unreached} URLs of ${gate} have ${where}`); process.exit(1); }
-    else console.error(`--require-reached: every URL of ${gate} is reached within the crawled scope (${all.scope})`);
+    const result = reachabilityGate(all, r);
+    const reasons = { crawlComplete: all.crawlComplete, crawlReliable: all.crawlReliable,
+      traversalGaps: all.traversalGaps, requiredClasses: r.classes, scope: all.scope };
+    console.error(`--require-reached: ${result.status} ${gate} ${JSON.stringify(reasons)}`);
+    process.exit(result.exitCode);
   }
   process.exit(0);
 }
@@ -217,7 +247,13 @@ if (args.includes('--reachability')) {
 // A fixed URL population, so two crawls taken at different times are compared on the same URLs (§B4).
 if (args.includes('--urls-from')) {
   const data = JSON.parse(readFileSync(opt('--urls-from'), 'utf8'));
-  console.log(Object.keys(data.sitemap ?? {}).sort().join('\n'));
+  const entries = Object.keys(data.sitemap ?? {}).sort().join('\n') + '\n';
+  const destination = opt('--out');
+  if (destination) writeFileSync(destination, entries);
+  else {
+    process.stdout.on('error', (err) => { if (err.code === 'EPIPE') process.exit(0); throw err; });
+    process.stdout.write(entries);
+  }
   process.exit(0);
 }
 
@@ -283,7 +319,7 @@ if (args.includes('--sitemap-check')) {
 /**
  * M10-D: what the `--skip-traverse` family actually links. An ORPHAN_IN_SCOPE URL is only orphaned within the
  * crawled scope; this samples the skipped pages of a saved crawl and reports which of those URLs they reach, so
- * the class is upgraded (or not) on evidence instead of assumption.
+ * a matching target is disproved as an orphan; an absent target is NOT proved orphaned by a sample.
  */
 if (args.includes('--probe-skipped')) {
   const data = JSON.parse(readFileSync(opt('--probe-skipped'), 'utf8'));
