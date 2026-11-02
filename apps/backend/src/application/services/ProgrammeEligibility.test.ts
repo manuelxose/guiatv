@@ -200,3 +200,69 @@ test('M10-E: the channel surface links eligible rows from the current snapshot o
   const after = await service.getChannelSurface('factoria-de-ficcion');
   assert.equal(after.scheduleItems[0].program.programmePath, '/programas/aida', 'back after the refresh');
 });
+
+test('M10-E review #1: a request after an invalidation never reuses the build that was already running', async () => {
+  invalidateSitemapCache();
+  clearSitemapLastGood();
+  let release!: () => void;
+  let reads = 0;
+  const tvRead = {
+    getIndexableProgramSitemapRows: async () => {
+      reads++;
+      if (reads === 1) {
+        await new Promise<void>((resolve) => { release = resolve; });
+        return [row('Aída')]; // the read model before the rebuild
+      }
+      return [row('Cómicos nuestros')]; // after it
+    },
+  } as any;
+  const eligibility = new ProgrammeEligibility(tvRead, async (slug) => PAGES[slug] ?? null);
+  const old = eligibility.snapshot();
+  await new Promise((resolve) => setImmediate(resolve));
+  invalidateSitemapCache(); // PrecomputeSchedule finished while the old build is still pending
+  const fresh = eligibility.snapshot();
+  release();
+  assert.deepEqual([...(await old).entries.keys()], ['aida'], 'the callers already waiting get their answer');
+  assert.deepEqual([...(await fresh).entries.keys()], ['comicos-nuestros'], 'a new build, not the old promise');
+  assert.equal(reads, 2);
+  assert.deepEqual([...eligibility.current()!.entries.keys()], ['comicos-nuestros']);
+});
+
+test('M10-E review #2: with the policy off (or out of the canary cohort) the sitemap keeps its rule but no link is drawn', async () => {
+  const previous = process.env.PROGRAMME_SEO_POLICY;
+  try {
+    process.env.PROGRAMME_SEO_POLICY = 'off';
+    invalidateProgrammeEligibility();
+    const snapshot = await setup().eligibility.snapshot();
+    assert.ok(snapshot.entries.has('modern-family') && snapshot.entries.has('aida'), 'pre-M09-B sitemap rule, unchanged');
+    assert.equal(programmePathFor(snapshot, { title: 'Aída' }), undefined, 'the airing-page rule: no link while the policy is off');
+    assert.equal(programmePathFor(snapshot, { title: 'Modern Family' }), undefined);
+  } finally {
+    process.env.PROGRAMME_SEO_POLICY = previous;
+    invalidateProgrammeEligibility();
+  }
+});
+
+test('M10-E review #3: an outage answer is marked as a fallback and does not refresh the sitemap last good copy', async () => {
+  invalidateSitemapCache();
+  clearSitemapLastGood();
+  let failing = false;
+  const { eligibility } = setup({ failing: () => failing });
+  await eligibility.snapshot();
+  invalidateSitemapCache();
+  failing = true;
+  const answer = await eligibility.snapshot();
+  assert.equal(answer.fallback, true);
+  const controller = new SitemapController({} as any, {} as any, undefined, undefined, { getChannels: async () => ({ channels: [] }) } as any,
+    undefined, undefined, undefined, eligibility);
+  let xml = '';
+  const res: any = { set: () => res, status: () => res, send: (body: string) => { xml = body; } };
+  invalidateSitemapCache();
+  await controller.getProgramsSitemap({} as any, res, (() => {}) as any);
+  assert.match(xml, /\/programas\/aida/, 'served from the same-day snapshot');
+  clearProgrammeEligibilityLastGood(); // nothing for the provider to fall back to now
+  invalidateSitemapCache();
+  let error: unknown;
+  await controller.getProgramsSitemap({} as any, res, ((e: unknown) => { error = e; }) as any);
+  assert.ok(error, 'the fallback XML was not recorded as a good build, so the outage surfaces');
+});

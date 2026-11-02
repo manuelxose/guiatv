@@ -178,7 +178,7 @@ export class SitemapController {
   /*  Cache layer                                                        */
   /* ------------------------------------------------------------------ */
 
-  private async getCached(key: string, builder: () => Promise<string | { xml: string; validUntil: number }>): Promise<string> {
+  private async getCached(key: string, builder: () => Promise<string | { xml: string; validUntil: number; fallback?: true }>): Promise<string> {
     key = `${entityPublicReadPolicy().partition()}:${key}`;
     const now = Date.now();
     const cached = cache.get(key);
@@ -196,7 +196,8 @@ export class SitemapController {
         // Invalidated while building (a guide went live meanwhile): answer this request, cache nothing.
         if (started !== generation && inflightMap.get(key) !== promise) return xml;
         cache.set(key, { value: xml, expiresAt });
-        lastGood.set(key, { xml, at: Date.now() });
+        // An outage answer is not a fresh build: it must not extend the 24 h stale window past its own day.
+        if (typeof built === 'string' || !built.fallback) lastGood.set(key, { xml, at: Date.now() });
         inflightMap.delete(key);
         return xml;
       })
@@ -232,7 +233,7 @@ export class SitemapController {
   private async buildSitemapIndex(): Promise<string> {
     const baseUrl = this.getBaseUrl();
 
-    const subs: Array<[string, string, () => Promise<string | { xml: string; validUntil: number }>]> = [
+    const subs: Array<[string, string, () => Promise<string | { xml: string; validUntil: number; fallback?: true }>]> = [
       ['sitemap-static.xml', 'static', () => this.buildStaticSitemap()],
       ['sitemap-channels.xml', 'channels', () => this.buildChannelsSitemap()],
       ['sitemap-programs.xml', 'programs', () => this.buildProgramsSitemap()],
@@ -333,7 +334,7 @@ export class SitemapController {
     return this.renderUrlset(urls);
   }
 
-  private async buildProgramsSitemap(): Promise<string | { xml: string; validUntil: number }> {
+  private async buildProgramsSitemap(): Promise<string | { xml: string; validUntil: number; fallback?: true }> {
     const today = new Date();
     const todayYmd = this.formatYmd(today);
 
@@ -356,7 +357,7 @@ export class SitemapController {
           priority: 0.6,
         });
       }
-      return { xml: this.renderUrlset(urls), validUntil: snapshot.validUntil };
+      return { xml: this.renderUrlset(urls), validUntil: snapshot.validUntil, fallback: snapshot.fallback };
     }
 
     // Compatibility fallback for installations that have not enabled the TV

@@ -18,6 +18,11 @@ export interface ProgrammeEligibilityEntry {
   title: string;
   /** Newest change among the slug's candidate airings (ms); -Infinity when unknown. */
   lastChanged: number;
+  /**
+   * Whether the channel schedule may link it: `standalone` under the applied M09-B policy, the airing-page rule
+   * (CatalogService.standaloneProgrammePath). With the policy off the sitemap keeps any resolving slug; no link is drawn.
+   */
+  linkable: boolean;
 }
 
 export interface ProgrammeEligibilitySnapshot {
@@ -26,6 +31,8 @@ export interface ProgrammeEligibilitySnapshot {
   entries: ReadonlyMap<string, ProgrammeEligibilityEntry>;
   builtAt: number;
   validUntil: number;
+  /** A same-day last good snapshot served during an outage: answered, but never recorded as a fresh build. */
+  fallback?: true;
 }
 
 export type ProgrammePageLookup = (slug: string) => Promise<{ title: string; disposition: ProgrammeDisposition } | null>;
@@ -44,7 +51,7 @@ export const clearProgrammeEligibilityLastGood = (): void => { lastGoodEpoch++; 
 export class ProgrammeEligibility {
   private snap?: ProgrammeEligibilitySnapshot & { epoch: number };
   private lastGood?: ProgrammeEligibilitySnapshot & { lastGoodEpoch: number };
-  private inflight?: Promise<ProgrammeEligibilitySnapshot>;
+  private inflight?: { promise: Promise<ProgrammeEligibilitySnapshot>; epoch: number };
   private failedUntil = 0;
 
   constructor(
@@ -58,7 +65,8 @@ export class ProgrammeEligibility {
   async snapshot(): Promise<ProgrammeEligibilitySnapshot> {
     const today = this.today();
     if (this.valid(this.snap, today)) return this.snap!;
-    if (this.inflight) return this.inflight;
+    // A build started before an invalidation answers only the callers that were already waiting for it.
+    if (this.inflight?.epoch === epoch) return this.inflight.promise;
     const started = epoch;
     const promise = this.build(today)
       .then((snapshot) => {
@@ -75,14 +83,14 @@ export class ProgrammeEligibility {
         // Another day's eligibility is not today's.
         if (!stale || stale.lastGoodEpoch !== lastGoodEpoch || stale.dates[0] !== today[0]) throw error;
         const { lastGoodEpoch: _discarded, ...good } = stale;
-        const retry = { ...good, validUntil: Math.min(good.validUntil, this.now() + STALE_RETRY_MS) };
+        const retry = { ...good, validUntil: Math.min(good.validUntil, this.now() + STALE_RETRY_MS), fallback: true as const };
         if (started === epoch) this.snap = { ...retry, epoch: started };
         return retry;
       })
       .finally(() => {
-        if (this.inflight === promise) this.inflight = undefined;
+        if (this.inflight?.promise === promise) this.inflight = undefined;
       });
-    this.inflight = promise;
+    this.inflight = { promise, epoch: started };
     return promise;
   }
 
@@ -119,11 +127,11 @@ export class ProgrammeEligibility {
       const changed = row.updatedAt ? new Date(row.updatedAt).getTime() : NaN;
       lastChanged.set(slug, Math.max(lastChanged.get(slug) ?? -Infinity, Number.isNaN(changed) ? -Infinity : changed));
     }
-    const titles = await this.filterEligible([...lastChanged.keys()]);
+    const pages = await this.filterEligible([...lastChanged.keys()]);
     const entries = new Map<string, ProgrammeEligibilityEntry>();
     for (const [slug, changed] of lastChanged) {
-      const title = titles.get(slug);
-      if (title !== undefined) entries.set(slug, { title, lastChanged: changed });
+      const page = pages.get(slug);
+      if (page) entries.set(slug, { ...page, lastChanged: changed });
     }
     const [y, m, d] = [dates[0].slice(0, 4), dates[0].slice(4, 6), dates[0].slice(6, 8)].map(Number);
     const nextMidnight = new Date(y, m - 1, d + 1).getTime();
@@ -134,11 +142,11 @@ export class ProgrammeEligibility {
    * Slugs whose page resolves and, where the M09-B policy applies, is `standalone`, with the title the page loads.
    * Bounded parallel check; a lookup failure fails the whole build so an outage never yields a truncated set.
    */
-  private async filterEligible(slugs: string[]): Promise<Map<string, string>> {
-    const ok = new Map<string, string>();
+  private async filterEligible(slugs: string[]): Promise<Map<string, { title: string; linkable: boolean }>> {
+    const ok = new Map<string, { title: string; linkable: boolean }>();
     if (!this.page) {
       // No page lookup (installations without it): no title to match, so no channel link; the sitemap rule is kept.
-      for (const slug of slugs) if (!programmePolicyApplies(slug)) ok.set(slug, '');
+      for (const slug of slugs) if (!programmePolicyApplies(slug)) ok.set(slug, { title: '', linkable: false });
       return ok;
     }
     const queue = [...slugs];
@@ -146,7 +154,11 @@ export class ProgrammeEligibility {
       for (let slug = queue.shift(); slug !== undefined; slug = queue.shift()) {
         try {
           const page = await this.page!(slug);
-          if (page && (page.disposition === 'standalone' || !programmePolicyApplies(slug))) ok.set(slug, page.title);
+          if (!page) continue;
+          const applies = programmePolicyApplies(slug);
+          if (page.disposition === 'standalone' || !applies) {
+            ok.set(slug, { title: page.title, linkable: applies && page.disposition === 'standalone' });
+          }
         } catch (error) {
           queue.length = 0; // stop the other workers: the build fails as a whole
           throw error;
@@ -168,5 +180,5 @@ export function programmePathFor(
   if (!snapshot || program.workPath || !program.title) return undefined;
   const slug = slugifyTitle(program.title);
   const entry = snapshot.entries.get(slug);
-  return entry && entry.title && entry.title === program.title ? `/programas/${slug}` : undefined;
+  return entry?.linkable && entry.title === program.title ? `/programas/${slug}` : undefined;
 }
