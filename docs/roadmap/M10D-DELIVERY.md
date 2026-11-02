@@ -23,10 +23,10 @@ workflow temporal que M10-C necesitó.
 | Población de programas medida, sin exponer páginas pobres | **PASS** | §6 |
 | Alcance de obras medido lo suficiente para separar defecto de no medido | **PARCIAL**: 1.356 a ≤3 clics medidas y 2.101 más profundas, pero 368 sin medir; ningún defecto confirmado | §4, §6 |
 | Seguridad SEO (sin desindexación, canonical ni inflación de sitemap) | **PASS** | §7, §9 |
-| Enlaces internos a destinos canónicos | **PARCIAL**: 0 enlaces no canónicos y 0 destinos rotos, pero los 12 alias de canal que reciben 19 enlaces desde fichas de obra están corregidos y **sin desplegar** | §4, §7.3 |
+| Enlaces internos a destinos canónicos | **PASS**: 0 enlaces no canónicos, 0 destinos rotos, y la corrección de los alias de canal en fichas de obra desplegada y verificada en producción | §4, §7.3, §9.1 |
 | Tests, CI y revisión independiente | **PASS**: CI 4/4 sobre el HEAD final, fusionado como `10a2a9b`; dos revisiones independientes, 10 hallazgos, todos corregidos | §8 |
 | Seguridad operativa del rastreo | **PARCIAL**: el reinicio de la API fue el despliegue, no el rastreo (rectificado); pero mi concurrencia 4 sí provocó 17 × 503. La parada por salud que el hito pedía faltaba; ya está | §3 |
-| Despliegue y verificación en producción | **PASS para el #133**: desplegado 15:58:58 UTC y verificado, 6 de 7 smokes en verde; el séptimo es la corrección del #134, sin desplegar | §9 |
+| Despliegue y verificación en producción | **PASS**: #133 y #134 desplegados y verificados, **7 de 7 smokes en verde**, incluida la corrección de alias sobre una emisión real | §9 |
 | **M10-D** | **PARCIAL**: el #133 está desplegado y verificado en producción; queda desplegar el #134 (alias de canal en fichas de obra) y repetir un rastreo perenne a concurrencia 2 para cerrar el recuento de huérfanas | |
 
 ---
@@ -543,11 +543,11 @@ se resuelva, la comprobación es el smoke manual de §9.
 
 ## 9. Verificación en producción
 
-**#133 DESPLEGADO Y VERIFICADO.** El propietario lanzó «Deploy a producción (Contabo)» a las 15:56:40 UTC; la API
-arrancó a las **15:58:58 UTC** (`timestamp` 16:45:41, `uptime` 2.803 s). Rollback disponible:
-`20261029201513` @ `17e44e3`.
+**#133 Y #134 DESPLEGADOS Y VERIFICADOS.** Rollback disponible: `20261029201513` @ `17e44e3`. Todo lo que sigue
+se midió contra producción con solo GET.
 
-Smoke tests ejecutados contra producción (solo GET):
+**§9.0 — tras desplegar el #133** (15:56:40 UTC; la API arrancó a las 15:58:58, `timestamp` 16:45:41,
+`uptime` 2.803 s):
 
 | # | Comprobación | Resultado |
 |---|---|---|
@@ -560,10 +560,37 @@ Smoke tests ejecutados contra producción (solo GET):
 | 6 | Modern Family y Gladiator sin regresión | **PASS**: 200, autocanónicas, `index, follow` |
 | 7 | Salud de API y sitemaps servidos | **PASS**: `healthy`, rss 312–375 MB, los 5 sitemaps 200 |
 
-El punto 5 es la única comprobación en rojo, y confirma a la vez el diagnóstico y la necesidad de la corrección:
-el defecto sigue reproduciéndose en producción tal como se describió.
+El punto 5 era la única comprobación en rojo, y confirmaba a la vez el diagnóstico y la necesidad de la
+corrección: el defecto seguía reproduciéndose en producción tal como se describió.
 
-Smoke tests a repetir cuando se despliegue el **#134**:
+### 9.1 Tras desplegar el #134 (2026-11-02, 17:18:18 UTC)
+
+Despliegues del día, todos lanzados por el propietario: **15:56:40 UTC** → #133 · **17:18:18 UTC** → #134 (la API
+arrancó a las 17:20:56; `timestamp` 19:46:41, `uptime` 8.745 s) · **19:29:43 UTC** → #135 (solo documentación).
+
+| # | Comprobación | Resultado |
+|---|---|---|
+| 1 | `/canales` enlaza las 67 URLs de `sitemap-channels.xml` | **PASS**: 320 enlaces de canal, **0 del sitemap ausentes** |
+| 1b | Ningún enlace del directorio responde distinto de 200 | **PASS**: 0 |
+| 2 | Los 15 alias verificados en 301, query preservada | **PASS**: 15/15; `?d=1` preservado |
+| 3 | Identidades protegidas, 200 y autocanónicas | **PASS**: las seis, todas distintas, `index, follow` |
+| 4 | `/programas/object-object` fuera del sitemap y sin resolver | **PASS**: fuera, y la página responde **404** |
+| **5** | **Cero enlaces internos a URLs de canal que redirijan** | **PASS** — ver abajo |
+| 6 | Modern Family y Gladiator sin regresión | **PASS**: 200, autocanónicas, `index, follow` |
+| 7 | Salud de API y sitemaps servidos | **PASS**: `healthy`, rss 338 MB, índice con 5 hijos |
+
+**El punto 5, probado sobre una emisión de alias real.** `tvg2_tv` («TVG2.TV», alias verificado de TVG 2) emitía
+hoy *Bonanza* con `workPath`. La ficha `/series/bonanza` nombra **`/canales/tvg-2`**, HTTP **200**, con el anclaje
+«TVG 2». Antes de la corrección habría enlazado `/canales/tvg2-tv`, que responde 301. Es la corrección del §7.3
+actuando sobre el caso que la motivó.
+
+Esta comprobación es válida porque había una emisión de alias listada en ese momento; §9.2 explica por qué una
+muestra sin esa condición no prueba nada, y el rastreo completo es lo que lo cierra sobre las 3.825 fichas.
+
+**Nota sobre `sitemap-programs.xml`:** 29 → 28 (salida de `object-object`, efecto del hito) y después 22, que es
+variación de la ventana EPG de hoy/mañana, **no** un efecto de M10-D. No atribuir esa segunda caída al hito.
+
+### 9.2 Smoke tests a repetir en cada despliegue que toque enlazado
 
 1. `/canales` en SSR enlaza **las 67** URLs de `sitemap-channels.xml` — los 14 recuperados incluidos — y **cero**
    alias que redirijan. Es la comprobación central del hito y la única que falta por completo.
@@ -607,7 +634,7 @@ Compararlo con el rastreo B sobre la **misma población** (`--urls-from`), no co
 | 06 Programas | **PASS**: las 29 medidas; el rastreo agotado confirma que las 28 restantes son las **únicas** URLs del sitemap sin ruta perenne, y ninguna se expone | §4, §6 |
 | 07 Obras | **PASS**: el rastreo perenne agotado alcanza **3.825/3.825**; ningún defecto confirmado y ninguna corrección inventada | §4, §6 |
 | 08 SEO seguro | **PASS**: 0 enlaces no canónicos, 0 destinos rotos, identidades protegidas intactas, sitemap −1 URL de basura; verificado en producción | §4, §7, §9 |
-| 09 Calidad y release | **PARCIAL**: CI 4/4, merge `10a2a9b`, desplegado y verificado; queda el #134 | §8, §9 |
+| 09 Calidad y release | **PASS**: CI en verde en los tres PR, fusionados, desplegados y verificados en producción | §8, §9 |
 | 10 Roadmap honesto | **PASS**: M10 sigue PARTIAL | §12 |
 | 11 Operaciones seguras | **PARCIAL**: 0 escrituras y solo GET. El reinicio de la API fue el despliegue, no el rastreo (rectificado en §3); pero mi concurrencia 4 sí provocó 17 × 503, y la parada por salud que el hito pedía faltaba. Ya implementada, y el workflow baja a concurrencia 2 | §3 |
 | 12 Documentación | **PASS**: este registro, con la evidencia de producción y dos rectificaciones de mis propias conclusiones | §3, §9 |
