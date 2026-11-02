@@ -98,6 +98,7 @@ if (args.includes('--self-check')) {
   assert.equal(reachabilityGate(reachability(graph), reachability(graph, ['/a'])).status, 'INCONCLUSIVE');
   assert.equal(reachabilityGate(reachability(fullyFetched), reachability(fullyFetched, ['/a'])).status, 'PASS');
   assert.equal(reachabilityGate(reachability(fullyFetched), reachability(fullyFetched, ['/z'])).status, 'FAIL');
+  assert.equal(reachabilityGate(scoped, reachability({ ...fullyFetched, skipTraverse: '^/contenido/' }, ['/a'])).status, 'PASS');
   // Exhausted but with a family left unexpanded: orphaned in scope only, never "verified".
   const scoped = reachability({ ...fullyFetched, skipTraverse: '^/contenido/' });
   assert.deepEqual([scoped.classes.VERIFIED_ORPHAN, scoped.classes.ORPHAN_IN_SCOPE], [0, 1]);
@@ -154,7 +155,7 @@ export function reachability(data, urls) {
     if (skip?.test(path)) continue;
     const level = byDepth.get(p.d) ?? { total: 0, fetched: 0 };
     level.total += 1;
-    if (p.s !== undefined && p.s !== null) level.fetched += 1;
+    if (typeof p.s === 'number' && (p.s < 400 || p.s === 404 || p.s === 410)) level.fetched += 1;
     byDepth.set(p.d, level);
   }
   // Depth d is exact while every page at depths < d was fetched (BFS is level-synchronous).
@@ -205,7 +206,8 @@ export function reachability(data, urls) {
 /** Required-URL gate. Inconclusive evidence is never a successful verification. */
 export function reachabilityGate(all, required) {
   if (!all.crawlComplete || !all.crawlReliable ||
-      required.classes.UNMEASURED || required.classes.TEMPORARY_FETCH_FAILURE) {
+      required.classes.UNMEASURED || required.classes.TEMPORARY_FETCH_FAILURE ||
+      required.classes.EXCLUDED_BY_POLICY) {
     return { status: 'INCONCLUSIVE', exitCode: 2 };
   }
   if (required.classes.INVALID_DESTINATION ||
