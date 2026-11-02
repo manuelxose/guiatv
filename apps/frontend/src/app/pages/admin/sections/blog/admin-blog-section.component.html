@@ -379,7 +379,9 @@
 
       <div class="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] items-start">
       <div>
-        <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" id="blog-content-label">Contenido</label>
+        <!-- Not a <label>: it names the editor group through the aria-labelledby below, and a label must point at
+             a form control. #132 merged it as a <label>, which fails lint and leaves main red. -->
+        <span class="block text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" id="blog-content-label">Contenido</span>
         <div class="mt-2" role="group" aria-labelledby="blog-content-label">
           <app-rich-text-editor formControlName="content"></app-rich-text-editor>
         </div>

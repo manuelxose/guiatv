@@ -1,4 +1,4 @@
-import { splitAiringsByTime } from './catalog';
+import { buildDetailPath, slugifyTitle, splitAiringsByTime } from './catalog';
 
 describe('splitAiringsByTime', () => {
   // Phase 1 TS-15: at 12:40 Madrid a programme page listed last night's 23:00-02:15 airing under "A continuación".
@@ -26,5 +26,23 @@ describe('splitAiringsByTime', () => {
 
   it('handles a missing list', () => {
     expect(splitAiringsByTime(undefined, now)).toEqual({ current: null, upcoming: [] });
+  });
+});
+
+// M10-D: an EPG row whose title is an object stringified to "[object Object]" and produced the public slug
+// "object-object". A value that is not text has no slug, so `buildDetailPath` falls back to the `sin-titulo`
+// path the cards refuse to link.
+describe('slugifyTitle', () => {
+  it('gives a title that stringifies to [object Object] no slug at all', () => {
+    for (const notATitle of [{}, { _: 'Rosario desde Lourdes' }, new Map()]) {
+      expect(slugifyTitle(notATitle as unknown as string)).toBe('');
+      expect(buildDetailPath('program', notATitle as unknown as string, slugifyTitle)).toBe('/programas/sin-titulo');
+    }
+  });
+
+  it('keeps every title that already stringifies to one, accents included', () => {
+    expect(slugifyTitle('El último de la fila')).toBe('el-ultimo-de-la-fila');
+    expect(slugifyTitle(['El último de la fila'] as unknown as string)).toBe('el-ultimo-de-la-fila');
+    expect(buildDetailPath('movie', 'Gladiator', slugifyTitle)).toBe('/peliculas/gladiator');
   });
 });

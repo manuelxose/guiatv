@@ -7,8 +7,13 @@ import { parseEpgTitle } from './contentIdentity';
 export type DetailContentType = 'movie' | 'series' | 'program';
 
 export function slugify(text: string): string {
+  // M10-D: an EPG row whose title is an object (not every feed sends a bare string) stringified to
+  // "[object Object]" and published the indexable page `/programas/object-object`. Such a value is not a title: it
+  // takes the same `sin-titulo` path as an empty one, which every caller already excludes from sitemaps, links and
+  // slug lookups. Only the `[object …]` shape is rejected, so values that already stringify to a usable title
+  // (an array of one title, say) keep the slug their page resolves under.
   const s = String(text || '').trim();
-  if (!s) return 'sin-titulo';
+  if (!s || s.startsWith('[object ')) return 'sin-titulo';
   return s
     .toLowerCase()
     .replace(/\s+/g, '-')

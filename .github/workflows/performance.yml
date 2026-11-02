@@ -57,6 +57,8 @@ jobs:
       - run: npm run lint:backend
       - run: npm run test:backend
       - run: npm run test:ops
+      # M10-D: keep graph-classification and inconclusive-gate self-checks in fast PR CI.
+      - run: node --check scripts/seo-link-graph.mjs && node scripts/seo-link-graph.mjs --self-check
       # Deploy-script test (~2 min): after merge only; the deploy itself is the real check.
       - if: github.event_name == 'push'
         run: npm run test:deploy

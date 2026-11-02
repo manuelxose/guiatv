@@ -161,3 +161,26 @@ So 82 % of Cine/Series airings with a stored identity (1,659 of 2,015) now link 
 - Two redirect links inside CMS editorial HTML (M11-A).
 - One football link uses the pre-2026-10-20 UTC-dated match slug, which resolves and declares the current slug canonical. This is pre-existing and belongs to football slug hygiene.
 - 664 sitemap programme URLs are still beyond depth 3. This is the deliberate M11 decision on programme-only pages.
+
+---
+
+## 8. M10-D: what "not reached" is allowed to mean (2026-11-02)
+
+The measurement method in §1 was the limit of this document, not the crawler. The budget went to
+`/contenido/program:*` — one page per airing, `noindex, follow`, gone the next day, 91 % of the graph — so
+"not reached within 1,200 pages" could never become "orphaned". M10-D replaces the vocabulary:
+
+- `--skip-traverse '^/contenido/'` records the airing pages as destinations without expanding them, so the
+  budget reaches the pages that persist.
+- every sitemap URL gets exactly one class, and the class is what the evidence supports: `REACHED_WITHIN_3`,
+  `REACHED_DEEPER`, `INVALID_DESTINATION`, `TEMPORARY_FETCH_FAILURE`, `EXCLUDED_BY_POLICY`, `UNMEASURED`,
+  `ORPHAN_IN_SCOPE`, `VERIFIED_ORPHAN`.
+- an orphan claim needs an **exhausted and error-free** crawl: nothing left in the frontier, the budget not the
+  reason it stopped, and no page that failed to be read — a page the crawl could not read may hold the only link
+  to the URL in question. With a family left unexpanded the strongest available claim is `ORPHAN_IN_SCOPE`.
+- the saved graph carries its observation **window** (start, end, Madrid times, elapsed minutes, EPG day at both
+  ends, scope, frontier left, budget spent), and `--urls-from` fixes the URL population, so two crawls taken at
+  different times are compared on the same URLs and an EPG shift can be told from a structural change.
+
+Full results, the channel decision table and the limits of the production crawl:
+[M10D-DELIVERY.md](../roadmap/M10D-DELIVERY.md).

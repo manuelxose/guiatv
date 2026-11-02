@@ -94,7 +94,12 @@ export function buildDetailPath(
  * legacy slug still resolves and declares this one as canonical.
  */
 export function slugifyTitle(text: string): string {
+  // M10-D: a title that is an object (some EPG rows carry one) stringifies to "[object Object]" and must not
+  // become the slug "object-object". An empty slug makes `buildDetailPath` fall back to `sin-titulo`, which the
+  // cards already refuse to link. Only that shape is rejected, so a value that already stringifies to a usable
+  // title keeps its slug.
   const safe = String(text || '').toString();
+  if (safe.startsWith('[object ')) return '';
   const transliterated = safe.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   return (
     transliterated
