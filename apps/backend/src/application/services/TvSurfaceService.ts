@@ -1,4 +1,5 @@
 import { ICacheRepository } from '@/domain/repositories/ICacheRepository';
+import { programmePathFor, type ProgrammeEligibility, type ProgrammeEligibilitySnapshot } from './ProgrammeEligibility';
 import {
   PRIME_TIME_WINDOW,
   hydrateTvReadItemRuntime,
@@ -255,7 +256,8 @@ export class TvSurfaceService {
   constructor(
     private readonly tvReadQueryService: TvReadQueryService,
     private readonly cacheRepository: ICacheRepository,
-    private readonly channelFeedAliases?: Pick<ChannelFeedAliasResolver, 'current'>
+    private readonly channelFeedAliases?: Pick<ChannelFeedAliasResolver, 'current'>,
+    private readonly programmeEligibility?: Pick<ProgrammeEligibility, 'current'>
   ) {}
 
   /** Never waits nor fails the page: without the alias list every channel is served as itself, as before M10-C. */
@@ -344,7 +346,7 @@ export class TvSurfaceService {
     const cacheKey = `tv:surface:channel:${channelId}:${date || 'today'}`;
     const cached = await this.cacheRepository.get<TvChannelSurfaceDTO>(cacheKey);
     if (cached) {
-      const hydrated = this.hydrateChannelSurface(cached);
+      const hydrated = this.withProgrammePaths(this.hydrateChannelSurface(cached));
       return {
         ...hydrated,
         meta: { ...hydrated.meta, cached: true },
@@ -389,7 +391,33 @@ export class TvSurfaceService {
     };
 
     await this.cacheRepository.set(cacheKey, surface, 60);
-    return surface;
+    return this.withProgrammePaths(surface);
+  }
+
+  /**
+   * M10-E: an eligible standalone programme links its `/programas/:slug` page, from the snapshot the programme sitemap
+   * is built from. Applied on every read, never cached with the surface: the links change with the snapshot, not
+   * with the 60 s surface cache. No snapshot yet (or an outage): no programme link, never a guessed one.
+   */
+  private withProgrammePaths(surface: TvChannelSurfaceDTO): TvChannelSurfaceDTO {
+    let snapshot: ProgrammeEligibilitySnapshot | undefined;
+    try {
+      snapshot = this.programmeEligibility?.current();
+    } catch {
+      return surface;
+    }
+    if (!snapshot?.entries.size) return surface;
+    const link = (item: TvReadItemDTO): TvReadItemDTO => {
+      const programmePath = programmePathFor(snapshot, item.program);
+      return programmePath ? { ...item, program: { ...item.program, programmePath } } : item;
+    };
+    return {
+      ...surface,
+      current: surface.current && link(surface.current),
+      next: surface.next && link(surface.next),
+      tonightItems: surface.tonightItems.map(link),
+      scheduleItems: surface.scheduleItems.map(link),
+    };
   }
 
   private hydrateChannelSurface(surface: TvChannelSurfaceDTO): TvChannelSurfaceDTO {

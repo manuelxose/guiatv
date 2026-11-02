@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { CanalCompletoComponent } from './canal-completo.component';
 import { TvDataService } from '../../state/tv-data.service';
 import { MetaService } from '../../services/meta.service';
@@ -47,6 +49,8 @@ describe('CanalCompletoComponent — channel-page affiliate CTA', () => {
       imports: [CanalCompletoComponent],
       providers: [
         provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
         {
           provide: ActivatedRoute,
           useValue: { paramMap: of(convertToParamMap({ id: surface.channel?.id || 'missing-channel' })) },
@@ -166,6 +170,27 @@ describe('CanalCompletoComponent — channel-page affiliate CTA', () => {
     expect(component.programs[0].liveNow).toBeFalse();
     expect(component.programs[0].raw.timingContext.liveNow).toBeFalse();
     expect(component.nextPrograms.map((program) => program.id)).toEqual(['first', 'later']);
+  });
+
+  it('M10-E: a schedule row of an eligible programme renders real anchors to its programme page, card and "Abrir" alike', () => {
+    spyOn(Date, 'now').and.returnValue(Date.parse('2026-11-02T12:00:00Z'));
+    const surface = buildSurface();
+    const eligible = airing('Aída', '2026-11-02T18:00:00Z', '2026-11-02T19:00:00Z');
+    eligible.program = { ...eligible.program, programmePath: '/programas/aida' };
+    (eligible as any).detailPath = '/contenido/program:aida-1';
+    const other = airing('Modern Family', '2026-11-02T19:00:00Z', '2026-11-02T20:00:00Z');
+    (other as any).detailPath = '/contenido/program:mf-1';
+    surface.scheduleItems = [eligible, other];
+    configure(surface);
+    const fixture = TestBed.createComponent(CanalCompletoComponent);
+    fixture.detectChanges();
+
+    const rows = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('li.schedule-row'));
+    const hrefs = rows.map((row) => Array.from(row.querySelectorAll('a[href]')).map((a) => a.getAttribute('href')));
+    expect(hrefs.length).toBe(2);
+    expect(hrefs[0].length).toBeGreaterThan(0);
+    expect(new Set(hrefs[0])).toEqual(new Set(['/programas/aida']), 'no contradictory destination in one row');
+    expect(new Set(hrefs[1])).toEqual(new Set(['/contenido/program:mf-1']), 'no programmePath: unchanged');
   });
 
   it('shows only the supplied evening schedule and applies the existing category filter', () => {

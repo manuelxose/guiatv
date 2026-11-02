@@ -610,7 +610,8 @@ export class CatalogService {
 
   private readonly standalonePaths = new Map<string, { path?: string; until: number }>();
 
-  private async programSlugPage(slug: string): Promise<{ title: string; disposition: ProgrammeDisposition } | null> {
+  /** The title and disposition of the row `/programas/:slug` loads; null = the page 404s. M10-E: ProgrammeEligibility's lookup. */
+  async programSlugPage(slug: string): Promise<{ title: string; disposition: ProgrammeDisposition } | null> {
     const searchText = String(slug || '').replace(/-/g, ' ').trim();
     if (!searchText) return null;
     const found =

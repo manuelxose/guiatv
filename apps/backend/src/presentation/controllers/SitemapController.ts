@@ -9,6 +9,7 @@ import { FootballQueryService } from '../../application/sports/services/Football
 import { normalizeTvToken, channelPagePath } from '../../shared/utils/tvMetadata';
 import { slugifyTitle } from '../../domain/services/detailPath';
 import { programmePolicyApplies, type ProgrammeDisposition } from '../../application/services/ProgrammeSeoPolicy';
+import { ProgrammeEligibility, clearProgrammeEligibilityLastGood, invalidateProgrammeEligibility } from '../../application/services/ProgrammeEligibility';
 import { TvReadQueryService } from '../../application/services/TvReadQueryService';
 import { PUBLIC_EDITORIAL_FILTER } from '../../application/services/EditorialReviewPolicy';
 import { logger } from '../../shared/utils/logger';
@@ -59,13 +60,17 @@ const STALE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const STALE_RETRY_MS = 60 * 1000;
 const log = logger.child('SitemapController');
 
-export const clearSitemapLastGood = (): void => lastGood.clear();
+export const clearSitemapLastGood = (): void => {
+  lastGood.clear();
+  clearProgrammeEligibilityLastGood();
+};
 
 /** Bumped on invalidation: a build already running when its key was invalidated must not cache its older answer. */
 let generation = 0;
 /** No keys: every sitemap. With keys: only those (a guide publish must not force the EPG sitemap rebuild). */
 export const invalidateSitemapCache = (keys?: string[]): void => {
   generation++;
+  if (!keys || keys.includes('programs')) invalidateProgrammeEligibility();
   for (const map of [cache, inflightMap]) {
     for (const key of [...map.keys()]) if (!keys || keys.includes(key.slice(key.lastIndexOf(':') + 1))) map.delete(key);
   }
@@ -82,11 +87,18 @@ export class SitemapController {
       'getChannels' | 'getIndexableProgramSitemapRows'
     >,
     /** Same lookup the `/programas/:slug` page uses: null (the page 404s) or its M09-B disposition. */
-    private readonly programSlugDisposition?: (slug: string) => Promise<ProgrammeDisposition | null>,
+    programSlugDisposition?: (slug: string) => Promise<ProgrammeDisposition | null>,
     /** M09-C: indexable `/peliculas|/series` paths (WorkSeoPolicy.indexableWorkPaths); empty while the policy is off. */
     private readonly workPaths?: () => Promise<string[]>,
     /** M10-C: verified second-feed channels (ChannelFeedAliases); their page redirects to the channel listed instead. */
-    private readonly channelFeedAliases?: Pick<ChannelFeedAliasResolver, 'resolve'>
+    private readonly channelFeedAliases?: Pick<ChannelFeedAliasResolver, 'resolve'>,
+    /** M10-E: the eligibility snapshot shared with the channel schedule; built from the two lookups above when omitted. */
+    private readonly programmeEligibility: ProgrammeEligibility | undefined = tvReadQueryService
+      ? new ProgrammeEligibility(tvReadQueryService, programSlugDisposition && (async (slug) => {
+        const disposition = await programSlugDisposition(slug);
+        return disposition ? { title: '', disposition } : null;
+      }), CACHE_TTL_MS)
+      : undefined
   ) {}
 
   /* ------------------------------------------------------------------ */
@@ -166,7 +178,7 @@ export class SitemapController {
   /*  Cache layer                                                        */
   /* ------------------------------------------------------------------ */
 
-  private async getCached(key: string, builder: () => Promise<string>): Promise<string> {
+  private async getCached(key: string, builder: () => Promise<string | { xml: string; validUntil: number }>): Promise<string> {
     key = `${entityPublicReadPolicy().partition()}:${key}`;
     const now = Date.now();
     const cached = cache.get(key);
@@ -177,10 +189,13 @@ export class SitemapController {
 
     const started = generation;
     const promise = builder()
-      .then((xml) => {
+      .then((built) => {
+        // M10-E: a build from a shared snapshot expires with it (TTL, Madrid midnight), never later.
+        const xml = typeof built === 'string' ? built : built.xml;
+        const expiresAt = Math.min(Date.now() + CACHE_TTL_MS, typeof built === 'string' ? Infinity : built.validUntil);
         // Invalidated while building (a guide went live meanwhile): answer this request, cache nothing.
         if (started !== generation && inflightMap.get(key) !== promise) return xml;
-        cache.set(key, { value: xml, expiresAt: Date.now() + CACHE_TTL_MS });
+        cache.set(key, { value: xml, expiresAt });
         lastGood.set(key, { xml, at: Date.now() });
         inflightMap.delete(key);
         return xml;
@@ -217,7 +232,7 @@ export class SitemapController {
   private async buildSitemapIndex(): Promise<string> {
     const baseUrl = this.getBaseUrl();
 
-    const subs: Array<[string, string, () => Promise<string>]> = [
+    const subs: Array<[string, string, () => Promise<string | { xml: string; validUntil: number }>]> = [
       ['sitemap-static.xml', 'static', () => this.buildStaticSitemap()],
       ['sitemap-channels.xml', 'channels', () => this.buildChannelsSitemap()],
       ['sitemap-programs.xml', 'programs', () => this.buildProgramsSitemap()],
@@ -318,7 +333,7 @@ export class SitemapController {
     return this.renderUrlset(urls);
   }
 
-  private async buildProgramsSitemap(): Promise<string> {
+  private async buildProgramsSitemap(): Promise<string | { xml: string; validUntil: number }> {
     const today = new Date();
     const todayYmd = this.formatYmd(today);
 
@@ -329,31 +344,19 @@ export class SitemapController {
     const urls: SitemapUrlEntry[] = [];
     const seenSlugs = new Set<string>();
 
-    if (this.tvReadQueryService) {
-      const rows = await this.tvReadQueryService.getIndexableProgramSitemapRows([
-        todayYmd,
-        tomorrowYmd,
-      ]);
-      // lastmod = the newest change among the airings the page lists, never the airing start (tomorrow's airings
-      // made it a future date).
-      const lastChanged = new Map<string, number>();
-      for (const row of rows) {
-        const slug = slugifyTitle(row.title);
-        if (slug === 'sin-titulo') continue;
-        const changed = row.updatedAt ? new Date(row.updatedAt).getTime() : NaN;
-        lastChanged.set(slug, Math.max(lastChanged.get(slug) ?? -Infinity, Number.isNaN(changed) ? -Infinity : changed));
-      }
-      const resolvable = await this.filterEligible([...lastChanged.keys()]);
-      for (const [slug, changed] of lastChanged) {
-        if (!resolvable.has(slug)) continue;
+    if (this.programmeEligibility) {
+      // M10-E: the shared snapshot the channel schedule links from; the XML is cached exactly as long as it answers.
+      // lastmod = the newest change among the airings the page lists, never the airing start (a future date).
+      const snapshot = await this.programmeEligibility.snapshot();
+      for (const [slug, { lastChanged }] of snapshot.entries) {
         urls.push({
           loc: `/programas/${slug}`,
-          lastmod: Number.isFinite(changed) ? this.formatLastmod(new Date(changed)) : undefined,
+          lastmod: Number.isFinite(lastChanged) ? this.formatLastmod(new Date(lastChanged)) : undefined,
           changefreq: 'daily',
           priority: 0.6,
         });
       }
-      return this.renderUrlset(urls);
+      return { xml: this.renderUrlset(urls), validUntil: snapshot.validUntil };
     }
 
     // Compatibility fallback for installations that have not enabled the TV
@@ -380,28 +383,6 @@ export class SitemapController {
       });
     }
     return this.renderUrlset(urls);
-  }
-
-  /**
-   * Slugs whose page resolves and, where the M09-B policy applies, is `standalone` (ProgrammeSeoPolicy). Bounded
-   * parallel check; a lookup failure propagates so a database outage never caches a truncated sitemap.
-   */
-  private async filterEligible(slugs: string[]): Promise<Set<string>> {
-    if (!this.programSlugDisposition) return new Set(slugs.filter((slug) => !programmePolicyApplies(slug)));
-    const ok = new Set<string>();
-    const queue = [...slugs];
-    await Promise.all(Array.from({ length: 8 }, async () => {
-      for (let slug = queue.shift(); slug !== undefined; slug = queue.shift()) {
-        try {
-          const disposition = await this.programSlugDisposition!(slug);
-          if (disposition && (disposition === 'standalone' || !programmePolicyApplies(slug))) ok.add(slug);
-        } catch (error) {
-          queue.length = 0; // stop the other workers: the build fails as a whole
-          throw error;
-        }
-      }
-    }));
-    return ok;
   }
 
   /**

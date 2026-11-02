@@ -116,6 +116,15 @@ describe('tv-normalizers', () => {
     expect(normalizeToCard({ ...program, workPath: '/peliculas/heat' }).detailPath).toBe('/peliculas/heat');
   });
 
+  it('links the API-supplied indexable programme page before the airing page, never over a verified work (M10-E)', () => {
+    const airing = { ...makeTvItem({ editorialCategory: 'Series', title: 'Aída' }), detailPath: '/contenido/program:airing-1' };
+    const eligible = { ...airing, program: { ...airing.program, programmePath: '/programas/aida' } };
+    expect(normalizeToCard(eligible).detailPath).toBe('/programas/aida');
+    expect(normalizeToCard({ ...eligible, program: { ...eligible.program, workPath: '/series/aida' } }).detailPath).toBe('/series/aida');
+    // No programmePath from the API: the client never builds one from the title.
+    expect(normalizeToCard(airing).detailPath).toBe('/contenido/program:airing-1');
+  });
+
   it('links channels by their canonical slug, not the internal id (M10: /canales/dmax -> /canales/discovery)', () => {
     const item = makeTvItem();
     const dmax = { ...item, channel: { ...item.channel, id: 'dmax', normalizedName: 'discovery' } };

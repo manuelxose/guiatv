@@ -341,7 +341,15 @@ export class Container {
     const { ChannelFeedAliasResolver } = await import('../application/services/ChannelFeedAliases');
     const channelFeedAliases = new ChannelFeedAliasResolver(tvReadQueryService);
     this.dependencies.set('channelFeedAliases', channelFeedAliases);
-    const tvSurfaceService = new TvSurfaceService(tvReadQueryService, this.get('cacheRepository'), channelFeedAliases);
+    // M10-E: one eligibility snapshot for sitemap-programs.xml and the channel schedule's programme links.
+    const { ProgrammeEligibility } = await import('../application/services/ProgrammeEligibility');
+    const programmeEligibility = new ProgrammeEligibility(
+      tvReadQueryService,
+      (slug) => this.get<{ programSlugPage(slug: string): Promise<{ title: string; disposition: ProgrammeDisposition } | null> }>('catalogService').programSlugPage(slug),
+      Number(process.env.SITEMAP_CACHE_TTL_MS) || undefined
+    );
+    this.dependencies.set('programmeEligibility', programmeEligibility);
+    const tvSurfaceService = new TvSurfaceService(tvReadQueryService, this.get('cacheRepository'), channelFeedAliases, programmeEligibility);
     this.dependencies.set('tvSurfaceService', tvSurfaceService);
 
     // Football bounded context (provider abstraction + reconciliation + BFF).
@@ -750,7 +758,8 @@ export class Container {
       this.get('tvReadQueryService'),
       (slug) => this.get<{ programSlugDisposition(slug: string): Promise<ProgrammeDisposition | null> }>('catalogService').programSlugDisposition(slug),
       async () => (await import('../application/services/WorkSeoPolicy')).indexableWorkPaths(),
-      this.get('channelFeedAliases')
+      this.get('channelFeedAliases'),
+      this.get('programmeEligibility')
     );
     this.dependencies.set('sitemapController', sitemapController);
 
