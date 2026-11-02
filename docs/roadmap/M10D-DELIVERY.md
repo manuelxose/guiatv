@@ -571,13 +571,27 @@ Smoke tests a repetir cuando se despliegue el **#134**:
 3. Identidades protegidas autocanónicas y distintas: `etb1-tv` / `etb-1`, `cmm-tv` / `castilla-la-mancha-tv`,
    `telemadridint-tv` / `telemadrid`.
 4. `/programas/object-object` fuera de `sitemap-programs.xml` (29 → 28) y sin resolver.
-5. **Cero enlaces internos a URLs de canal que redirijan** desde fichas de obra. Muestra mínima:
-   `/series/navy-investigacion-criminal` debe nombrar `/canales/veo7`, no `/canales/veo7-tv`.
+5. **Cero enlaces internos a URLs de canal que redirijan** desde fichas de obra. **No lo compruebes con una
+   muestra de páginas**: el defecto son 19 instancias repartidas entre 3.825 fichas, y el raíl de emisiones
+   depende de la parrilla del momento. Medido a las 18:0x del 2026-11-02: solo **10 de 120** fichas muestreadas
+   listaban alguna emisión, y `/series/navy-investigacion-criminal` —el reproductor que este informe citaba a las
+   16:5x— ya decía «No hay emisiones programadas». Una muestra da **PASS por ausencia de emisiones**, no por la
+   corrección. La comprobación válida es el rastreo perenne completo:
+   `summary.linkInstancesToRedirects` debe pasar de **19 a 0**.
 6. Modern Family y Gladiator sin regresión de canonical ni robots.
 7. Salud de API y SSR, y el sitemap servido.
 
-Registrar SHA de release y rollback a la release previa verificada (`20261029201513` @ `17e44e3`). El rastreo
-posterior debe hacerse sobre la **misma población** (`--urls-from`) y a concurrencia ≤ 2.
+Registrar SHA de release y rollback a la release previa verificada (`20261029201513` @ `17e44e3`).
+
+**Un solo rastreo cierra los dos frentes abiertos.** Repetir el rastreo perenne a `--concurrency 2` con la parada
+por salud, en ventana de baja carga, da a la vez:
+
+- `summary.linkInstancesToRedirects` 19 → 0, que es el punto 5 comprobado sobre **todas** las fichas de obra;
+- `crawlReliable: true` si no hay 503, y con ello las 28 fichas de programa pasan de `UNMEASURED` a
+  `ORPHAN_IN_SCOPE`: el primer recuento de huérfanas defendible del proyecto.
+
+Compararlo con el rastreo B sobre la **misma población** (`--urls-from`), no con el rastreo A, que es de otro
+ámbito.
 
 ---
 
