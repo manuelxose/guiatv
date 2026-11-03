@@ -152,7 +152,10 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     assert.equal((await call(ops.updatePost, { params: { id: retryId }, body: { title: 'corto' } })).error?.name, 'ValidationError');
     const edited = await call(ops.updatePost, { params: { id: retryId }, body: { title: 'Título corregido para una recuperación editorial completa', excerpt: 'Resumen editorial corregido' } });
     assert.equal(edited.code, 200, JSON.stringify(edited.error));
-    assert.equal((await call(ops.deletePost, { params: { id: coverId }, body: {} })).code, 200, 'the blocked cover draft can be deleted');
+    // A draft of its own: the cover draft is published and served further down.
+    const doomedId = await create(await pipelineRun('borrador-para-eliminar-m11c'));
+    assert.equal((await call(ops.deletePost, { params: { id: doomedId }, body: {} })).code, 200, 'an unpublished draft can be deleted');
+    assert.equal(await BlogPostModel.countDocuments({ _id: doomedId }), 0);
     // The rollback above left `id` as a draft; publish it again so the guard is what gets tested.
     await BlogPostModel.updateOne({ _id: id }, { status: 'publish', reviewState: 'approved' });
     assert.equal((await call(ops.deletePost, { params: { id }, body: {} })).error?.name, 'ConflictError', 'published articles cannot be deleted here');
