@@ -1,0 +1,44 @@
+{
+ "at": "2026-11-03T01:43:27.934Z",
+ "release": "20261103023955",
+ "mainSha": "99e56a7",
+ "health": "healthy",
+ "canales": {
+  "status": 200,
+  "channelLinksBefore": 298,
+  "channelLinksAfter": 299,
+  "added": [
+   "/canales/la8cyl-tv"
+  ],
+  "stillHidden": [
+   "/canales/la2-cat-tv",
+   "/canales/aljq-tv"
+  ],
+  "robots": "index, follow",
+  "canonical": "/canales"
+ },
+ "la8cyl": {
+  "route": "/canales/la8cyl-tv",
+  "status": 200,
+  "robots": "index, follow",
+  "canonical": "/canales/la8cyl-tv",
+  "legacy": "/canales/la8cyl_tv -> 301",
+  "internalLinks": 51,
+  "non200Destinations": 0,
+  "programmeLinks": [],
+  "why": "no La8CYL airing is in the day snapshot (sitemap-programs 14 URLs)"
+ },
+ "sitemapPrograms": 14,
+ "sitemapChannels": {
+  "urls": 65,
+  "hasLa8cyl": false
+ },
+ "aliases": {
+  "/canales/telemadrid_tv": "301 -> /canales/telemadrid"
+ },
+ "regressions": {
+  "/programas/object-object": 404,
+  "/programas/el-sueno-eterno": "200 index",
+  "/peliculas/el-sueno-eterno": "200 index"
+ }
+}

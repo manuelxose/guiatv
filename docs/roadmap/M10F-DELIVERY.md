@@ -1,6 +1,8 @@
 # M10-F — Canales de feed en el directorio y navegación segura a programas
 
-Estado: **en curso (2026-11-03)**. Seguimiento acotado de M10, que sigue **DONE por aceptación del propietario**.
+Estado: **PARTIAL (2026-11-03)**, solo por un límite de horario (§7). La corrección está fusionada (#141,
+`99e56a7`), desplegada (release `20261103023955`) y verificada en producción. Seguimiento acotado de M10, que sigue
+**DONE por aceptación del propietario**.
 No reabre M10 ni cambia sus resultados históricos de AC-04.
 
 ## 1. Línea base
@@ -127,10 +129,72 @@ Hay programas con ficha `/programas/` indexable cuya misma emisión, en otro can
 Decidir el canonical exige una regla de identidad programa↔obra, no un ajuste de navegación. Se deja para un
 milestone propio.
 
-## 7. Producción
+## 7. Release y producción
 
-Pendiente de despliegue autorizado.
+**CI y release**
+
+- `main` estaba en rojo desde `c603118` (commit editorial del propietario) en `EditorialOpsController.mongo.test`.
+  A petición del propietario se corrigió en PR [#142](https://github.com/manuelxose/guiatv/pull/142) (`8716509`).
+- Cuatro fallos eran del propio test:
+  - el post «publicado» ya era borrador;
+  - el borrador que se volvía a encolar no estaba bloqueado;
+  - el slug era demasiado corto;
+  - el test borraba la portada que usa más abajo.
+- Dos eran errores reales de `requeuePost`, y los dos hacían que volver a encolar respondiera 400:
+  - copiaba la volatilidad `tv-schedule` de una afirmación al tema;
+  - copiaba fuentes de dominios no habilitados.
+- Las guardas de borrar y volver a encolar no cambian.
+- #141 se rebasó sobre ese `main`, con CI 4/4 en `3f32fe3`, y se fusionó como `99e56a7`.
+- Desplegado con `deploy-artifact.yml`, run [41561009408](https://github.com/manuelxose/guiatv/actions/runs/41561009408):
+  build y deploy en verde, release `20261103023955`.
+
+**Verificación** (GET acotados, 2026-11-03 ~03:45 Madrid). Evidencia: `artifacts/m10f/after-production.json`.
+
+| Comprobación | Antes | Después |
+|---|---|---|
+| `/canales` SSR: 200, `index, follow`, canonical `/canales` | sí | sí |
+| Fichas de canal enlazadas desde `/canales` | 298 | **299** (solo `/canales/la8cyl-tv`) |
+| `/canales/la2-cat-tv`, `/canales/aljq-tv` en `/canales` | no | no (por diseño) |
+| `/canales/la8cyl-tv` | 200, `index`, canonical propio | igual |
+| `/canales/la8cyl_tv` | 301 → `/canales/la8cyl-tv` | igual (el enlace usa la URL sin redirección) |
+| Destinos internos de `/canales/la8cyl-tv` que no responden 200 | — | **0 de 51** |
+| `/canales/telemadrid_tv` (alias verificado) | 301 → `/canales/telemadrid` | igual |
+| `sitemap-programs.xml` | 14 URLs | 14 (el mismo conjunto) |
+| `sitemap-channels.xml` incluye `la8cyl` | no | no |
+| `/programas/object-object` | 404 | 404 |
+| `/v2/health`, `sitemap.xml`, `robots.txt` | healthy / 200 / 200 | igual |
+
+`sitemap-channels.xml` tiene hoy 65 URLs (67 en M10-D). Esa cifra depende de los canales que trae el EPG cada día;
+M10-F solo toca el frontend y no la cambia.
+
+**Límite de horario: por qué es PARTIAL.** La navegación `/canales` → `/canales/la8cyl-tv` está verificada. El
+segundo salto, de la ficha al programa, **no se puede comprobar hoy**:
+
+- ninguna emisión de La8CYL está en la instantánea del día;
+- `escapate` no está en el sitemap y `un-mundo-por-delante` responde 404;
+- por eso la ficha no lleva ningún enlace `/programas/`.
+
+No es un fallo de navegación: la regla de M10-E es la misma que el 2 de noviembre, cuando esta misma ficha sí
+llevaba los dos enlaces. Tampoco se declara éxito por no tener nada que inspeccionar. Para cerrar el punto, cualquier
+día en que una emisión de La8CYL esté en `sitemap-programs.xml`:
+
+```
+node scripts/programme-reachability.mjs --out artifacts/m10f/after-reachability.json
+```
+
+Ese día, el programa debe aparecer enlazado desde `/canales/la8cyl-tv`.
 
 ## 8. Rollback
 
-Revertir el commit de M10-F (solo frontend) o redesplegar la release `20261102233444`.
+- Revertir `99e56a7`. Solo toca el frontend: vuelve a ocultar La8CYL.TV.
+- O redesplegar la release `20261102233444` (M10-E). Esa release no incluye #142.
+- #142 se puede revertir aparte: solo afecta a volver a encolar borradores desde el Admin.
+
+## 9. Estado de M10 y siguiente paso
+
+- M10 sigue **DONE por aceptación del propietario**. Los resultados históricos de AC-04 no se reescriben.
+- M12 sigue **NO-GO**: sus puertas propias no se han tocado.
+- M11-B no se ha empezado. El siguiente milestone más pequeño:
+  - la regla de identidad programa↔obra para `el-sueno-eterno`, `manicomics` y `escapate` (§6);
+  - después, revisar uno a uno otros feeds online ocultos que podrían ser canales propios (`ptv_linares_tv`,
+    `mitele_*`…).
