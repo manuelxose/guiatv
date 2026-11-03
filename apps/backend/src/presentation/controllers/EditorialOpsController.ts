@@ -242,7 +242,8 @@ export class EditorialOpsController {
       title: post.title, slug: post.slug,
       topic: p.bundle.topic, intent: p.bundle.intent,
       category: categoryName || 'Streaming',
-      volatility: p.bundle.claims[0]?.volatility || 'stable',
+      // A claim may be `tv-schedule`; a topic may not (the request rejects it), so take the first claim value a topic allows.
+      volatility: (p.bundle.claims ?? []).map((claim) => claim.volatility).find((v) => ['stable', 'pricing', 'availability', 'sports-rights', 'catalog-ranking'].includes(v)) || 'stable',
       contentType: ['guide', 'ranking', 'analysis'].includes(String(post.contentType)) ? post.contentType : 'guide',
       length: words > 1400 ? 'long' : words > 900 ? 'medium' : 'short',
       seedUrls: (p.bundle.sources ?? []).map((source) => source.url).filter((url) => /^https:\/\//.test(url)).slice(0, 4),
