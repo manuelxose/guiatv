@@ -153,7 +153,10 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     const edited = await call(ops.updatePost, { params: { id: retryId }, body: { title: 'Título corregido para una recuperación editorial completa', excerpt: 'Resumen editorial corregido' } });
     assert.equal(edited.code, 200, JSON.stringify(edited.error));
     assert.equal((await call(ops.deletePost, { params: { id: coverId }, body: {} })).code, 200, 'the blocked cover draft can be deleted');
+    // The rollback above left `id` as a draft; publish it again so the guard is what gets tested.
+    await BlogPostModel.updateOne({ _id: id }, { status: 'publish', reviewState: 'approved' });
     assert.equal((await call(ops.deletePost, { params: { id }, body: {} })).error?.name, 'ConflictError', 'published articles cannot be deleted here');
+    assert.equal(await BlogPostModel.countDocuments({ _id: id }), 1, 'the published article is still there');
     const requeued = await call(ops.requeuePost, { params: { id: retryId } });
     assert.equal(requeued.code, 201, JSON.stringify(requeued.error));
     assert.equal(requeued.body.data.status, 'queued');
