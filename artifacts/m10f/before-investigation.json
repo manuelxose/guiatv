@@ -1,0 +1,111 @@
+{
+ "at": "2026-11-03",
+ "canales": {
+  "status": 200,
+  "channelLinks": 298,
+  "has": {
+   "la8cyl-tv": false,
+   "la2-cat-tv": false,
+   "aljq-tv": false
+  }
+ },
+ "overlap": {
+  "la8cyl_tv": {
+   "airings": 25,
+   "overlap": [
+    {
+     "id": "cuatro",
+     "name": "Cuatro",
+     "shown": true,
+     "shared": 2,
+     "of": 25,
+     "theirs": 20
+    },
+    {
+     "id": "la_7",
+     "name": "La 7",
+     "shown": true,
+     "shared": 1,
+     "of": 25,
+     "theirs": 28
+    },
+    {
+     "id": "rne_radio5_tv",
+     "name": "RNE_Radio5.TV",
+     "shown": false,
+     "shared": 1,
+     "of": 25,
+     "theirs": 127
+    },
+    {
+     "id": "cmm_tv",
+     "name": "CMM TV",
+     "shown": true,
+     "shared": 1,
+     "of": 25,
+     "theirs": 27
+    },
+    {
+     "id": "castilla_la_mancha_tv",
+     "name": "Castilla la Mancha TV",
+     "shown": true,
+     "shared": 1,
+     "of": 25,
+     "theirs": 27
+    }
+   ]
+  },
+  "la2_cat_tv": {
+   "airings": 1,
+   "overlap": [
+    {
+     "id": "la_2",
+     "name": "LA 2",
+     "shown": true,
+     "shared": 1,
+     "of": 1,
+     "theirs": 29
+    }
+   ]
+  },
+  "aljq_tv": {
+   "airings": 8,
+   "overlap": [
+    {
+     "id": "al_jazeera_english",
+     "name": "Al Jazeera English",
+     "shown": true,
+     "shared": 8,
+     "of": 8,
+     "theirs": 35
+    }
+   ]
+  }
+ },
+ "hiddenFeedsScanned": 90,
+ "hiddenFeedProgrammeLinks": {
+  "/programas/com-si-fos-ahir": {
+   "feed": "bondiatv_cat_tv",
+   "alsoLinkedFrom": [
+    "tv3",
+    "tv3_cat"
+   ]
+  },
+  "/programas/aida": {
+   "feed": "mitele_comedia_tv",
+   "alsoLinkedFrom": [
+    "fdf"
+   ]
+  },
+  "/programas/manicomics": {
+   "feed": "c33_tv",
+   "alsoLinkedFrom": [],
+   "note": "super_3 airs it with workPath /series/manicomics"
+  },
+  "/programas/el-sueno-eterno": {
+   "feed": "la2_cat_tv",
+   "alsoLinkedFrom": [],
+   "note": "la_2 airs it simultaneously with workPath /peliculas/el-sueno-eterno (tmdb 910)"
+  }
+ }
+}
