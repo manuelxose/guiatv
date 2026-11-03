@@ -157,6 +157,8 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     await BlogPostModel.updateOne({ _id: id }, { status: 'publish', reviewState: 'approved' });
     assert.equal((await call(ops.deletePost, { params: { id }, body: {} })).error?.name, 'ConflictError', 'published articles cannot be deleted here');
     assert.equal(await BlogPostModel.countDocuments({ _id: id }), 1, 'the published article is still there');
+    assert.equal((await call(ops.requeuePost, { params: { id: retryId } })).error?.name, 'ConflictError', 'a draft that passed the pipeline is not requeued');
+    await BlogPostModel.updateOne({ _id: retryId }, { 'editorial.state': 'blocked' });
     const requeued = await call(ops.requeuePost, { params: { id: retryId } });
     assert.equal(requeued.code, 201, JSON.stringify(requeued.error));
     assert.equal(requeued.body.data.status, 'queued');
