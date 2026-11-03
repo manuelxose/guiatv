@@ -320,7 +320,7 @@ No se activó `CONTENT_LEGACY_ENRICHMENT_ENABLED` ni se inició ningún rollout.
 
 **Estados:**
 - **M11-B1:** PARTIAL (auditoría e ingeniería PASS; borrador certificado por el pipeline; revisión editorial en HOLD; sin publicar).
-- **M11-B:** PARTIAL. Siguen abiertos los otros cuatro rankings, el calendario de mantenimiento, las URL retiradas y M04-B.
+- **M11-B:** PARTIAL al cerrar esta entrega. El 2026-11-03 la propietaria retiró la dependencia de M04-B y aceptó M11-B como hecho: **DONE por aceptación**, con las excepciones del roadmap (guía de Netflix certificada y sin publicar, otros cuatro rankings sin cambios, URL retiradas sin decidir).
 - **M04-B:** NO-GO.
 - **M12:** NO-GO.
 
