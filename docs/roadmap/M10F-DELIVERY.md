@@ -79,11 +79,40 @@ de título exacto, robots/canonical de ninguna página, nombres de canal.
 
 ## 4. Pruebas
 
-Pendiente de cerrar (ver PR).
+| Suite | Resultado |
+|---|---|
+| Frontend completo (Karma) | 386/386 (2 nuevas) |
+| Build SSR (`build:ssr`) | OK |
+| Backend relacionado (`ChannelFeedAliases`, `ProgrammeEligibility`, `TvSurfaceService`, `SitemapController`) | 43/43 |
+
+Las nuevas pruebas cubren:
+
+- `la8cyl_tv` se lista;
+- `la2_cat_tv`, `aljq_tv` y un id parecido (`la8cyl_tv_hd`) siguen ocultos;
+- un test DOM comprueba que el directorio dibuja el `<a href="/canales/la8cyl-tv">` real, que es la URL sin
+  redirección.
+
+Con la lista vacía, las dos pruebas fallan (mutación comprobada).
+
+Los alias verificados no llegan a este filtro: `TvController.readChannels` los quita antes. Sus pruebas
+(`ChannelFeedAliases.test`) siguen en verde. `ProgrammeEligibility` no cambia y sus 11 pruebas pasan.
 
 ## 5. Revisión independiente
 
-Pendiente.
+Ningún hallazgo bloqueante ni alto.
+
+- La lista va por id, así que ningún otro feed entra por nombre.
+- Un futuro alias de `la8cyl_tv` se seguiría quitando en `TvController`.
+- El enlace usa `channelCanonicalPath`, que da `/canales/la8cyl-tv` (200).
+- La caché y la clave de petición no cambian.
+- La tarjeta sigue siendo un `<a>` real con nombre accesible.
+
+| Hallazgo | Resolución |
+|---|---|
+| Medio: el mock del DOM ignora el `group`, así que no prueba la pestaña «Online» | Aceptado: el filtro no depende del grupo. En producción, `?group=online` incluye `la8cyl_tv` |
+| Bajo: el patrón negativo `/hd/` del test era demasiado amplio | Corregido |
+| Bajo: `access: unknown` oculta el canal en «En abierto» y «De pago» | Igual que los demás canales con acceso desconocido; sin cambios |
+| Nota: hay otros feeds online ocultos (`ptv_linares_tv`, `mitele_*`…) que podrían ser canales propios | Fuera de alcance: requieren la misma revisión uno a uno |
 
 ## 6. Cuestión de identidad aparte (no resuelta aquí)
 

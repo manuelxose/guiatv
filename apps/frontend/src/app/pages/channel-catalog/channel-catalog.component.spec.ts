@@ -81,7 +81,7 @@ describe('channel catalogue filtering', () => {
     const hrefs = Array.from(fixture.nativeElement.querySelectorAll('a[href^="/canales/"]'))
       .map((a) => (a as HTMLAnchorElement).getAttribute('href'));
     expect(hrefs).toContain('/canales/la8cyl-tv');
-    expect(hrefs.filter((href) => /la2-cat|aljq|hd/.test(String(href)))).toEqual([]);
+    expect(hrefs.filter((href) => /la2-cat-tv|aljq-tv|la8cyl-hd-tv/.test(String(href)))).toEqual([]);
   });
 
   it('supports explicit free/pay access filters', () => {
