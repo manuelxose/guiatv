@@ -147,13 +147,21 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     assert.deepEqual([overview.searchConsole.lastRun, overview.searchConsole.baseline], [null, { days: 0, complete: false }], 'no GSC run yet: nothing invented');
 
     // Draft operations stay inside this admin surface: edit, refuse deleting live content, then replace a blocked draft with a fresh request.
-    const retryRun = await pipelineRun('requeue-m11c');
+    const retryRun = await pipelineRun('recuperar-borrador-m11c');
     const retryId = await create(retryRun);
     assert.equal((await call(ops.updatePost, { params: { id: retryId }, body: { title: 'corto' } })).error?.name, 'ValidationError');
     const edited = await call(ops.updatePost, { params: { id: retryId }, body: { title: 'Título corregido para una recuperación editorial completa', excerpt: 'Resumen editorial corregido' } });
     assert.equal(edited.code, 200, JSON.stringify(edited.error));
-    assert.equal((await call(ops.deletePost, { params: { id: coverId }, body: {} })).code, 200, 'the blocked cover draft can be deleted');
+    // A draft of its own: the cover draft is published and served further down.
+    const doomedId = await create(await pipelineRun('borrador-para-eliminar-m11c'));
+    assert.equal((await call(ops.deletePost, { params: { id: doomedId }, body: {} })).code, 200, 'an unpublished draft can be deleted');
+    assert.equal(await BlogPostModel.countDocuments({ _id: doomedId }), 0);
+    // The rollback above left `id` as a draft; publish it again so the guard is what gets tested.
+    await BlogPostModel.updateOne({ _id: id }, { status: 'publish', reviewState: 'approved' });
     assert.equal((await call(ops.deletePost, { params: { id }, body: {} })).error?.name, 'ConflictError', 'published articles cannot be deleted here');
+    assert.equal(await BlogPostModel.countDocuments({ _id: id }), 1, 'the published article is still there');
+    assert.equal((await call(ops.requeuePost, { params: { id: retryId } })).error?.name, 'ConflictError', 'a draft that passed the pipeline is not requeued');
+    await BlogPostModel.updateOne({ _id: retryId }, { 'editorial.state': 'blocked' });
     const requeued = await call(ops.requeuePost, { params: { id: retryId } });
     assert.equal(requeued.code, 201, JSON.stringify(requeued.error));
     assert.equal(requeued.body.data.status, 'queued');

@@ -238,14 +238,17 @@ export class EditorialOpsController {
     if (!['blocked', 'requires-update', 'verified'].includes(p.state)) throw new ConflictError('Only blocked or unfinished editorial drafts can be requeued');
     const words = String(post.content ?? '').split(/\s+/).filter(Boolean).length;
     const categoryName = (post.categories ?? []).map((category) => String((category as { name?: string }).name || '')).find((name) => ['Televisión', 'Cine', 'Series', 'Streaming', 'Fútbol', 'Deportes', 'Tecnología'].includes(name));
+    // The request refuses seed URLs from domains not enabled in the settings; the old research may have used others.
+    const enabled = new Set((await this.generation.getSettings()).sourceDomains);
     const request = await this.generation.createRequest('generate', {
       title: post.title, slug: post.slug,
       topic: p.bundle.topic, intent: p.bundle.intent,
       category: categoryName || 'Streaming',
-      volatility: p.bundle.claims[0]?.volatility || 'stable',
+      // A claim may be `tv-schedule`; a topic may not (the request rejects it), so take the first claim value a topic allows.
+      volatility: (p.bundle.claims ?? []).map((claim) => claim.volatility).find((v) => ['stable', 'pricing', 'availability', 'sports-rights', 'catalog-ranking'].includes(v)) || 'stable',
       contentType: ['guide', 'ranking', 'analysis'].includes(String(post.contentType)) ? post.contentType : 'guide',
       length: words > 1400 ? 'long' : words > 900 ? 'medium' : 'short',
-      seedUrls: (p.bundle.sources ?? []).map((source) => source.url).filter((url) => /^https:\/\//.test(url)).slice(0, 4),
+      seedUrls: (p.bundle.sources ?? []).map((source) => source.url).filter((url) => /^https:\/\//.test(url) && enabled.has(new URL(url).hostname.replace(/^www\./, ''))).slice(0, 4),
       internalSources: [],
     }, actor(req));
     try {
