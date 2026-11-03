@@ -38,8 +38,8 @@ Producción solo se leyó: GET públicos y GET del Admin con la clave de analít
 
   Sin impresiones ni consultas no hay ninguna evidencia de tráfico ni de canibalización real.
 - **Operación (hallazgo, sin corregir):**
-  - El worktree `guiatv-runner` de la tarea `GuiaTV\EditorialCycle` ya no existe: `git worktree list` lo marca `prunable`. La tarea sigue habilitada y su último resultado es **1**.
-  - El gateway local de modelos (OmniRoute, `127.0.0.1:20128`) estaba parado. Se arrancó ligado solo a loopback (`OMNIROUTE_SERVER_HOST=127.0.0.1`), porque por defecto escuchaba en `0.0.0.0` sin clave.
+  - El worktree `guiatv-runner` de la tarea de Windows `GuiaTV\EditorialCycle` ya no existía (`prunable`). Se recreó después en `main`. Producción ya tiene su propio runner gestionado en el servidor (`m11g-2`, en línea), así que esa tarea local no es el camino principal y su candado no se comparte con el del servidor: desactivarla es decisión de la propietaria.
+  - Los pilotos se ejecutaron desde este PC a través de un gateway local temporal de modelos, que se paró al terminar. Ya no se usa: producción llama a Claude desde su propio entorno.
 
 ## 3. Auditoría de los cinco rankings
 
@@ -191,7 +191,7 @@ Se corrigió en tres commits, con revisión de seguridad independiente:
 
 ## 7. Pipeline editorial
 
-**Seis ejecuciones reales del pipeline** sobre el mismo slug, todas como fichero local y sin publicar. El coste es solo un registro de observabilidad: el gateway es local y la propietaria lo considera nocional, así que no limitó ningún reintento.
+**Seis ejecuciones reales del pipeline** sobre el mismo slug, todas como fichero local y sin publicar. El coste es solo un registro de observabilidad y no limitó ningún reintento.
 
 | # | Qué cambió | Resultado |
 |---|---|---|
@@ -284,7 +284,7 @@ Tests:
 - **Rama:** `m11-b1-platform-ranking-pilot`. **PR:** [manuelxose/guiatv#144](https://github.com/manuelxose/guiatv/pull/144), CI verde, sin fusionar.
 - **Commits de código:** `34c4a90` (`revises`, `requeuePost`, similitud), `aa6feee` y `70538c6` (puerta, rango de lista), `456f31c` (relleno de ceros), `053573d` (ruta del script del piloto, comentario de revisión). Los demás son documentación y artefactos.
 - **Producción:** nada desplegado ni escrito. No hay release nueva ni rollback.
-- **Fuera de la rama:** el gateway OmniRoute sigue corriendo en `127.0.0.1` (`omniroute stop` lo para).
+- **Fuera de la rama:** el gateway local de los pilotos ya está parado.
 
 ## 11. Criterios de aceptación
 
@@ -329,7 +329,22 @@ No se activó `CONTENT_LEGACY_ENRICHMENT_ENABLED` ni se inició ningún rollout.
 2. Identidad de las fichas de «Cada día nace un listo» y «Grande de España»: comprobar que son los títulos de Netflix.
 3. Slug y consulta objetivo («mejores series y películas») frente a una lista semanal. Cambiarlos necesita una 301, fuera de este hito.
 
-**Próximo submilestone recomendado (uno, no ejecutado): M11-B2, la misma técnica con Prime Video.** Antes, el propietario debe decidir si «lista oficial semanal» es el patrón correcto para los rankings. Se mantiene que no se fusione nada sin 28 días de datos de GSC.
+**Comprobación de fuentes de los otros cuatro rankings (2026-11-03, lectura de páginas públicas):** el patrón de Netflix no se generaliza.
+
+| Plataforma | Qué publica y se puede citar |
+|---|---|
+| Netflix | Top 10 semanal por país (series y películas), con fecha. Es la única lista oficial citable |
+| Prime Video | Su portada pública no muestra contenido (solo el aviso de cookies y el menú) |
+| Disney+ | Texto de marketing con las marcas del catálogo, sin posiciones ni fechas |
+| HBO Max | Precio de entrada del plan en la portada; la página `/top-10` responde 404 |
+| Movistar Plus+ | Solo una pantalla de acceso |
+
+Sin una lista oficial, un ranking por plataforma solo podría apoyarse en las notas de TMDB (que no se pueden comprobar) o en descripciones de catálogo planas. No se generaron borradores para estos cuatro, porque habrían vuelto a una plantilla con otro nombre.
+
+**Próximo submilestone recomendado (uno, no ejecutado): M11-B2, decidir el destino de los cuatro rankings sin fuente oficial.**
+1. Qué se entrega en su lugar: una sola guía comparativa «qué ver en cada plataforma» (Netflix con su Top 10, y las demás con lo que sí se puede citar: planes, marcas, canales), apoyada en los datos propios de GuíaTV.
+2. Si se opta por fusionar, las cuatro URL pasan a `/guias/rankings` por 301. Eso necesita tu autorización, 28 días de datos de Search Console y la entrada en las tablas de redirección de Angular y SSR.
+3. Mientras tanto, las cuatro guías actuales siguen publicadas sin cambios.
 
 ## PR
 
