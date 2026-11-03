@@ -1,0 +1,1072 @@
+{
+  "generatedAt": "2026-11-03T18:50:14.476Z",
+  "database": "guiatv",
+  "window": [
+    "20261102",
+    "20261103",
+    "20261104",
+    "20261105",
+    "20261106",
+    "20261107",
+    "20261108",
+    "20261109",
+    "20261110"
+  ],
+  "legacyWindow": [
+    "20261103",
+    "20261104"
+  ],
+  "filmsWithTmdbInWindow": 958,
+  "withMovieRow": 720,
+  "qualifying": 80,
+  "candidates": [
+    {
+      "tmdbId": 4614,
+      "title": "Pánico nuclear",
+      "releaseYear": 2002,
+      "airings": 35,
+      "airingsWithCatalogueRow": 35,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 5920,
+      "title": "Las 24 horas de Le Mans",
+      "releaseYear": 1971,
+      "airings": 18,
+      "airingsWithCatalogueRow": 18,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 4
+    },
+    {
+      "tmdbId": 2734,
+      "title": "La Biblia: David",
+      "releaseYear": 1997,
+      "airings": 28,
+      "airingsWithCatalogueRow": 14,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 808624,
+      "title": "O Bom Cinema",
+      "releaseYear": 2021,
+      "airings": 13,
+      "airingsWithCatalogueRow": 13,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 2
+    },
+    {
+      "tmdbId": 941,
+      "title": "Arma letal",
+      "releaseYear": 1987,
+      "airings": 12,
+      "airingsWithCatalogueRow": 12,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 911430,
+      "title": "F1 la película",
+      "releaseYear": 2025,
+      "airings": 5,
+      "airingsWithCatalogueRow": 5,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 4
+    },
+    {
+      "tmdbId": 1400837,
+      "title": "La otra madre",
+      "releaseYear": 2026,
+      "airings": 5,
+      "airingsWithCatalogueRow": 5,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 2
+    },
+    {
+      "tmdbId": 753,
+      "title": "Rostros",
+      "releaseYear": 1968,
+      "airings": 4,
+      "airingsWithCatalogueRow": 4,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": false,
+      "hasRuntime": false,
+      "genres": 1
+    },
+    {
+      "tmdbId": 346698,
+      "title": "Barbie",
+      "releaseYear": 2023,
+      "airings": 4,
+      "airingsWithCatalogueRow": 4,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 10396,
+      "title": "Conexión Tequila",
+      "releaseYear": 1988,
+      "airings": 4,
+      "airingsWithCatalogueRow": 4,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": false,
+      "hasRuntime": false,
+      "genres": 3
+    },
+    {
+      "tmdbId": 5955,
+      "title": "El juramento",
+      "releaseYear": 2001,
+      "airings": 4,
+      "airingsWithCatalogueRow": 4,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 8
+    },
+    {
+      "tmdbId": 445954,
+      "title": "Actos de venganza",
+      "releaseYear": 2017,
+      "airings": 4,
+      "airingsWithCatalogueRow": 4,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 1780170,
+      "title": "LA CITA",
+      "releaseYear": 2026,
+      "airings": 4,
+      "airingsWithCatalogueRow": 4,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 0
+    },
+    {
+      "tmdbId": 82675,
+      "title": "Venganza: Conexión Estambul",
+      "releaseYear": 2012,
+      "airings": 4,
+      "airingsWithCatalogueRow": 4,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 995408,
+      "title": "Marie-Line et son juge",
+      "releaseYear": 2023,
+      "airings": 4,
+      "airingsWithCatalogueRow": 4,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 4
+    },
+    {
+      "tmdbId": 752623,
+      "title": "La ciudad perdida",
+      "releaseYear": 2022,
+      "airings": 3,
+      "airingsWithCatalogueRow": 3,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 564,
+      "title": "La momia",
+      "releaseYear": 1999,
+      "airings": 3,
+      "airingsWithCatalogueRow": 3,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 34851,
+      "title": "Predators",
+      "releaseYear": 2010,
+      "airings": 3,
+      "airingsWithCatalogueRow": 3,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 1783597,
+      "title": "Eclipse",
+      "releaseYear": 2026,
+      "airings": 3,
+      "airingsWithCatalogueRow": 3,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 4
+    },
+    {
+      "tmdbId": 3525,
+      "title": "Armas de mujer",
+      "releaseYear": 1988,
+      "airings": 3,
+      "airingsWithCatalogueRow": 3,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 620,
+      "title": "Los Cazafantasmas",
+      "releaseYear": 1984,
+      "airings": 3,
+      "airingsWithCatalogueRow": 3,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 4
+    },
+    {
+      "tmdbId": 244,
+      "title": "King Kong",
+      "releaseYear": 1933,
+      "airings": 3,
+      "airingsWithCatalogueRow": 3,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 140823,
+      "title": "Al encuentro de Mr. Banks",
+      "releaseYear": 2013,
+      "airings": 3,
+      "airingsWithCatalogueRow": 3,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 1606362,
+      "title": "Castigo divino",
+      "releaseYear": 2026,
+      "airings": 3,
+      "airingsWithCatalogueRow": 3,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 4
+    },
+    {
+      "tmdbId": 291356,
+      "title": "El valle de la venganza",
+      "releaseYear": 2016,
+      "airings": 3,
+      "airingsWithCatalogueRow": 3,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 31597,
+      "title": "Testigo accidental",
+      "releaseYear": 1990,
+      "airings": 3,
+      "airingsWithCatalogueRow": 3,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 8
+    },
+    {
+      "tmdbId": 49040,
+      "title": "El legado de Bourne",
+      "releaseYear": 2012,
+      "airings": 3,
+      "airingsWithCatalogueRow": 3,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 4
+    },
+    {
+      "tmdbId": 26971,
+      "title": "Dieta mediterránea",
+      "releaseYear": 2009,
+      "airings": 3,
+      "airingsWithCatalogueRow": 3,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 2
+    },
+    {
+      "tmdbId": 1319972,
+      "title": "No dejemos que esta noche todo se pierda",
+      "releaseYear": 2025,
+      "airings": 3,
+      "airingsWithCatalogueRow": 3,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 2
+    },
+    {
+      "tmdbId": 1406494,
+      "title": "Testigo Protegido",
+      "releaseYear": 2013,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": false,
+      "genres": 0
+    },
+    {
+      "tmdbId": 595148,
+      "title": "Un plan irresistible",
+      "releaseYear": 2020,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": false,
+      "hasRuntime": false,
+      "genres": 2
+    },
+    {
+      "tmdbId": 869291,
+      "title": "Cuckoo",
+      "releaseYear": 2024,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 28259,
+      "title": "Una palabra tuya",
+      "releaseYear": 2008,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 4
+    },
+    {
+      "tmdbId": 1088548,
+      "title": "Amarga Navidad",
+      "releaseYear": 2026,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 4
+    },
+    {
+      "tmdbId": 800090,
+      "title": "Los Tortuga",
+      "releaseYear": 2025,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 2
+    },
+    {
+      "tmdbId": 168259,
+      "title": "Fast & Furious 7",
+      "releaseYear": 2015,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 1182861,
+      "title": "Romería",
+      "releaseYear": 2025,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 2
+    },
+    {
+      "tmdbId": 27150,
+      "title": "Furia silenciosa",
+      "releaseYear": 1982,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 8
+    },
+    {
+      "tmdbId": 911129,
+      "title": "Sin aliento",
+      "releaseYear": 2022,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 4
+    },
+    {
+      "tmdbId": 29805,
+      "title": "El enigma se llama Juggernaut",
+      "releaseYear": 1974,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 9480,
+      "title": "Daredevil",
+      "releaseYear": 2003,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 4
+    },
+    {
+      "tmdbId": 47050,
+      "title": "Perros callejeros",
+      "releaseYear": 1977,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 185460,
+      "title": "Willow Creek",
+      "releaseYear": 2013,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 460458,
+      "title": "Resident Evil. Bienvenidos a Raccoon City",
+      "releaseYear": 2021,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 30497,
+      "title": "La matanza de Texas",
+      "releaseYear": 1974,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 2
+    },
+    {
+      "tmdbId": 704561,
+      "title": "Visións",
+      "releaseYear": 2016,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 0
+    },
+    {
+      "tmdbId": 219,
+      "title": "Volver",
+      "releaseYear": 2006,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 34985,
+      "title": "Mataharis",
+      "releaseYear": 2007,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": false,
+      "hasRuntime": false,
+      "genres": 2
+    },
+    {
+      "tmdbId": 447332,
+      "title": "Un lugar tranquilo",
+      "releaseYear": 2018,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 1639,
+      "title": "Speed 2",
+      "releaseYear": 1997,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 4
+    },
+    {
+      "tmdbId": 9739,
+      "title": "Demolition Man",
+      "releaseYear": 1993,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 10776,
+      "title": "La tienda de los horrores",
+      "releaseYear": 1986,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 4
+    },
+    {
+      "tmdbId": 25553,
+      "title": "Último tren a Katanga",
+      "releaseYear": 1968,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 842859,
+      "title": "La mercancía más preciosa",
+      "releaseYear": 2024,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 767304,
+      "title": "Día de redención",
+      "releaseYear": 2021,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 296098,
+      "title": "El puente de los espías",
+      "releaseYear": 2015,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 4
+    },
+    {
+      "tmdbId": 1219548,
+      "title": "El médico II",
+      "releaseYear": 2025,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 348,
+      "title": "Alien: El octavo pasajero",
+      "releaseYear": 1979,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 4
+    },
+    {
+      "tmdbId": 771757,
+      "title": "El último suspiro",
+      "releaseYear": 1996,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": false,
+      "genres": 0
+    },
+    {
+      "tmdbId": 20391,
+      "title": "La leyenda de la ciudad sin nombre",
+      "releaseYear": 1969,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 2100,
+      "title": "La última fortaleza",
+      "releaseYear": 2001,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 24203,
+      "title": "Su otra esposa",
+      "releaseYear": 1957,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 4
+    },
+    {
+      "tmdbId": 9619,
+      "title": "Un pueblo llamado Dante's Peak",
+      "releaseYear": 1997,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 8
+    },
+    {
+      "tmdbId": 401469,
+      "title": "Viudas",
+      "releaseYear": 2018,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 115715,
+      "title": "Celos",
+      "releaseYear": 1999,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 2
+    },
+    {
+      "tmdbId": 388202,
+      "title": "Arsenal",
+      "releaseYear": 2017,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": false,
+      "hasRuntime": false,
+      "genres": 2
+    },
+    {
+      "tmdbId": 1291712,
+      "title": "Las catadoras de Hitler",
+      "releaseYear": 2025,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 4
+    },
+    {
+      "tmdbId": 6068,
+      "title": "Seis días y siete noches",
+      "releaseYear": 1998,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 8
+    },
+    {
+      "tmdbId": 477044,
+      "title": "La isla de Bergman",
+      "releaseYear": 2021,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": false,
+      "hasRuntime": false,
+      "genres": 2
+    },
+    {
+      "tmdbId": 507076,
+      "title": "Climax",
+      "releaseYear": 2018,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 1242898,
+      "title": "Predator: Badlands",
+      "releaseYear": 2025,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 756999,
+      "title": "Black Phone",
+      "releaseYear": 2022,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 4
+    },
+    {
+      "tmdbId": 10802,
+      "title": "Showgirls",
+      "releaseYear": 1995,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 2
+    },
+    {
+      "tmdbId": 10559,
+      "title": "Frequency",
+      "releaseYear": 2000,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 8271,
+      "title": "Disturbia",
+      "releaseYear": 2007,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 980489,
+      "title": "Gran Turismo",
+      "releaseYear": 2023,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 937941,
+      "title": "La maldición de Shelby Oaks",
+      "releaseYear": 2025,
+      "airings": 2,
+      "airingsWithCatalogueRow": 2,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 4
+    },
+    {
+      "tmdbId": 13572,
+      "title": "Giro inesperado",
+      "releaseYear": 2004,
+      "airings": 1,
+      "airingsWithCatalogueRow": 1,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    },
+    {
+      "tmdbId": 1245368,
+      "title": "Grand Me",
+      "releaseYear": 2024,
+      "airings": 1,
+      "airingsWithCatalogueRow": 1,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": false,
+      "hasRuntime": false,
+      "genres": 1
+    },
+    {
+      "tmdbId": 1241921,
+      "title": "Un gran viaje atrevido y maravilloso",
+      "releaseYear": 2025,
+      "airings": 1,
+      "airingsWithCatalogueRow": 1,
+      "datesBeyondLegacyWindow": [
+        "20261105"
+      ],
+      "fullyFetched": true,
+      "hasRuntime": true,
+      "genres": 6
+    }
+  ],
+  "readOnlyGuard": {
+    "total": 4,
+    "counts": {
+      "aggregate:tv_read_airings": 1,
+      "getMore:": 2,
+      "find:media_catalog": 1
+    }
+  }
+}
