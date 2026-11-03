@@ -1,0 +1,11 @@
+{
+ "slug": "mejores-series-y-peliculas-netflix-espana",
+ "changed": [],
+ "findings": [
+  {
+   "severity": "human",
+   "code": "critic-rejected",
+   "message": "La revisión independiente pide revise: El párrafo tras la tabla repite datos que ya están en ella: «Es el único de los tres que llega a ese nivel en pantallas simultáneas (cuatro), resolución (4K (Ultra HD) + HDR) y dispositivos con descargas (seis)» y «Si basta con las pantallas simultáneas del Estándar (dos) y la resolución 1080p, ambo"
+  }
+ ]
+}

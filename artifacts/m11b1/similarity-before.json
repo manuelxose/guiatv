@@ -1,0 +1,174 @@
+{
+  "base": "https://guiaprogramaciontv.com",
+  "measuredAt": "2026-11-03T07:56:14.133Z",
+  "rows": [
+    {
+      "platform": "Netflix",
+      "slug": "mejores-series-y-peliculas-netflix-espana",
+      "candidate": false,
+      "words": 456,
+      "proseWords": 317,
+      "sharedProseAll": 0.697,
+      "sharedProseAny": 0.697,
+      "tableTitles": 20,
+      "titlesInOtherLists": 9,
+      "externalLinks": [
+        "https://www.themoviedb.org/"
+      ],
+      "headings": [
+        "Cómo se ha hecho esta lista",
+        "Mejores series de Netflix",
+        "Mejores películas de Netflix",
+        "Antes de suscribirte",
+        "Fuentes"
+      ],
+      "verifiedOn": "19 de octubre de 2026"
+    },
+    {
+      "platform": "Prime Video",
+      "slug": "mejores-series-y-peliculas-prime-video-espana",
+      "candidate": false,
+      "words": 440,
+      "proseWords": 318,
+      "sharedProseAll": 0.695,
+      "sharedProseAny": 0.695,
+      "tableTitles": 20,
+      "titlesInOtherLists": 11,
+      "externalLinks": [
+        "https://www.themoviedb.org/"
+      ],
+      "headings": [
+        "Cómo se ha hecho esta lista",
+        "Mejores series de Prime Video",
+        "Mejores películas de Prime Video",
+        "Antes de suscribirte",
+        "Fuentes"
+      ],
+      "verifiedOn": "19 de octubre de 2026"
+    },
+    {
+      "platform": "Disney+",
+      "slug": "mejores-series-y-peliculas-disney-plus-espana",
+      "candidate": false,
+      "words": 475,
+      "proseWords": 328,
+      "sharedProseAll": 0.674,
+      "sharedProseAny": 0.674,
+      "tableTitles": 20,
+      "titlesInOtherLists": 10,
+      "externalLinks": [
+        "https://www.themoviedb.org/"
+      ],
+      "headings": [
+        "Cómo se ha hecho esta lista",
+        "Mejores series de Disney+",
+        "Mejores películas de Disney+",
+        "Antes de suscribirte",
+        "Fuentes"
+      ],
+      "verifiedOn": "19 de octubre de 2026"
+    },
+    {
+      "platform": "HBO Max",
+      "slug": "mejores-series-y-peliculas-hbo-max-espana",
+      "candidate": false,
+      "words": 466,
+      "proseWords": 324,
+      "sharedProseAll": 0.682,
+      "sharedProseAny": 0.731,
+      "tableTitles": 20,
+      "titlesInOtherLists": 16,
+      "externalLinks": [
+        "https://www.themoviedb.org/"
+      ],
+      "headings": [
+        "Cómo se ha hecho esta lista",
+        "Mejores series de HBO Max",
+        "Mejores películas de HBO Max",
+        "Antes de suscribirte",
+        "Fuentes"
+      ],
+      "verifiedOn": "19 de octubre de 2026"
+    },
+    {
+      "platform": "Movistar Plus+",
+      "slug": "mejores-series-y-peliculas-movistar-plus-espana",
+      "candidate": false,
+      "words": 455,
+      "proseWords": 321,
+      "sharedProseAll": 0.688,
+      "sharedProseAny": 0.738,
+      "tableTitles": 20,
+      "titlesInOtherLists": 16,
+      "externalLinks": [
+        "https://www.themoviedb.org/"
+      ],
+      "headings": [
+        "Cómo se ha hecho esta lista",
+        "Mejores series de Movistar Plus+",
+        "Mejores películas de Movistar Plus+",
+        "Antes de suscribirte",
+        "Fuentes"
+      ],
+      "verifiedOn": "19 de octubre de 2026"
+    }
+  ],
+  "pairs": [
+    {
+      "a": "Netflix",
+      "b": "Prime Video",
+      "jaccard4": 0.376
+    },
+    {
+      "a": "Netflix",
+      "b": "Disney+",
+      "jaccard4": 0.388
+    },
+    {
+      "a": "Netflix",
+      "b": "HBO Max",
+      "jaccard4": 0.36
+    },
+    {
+      "a": "Netflix",
+      "b": "Movistar Plus+",
+      "jaccard4": 0.391
+    },
+    {
+      "a": "Prime Video",
+      "b": "Disney+",
+      "jaccard4": 0.359
+    },
+    {
+      "a": "Prime Video",
+      "b": "HBO Max",
+      "jaccard4": 0.401
+    },
+    {
+      "a": "Prime Video",
+      "b": "Movistar Plus+",
+      "jaccard4": 0.399
+    },
+    {
+      "a": "Disney+",
+      "b": "HBO Max",
+      "jaccard4": 0.425
+    },
+    {
+      "a": "Disney+",
+      "b": "Movistar Plus+",
+      "jaccard4": 0.369
+    },
+    {
+      "a": "HBO Max",
+      "b": "Movistar Plus+",
+      "jaccard4": 0.482
+    }
+  ],
+  "tableSlots": 100,
+  "distinctTitles": 65,
+  "thresholds": {
+    "nearDuplicate": 0.35,
+    "nearIdentical": 0.8
+  }
+}
