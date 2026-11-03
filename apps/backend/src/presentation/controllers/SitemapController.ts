@@ -13,6 +13,7 @@ import { ProgrammeEligibility, clearProgrammeEligibilityLastGood, invalidateProg
 import { TvReadQueryService } from '../../application/services/TvReadQueryService';
 import { PUBLIC_EDITORIAL_FILTER } from '../../application/services/EditorialReviewPolicy';
 import { logger } from '../../shared/utils/logger';
+import { indexBatchGate } from '../../application/services/IndexBatchGate';
 import { entityPublicReadPolicy, normalizeEntityPath } from '../../application/services/EntityPublicReadPolicy';
 
 type Changefreq =
@@ -161,6 +162,14 @@ export class SitemapController {
     } catch (error) { next(error); }
   }
 
+  /** GET /sitemap-batch.xml: exactly the paths on the signed M12 allowlist; empty urlset (404 in the index) when off, killed or invalid. */
+  async getBatchSitemap(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const xml = await this.getCached('batch', async () => this.renderUrlset(indexBatchGate().paths().map((p) => ({ loc: p }))));
+      this.sendXml(res, xml);
+    } catch (error) { next(error); }
+  }
+
   /** GET /sitemap-football.xml — competitions, matches, teams (spec §79-81). */
   async getFootballSitemap(_req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
@@ -179,7 +188,7 @@ export class SitemapController {
   /* ------------------------------------------------------------------ */
 
   private async getCached(key: string, builder: () => Promise<string | { xml: string; validUntil: number; fallback?: true }>): Promise<string> {
-    key = `${entityPublicReadPolicy().partition()}:${key}`;
+    key = `${entityPublicReadPolicy().partition()}:${indexBatchGate().partition()}:${key}`;
     const now = Date.now();
     const cached = cache.get(key);
     if (cached && cached.expiresAt > now) return cached.value;
@@ -243,6 +252,8 @@ export class SitemapController {
     // index too (served from its last good copy), so a database blip never caches an index without the works child.
     const works = await this.getCached('works', () => this.buildWorksSitemap());
     if (works.includes('<url>')) subs.push(['sitemap-works.xml', 'works', () => this.buildWorksSitemap()]);
+
+    if (indexBatchGate().paths().length) subs.push(['sitemap-batch.xml', 'batch', async () => '']);
 
     const lines: string[] = [
       '<?xml version="1.0" encoding="UTF-8"?>',
