@@ -1,0 +1,17 @@
+[Unit]
+Description=GuiaTV broadcast history archive (M12-G3B; closed Madrid days into tv_broadcast_observations)
+After=mongod.service
+OnFailure=guiatv-crash-alert@%n.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/var/www/guiatv/current/apps/backend
+EnvironmentFile=/etc/guiatv/api.env
+# Capture is on only when this file sets HISTORY_CAPTURE_ENABLED=true; without it the job exits 0 without touching the database.
+EnvironmentFile=-/etc/guiatv/history.env
+Environment=NODE_OPTIONS=--max-old-space-size=512
+ExecStart=/usr/bin/node /var/www/guiatv/current/apps/backend/dist/jobs/cli/archiveBroadcastHistory.cli.js
+MemoryMax=1G
+Nice=10
+TimeoutStartSec=1800
