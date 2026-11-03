@@ -64,6 +64,19 @@ test('archiver', { skip: !process.env.TEST_MONGO_URI }, async (t) => {
       await Promise.all([1, 2, 3].map(() => archiveDay('20261102', { env: ON, now: NOW })));
       assert.equal(await TVBroadcastObservationModel.countDocuments(), 3);
     });
+    await t.test('cross-midnight row present in two read-model days is owned by its start day and never flip-flops', async () => {
+      await reset();
+      const x = (date: string, title: string, end: string) => ({ ...row(1, title, date), id: `${date}-x`, airing: { start: '2026-11-01T22:00:00.000Z', end } });
+      await TVReadAiringModel.insertMany([x('20261101', 'No Data', '2026-11-01T23:00:00.000Z'), x('20261102', 'Próximo partido', '2026-11-02T02:00:00.000Z')]);
+      for (let i = 0; i < 3; i++) {
+        const a = await archiveDay('20261101', { env: ON, now: NOW });
+        const b = await archiveDay('20261102', { env: ON, now: NOW });
+        assert.equal(b.outOfDay, 1);
+        if (i) assert.deepEqual([a.revised, b.revised], [0, 0]);
+      }
+      const o: any = await TVBroadcastObservationModel.findOne().lean();
+      assert.deepEqual([await TVBroadcastObservationModel.countDocuments(), o.title, o.rev], [1, 'No Data', 1]);
+    });
     await t.test('partial run: re-run skips what exists and finishes the rest', async () => {
       await reset();
       await TVReadAiringModel.insertMany([row(1), row(2), row(3)]);
