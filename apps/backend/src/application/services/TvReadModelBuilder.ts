@@ -74,6 +74,7 @@ export interface TvReadModelBuildResult {
 
 export class TvReadModelBuilder {
   private readonly log = logger.child('TvReadModelBuilder');
+  private static readonly dayLocks = new Map<string, Promise<void>>();
 
   constructor(
     private readonly programRepository: IProgramRepository,
@@ -464,18 +465,33 @@ export class TvReadModelBuilder {
    * production Mongo may be standalone. replaceOne (not $set) so a field the new item lacks does not survive.
    */
   private async replaceDayAirings(date: string, airings: any[]): Promise<void> {
+    // shortcut: serialised per date inside this process only; a second process rebuilding the same date with a different set can still drop rows until the next rebuild.
+    const previous = TvReadModelBuilder.dayLocks.get(date) ?? Promise.resolve();
+    const run = previous.catch(() => undefined).then(() => this.writeDay(date, airings));
+    TvReadModelBuilder.dayLocks.set(date, run);
     try {
-      if (airings.length) {
-        await TVReadAiringModel.bulkWrite(
-          airings.map((airing) => ({
-            replaceOne: { filter: { id: airing.id }, replacement: airing, upsert: true },
-          })),
-          { ordered: false }
-        );
+      await run;
+    } finally {
+      if (TvReadModelBuilder.dayLocks.get(date) === run) TvReadModelBuilder.dayLocks.delete(date);
+    }
+  }
+
+  private async writeDay(date: string, airings: any[]): Promise<void> {
+    try {
+      // An empty source (feed outage) must not wipe a populated day; the old behaviour did.
+      if (!airings.length) {
+        this.log.warn('TV read model rebuilt from zero programmes; existing rows kept', { date });
+        return;
       }
+      await TVReadAiringModel.bulkWrite(
+        airings.map((airing) => ({
+          replaceOne: { filter: { id: airing.id }, replacement: airing, upsert: true },
+        })),
+        { ordered: false }
+      );
       await TVReadAiringModel.deleteMany({ date, id: { $nin: airings.map((airing) => airing.id) } }).exec();
     } catch (error) {
-      this.log.error('TV read model day replace failed; previous rows kept', { date, error });
+      this.log.error('TV read model day replace failed; nothing was deleted', { date, error });
       throw error;
     }
   }

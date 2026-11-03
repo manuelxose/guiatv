@@ -60,11 +60,20 @@ test('rebuild replaces the day: updates in place, adds new, drops obsolete, keep
     assert.equal(new Set(ids).size, ids.length, 'unique id preserved, no duplicates');
   }));
 
-test('a day with no programmes is emptied, as before', { skip: !process.env.TEST_MONGO_URI }, () =>
+test('a rebuild from zero programmes keeps the existing day (feed outage must not wipe it)', { skip: !process.env.TEST_MONGO_URI }, () =>
   withDb('empty', async () => {
     await builderFor([prog('a', 'Uno', 10)]).rebuildDate(DAY);
     await builderFor([]).rebuildDate(DAY);
-    assert.deepEqual(await titles(), []);
+    assert.deepEqual(await titles(), ['Uno']);
+  }));
+
+test('concurrent rebuilds of one date with different sets end with exactly the last set', { skip: !process.env.TEST_MONGO_URI }, () =>
+  withDb('lock', async () => {
+    const mk = (tag: string, n: number) => Array.from({ length: n }, (_, i) => ({ ...prog(`${tag}${i}`, `${tag}${i}`, i % 20), channelId: `${tag}${i}`, canonicalChannelId: `${tag}${i}` }));
+    await Promise.all([builderFor(mk('A', 120)).rebuildDate(DAY), builderFor(mk('B', 80)).rebuildDate(DAY)]);
+    const t = await titles();
+    assert.equal(t.length, 80);
+    assert.ok(t.every((x) => x.startsWith('B')), 'serialised: the later rebuild wins, nothing from the earlier set survives');
   }));
 
 test('concurrent rebuilds converge on the full set and a reader never sees an empty day', { skip: !process.env.TEST_MONGO_URI }, () =>
