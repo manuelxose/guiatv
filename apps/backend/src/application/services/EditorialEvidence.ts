@@ -190,13 +190,16 @@ function containsQuote(spacedText: string, spacedNeedle: string): boolean {
     if (/\d$/.test(needle) && /^(?:\d|[.,]\d)/.test(after)) continue;
     return true;
   }
-  // Without spaces a numbered list ("Miniserie 3 03 Lupin") reads "…303" and every rank is refused. With the original
-  // spacing, a number across a space is a separate number, unless the space separates thousands ("1 200 €").
+  // Without spaces a ranked list ("Miniserie 3 03 Lupin") reads "…303" and every rank is refused. Only that shape is let
+  // through: a quote that starts with a rank token 01–10 and a word, after another number and a space. Page text has its
+  // markup turned into spaces, so "12<sup>,99</sup>" or "1<b>2</b>5" look the same as two numbers: anything else, and
+  // every quote that ends in a digit, keeps the rule above (independent review, M11-B1).
+  if (!/^(?:0[1-9]|10) \p{L}/u.test(spacedNeedle)) return false;
   for (let at = spacedText.indexOf(spacedNeedle); at !== -1; at = spacedText.indexOf(spacedNeedle, at + 1)) {
     const before = spacedText.slice(Math.max(0, at - 2), at);
-    const after = spacedText.slice(at + spacedNeedle.length, at + spacedNeedle.length + 6);
-    if (/^\d/.test(spacedNeedle) && (/[\d.,]$/.test(before) || (/\d $/.test(before) && /^\d{3}(?!\d)/.test(spacedNeedle)))) continue;
-    if (/\d$/.test(spacedNeedle) && (/^(?:\d|[.,]\d)/.test(after) || /^ \d{3}(?!\d)/.test(after))) continue;
+    const after = spacedText.slice(at + spacedNeedle.length, at + spacedNeedle.length + 2);
+    if (!/\d $/.test(before) && /[\d.,]$/.test(before)) continue;
+    if (/\d$/.test(spacedNeedle) && /^(?:\d|[.,]\d)/.test(after.replace(/^ /, ''))) continue;
     return true;
   }
   return false;

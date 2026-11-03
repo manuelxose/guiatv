@@ -275,22 +275,29 @@ test('review M4: a quote matches only at digit boundaries', () => {
 });
 
 test('M11-B1: a rank in a numbered list verifies; glued digits and space-separated thousands still refuse', () => {
-  const list = 'Top 10 en series en España Ranking 01 Grande de España: Temporada 1 1 02 Bajo la superficie: Miniserie 3 03 Lupin: Parte 4 1 04';
+  const list = 'Top 10 en series en España Ranking 01 Grande de España: Temporada 1 1 02 Bajo la superficie: Miniserie 3 03 Lupin: Parte 4 1 04 La trampa: Miniserie 2 … 09 Nadie quiere esto: Temporada 3 1 10 Cyberpunk: Edgerunners 2 1 Sobre la metodología';
   const prices = 'Cuota anual: 1 200 € al año. Plan Estándar: 13,99 €/mes.';
   const claim = (id: string, quote: string) => ({ id, text: `Dato ${id}`, volatility: 'catalog-ranking' as const, quotes: [{ sourceId: 's1', quote }] });
   const run = (text: string, claims: ReturnType<typeof claim>[]) =>
     verifyBundle(bundleFixture({ claims }), new Map([['s1', text]])).claims.map((c) => c.quotes[0].verified);
   assert.deepEqual(run(list, [
-    claim('r2', '02 Bajo la superficie: Miniserie 3'),
-    claim('r2b', '02 Bajo la superficie: Miniserie'),
-    claim('r3', 'Lupin: Parte 4 1'),
-    claim('glued', '2 Bajo la superficie: Miniserie 3'),
-  ]), [true, true, true, false]);
+    claim('rank', '02 Bajo la superficie: Miniserie'),
+    claim('rank10', '10 Cyberpunk: Edgerunners'),
+    claim('ends-in-digit', '02 Bajo la superficie: Miniserie 3'),
+    claim('tail', 'Lupin: Parte 4 1'),
+    claim('glued', '2 Bajo la superficie: Miniserie'),
+  ]), [true, true, false, false, false], 'only a rank token at the start; a trailing digit next to a number still refuses');
   assert.deepEqual(run(prices, [
     claim('k-head', 'Cuota anual: 1'),
     claim('k-tail', '200 € al año. Plan'),
     claim('whole', 'Plan Estándar: 13,99 €/mes'),
   ]), [false, false, true], 'not either half of "1 200 €"');
+  // Fetched text turns markup into spaces: "12<sup>,99</sup>" and "1<b>2</b>5" must not yield "12" or "1" (review B1).
+  assert.deepEqual(run('La suscripción cuesta 12 ,99 € al mes. La serie tiene 1 2 5 episodios y 1 25 capítulos.', [
+    claim('split-price', 'La suscripción cuesta 12'),
+    claim('split-int', 'La serie tiene 1'),
+    claim('split-tail', '25 capítulos en total'),
+  ]), [false, false, false]);
   // The claim's numbers must be in a verified quote: a zero-padded rank is the same integer, a different one is not.
   const ranks = verifyBundle(bundleFixture({ claims: [
     { id: 'n2', text: 'Series, n.º 2: Bajo la superficie: Miniserie.', volatility: 'catalog-ranking', quotes: [{ sourceId: 's1', quote: '02 Bajo la superficie: Miniserie' }] },
