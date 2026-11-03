@@ -116,3 +116,11 @@ Ninguna captura, ninguna configuración, ningún cambio de producción. Activar 
 ## 11. Siguiente milestone único
 
 **M12-G3C — Activar la captura**: job/CLI, medición de volumen real tras unos días y corrección de H1/H2 de G1/G2.
+
+## 12. Correcciones G1/G2 aplicadas (H1, H2)
+
+`UrlEligibility.ts` pasa a `url-eligibility-v2`:
+- **H1:** `thin-content` exige `totalWords >= 300` **y** `uniqueWords/totalWords >= 0.3`; `metrics` añade `totalWords`.
+- **H2:** `evidenceHash` cubre ahora título, descripción, JSON-LD, `entityVerified` y un digest ordenado de los pares (`path|intentKey|hash(mainText)`).
+- Tests de regresión: 400 palabras con 90 distintas, 250 distintas, variedad natural; cada insumo cambia el hash y el orden de pares no.
+- Cualquier lista firmada con hashes v1 deja de ser válida (hay que re-evaluar): ninguna existe en producción (G1/G2 inactivos).
