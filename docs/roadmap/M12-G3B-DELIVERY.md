@@ -137,3 +137,13 @@ sudo systemctl start guiatv-history-archive.service && journalctl -u guiatv-hist
 ```
 
 Comprobación: la salida muestra una línea por día con `inserted`/`unchanged`. Parada inmediata: `sudo rm /etc/guiatv/history.env` (o `systemctl disable --now guiatv-history-archive.timer`). Primer relleno: pasar fechas, p. ej. `node dist/jobs/cli/archiveBroadcastHistory.cli.js 20261101 20261102` (solo existen los días que aún estén en `tv_read_airings`).
+
+## 14. Activación realizada (2026-11-04, autorizada por el propietario)
+
+- Deploy manual `deploy-artifact.yml` desde `main@465c34b`: release `20261104000142`, API y SSR activos.
+- Unidades copiadas a `/etc/systemd/system/`, `/etc/guiatv/history.env` con `HISTORY_CAPTURE_ENABLED=true` (modo 600), `guiatv-history-archive.timer` habilitado (próximo disparo 03:30).
+- Primera ejecución manual (00:03 Madrid): 20261101 → 8 144 insertadas; 20261102 → 8 649 insertadas, 1 revisada, 2 sin cambios; 20261103 → 11 585 insertadas, 214 sin cambios. 0 rechazadas, 0 carreras. Duración 22 s, 32 s de CPU.
+- Volumen real: 8–12 mil emisiones/día (la estimación de §5 de 20 mil era alta, ≈ −40 %).
+- Observación: las filas "sin cambios" en una primera pasada son emisiones con el mismo canal e inicio que otra del mismo día; comparten identidad. Si difirieran en título provocarían revisiones cruzadas en cada pasada: vigilar `rev` > 1 los próximos días.
+- Parada: `rm /etc/guiatv/history.env` o `systemctl disable --now guiatv-history-archive.timer`.
+- No medidos: tamaño real de la colección y efecto en latencia (revisar tras unos días).
