@@ -26,7 +26,7 @@ async function fetchText(url) {
 (async () => {
   const [out, ...dirs] = process.argv.slice(2);
   const cache = new Map();
-  const report = { at: new Date().toISOString(), files: 0, quotes: 0, compared: 0, oldTrueNewFalse: 0, flips: [] };
+  const report = { at: new Date().toISOString(), files: 0, quotes: 0, compared: 0, oldTrueNewFalse: 0, flips: [], paddingFlips: [] };
   for (const dir of dirs) {
     if (!existsSync(dir)) continue;
     for (const f of readdirSync(dir).filter((x) => x.endsWith('.json'))) {
@@ -40,6 +40,13 @@ async function fetchText(url) {
       }
       const fresh = ev.verifyBundle(bundle, snapshots);
       const used = new Set([...String(run.provenance.draftMarkdown ?? '').matchAll(/\[\[([^\]]+)\]\]/g)].flatMap((m) => m[1].split(',').map((x) => x.trim())));
+      // Zero-padding rule: a claim now supported whose numbers are only in its quotes once "02" counts as "2".
+      const nums = (t) => String(t).normalize('NFKC').match(/\d+(?:[.,]\d+)*/g) ?? [];
+      fresh.claims.forEach((c, i) => {
+        if (c.status !== 'supported') return;
+        const raw = new Set(c.quotes.filter((q) => q.verified).flatMap((q) => nums(q.quote)));
+        if (nums(c.text).some((n) => !raw.has(n) && [...raw].some((r) => r !== n && /^0\d+$/.test(r) && r.replace(/^0+(?=\d)/, '') === n))) report.paddingFlips.push({ file: `${dir}/${f}`, claim: c.id, usedInDraft: used.has(c.id), text: c.text });
+      });
       fresh.claims.forEach((c, i) => c.quotes.forEach((q, j) => {
         report.quotes++;
         const text = snapshots.get(q.sourceId); if (text == null) return;
@@ -52,6 +59,6 @@ async function fetchText(url) {
     }
   }
   writeFileSync(out, `${JSON.stringify(report, null, 1)}\n`);
-  console.log(`files ${report.files} quotes ${report.quotes} compared ${report.compared} old→new flips ${report.flips.length} (in drafts ${report.flips.filter((x) => x.usedInDraft).length}) regressions ${report.oldTrueNewFalse}`);
+  console.log(`files ${report.files} quotes ${report.quotes} compared ${report.compared} old→new flips ${report.flips.length} (in drafts ${report.flips.filter((x) => x.usedInDraft).length}) regressions ${report.oldTrueNewFalse}; claims supported only via zero-padding ${report.paddingFlips.length} (in drafts ${report.paddingFlips.filter((x) => x.usedInDraft).length}, outside the pilot ${report.paddingFlips.filter((x) => !x.file.includes("m11b1")).length})`);
   for (const x of report.flips) console.log(`  ${x.file.split('/').slice(-3).join('/')} ${x.claim}${x.usedInDraft ? ' [draft]' : ''}: ${x.quote.slice(0, 90)}`);
 })();

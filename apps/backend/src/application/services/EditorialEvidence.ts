@@ -169,6 +169,7 @@ function spacedForMatch(text: string): string {
 
 const MIN_QUOTE_CHARS = 12;
 const numbersIn = (text: string) => String(text).normalize('NFKC').match(/\d+(?:[.,]\d+)*/g) ?? [];
+const unpadded = (n: string) => (/^0\d+$/.test(n) ? n.replace(/^0+(?=\d)/, '') : n);
 const hostOf = (url: string) => {
   try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; }
 };
@@ -368,7 +369,8 @@ export function assessBundle(bundle: EvidenceBundle): EvidenceBundle {
     const good = quotes.filter((q) => q.verified).map((q) => sources.get(q.sourceId)!);
     const primary = good.some((s) => s.kind !== 'press');
     const pressDomains = new Set(good.filter((s) => s.kind === 'press').map((s) => registrableDomain(s.url)));
-    const quotedNumbers = new Set(quotes.filter((q) => q.verified).flatMap((q) => [...numbersIn(q.quote), ...spelledNumbers(q.quote)]));
+    // A zero-padded integer is the same number: rank "02" in a list supports "n.º 2" (decimals and prices are unchanged).
+    const quotedNumbers = new Set(quotes.filter((q) => q.verified).flatMap((q) => [...numbersIn(q.quote), ...spelledNumbers(q.quote)]).flatMap((n) => [n, unpadded(n)]));
     // A located reference's span is not a figure; the rest of the text is checked as before. Any unlocated reference fails,
     // even when the quote happens to contain its numbers: the attribution itself is the claim.
     const located = new Set(claim.legalRefs ?? []);

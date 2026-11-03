@@ -291,6 +291,12 @@ test('M11-B1: a rank in a numbered list verifies; glued digits and space-separat
     claim('k-tail', '200 € al año. Plan'),
     claim('whole', 'Plan Estándar: 13,99 €/mes'),
   ]), [false, false, true], 'not either half of "1 200 €"');
+  // The claim's numbers must be in a verified quote: a zero-padded rank is the same integer, a different one is not.
+  const ranks = verifyBundle(bundleFixture({ claims: [
+    { id: 'n2', text: 'Series, n.º 2: Bajo la superficie: Miniserie.', volatility: 'catalog-ranking', quotes: [{ sourceId: 's1', quote: '02 Bajo la superficie: Miniserie' }] },
+    { id: 'n3', text: 'Series, n.º 3: Bajo la superficie: Miniserie.', volatility: 'catalog-ranking', quotes: [{ sourceId: 's1', quote: '02 Bajo la superficie: Miniserie' }] },
+  ] }), new Map([['s1', list]]));
+  assert.deepEqual(ranks.claims.map((c) => c.status), ['supported', 'unverified']);
 });
 
 test('review L2: user-generated areas and marketplace pages of official domains are press', () => {
