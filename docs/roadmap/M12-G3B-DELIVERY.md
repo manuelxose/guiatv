@@ -116,3 +116,24 @@ Ninguna captura, ninguna configuración, ningún cambio de producción. Activar 
 ## 11. Siguiente milestone único
 
 **M12-G3C — Activar la captura**: job/CLI, medición de volumen real tras unos días y corrección de H1/H2 de G1/G2.
+
+## 12. Correcciones G1/G2 aplicadas (H1, H2)
+
+`UrlEligibility.ts` pasa a `url-eligibility-v2`:
+- **H1:** `thin-content` exige `totalWords >= 300` **y** `uniqueWords/totalWords >= 0.3`; `metrics` añade `totalWords`.
+- **H2:** `evidenceHash` cubre ahora título, descripción, JSON-LD, `entityVerified` y un digest ordenado de los pares (`path|intentKey|hash(mainText)`).
+- Tests de regresión: 400 palabras con 90 distintas, 250 distintas, variedad natural; cada insumo cambia el hash y el orden de pares no.
+- Cualquier lista firmada con hashes v1 deja de ser válida (hay que re-evaluar): ninguna existe en producción (G1/G2 inactivos).
+
+## 13. Activación en producción (solo en el servidor, requiere root)
+
+Unidades en el repositorio: `infra/systemd/guiatv-history-archive.service` y `.timer` (diario 03:30). El job sale sin tocar la base de datos mientras `/etc/guiatv/history.env` no contenga `HISTORY_CAPTURE_ENABLED=true`. Desde la sesión de desarrollo no hay acceso al servidor, así que estos pasos los ejecuta el propietario:
+
+```
+sudo cp /var/www/guiatv/current/infra/systemd/guiatv-history-archive.{service,timer} /etc/systemd/system/
+echo 'HISTORY_CAPTURE_ENABLED=true' | sudo tee /etc/guiatv/history.env
+sudo systemctl daemon-reload && sudo systemctl enable --now guiatv-history-archive.timer
+sudo systemctl start guiatv-history-archive.service && journalctl -u guiatv-history-archive -n 20 --no-pager
+```
+
+Comprobación: la salida muestra una línea por día con `inserted`/`unchanged`. Parada inmediata: `sudo rm /etc/guiatv/history.env` (o `systemctl disable --now guiatv-history-archive.timer`). Primer relleno: pasar fechas, p. ej. `node dist/jobs/cli/archiveBroadcastHistory.cli.js 20261101 20261102` (solo existen los días que aún estén en `tv_read_airings`).

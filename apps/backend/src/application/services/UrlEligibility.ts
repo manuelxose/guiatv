@@ -1,14 +1,15 @@
 /**
  * M12-G2: the per-URL eligibility contract for programmatic pages (docs/roadmap/M12-G0-READINESS-20261103.md G-03, G-04).
  * Pure: the caller measures the page (HTTP status, rendered text, JSON-LD, links, peers) and this decides, with named
- * reasons and an `evidenceHash` that a signed allowlist entry (IndexBatchGate) can carry. Word count is only a floor:
+ * reasons and an `evidenceHash` that a signed allowlist entry (IndexBatchGate) can carry. Content words are a floor (total words, plus a vocabulary-variety ratio so padding cannot pass):
  * a page also needs a distinct intent, low template share, dated sources, a clean canonical and real inbound links.
  */
 import { createHash } from 'node:crypto';
 
-export const ELIGIBILITY_POLICY_VERSION = 'url-eligibility-v1';
+export const ELIGIBILITY_POLICY_VERSION = 'url-eligibility-v2';
 export const THRESHOLDS = {
-  minUniqueWords: 300,
+  minTotalWords: 300,
+  minUniqueRatio: 0.3,
   maxTemplateShare: 0.3,
   titleChars: [20, 70],
   descriptionChars: [70, 160],
@@ -45,7 +46,7 @@ export interface EligibilityVerdict {
   reasons: EligibilityReason[];
   policyVersion: string;
   evidenceHash: string;
-  metrics: { uniqueWords: number; templateShare: number };
+  metrics: { totalWords: number; uniqueWords: number; templateShare: number };
 }
 
 const words = (t: string) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').match(/[a-z0-9]+/g) ?? [];
@@ -77,7 +78,8 @@ const validJsonLd = (blocks: unknown[]) => blocks.length > 0 && blocks.every((b)
 
 export function evaluateUrlEligibility(i: EligibilityInput): EligibilityVerdict {
   const reasons: EligibilityReason[] = [];
-  const unique = new Set(words(i.mainText)).size;
+  const all = words(i.mainText);
+  const unique = new Set(all).size;
   const share = templateShare(i.mainText, i.peers.filter((p) => p.path !== i.path));
   const [tMin, tMax] = THRESHOLDS.titleChars;
   const [dMin, dMax] = THRESHOLDS.descriptionChars;
@@ -86,16 +88,20 @@ export function evaluateUrlEligibility(i: EligibilityInput): EligibilityVerdict 
   if (/noindex/i.test(i.robots ?? '')) reasons.push('robots-noindex');
   if (i.title.trim().length < tMin || i.title.trim().length > tMax) reasons.push('title-length');
   if (i.description.trim().length < dMin || i.description.trim().length > dMax) reasons.push('description-length');
-  if (unique < THRESHOLDS.minUniqueWords) reasons.push('thin-content');
+  if (all.length < THRESHOLDS.minTotalWords || unique / Math.max(all.length, 1) < THRESHOLDS.minUniqueRatio) reasons.push('thin-content');
   if (!i.intentKey.trim() || i.peers.some((p) => p.path !== i.path && p.intentKey === i.intentKey)) reasons.push('duplicate-intent');
   if (share >= THRESHOLDS.maxTemplateShare) reasons.push('template-share');
   if (i.claims.length === 0 || i.claims.some((c) => !c.source?.trim() || Number.isNaN(Date.parse(c.sourceDate ?? '')))) reasons.push('claim-unsourced');
   if (!validJsonLd(i.jsonLd)) reasons.push('jsonld-invalid');
   if (i.inboundLinks < THRESHOLDS.minInboundLinks) reasons.push('low-internal-links');
   if (!i.entityVerified) reasons.push('entity-unverified');
-  const evidenceHash = createHash('sha256').update(JSON.stringify({
+  const h = (v: string) => createHash('sha256').update(v).digest('hex');
+  // Every evaluated input is covered, so a signed approval is void if any of them changes. Peers are order-independent.
+  const peers = i.peers.map((p) => `${p.path}|${p.intentKey}|${h(p.mainText)}`).sort();
+  const evidenceHash = h(JSON.stringify({
     v: ELIGIBILITY_POLICY_VERSION, path: i.path, status: i.httpStatus, canonical: i.canonicalPath, robots: i.robots,
-    text: createHash('sha256').update(i.mainText).digest('hex'), intent: i.intentKey, claims: i.claims, inbound: i.inboundLinks, reasons,
-  })).digest('hex');
-  return { eligible: reasons.length === 0, reasons, policyVersion: ELIGIBILITY_POLICY_VERSION, evidenceHash, metrics: { uniqueWords: unique, templateShare: Number(share.toFixed(3)) } };
+    title: i.title, description: i.description, text: h(i.mainText), intent: i.intentKey, claims: i.claims, jsonLd: i.jsonLd,
+    inbound: i.inboundLinks, entityVerified: i.entityVerified, peers, reasons,
+  }));
+  return { eligible: reasons.length === 0, reasons, policyVersion: ELIGIBILITY_POLICY_VERSION, evidenceHash, metrics: { totalWords: all.length, uniqueWords: unique, templateShare: Number(share.toFixed(3)) } };
 }

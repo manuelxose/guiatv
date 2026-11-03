@@ -46,3 +46,25 @@ test('word count alone is not enough: duplicate intent and template-shaped pages
   assert.ok(v.metrics.templateShare >= 0.3);
   assert.equal(templateShare(prose('a'), [{ mainText: prose('z') }]), 0);
 });
+
+test('H1: thin content counts total words and vocabulary variety, not distinct tokens alone', () => {
+  const repeated = Array.from({ length: 400 }, (_, k) => `w${k % 90}`).join(' '); // 400 words, 90 distinct (ratio 0.225)
+  assert.deepEqual(reasons({ mainText: repeated }), ['thin-content']);
+  assert.deepEqual(reasons({ mainText: prose('a', 250) }), ['thin-content']); // all distinct but under 300 words
+  const natural = Array.from({ length: 400 }, (_, k) => `w${k % 160}`).join(' '); // 400 words, 160 distinct (0.4)
+  assert.ok(!reasons({ mainText: natural }).includes('thin-content'));
+  assert.equal(evaluateUrlEligibility(good({ mainText: 'Áéí ÁÉÍ aei '.repeat(2) })).metrics.totalWords, 6);
+});
+
+test('H2: evidenceHash changes with every evaluated input and ignores peer order', () => {
+  const base = evaluateUrlEligibility(good()).evidenceHash;
+  const changed = (o: Partial<EligibilityInput>) => evaluateUrlEligibility(good(o)).evidenceHash !== base;
+  assert.ok(changed({ title: 'Otro titulo igual de util para la pagina A' }));
+  assert.ok(changed({ description: 'Otra descripcion con valor propio para la pagina A que supera el minimo de setenta caracteres.' }));
+  assert.ok(changed({ jsonLd: [{ '@context': 'https://schema.org', '@type': 'WebPage' }] }));
+  assert.ok(changed({ peers: [{ path: '/x/b', intentKey: 'intent-b', mainText: prose('q') }] }));
+  assert.ok(changed({ peers: [] }));
+  assert.ok(changed({ mainText: prose('a') + ' extra' }));
+  const p1 = { path: '/x/b', intentKey: 'intent-b', mainText: prose('b') }, p2 = { path: '/x/c', intentKey: 'intent-c', mainText: prose('c') };
+  assert.equal(evaluateUrlEligibility(good({ peers: [p1, p2] })).evidenceHash, evaluateUrlEligibility(good({ peers: [p2, p1] })).evidenceHash);
+});

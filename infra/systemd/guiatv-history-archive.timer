@@ -1,0 +1,11 @@
+[Unit]
+Description=Run guiatv-history-archive daily after the Madrid day has closed
+
+[Timer]
+# Host runs with Europe/Madrid; 03:30 is after the 00:00 rebuild window and away from the EPG sync.
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target
