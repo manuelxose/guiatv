@@ -415,10 +415,7 @@ export class TvReadModelBuilder {
     // M03-L1: no-op unless EPG_CATALOGUE_LINK_MODE=shadow; reads the built programme fields (resolved category), never mutates.
     await runCatalogueLinkShadow(airings.map((airing) => airing.program));
 
-    await TVReadAiringModel.deleteMany({ date }).exec();
-    if (airings.length) {
-      await TVReadAiringModel.insertMany(airings, { ordered: false });
-    }
+    await this.replaceDayAirings(date, airings);
 
     const brandOps = Array.from(brands.values()).map((brand) => ({
       updateOne: {
@@ -458,6 +455,29 @@ export class TvReadModelBuilder {
       brandsUpserted: brandOps.length,
       generatedAt,
     };
+  }
+
+  /**
+   * Upsert the new set by its stable `id`, then drop the day's rows the set no longer has. The old
+   * deleteMany-then-insertMany left the day empty when the insert (or the link) failed in between;
+   * now a failed write throws before any delete and the previous day stays readable. No transaction:
+   * production Mongo may be standalone. replaceOne (not $set) so a field the new item lacks does not survive.
+   */
+  private async replaceDayAirings(date: string, airings: any[]): Promise<void> {
+    try {
+      if (airings.length) {
+        await TVReadAiringModel.bulkWrite(
+          airings.map((airing) => ({
+            replaceOne: { filter: { id: airing.id }, replacement: airing, upsert: true },
+          })),
+          { ordered: false }
+        );
+      }
+      await TVReadAiringModel.deleteMany({ date, id: { $nin: airings.map((airing) => airing.id) } }).exec();
+    } catch (error) {
+      this.log.error('TV read model day replace failed; previous rows kept', { date, error });
+      throw error;
+    }
   }
 
   private mergeAiringItems(primary: any, secondary: any): any {
