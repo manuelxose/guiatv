@@ -8,12 +8,13 @@ Producción solo se leyó: GET públicos y GET del Admin con la clave de analít
 
 | Ámbito | Estado | Por qué |
 |---|---|---|
-| Auditoría (AC-01–03) | **PASS** | Los cinco rankings se midieron sobre su texto actual con un script reproducible (§3) y cada uno tiene una decisión (§4) |
-| Ingeniería | **PASS** (pendiente de CI) | Dos cambios pequeños con test: el modo `revises` del CLI y una URL malformada que tumbaba `requeuePost` (§8) |
-| Piloto editorial | **HOLD** (correcto) | El pipeline real produjo una revisión diferenciada (Jaccard 0,002 con los otros cuatro), con todas las puertas deterministas en verde y las 19 afirmaciones citadas verificadas. El crítico independiente pidió `revise` en los 6 borradores, y la revisión editorial independiente coincide (§6–§9) |
-| Publicación | **NO PUBLICADO** (bloqueo de autorización) | La guía la aprobó una persona («Arturo Baroja»), y `revise-by-policy` solo revisa guías publicadas por la política. Revisarla requiere al revisor con nombre (§7) |
+| Auditoría (AC-01–03) | **PASS** | Los cinco rankings se midieron sobre su texto en vivo con un script reproducible (§3) y cada uno tiene una decisión (§4) |
+| Ingeniería | **PASS** (CI verde en la PR #144) | `revises`, el 500 de `requeuePost` y dos correcciones de la puerta de evidencia, con revisión de seguridad independiente APPROVE (§8, §9) |
+| Piloto editorial | **BORRADOR CERTIFICADO, revisión independiente en HOLD** | El pipeline real lo aprobó (crítico `pass`, 20/20 puestos verificados, todas las puertas deterministas, 0 % de prosa compartida). La revisión editorial independiente lo mantiene en HOLD por tres hallazgos mayores que son de una persona (§7) |
+| Publicación | **NO PUBLICADO** | La guía la aprobó una persona (Arturo Baroja): `revise-by-policy` la rechaza, y es lo correcto. Publicarla corresponde a un revisor con nombre por `/approve` |
 
-**M11-B1: PARTIAL.** La ingeniería y la auditoría están completas. El piloto queda en HOLD: lo retienen el crítico y un defecto de la puerta de evidencia que falla en modo seguro (§6.4).
+**M11-B1: PARTIAL.** La parte de ingeniería está completa. El borrador está certificado por el pipeline, pero no se publica ni se declara aceptado editorialmente.
+
 
 ## 2. Baseline
 
@@ -123,22 +124,22 @@ Hay cinco intenciones de búsqueda distintas: cada consulta lleva la marca («me
 - seis destinos internos verificados (200, canonical propia, `index`);
 - notas que prohíben las notas de TMDB, cualquier experiencia de visionado y las audiencias, posiciones o disponibilidad sin fuente.
 
-**Lo que aportó el borrador (antes → después):**
+**Lo que aportó el borrador final (antes → después):**
 
 | | En vivo | Borrador del piloto |
 |---|---|---|
-| Palabras | 456 | 881 |
+| Palabras | 456 | 413 (338 de prosa) |
+| Contenido | Dos tablas de notas de TMDB sin fuente comprobable | Las dos listas completas del Top 10 oficial de Netflix en España (20 puestos), con el formato que rotula Netflix |
 | Prosa compartida con los otros cuatro | 70 % | **0 %** |
-| Jaccard máximo con los otros cuatro | 0,391 | **0,002** |
-| Jaccard con las guías de planes / precios | — | 0,003 / 0,002 |
+| Jaccard máximo con los otros cuatro | 0,391 | **0,004** |
+| Títulos que también están en otras listas | 9/20 | **0/20** |
 | Fuentes externas verificables | 0 (portada de TMDB) | 3 oficiales de Netflix + 2 fichas de GuíaTV |
-| Afirmaciones con cita literal verificada | 0 | 19 de 19 marcadores |
+| Afirmaciones con cita literal verificada | 0 | 31 de 31 citadas |
 | Fecha y caducidad | «octubre 2026» | `lastVerifiedAt` 2026-11-03, `nextReviewAt` 2026-12-03 (`catalog-ranking`) |
 | Autoría | «Revisión editorial: Arturo Baroja» sobre texto de IA | «Redacción IA de Guía TV» con la divulgación de IA del pipeline |
+| Título | «Las mejores series y películas de Netflix en España (octubre 2026)» | «Top 10 de Netflix en España: series y películas de la semana» |
 
-**Lo que no consiguió:**
-- **Títulos:** nombra **un solo título** (el n.º 1 de series, «Grande de España: Temporada 1»).
-- **Enfoque:** el **65 %** del texto trata de planes y precios. Para la consulta «mejores series y películas de Netflix» es una deriva de intención, y canibaliza parcialmente las dos guías de planes y precios.
+**Lo que no consiguió.** Es una lista semanal oficial, no una selección de «las mejores»: responde a «qué se ve en Netflix en España», no a «qué merece la pena». La parte editorial propia es corta: el género y el año de los dos primeros puestos (con la identidad de las fichas sin confirmar), la nota sobre el plan con anuncios y el enlace a las guías de planes y precios. Los tres hallazgos mayores de la revisión independiente (§7) quedan para la persona revisora.
 
 ## 6. Evidencias y fuentes
 
@@ -156,13 +157,16 @@ Una sola descarga por fuente, el 2026-11-03 a las 08:07 UTC:
 
 ### 6.2 Afirmaciones citadas en el borrador
 
-Las 19 afirmaciones son `supported`, con su cita literal verificada por código:
+Las 31 afirmaciones citadas son `supported`, con su cita literal verificada por código:
 
-| Afirmación | Fuente |
-|---|---|
-| r2-c8 n.º 1 de series (semana 19/10/26–25/10/26); c1 y c2 fechas de las dos listas; r2-c34 «más comentadas»; c7 buscador histórico; c6 disponibilidad por región | s1 / s2 |
-| r2-c29 género y año de «Grande de España» | g2 |
-| c30 y c31 plan con anuncios (catálogo «casi todas», candado, 2 dispositivos, 1080p); c33 y c34 Estándar y Premium; c35 precios (8,99 / 14,99 / 21,99 €); c36 y c37 suscriptores extra (5,99 / 6,99 €); c38 facturación mensual sin planes anuales; c39 hogar; c40 Básico no disponible; c32 y c41 paquetes de operador e impuestos | s3 |
+| Afirmaciones | Qué respaldan | Fuente |
+|---|---|---|
+| c1, c2, c12, c13, c25 | La semana de cada lista, el n.º 1 de cada una y su alcance por países | s1 / s2 |
+| c2–c11 | Las diez series, una afirmación por puesto, con su formato | s1 |
+| c13–c22 | Las diez películas, una afirmación por puesto | s2 |
+| c27 | El buscador de títulos por país y tiempo | s1 |
+| c29–c33 | Plan con anuncios (catálogo, candado, paquetes), facturación mensual y cambio de plan | s3 |
+| c35, c37 | Género y año de las dos fichas de GuíaTV | g1 / g2 |
 
 `node scripts/editorial-agents.mjs verify <run>` (vuelve a descargar las fuentes y aplica las puertas, sin modelo):
 - sale con **0**;
@@ -171,34 +175,55 @@ Las 19 afirmaciones son `supported`, con su cita literal verificada por código:
 
 ### 6.3 Afirmaciones descartadas
 
-68 de 97 se quedaron en `unverified` y no se usaron. Entre ellas están las posiciones 2–10 de series y todas las de películas.
+2 de 38 afirmaciones del paquete del sexto intento se quedaron sin verificar y no se usaron. Ya no hay ninguna posición de las listas entre ellas.
 
-### 6.4 Defecto de la puerta de evidencia (comprobado, falla en modo seguro, sin corregir)
+### 6.4 Defecto de la puerta de evidencia (corregido en este hito)
 
-`normalizeForMatch` (`EditorialEvidence.ts:149`) elimina todos los espacios, y `containsQuote` (`:176`) rechaza una cita que empieza o termina en cifra si el texto contiguo también es una cifra. En la lista de Netflix («… Temporada 1 1 02 Bajo la superficie: Miniserie 3 03 Lupin …») queda así:
-- **Final:** la cita correcta «02 Bajo la superficie: Miniserie 3» se rechaza, porque detrás viene «03» y la regla lo lee como «…303».
-- **Principio:** citarla sin la cifra final tampoco sirve, porque detrás de «…Temporada 1 1» aparece «02» y la regla lo lee como «…102».
-- **Por qué pasó el n.º 1:** su cita empieza en «Ranking 01», precedida de letras.
-- **Comprobación:** el snapshot tiene el mismo hash (`a3e39268…`) que una descarga posterior, así que la página no cambió.
+`normalizeForMatch` elimina todos los espacios, y `containsQuote` rechaza una cita que empieza o termina en cifra si el texto contiguo también es una cifra. En la lista de Netflix («… Temporada 1 1 02 Bajo la superficie: Miniserie 3 03 Lupin …») la cita correcta «02 Bajo la superficie: Miniserie 3» se rechazaba por los dos lados. Era un falso negativo (nunca aceptaba una cita falsa), pero impedía citar los puestos de cualquier lista numerada.
 
-Es un falso negativo: nunca da por buena una cita falsa. Pero en la práctica impide citar posiciones de cualquier lista numerada que se aplana en texto. Fue la causa de que el borrador perdiera las listas y derivara hacia los planes.
+Se corrigió en tres commits, con revisión de seguridad independiente:
+1. **Rango de la lista** (`aa6feee`, estrechado en `70538c6`). Solo se reintenta con el espacio original cuando la cita **empieza** por un puesto 01–10 y una palabra, tras otro número y un espacio. La primera versión era más amplia y la revisión la bloqueó: el texto descargado convierte el marcado en espacios, así que `12<sup>,99</sup>` o `1<b>2</b>5` se leerían como dos números y «cuesta 12» o «tiene 1» se habrían verificado. Los contraejemplos del revisor están en el test y todos se rechazan. Las citas que terminan en cifra mantienen la regla anterior.
+2. **Relleno de ceros** (`456f31c`). Un entero con ceros a la izquierda cuenta también sin ellos («02» respalda «n.º 2»). Solo cambia el lado de la cita.
 
-No se corrigió en este hito: cambiar la normalización afecta a la re-verificación de mantenimiento de todo el corpus publicado por la política. Es el próximo paso recomendado (§12).
+**Re-verificación en seco del corpus** (`artifacts/m11b1/quote-fallback-dryrun.cjs`, 16 ficheros, 840 citas, con las mismas descargas): 0 citas pasan de verificada a rechazada y 0 cambian fuera del piloto. Fuera del piloto cambia una afirmación de un candidato M11-G no publicado («4 de julio» respaldada por «04/07/2017»). Ninguna guía publicada se ve afectada.
+
+**Riesgo residual aceptado por la revisión de seguridad (APPROVE):** un número partido por marcado o espacio justo antes de un token 01–10 seguido de una palabra («1<b>10</b> minutos» → «10 minutos») sigue verificándose. Es estrecho y no afecta a precios, decimales ni millares.
 
 ## 7. Pipeline editorial
 
-| Paso | Resultado |
-|---|---|
-| Versión | `m11g-1` (dist de `main@59ecd4f` + este cambio), backend `anthropic` vía el gateway local, procedencia **firmada** |
-| Investigación | 3 llamadas (inicial y 2 reinvestigaciones), 97 afirmaciones |
-| Evidencia | código + 3 llamadas del modelo (solo puede degradar afirmaciones) |
-| Redacción ⇄ crítico | 6 borradores (máximo de 5 revisiones). Veredictos: `revise` en todos, con 13 → 7 → 7 → 9 → 8 → 6 problemas y **ningún `blocking`** |
-| Último crítico | 2 `medium`: el texto repite cifras de la tabla de planes, y la sección «Qué incluye cada plan» duplica una columna. 4 `low`: fechas repetidas; una coletilla vacía; el título y el `metaTitle` prometen el Top 10 y solo hay un título; una inferencia sobre regiones que va más allá de su cita |
-| Puertas deterministas | sin bloqueos: metadatos, enlaces internos verificados, fuentes en el bundle, frescura, divulgación de IA y byline, `no-distinct-value` superado (1 dato interno, 2 editores, 1 tabla) |
-| Estado final | `blocked`, «agotados los ciclos de revisión (5)». Fichero: `artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json` (`draftHash e0fd299f…`, `bundleHash cc058e76…`) |
-| Coste | **4,1243 USD**, apuntado en `artifacts/m11b/runs/spend.jsonl` (`reserve` + `settle`) |
+**Seis ejecuciones reales del pipeline** sobre el mismo slug, todas como fichero local y sin publicar. El coste es solo un registro de observabilidad: el gateway es local y la propietaria lo considera nocional, así que no limitó ningún reintento.
 
-Coste por rol:
+| # | Qué cambió | Resultado |
+|---|---|---|
+| 1 | Primera versión (planes y precios) | `blocked`, 6 borradores. La puerta rechazó las posiciones 2–10 (§6.4) |
+| 2 | Tras corregir la puerta (cita de rangos) | `blocked`: las afirmaciones «n.º 2» no se respaldaban con «02» |
+| 3 | Tras la nota del crítico | `blocked`, 6 borradores, sin convergencia |
+| 4 | Tras corregir el relleno de ceros | Crítico `pass`. La revisión editorial independiente: HOLD (fechas en el título frente a revisión a 30 días, `más comentados` sin respaldo, una afirmación para dos filas) |
+| 5 | Notas de esa revisión | Crítico `pass`, pero con las posiciones 3 y 4 sin verificar |
+| 6 | Citas que empiezan en el puesto y acaban en una palabra | **Crítico `pass`**, 3 observaciones `low`; 20/20 puestos verificados, una afirmación por fila |
+
+Estado final: `approved-by-policy` en el pipeline, es decir, **cumple todas las puertas, pero no se publica** (§7, publicación).
+
+- Firma de la procedencia válida; `verify` sale con 0 y `changed: []`.
+- Hash del borrador `8a16b5f4…`, hash del paquete `ceeab533…`, `nextReviewAt` 2026-12-03.
+- Jaccard con los otros cuatro: 0,002–0,004; 0 % de prosa compartida; 0/20 títulos en otras listas; 413 palabras.
+- 31 afirmaciones citadas, todas `supported` con cita literal verificada por código.
+- Título sin fechas: «Top 10 de Netflix en España: series y películas de la semana».
+- Los ficheros de los intentos 1–5 se conservan en `artifacts/m11b1/runs/`.
+
+**Revisión editorial independiente del sexto borrador: HOLD**, con una vía corta a publicable por una persona.
+- **Resuelto:** los puestos (20/20 contra la página en vivo), una afirmación por fila, el «más comentados», el título sin fechas.
+- **Mayor 1:** `nextReviewAt` es a 30 días, pero el dato es semanal. La semana está dicha como dato fechado, pero la página quedará desfasada en una semana. Hace falta un plan de actualización semanal, o presentarla como instantánea fechada.
+- **Mayor 2:** los datos de género y año de las dos fichas de GuíaTV se emparejan por nombre con los títulos de Netflix. Comprobé las fichas: título y año coinciden, pero GuíaTV no enlaza esos títulos con Netflix (`primaryPlatforms` vacío). La identidad queda sin confirmar.
+- **Mayor 3:** el slug y la consulta objetivo siguen diciendo «mejores series y películas», y la página es una lista semanal. El slug no se puede cambiar sin una 301, que está fuera de este hito.
+- **Menores:** la celda «—», la redacción de «solo existen», una frase interpretativa de c27, el párrafo del plan, y la fecha en la meta descripción y el resumen.
+
+Una persona revisora debe confirmar el aviso de IA y la firma, comprobar las dos identidades, y decidir cadencia, slug y consulta objetivo antes de publicar por `/approve`.
+
+**Publicación y autorización:**
+
+
+Coste del intento 1 (los demás, entre 1,1 y 2,7 USD cada uno, están en el diario `artifacts/m11b/runs/spend.jsonl`):
 
 | Rol | Modelo | Llamadas | Tokens (entrada / salida) | USD |
 |---|---|---:|---:|---:|
@@ -208,9 +233,9 @@ Coste por rol:
 | Evidencia | Opus 5.5 | 3 | — | 0,072 |
 | SEO | Haiku 5.5 | 3 | — | 0,001 |
 
-**Segundo intento abortado.** Se lanzó con notas para el crítico, pero se detuvo al minuto al ver que la cita propuesta también caía en el defecto de §6.4. Dejó en el diario una fila `reserve` de **0 USD sin `settle`** y un `run.lock` del PID muerto, que el runner recupera solo. El fichero de ejecución no se sobrescribió. Si alguna llamada de investigación llegó a gastar tokens en ese minuto, no quedó apuntada.
+Se lanzó además un intento que se detuvo al minuto; dejó una fila `reserve` de 0 USD sin `settle` y un `run.lock` que el runner recupera solo.
 
-**Publicación y autorización:**
+**Por qué no se publica:**
 - `revise-by-policy` (`BlogController.ts:456`) solo acepta `reviewedBy === 'policy:m11b-evidence-gate'`, y `enrich` aplica la misma regla. Esta guía la aprobó Arturo Baroja: la política no puede revisarla, y así debe ser.
 - `save-draft` rechaza el slug existente, y un PUT dejaría la guía viva como borrador.
 - Revisarla corresponde a una persona con nombre, por la vía humana (`/approve`).
@@ -226,57 +251,40 @@ Coste por rol:
 
    Se conservan los dos arreglos de #142: la volatilidad del tema es un valor aceptado, y las semillas son de dominios habilitados.
 3. **`scripts/ranking-similarity.mjs`** (nuevo). Medida de solo lectura sobre la API pública; `--candidate` sustituye una guía por un borrador.
+4. **`EditorialEvidence.ts`**: la corrección de §6.4 (rango de lista y relleno de ceros), con un test nuevo en `EditorialEvidence.test.ts`.
 
 Tests:
 - `editorial-cycle.test.mjs`: un caso nuevo. Rechaza `--report`, un lote y un `revises` distinto del slug, sin llamar a ningún modelo ni escribir.
+- `EditorialEvidence.test.ts`: puestos de lista, millares con espacio, números pegados, precios partidos por marcado y el relleno de ceros.
 - `EditorialOpsController.mongo.test.ts`: la regresión de #142, con una URL malformada, dominios deshabilitados (FilmAffinity e IMDb) y una afirmación `tv-schedule`.
 
 ## 9. Tests y revisión independiente
 
 | Comprobación | Resultado |
 |---|---|
-| `node --test scripts/editorial-cycle.test.mjs` | **9/9** (nuevo: M11-B1 revision run) |
+| `node --test scripts/editorial-cycle.test.mjs` | 9/9 |
+| `EditorialEvidence` + `EditorialAgentPipeline` | 36/36 |
+| Controladores, con el cambio de la puerta | 75/75, 3 omitidos (Mongo) |
+| Suite completa del backend en Windows | 737/770 antes del último ajuste; de los 4 fallos (manifiestos de canary y modo de fichero de Windows), 3 ya fallan en `main` sin estos cambios y el cuarto es del mismo grupo `content-certify` |
 | `tsc --noEmit -p apps/backend` | 0 errores |
-| `EditorialOpsController.mongo.test.ts` | Necesita `TEST_MONGO_URI`. Docker no está activo en local, así que lo ejecuta CI (`performance.yml`) |
-| `verify` del fichero del piloto | exit 0, evidencia sin cambios |
+| CI de la PR #144 | verde (4/4 comprobaciones) al escribir esto |
+| `verify` del piloto final | exit 0, `changed: []` |
 
-**Revisión editorial independiente** (agente aparte, solo lectura): **HOLD**.
-- **Hechos:** limpios. Comprobó las 19 afirmaciones contra las páginas en vivo, sin invenciones ni experiencias, y con el byline correcto.
-- **Bloqueante:**
-  - no responde a «mejores series y películas»: nombra una serie y ninguna película, aunque las dos listas completas se descargaron;
-  - unos dos tercios del texto son planes y precios, que canibalizan las dos guías existentes;
-  - el H1 y el `metaTitle` prometen un Top 10 que el texto no da.
-- **Mayor:**
-  - la columna de semanas en el Top 10 no se usa, y el texto reconoce que no sabe qué es;
-  - la tabla cita c31 para «dos dispositivos», pero esa cita no contiene ese dato.
-- **Menor:**
-  - la inferencia de c6;
-  - dos frases factuales sin marcador;
-  - repeticiones.
-- **Descartado:** dudaba si la divulgación de IA estaba en el cuerpo. Sí está: `<p data-ai-disclosure>` al final del HTML.
-- **Sobre el crítico:** el `revise` está justificado, aunque infravaloró como `low` el problema de intención.
+**Revisión de ingeniería y seguridad: APPROVE** en dos rondas.
+- Ronda 1 (`revises` y `requeuePost`): sin hallazgos bloqueantes; se aplicaron los menores.
+- Ronda 2 (puerta de evidencia): **bloqueó** la primera versión del fallback (marcado convertido en espacios). Se estrechó y el mismo revisor la aprobó, dejando el residual de §6.4.
 
-**Revisión de ingeniería y seguridad independiente:** **APPROVE**, sin hallazgos bloqueantes ni mayores.
-- **Guard `revises`:** confirma que no se puede saltar. Los casos de un tema que no es el primero, un valor vacío o distinto del slug, `--report`/`--autopublish` y un `save-draft` o `publishRun` posterior fallan en modo seguro.
-- **Duplicados:** las comprobaciones contra las demás guías siguen activas.
-- **`requeuePost`:** conserva los dos arreglos de #142.
-- **Defecto de §6.4:** confirma la causa raíz y que solo da falsos negativos.
-- **Menores aplicados:**
-  - en el test Mongo sobraba un `$set` de volatilidad, porque el fixture ya trae `tv-schedule`;
-  - el test del CLI ahora exige cero peticiones.
-- **Menores no aplicados:**
-  - no hay test del camino aceptado de `revises`; lo cubre la ejecución real del piloto;
-  - `requeuePost` devuelve 400 si se descartan todas las fuentes, que es lo esperado.
+**Revisiones editoriales independientes:** tres, sobre el primer borrador, el cuarto y el sexto.
+- Las dos primeras dieron HOLD y sus hallazgos cambiaron el tema entre intentos.
+- La tercera, sobre el borrador final, también da HOLD, con los tres mayores de §7 (cadencia, identidad de las fichas, slug y consulta objetivo).
+- Ninguna encontró invención, experiencia ficticia ni autoría humana inventada. El aviso de IA está en el HTML (`data-ai-disclosure`).
 
 ## 10. Git, CI y producción
 
-- **Rama:** `m11-b1-platform-ranking-pilot`.
-- **Commits:**
-  - `34c4a90`, código y tests;
-  - un segundo commit con este informe, el roadmap y `artifacts/m11b1/`.
-- **PR y CI:** ver la sección «PR» al final.
-- **Producción:** nada desplegado ni escrito. No hay release nueva ni rollback que hacer.
-- **Fuera de la rama:** el gateway OmniRoute queda corriendo en `127.0.0.1` y se para con `omniroute stop`.
+- **Rama:** `m11-b1-platform-ranking-pilot`. **PR:** [manuelxose/guiatv#144](https://github.com/manuelxose/guiatv/pull/144), CI verde, sin fusionar.
+- **Commits de código:** `34c4a90` (`revises`, `requeuePost`, similitud), `aa6feee` y `70538c6` (puerta, rango de lista), `456f31c` (relleno de ceros), `053573d` (ruta del script del piloto, comentario de revisión). Los demás son documentación y artefactos.
+- **Producción:** nada desplegado ni escrito. No hay release nueva ni rollback.
+- **Fuera de la rama:** el gateway OmniRoute sigue corriendo en `127.0.0.1` (`omniroute stop` lo para).
 
 ## 11. Criterios de aceptación
 
@@ -285,14 +293,14 @@ Tests:
 | AC-01 Auditoría sobre el contenido actual | PASS | §3, texto en vivo del 2026-11-03 |
 | AC-02 Duplicación reproducible | PASS | `scripts/ranking-similarity.mjs`, `artifacts/m11b1/similarity-*.json` |
 | AC-03 Decisión por ranking | PASS | §4 |
-| AC-04 Piloto diferenciado completado | **PARTIAL** | Ejecutado de punta a punta y diferenciado (0 % / 0,002), pero en HOLD por el crítico y la revisión editorial (intención no cumplida) |
-| AC-05 Afirmaciones respaldadas o eliminadas | PASS con reservas | 19/19 verificadas por código y 68 descartadas. Lo que la revisión señaló (c31, c6, dos frases sin marcador) bloquearía la publicación si se aprobara este borrador |
+| AC-04 Piloto diferenciado completado | **PASS con reservas** | Ejecución completa del pipeline real con crítico `pass`, 20/20 puestos verificados y 0 % de prosa compartida. Los tres mayores de la revisión editorial son de una persona |
+| AC-05 Afirmaciones respaldadas o eliminadas | PASS | 31 afirmaciones citadas, todas con cita literal verificada por código; la revisión confirmó las 20 filas contra la página en vivo. Queda sin confirmar la identidad de las dos fichas de GuíaTV |
 | AC-06 Sin experiencia ni autoría humana inventadas | PASS | Byline de IA, divulgación de IA y cero lenguaje de experiencia |
-| AC-07 Puertas y crítico aplicados | PASS | El crítico retuvo los 6 borradores y no se saltó nada |
+| AC-07 Puertas y crítico aplicados | PASS | El crítico retuvo cuatro intentos y no se saltó nada; las dos correcciones de la puerta tuvieron revisión de seguridad |
 | AC-08 Procedencia y autorización preservadas | PASS | Sin `revise-by-policy` sobre una guía humana y sin cambios de `origin`/`reviewedBy` |
 | AC-09 Sin duplicado público ni cambio de URL | PASS | Ningún slug nuevo, ninguna escritura |
-| AC-10 Tests y CI | ver PR | Local: 9/9 y tsc limpio; el test Mongo, en CI |
-| AC-11 Revisión independiente | PASS | §9 |
+| AC-10 Tests y CI | PASS | §9; CI 4/4 verde |
+| AC-11 Revisión independiente | PASS | Editorial: HOLD con hallazgos de una persona; ingeniería: APPROVE (§9) |
 | AC-12 Estado de publicación exacto | PASS | No publicado; §1 y §7 |
 | AC-13 M04-B y dependencias de M11-B | PASS | Abajo |
 
@@ -311,21 +319,19 @@ Tests:
 No se activó `CONTENT_LEGACY_ENRICHMENT_ENABLED` ni se inició ningún rollout.
 
 **Estados:**
-- **M11-B1:** PARTIAL (auditoría e ingeniería PASS, piloto HOLD, sin publicar).
-- **M11-B:** PARTIAL. Siguen abiertos los rankings, el calendario de mantenimiento, las URL retiradas y M04-B.
+- **M11-B1:** PARTIAL (auditoría e ingeniería PASS; borrador certificado por el pipeline; revisión editorial en HOLD; sin publicar).
+- **M11-B:** PARTIAL. Siguen abiertos los otros cuatro rankings, el calendario de mantenimiento, las URL retiradas y M04-B.
 - **M04-B:** NO-GO.
 - **M12:** NO-GO.
 
-**Próximo submilestone recomendado (uno, no ejecutado): M11-B2a, corregir el falso negativo de §6.4 y repetir el piloto de Netflix.**
-1. **Fallback en `containsQuote`:** solo cuando la frontera de cifras rechaza, se reintenta con los espacios colapsados a uno. La regla sigue rechazando grupos de millares separados por espacio.
-2. **Re-verificación del corpus:** `verify` de todos los ficheros de ejecución, y `maintain --report … --force` sin `--apply`, antes y después del cambio, para ver qué hashes cambian.
-3. **Una ejecución nueva del piloto** con la nota de la revisión editorial:
-   - las diez series y las diez películas, con sus semanas en el Top 10;
-   - de los planes, solo la diferencia de catálogo del plan con anuncios, con enlace a las dos guías de planes y precios.
-4. **Publicación:** si pasa el crítico, la decide el revisor con nombre por `/approve`.
+**Lo que decide la persona revisora** antes de publicar el borrador por `/approve`:
+1. Cadencia: el dato es semanal y `nextReviewAt` es a 30 días. Debe ser una actualización semanal o una instantánea fechada.
+2. Identidad de las fichas de «Cada día nace un listo» y «Grande de España»: comprobar que son los títulos de Netflix.
+3. Slug y consulta objetivo («mejores series y películas») frente a una lista semanal. Cambiarlos necesita una 301, fuera de este hito.
+
+**Próximo submilestone recomendado (uno, no ejecutado): M11-B2, la misma técnica con Prime Video.** Antes, el propietario debe decidir si «lista oficial semanal» es el patrón correcto para los rankings. Se mantiene que no se fusione nada sin 28 días de datos de GSC.
 
 ## PR
 
-- **PR:** [manuelxose/guiatv#144](https://github.com/manuelxose/guiatv/pull/144), base `main`, commits `34c4a90` (código) y `01b2450` (documentación y artefactos), más este apéndice.
-- **CI:** pendiente cuando se escribió este apartado. No se fusiona hasta que CI esté en verde, incluido el test Mongo de `requeuePost`.
-- **Merge:** no hecho. Es decisión del propietario.
+- **PR:** [manuelxose/guiatv#144](https://github.com/manuelxose/guiatv/pull/144), base `main`, CI 4/4 verde.
+- **Merge:** no hecho; es decisión del propietario.

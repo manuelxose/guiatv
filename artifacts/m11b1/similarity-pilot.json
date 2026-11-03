@@ -1,16 +1,16 @@
 {
   "base": "https://guiaprogramaciontv.com",
-  "measuredAt": "2026-11-03T08:31:24.156Z",
+  "measuredAt": "2026-11-03T09:52:08.705Z",
   "rows": [
     {
       "platform": "Netflix",
       "slug": "mejores-series-y-peliculas-netflix-espana",
       "candidate": true,
-      "words": 881,
-      "proseWords": 807,
+      "words": 413,
+      "proseWords": 338,
       "sharedProseAll": 0,
       "sharedProseAny": 0,
-      "tableTitles": 0,
+      "tableTitles": 20,
       "titlesInOtherLists": 0,
       "externalLinks": [
         "https://www.netflix.com/tudum/top10/es/spain/tv",
@@ -18,11 +18,9 @@
         "https://help.netflix.com/es-es/node/24926"
       ],
       "headings": [
-        "La serie en cabeza: Grande de España",
-        "Cómo consultar la lista oficial y qué límites tiene",
-        "Qué incluye cada plan del catálogo",
-        "Qué plan elegir para ver la lista",
-        "Suscriptores extra y condiciones de pago"
+        "Las series de la lista semanal en España",
+        "Las películas de la lista semanal en España",
+        "Cómo usar la lista para elegir qué ver"
       ],
       "verifiedOn": null
     },
@@ -167,8 +165,8 @@
       "jaccard4": 0.482
     }
   ],
-  "tableSlots": 80,
-  "distinctTitles": 54,
+  "tableSlots": 100,
+  "distinctTitles": 74,
   "thresholds": {
     "nearDuplicate": 0.35,
     "nearIdentical": 0.8

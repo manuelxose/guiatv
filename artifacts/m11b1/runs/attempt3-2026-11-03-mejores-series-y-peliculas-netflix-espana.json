@@ -1,0 +1,1138 @@
+{
+ "slug": "mejores-series-y-peliculas-netflix-espana",
+ "state": "blocked",
+ "findings": [
+  {
+   "severity": "human",
+   "code": "critic-rejected",
+   "message": "La revisión independiente pide revise: «La primera explica por qué el buscador permite comparar países solo donde Netflix publica lista» es una inferencia propia: c26 y c29 no relacionan el alcance del buscador con los países que tienen lista. Elimina la frase y deja la viñeta tal como la da la fuente. Quita también «la segunda indica en"
+  },
+  {
+   "severity": "human",
+   "code": "unverified-claims",
+   "message": "Contenido asistido: cada precio, fecha, canal y disponibilidad debe comprobarse contra la fuente citada"
+  }
+ ],
+ "cost": {
+  "entries": [
+   {
+    "role": "research",
+    "model": "claude-opus-5-5",
+    "inputTokens": 24539,
+    "outputTokens": 8145,
+    "searches": 0,
+    "usd": 0.261056
+   },
+   {
+    "role": "evidence",
+    "model": "claude-opus-5-5",
+    "inputTokens": 2273,
+    "outputTokens": 846,
+    "searches": 0,
+    "usd": 0.026012
+   },
+   {
+    "role": "editorial",
+    "model": "claude-opus-5-5",
+    "inputTokens": 4273,
+    "outputTokens": 4261,
+    "searches": 0,
+    "usd": 0.102312
+   },
+   {
+    "role": "seo",
+    "model": "claude-haiku-5-5",
+    "inputTokens": 602,
+    "outputTokens": 650,
+    "searches": 0,
+    "usd": 0.000385
+   },
+   {
+    "role": "editorial",
+    "model": "claude-opus-5-5",
+    "inputTokens": 7007,
+    "outputTokens": 3319,
+    "searches": 0,
+    "usd": 0.094408
+   },
+   {
+    "role": "critic",
+    "model": "claude-opus-5-5",
+    "inputTokens": 6179,
+    "outputTokens": 2497,
+    "searches": 0,
+    "usd": 0.074656
+   },
+   {
+    "role": "editorial",
+    "model": "claude-opus-5-5",
+    "inputTokens": 7718,
+    "outputTokens": 3942,
+    "searches": 0,
+    "usd": 0.109712
+   },
+   {
+    "role": "editorial",
+    "model": "claude-opus-5-5",
+    "inputTokens": 6592,
+    "outputTokens": 2929,
+    "searches": 0,
+    "usd": 0.084948
+   },
+   {
+    "role": "critic",
+    "model": "claude-opus-5-5",
+    "inputTokens": 5920,
+    "outputTokens": 1187,
+    "searches": 0,
+    "usd": 0.04742
+   },
+   {
+    "role": "editorial",
+    "model": "claude-opus-5-5",
+    "inputTokens": 6413,
+    "outputTokens": 3099,
+    "searches": 0,
+    "usd": 0.087632
+   },
+   {
+    "role": "critic",
+    "model": "claude-opus-5-5",
+    "inputTokens": 5868,
+    "outputTokens": 2337,
+    "searches": 0,
+    "usd": 0.070212
+   },
+   {
+    "role": "editorial",
+    "model": "claude-opus-5-5",
+    "inputTokens": 7258,
+    "outputTokens": 3864,
+    "searches": 0,
+    "usd": 0.106312
+   },
+   {
+    "role": "editorial",
+    "model": "claude-opus-5-5",
+    "inputTokens": 6394,
+    "outputTokens": 3784,
+    "searches": 0,
+    "usd": 0.101256
+   },
+   {
+    "role": "editorial",
+    "model": "claude-opus-5-5",
+    "inputTokens": 6522,
+    "outputTokens": 2743,
+    "searches": 0,
+    "usd": 0.080948
+   },
+   {
+    "role": "critic",
+    "model": "claude-opus-5-5",
+    "inputTokens": 5864,
+    "outputTokens": 2701,
+    "searches": 0,
+    "usd": 0.077476
+   },
+   {
+    "role": "editorial",
+    "model": "claude-opus-5-5",
+    "inputTokens": 7506,
+    "outputTokens": 3452,
+    "searches": 0,
+    "usd": 0.099064
+   },
+   {
+    "role": "editorial",
+    "model": "claude-opus-5-5",
+    "inputTokens": 5908,
+    "outputTokens": 3794,
+    "searches": 0,
+    "usd": 0.099512
+   },
+   {
+    "role": "critic",
+    "model": "claude-opus-5-5",
+    "inputTokens": 5920,
+    "outputTokens": 2242,
+    "searches": 0,
+    "usd": 0.06852
+   },
+   {
+    "role": "editorial",
+    "model": "claude-opus-5-5",
+    "inputTokens": 7372,
+    "outputTokens": 3614,
+    "searches": 0,
+    "usd": 0.101768
+   },
+   {
+    "role": "seo",
+    "model": "claude-haiku-5-5",
+    "inputTokens": 583,
+    "outputTokens": 640,
+    "searches": 0,
+    "usd": 0.000378
+   },
+   {
+    "role": "editorial",
+    "model": "claude-opus-5-5",
+    "inputTokens": 6064,
+    "outputTokens": 4607,
+    "searches": 0,
+    "usd": 0.116396
+   },
+   {
+    "role": "critic",
+    "model": "claude-opus-5-5",
+    "inputTokens": 5820,
+    "outputTokens": 1974,
+    "searches": 0,
+    "usd": 0.06276
+   }
+  ],
+  "usd": 1.873143,
+  "inputTokens": 142595,
+  "outputTokens": 66627,
+  "sourceFetches": 5,
+  "draftAttempts": 12,
+  "reviewFailures": 6
+ },
+ "droppedSources": [],
+ "revisions": [
+  {
+   "attempt": 0,
+   "draftHash": "26814a4b39391467f001cdb4e4e2ec544e826c9fc3f87aa8bd243d4985302be5",
+   "verdict": "revise",
+   "issues": 11,
+   "blocking": [],
+   "action": "rewrite",
+   "gateFixes": 1
+  },
+  {
+   "attempt": 1,
+   "draftHash": "bc28154db56a6f635a4adc79afdcd6ddc7d52347527fff656a600d47e7137d7c",
+   "verdict": "revise",
+   "issues": 1,
+   "blocking": [],
+   "action": "rewrite",
+   "gateFixes": 1
+  },
+  {
+   "attempt": 2,
+   "draftHash": "a339c13a815d226fb2d198ca70fe6a767b12a2d6b52fc4ad40d5f1ba2d919f2d",
+   "verdict": "revise",
+   "issues": 8,
+   "blocking": [],
+   "action": "rewrite",
+   "gateFixes": 0
+  },
+  {
+   "attempt": 3,
+   "draftHash": "7fc336206d858702f8894e3e52ca354257a4bb8644c7f28ebc1326816426054d",
+   "verdict": "revise",
+   "issues": 10,
+   "blocking": [],
+   "action": "rewrite",
+   "gateFixes": 2
+  },
+  {
+   "attempt": 4,
+   "draftHash": "cc189cd96127dae46a77229a87c08c9a4ac7e514ce94a8ab62128912ff1eb320",
+   "verdict": "revise",
+   "issues": 8,
+   "blocking": [],
+   "action": "rewrite",
+   "gateFixes": 1
+  },
+  {
+   "attempt": 5,
+   "draftHash": "1889dc19c475b5148ec108406e7a45ad4035eb65b8a32412b33a9c26c7e0df77",
+   "verdict": "revise",
+   "issues": 5,
+   "blocking": [],
+   "action": "rewrite",
+   "gateFixes": 1
+  }
+ ],
+ "draft": {
+  "title": "Top 10 de Netflix en España: series y películas de la semana",
+  "slug": "mejores-series-y-peliculas-netflix-espana",
+  "status": "draft",
+  "origin": "ai-assisted",
+  "excerpt": "Grande de España: Temporada 1 es la serie n.º 1 del Top 10 de Netflix en España en la semana 19/10/26 - 25/10/26. En el plan con anuncios, los títulos no disponibles llevan un icono de candado.",
+  "content": "<div class=\"editorial-body\"><p>Grande de España: Temporada 1 es la serie n.º 1 del Top 10 de Netflix en España para la semana 19/10/26 - 25/10/26. La lista de películas corresponde a esa misma semana. La página de series se titula «Top 10 de series más comentadas en Netflix en España ahora», y la de películas, «Top 10 de películas más comentadas en Netflix en España ahora». Las dos clasificaciones completas, puesto por puesto, se consultan en la <a href=\"https://www.netflix.com/tudum/top10/es/spain/tv\">página oficial de series</a> y en la <a href=\"https://www.netflix.com/tudum/top10/es/spain\">de películas</a>.</p>\n<h2>Posiciones confirmadas de la semana</h2>\n<table>\n<thead>\n<tr>\n<th>Lista</th>\n<th>Puesto</th>\n<th>Título</th>\n</tr>\n</thead>\n<tbody><tr>\n<td>Series</td>\n<td>n.º 1</td>\n<td>Grande de España: Temporada 1</td>\n</tr>\n<tr>\n<td>Series</td>\n<td>n.º 10</td>\n<td>Cyberpunk: Edgerunners 2</td>\n</tr>\n<tr>\n<td>Películas</td>\n<td>n.º 10</td>\n<td>Hot Wheels ¡Máxima Velocidad! Ataque del T-Rex</td>\n</tr>\n</tbody></table>\n<p>El resto de posiciones de ambas listas figura en las páginas oficiales enlazadas al principio. La tabla se limita a esas tres entradas porque son las que esta guía ha contrastado con la fuente; reproducir el resto sin verificarlo puesto por puesto podría dar por buena una clasificación distinta de la publicada. Los nombres se recogen tal como los escribe Netflix: en la lista de series, una entrada puede referirse a una temporada concreta, como ocurre con el n.º 1.</p>\n<h2>Qué dice el nombre de la lista</h2>\n<p>El encabezado de ambas páginas habla de títulos «más comentados» y añade la palabra «ahora». Al mismo tiempo, cada lista va acompañada de las fechas de la semana a la que corresponde, en este caso 19/10/26 - 25/10/26. Lo práctico es fijarse en esas fechas y no en el «ahora» del encabezado: son las que indican qué semana refleja la clasificación, que no tiene por qué coincidir con el día en que se consulta.</p>\n<h2>Qué precisa la metodología de Netflix</h2>\n<p>La sección «Sobre la metodología» de la página añade dos precisiones:</p>\n<ul>\n<li>Las listas del Top 10 están disponibles en países y territorios seleccionados.</li>\n<li>La duración se muestra en horas y minutos.</li>\n</ul>\n<p>La primera explica por qué el buscador permite comparar países solo donde Netflix publica lista; la segunda indica en qué formato aparece la duración que acompaña a los datos de la página.</p>\n<h2>Grande de España en la ficha de GuíaTV</h2>\n<p>En la <a href=\"/series/grande-de-espana\">ficha de Grande de España en GuíaTV</a> figura como serie de comedia y drama de 2026. Ese dato de género ayuda a decidir si el título que encabeza la lista de series encaja con lo que se busca, algo que el ranking por sí solo no indica. Las fichas de GuíaTV recogen ese mismo tipo de dato para películas: Cada día nace un listo aparece registrada como comedia de 2026. El resto de la oferta por servicio puede revisarse en las <a href=\"/plataformas\">plataformas de streaming en GuíaTV</a>.</p>\n<h2>Cómo usar la lista para elegir qué ver</h2>\n<p><strong>Compara semanas.</strong> La página permite consultar listas anteriores, por ejemplo las de 12/10/26 - 18/10/26 y 5/10/26 - 11/10/26. Así puedes ver qué títulos se mantienen de una semana a otra y cuáles entran o salen. Esa comparación separa los títulos que repiten en varias listas semanales de los que solo figuran en una, un matiz que la clasificación de una sola semana no muestra.</p>\n<p><strong>Busca un título concreto.</strong> El buscador de la página muestra los detalles del ranking de cualquier título en el Top 10 a lo largo del tiempo y en distintos países. Si alguien te recomienda una serie o una película, ahí puedes comprobar si ha pasado por la lista de España o solo por la de otros países; en ese caso, ten en cuenta que es posible que algunos títulos no estén disponibles en todas las regiones.</p>\n<h2>Si tienes el plan con anuncios</h2>\n<p>El plan Estándar con anuncios incluye casi todas las películas y series del catálogo, pero no todas. Los títulos que quedan fuera aparecen con un icono de candado, así que antes de contar con un éxito de la lista conviene comprobar que no lo lleva en tu cuenta.</p>\n<p>Si tienes Netflix a través de un paquete, una oferta o una empresa colaboradora, es tu proveedor quien debe confirmarte si dispone de plan con anuncios.</p>\n<p>Si un título bloqueado te lleva a cambiar de plan, se puede cambiar o cancelar la suscripción cuando se quiera, y los planes se facturan mensualmente, sin opciones anuales, de varios meses ni de por vida. Lo que cuesta cada opción está en los <a href=\"/guias/precios-plataformas-streaming-espana\">precios de las plataformas de streaming en España</a>, y para valorar si compensa frente a otros servicios está la <a href=\"/guias/netflix-hbo-max-disney-prime-video-que-plan-elegir\">comparativa de planes de Netflix, HBO Max, Disney+ y Prime Video</a>.</p>\n<p data-ai-disclosure><em>Artículo investigado, redactado y revisado por agentes de inteligencia artificial de GuíaTV a partir de las fuentes enlazadas, comprobadas el 3 de noviembre de 2026. No contiene pruebas ni experiencias propias. Consulta nuestra <a href=\"/politica-editorial\">política editorial</a>.</em></p></div>",
+  "categories": [
+   "Streaming"
+  ],
+  "contentType": "ranking",
+  "evergreen": false,
+  "targetQuery": "mejores series y películas de Netflix en España",
+  "metaTitle": "Top 10 de Netflix en España: series y películas",
+  "metaDescription": "Grande de España: Temporada 1 encabeza el Top 10 de series de Netflix en España (19/10/26 - 25/10/26). Con anuncios, los no disponibles llevan candado.",
+  "canonicalUrl": "/guias/mejores-series-y-peliculas-netflix-espana",
+  "authorName": "Redacción IA de Guía TV",
+  "authorId": "guiatv-ai"
+ },
+ "provenance": {
+  "pipelineVersion": "m11g-1",
+  "state": "blocked",
+  "bundle": {
+   "topic": "Las mejores series y películas de Netflix en España según el Top 10 oficial de la semana: las diez series y las diez películas más vistas, qué mide de verdad esa lista y cómo usarla para elegir qué ver",
+   "intent": "mejores series y películas de Netflix en España",
+   "researchQuestions": [
+    "¿Qué diez series y qué diez películas figuran en el Top 10 oficial de Netflix para España y en qué puesto exacto?",
+    "¿A qué semana corresponden las listas publicadas en la página española del Top 10?",
+    "¿Qué dice la sección «Sobre la metodología» de la página española del Top 10 de Netflix?",
+    "¿Permite la página consultar listas de otras semanas y el historial de cada título?",
+    "¿Qué limita el plan Estándar con anuncios respecto al catálogo de películas y series y cómo se señalan los títulos no incluidos?",
+    "¿Qué género, año y ficha en GuíaTV tienen los dos números 1 (Cada día nace un listo y Grande de España)?"
+   ],
+   "createdAt": "2026-11-03T09:08:25.095Z",
+   "conflicts": [],
+   "sources": [
+    {
+     "id": "g1",
+     "url": "https://guiaprogramaciontv.com/v2/catalog/tmdb%3Amovie%3A1446912",
+     "publisher": "GuíaTV",
+     "kind": "internal",
+     "httpStatus": 200,
+     "retrievedAt": "2026-11-03T09:07:15.477Z",
+     "contentHash": "a69d1cbebc73cb5ef8fd7818660c21b3ba875d301cf52e407d39beeedf95c292"
+    },
+    {
+     "id": "g2",
+     "url": "https://guiaprogramaciontv.com/v2/catalog/tmdb%3Atv%3A335535",
+     "publisher": "GuíaTV",
+     "kind": "internal",
+     "httpStatus": 200,
+     "retrievedAt": "2026-11-03T09:07:15.550Z",
+     "contentHash": "6a1cee958aefcc952c7f27be79320c522a18060e6413e38a359f2be4f473ed83"
+    },
+    {
+     "id": "s1",
+     "url": "https://www.netflix.com/tudum/top10/es/spain/tv",
+     "publisher": "netflix.com",
+     "kind": "official",
+     "httpStatus": 200,
+     "retrievedAt": "2026-11-03T09:07:16.139Z",
+     "contentHash": "a3e39268e55c999cd9bdff297b431c585f3bcf2d3e80cf60e5fac96743fecaa0"
+    },
+    {
+     "id": "s2",
+     "url": "https://www.netflix.com/tudum/top10/es/spain",
+     "publisher": "netflix.com",
+     "kind": "official",
+     "httpStatus": 200,
+     "retrievedAt": "2026-11-03T09:07:16.608Z",
+     "contentHash": "22995ef9e71418550650a1acbd0356c10e597f0193b5ca4f2e9090cb33866583"
+    },
+    {
+     "id": "s3",
+     "url": "https://help.netflix.com/es-es/node/24926",
+     "publisher": "help.netflix.com",
+     "kind": "official",
+     "httpStatus": 200,
+     "retrievedAt": "2026-11-03T09:07:16.834Z",
+     "contentHash": "af3d6624817565c1d163166b51e001020ca7c4dec65b24d174bbc030a6aec38b"
+    }
+   ],
+   "claims": [
+    {
+     "id": "c1",
+     "text": "El Top 10 de series de Netflix en España que muestra la página corresponde a la semana 19/10/26 - 25/10/26.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s1",
+       "quote": "España | 19/10/26 - 25/10/26 Top 10 en series en España",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "supported"
+    },
+    {
+     "id": "c2",
+     "text": "El Top 10 de películas de Netflix en España que muestra la página corresponde a la semana 19/10/26 - 25/10/26.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s2",
+       "quote": "España | 19/10/26 - 25/10/26 Top 10 de películas en España",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "supported"
+    },
+    {
+     "id": "c3",
+     "text": "Netflix titula la página de series «Top 10 de series más comentadas en Netflix en España ahora».",
+     "volatility": "stable",
+     "quotes": [
+      {
+       "sourceId": "s1",
+       "quote": "Top 10 de series más comentadas en Netflix en España ahora",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "supported"
+    },
+    {
+     "id": "c4",
+     "text": "Netflix titula la página de películas «Top 10 de películas más comentadas en Netflix en España ahora».",
+     "volatility": "stable",
+     "quotes": [
+      {
+       "sourceId": "s2",
+       "quote": "Top 10 de películas más comentadas en Netflix en España ahora",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "supported"
+    },
+    {
+     "id": "c5",
+     "text": "Series, n.º 1: Grande de España: Temporada 1.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s1",
+       "quote": "01 Grande de España: Temporada 1",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "supported"
+    },
+    {
+     "id": "c6",
+     "text": "Series, n.º 2: Bajo la superficie: Miniserie.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s1",
+       "quote": "02 Bajo la superficie: Miniserie",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "unverified",
+     "note": "cifras sin respaldo en las citas: 2"
+    },
+    {
+     "id": "c7",
+     "text": "Series, n.º 3: Lupin: Parte 4.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s1",
+       "quote": "03 Lupin: Parte 4",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "unverified",
+     "note": "cifras sin respaldo en las citas: 3"
+    },
+    {
+     "id": "c8",
+     "text": "Series, n.º 4: La trampa: Miniserie.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s1",
+       "quote": "04 La trampa: Miniserie",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "unverified",
+     "note": "cifras sin respaldo en las citas: 4"
+    },
+    {
+     "id": "c9",
+     "text": "Series, n.º 5: La diplomática: Temporada 4.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s1",
+       "quote": "05 La diplomática: Temporada 4",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "unverified",
+     "note": "cifras sin respaldo en las citas: 5"
+    },
+    {
+     "id": "c10",
+     "text": "Series, n.º 6: Aquel: Miniserie.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s1",
+       "quote": "06 Aquel: Miniserie",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "unverified",
+     "note": "cifras sin respaldo en las citas: 6"
+    },
+    {
+     "id": "c11",
+     "text": "Series, n.º 7: TYSON: Miniserie.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s1",
+       "quote": "07 TYSON: Miniserie",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "unverified",
+     "note": "cifras sin respaldo en las citas: 7"
+    },
+    {
+     "id": "c12",
+     "text": "Series, n.º 8: Al este del Edén: Miniserie.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s1",
+       "quote": "08 Al este del Edén: Miniserie",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "unverified",
+     "note": "cifras sin respaldo en las citas: 8"
+    },
+    {
+     "id": "c13",
+     "text": "Series, n.º 9: Nadie quiere esto: Temporada 3.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s1",
+       "quote": "09 Nadie quiere esto: Temporada 3",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "unverified",
+     "note": "cifras sin respaldo en las citas: 9"
+    },
+    {
+     "id": "c14",
+     "text": "Series, n.º 10: Cyberpunk: Edgerunners 2.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s1",
+       "quote": "10 Cyberpunk: Edgerunners 2",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "supported"
+    },
+    {
+     "id": "c15",
+     "text": "Películas, n.º 1: Cada día nace un listo.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s2",
+       "quote": "01 Cada día nace un listo",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "unverified",
+     "note": "cifras sin respaldo en las citas: 1"
+    },
+    {
+     "id": "c16",
+     "text": "Películas, n.º 2: Contra el huracán.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s2",
+       "quote": "02 Contra el huracán",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "unverified",
+     "note": "cifras sin respaldo en las citas: 2"
+    },
+    {
+     "id": "c17",
+     "text": "Películas, n.º 3: Animales.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s2",
+       "quote": "03 Animales 3",
+       "verified": false
+      }
+     ],
+     "legalRefs": [],
+     "status": "unverified",
+     "note": "ninguna cita aparece en su fuente recuperada"
+    },
+    {
+     "id": "c18",
+     "text": "Películas, n.º 4: Weapons.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s2",
+       "quote": "04 Weapons 1",
+       "verified": false
+      }
+     ],
+     "legalRefs": [],
+     "status": "unverified",
+     "note": "ninguna cita aparece en su fuente recuperada"
+    },
+    {
+     "id": "c19",
+     "text": "Películas, n.º 5: Lo dejamos acá.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s2",
+       "quote": "05 Lo dejamos acá",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "unverified",
+     "note": "cifras sin respaldo en las citas: 5"
+    },
+    {
+     "id": "c20",
+     "text": "Películas, n.º 6: Asalto al camión blindado.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s2",
+       "quote": "06 Asalto al camión blindado",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "unverified",
+     "note": "cifras sin respaldo en las citas: 6"
+    },
+    {
+     "id": "c21",
+     "text": "Películas, n.º 7: Un Año Y Un Día.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s2",
+       "quote": "07 Un Año Y Un Día",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "unverified",
+     "note": "cifras sin respaldo en las citas: 7"
+    },
+    {
+     "id": "c22",
+     "text": "Películas, n.º 8: Kraven, el cazador.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s2",
+       "quote": "08 Kraven, el cazador",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "unverified",
+     "note": "cifras sin respaldo en las citas: 8"
+    },
+    {
+     "id": "c23",
+     "text": "Películas, n.º 9: En el interior.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s2",
+       "quote": "09 En el interior",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "unverified",
+     "note": "cifras sin respaldo en las citas: 9"
+    },
+    {
+     "id": "c24",
+     "text": "Películas, n.º 10: Hot Wheels ¡Máxima Velocidad! Ataque del T-Rex.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s2",
+       "quote": "10 Hot Wheels ¡Máxima Velocidad! Ataque del T-Rex",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "supported"
+    },
+    {
+     "id": "c25",
+     "text": "Según la sección «Sobre la metodología» de la página, es posible que algunos títulos no estén disponibles en todas las regiones.",
+     "volatility": "stable",
+     "quotes": [
+      {
+       "sourceId": "s1",
+       "quote": "Sobre la metodología Es posible que algunos títulos no estén disponibles en todas las regiones.",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "supported"
+    },
+    {
+     "id": "c26",
+     "text": "Según esa misma sección, las listas del Top 10 están disponibles en países y territorios seleccionados.",
+     "volatility": "stable",
+     "quotes": [
+      {
+       "sourceId": "s1",
+       "quote": "Las listas del Top 10 están disponibles en países y territorios seleccionados.",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "supported"
+    },
+    {
+     "id": "c27",
+     "text": "La sección de metodología indica que la duración se muestra en horas y minutos.",
+     "volatility": "stable",
+     "quotes": [
+      {
+       "sourceId": "s2",
+       "quote": "La duración se muestra en horas y minutos.",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "supported"
+    },
+    {
+     "id": "c28",
+     "text": "La página ofrece listas semanales anteriores, por ejemplo las de 12/10/26 - 18/10/26 y 5/10/26 - 11/10/26.",
+     "volatility": "catalog-ranking",
+     "quotes": [
+      {
+       "sourceId": "s1",
+       "quote": "19/10/26 - 25/10/26 12/10/26 - 18/10/26 5/10/26 - 11/10/26",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "supported"
+    },
+    {
+     "id": "c29",
+     "text": "La página incluye un buscador para consultar los detalles del ranking de cualquier título en el Top 10 a lo largo del tiempo y en distintos países.",
+     "volatility": "stable",
+     "quotes": [
+      {
+       "sourceId": "s2",
+       "quote": "Busca cualquier título en Netflix para consultar los detalles de su ranking en el Top 10 a lo largo del tiempo y en distintos países.",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "supported"
+    },
+    {
+     "id": "c30",
+     "text": "El plan Estándar con anuncios incluye anuncios y casi todas las películas y series, no todas.",
+     "volatility": "availability",
+     "quotes": [
+      {
+       "sourceId": "s3",
+       "quote": "Estándar con anuncios Incluye anuncios , están disponibles todos los juegos y casi todas las películas y series.",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "supported"
+    },
+    {
+     "id": "c31",
+     "text": "En el plan con anuncios, los títulos que no están disponibles llevan un icono de candado.",
+     "volatility": "availability",
+     "quotes": [
+      {
+       "sourceId": "s3",
+       "quote": "Aparecerá un icono de candado en los títulos que no estén disponibles.",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "supported"
+    },
+    {
+     "id": "c32",
+     "text": "Quien tenga Netflix a través de un paquete, oferta o empresa colaboradora debe preguntar a su proveedor si tiene disponible un plan con anuncios.",
+     "volatility": "availability",
+     "quotes": [
+      {
+       "sourceId": "s3",
+       "quote": "Si tienes Netflix a través de un paquete u oferta o de alguna de nuestras empresas colaboradoras, pregunta a tu proveedor si tiene disponible un plan con anuncios.",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "supported"
+    },
+    {
+     "id": "c33",
+     "text": "Los planes de Netflix se facturan mensualmente y no hay planes anuales, de varios meses ni de por vida.",
+     "volatility": "pricing",
+     "quotes": [
+      {
+       "sourceId": "s3",
+       "quote": "Los planes de Netflix se facturan mensualmente en la fecha en la que te hayas suscrito .",
+       "verified": true
+      },
+      {
+       "sourceId": "s3",
+       "quote": "No ofrecemos planes de suscripción anuales, de varios meses ni de por vida.",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "supported"
+    },
+    {
+     "id": "c34",
+     "text": "Se puede cambiar de plan o cancelar la suscripción cuando se quiera.",
+     "volatility": "pricing",
+     "quotes": [
+      {
+       "sourceId": "s3",
+       "quote": "Podrás cambiar de plan fácilmente o cancelar la suscripción cuando quieras.",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "supported"
+    },
+    {
+     "id": "c35",
+     "text": "Cada día nace un listo figura en la ficha de GuíaTV como comedia de 2026, con ficha en /peliculas/cada-dia-nace-un-listo.",
+     "volatility": "stable",
+     "quotes": [
+      {
+       "sourceId": "g1",
+       "quote": "\"genres\":[\"Comedia\"]",
+       "verified": true
+      },
+      {
+       "sourceId": "g1",
+       "quote": "\"releaseYear\":2026",
+       "verified": true
+      },
+      {
+       "sourceId": "g1",
+       "quote": "\"detailPath\":\"/peliculas/cada-dia-nace-un-listo\"",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "supported"
+    },
+    {
+     "id": "c36",
+     "text": "Grande de España figura en la ficha de GuíaTV como serie de comedia y drama de 2026, con ficha en /series/grande-de-espana.",
+     "volatility": "stable",
+     "quotes": [
+      {
+       "sourceId": "g2",
+       "quote": "\"genres\":[\"Comedia\",\"Drama\"]",
+       "verified": true
+      },
+      {
+       "sourceId": "g2",
+       "quote": "\"releaseYear\":2026",
+       "verified": true
+      },
+      {
+       "sourceId": "g2",
+       "quote": "\"detailPath\":\"/series/grande-de-espana\"",
+       "verified": true
+      }
+     ],
+     "legalRefs": [],
+     "status": "supported"
+    }
+   ]
+  },
+  "bundleHash": "efbe3d784a30db0f2a016acff8b60a646ac1ddde43fc3cd38e517f7a22ef080b",
+  "draftMarkdown": "# Top 10 de Netflix en España: series y películas de la semana\n\nGrande de España: Temporada 1 es la serie n.º 1 del Top 10 de Netflix en España para la semana 19/10/26 - 25/10/26 [[c1,c5]]. La lista de películas corresponde a esa misma semana [[c2]]. La página de series se titula «Top 10 de series más comentadas en Netflix en España ahora» [[c3]], y la de películas, «Top 10 de películas más comentadas en Netflix en España ahora» [[c4]]. Las dos clasificaciones completas, puesto por puesto, se consultan en la [página oficial de series](https://www.netflix.com/tudum/top10/es/spain/tv) y en la [de películas](https://www.netflix.com/tudum/top10/es/spain).\n\n## Posiciones confirmadas de la semana\n\n| Lista | Puesto | Título |\n|---|---|---|\n| Series | n.º 1 | Grande de España: Temporada 1 [[c5]] |\n| Series | n.º 10 | Cyberpunk: Edgerunners 2 [[c14]] |\n| Películas | n.º 10 | Hot Wheels ¡Máxima Velocidad! Ataque del T-Rex [[c24]] |\n\nEl resto de posiciones de ambas listas figura en las páginas oficiales enlazadas al principio. La tabla se limita a esas tres entradas porque son las que esta guía ha contrastado con la fuente; reproducir el resto sin verificarlo puesto por puesto podría dar por buena una clasificación distinta de la publicada. Los nombres se recogen tal como los escribe Netflix: en la lista de series, una entrada puede referirse a una temporada concreta, como ocurre con el n.º 1 [[c5]].\n\n## Qué dice el nombre de la lista\n\nEl encabezado de ambas páginas habla de títulos «más comentados» y añade la palabra «ahora» [[c3,c4]]. Al mismo tiempo, cada lista va acompañada de las fechas de la semana a la que corresponde, en este caso 19/10/26 - 25/10/26 [[c1,c2]]. Lo práctico es fijarse en esas fechas y no en el «ahora» del encabezado: son las que indican qué semana refleja la clasificación, que no tiene por qué coincidir con el día en que se consulta.\n\n## Qué precisa la metodología de Netflix\n\nLa sección «Sobre la metodología» de la página añade dos precisiones:\n\n- Las listas del Top 10 están disponibles en países y territorios seleccionados [[c26]].\n- La duración se muestra en horas y minutos [[c27]].\n\nLa primera explica por qué el buscador permite comparar países solo donde Netflix publica lista; la segunda indica en qué formato aparece la duración que acompaña a los datos de la página.\n\n## Grande de España en la ficha de GuíaTV\n\nEn la [ficha de Grande de España en GuíaTV](/series/grande-de-espana) figura como serie de comedia y drama de 2026 [[c36]]. Ese dato de género ayuda a decidir si el título que encabeza la lista de series encaja con lo que se busca, algo que el ranking por sí solo no indica. Las fichas de GuíaTV recogen ese mismo tipo de dato para películas: Cada día nace un listo aparece registrada como comedia de 2026 [[c35]]. El resto de la oferta por servicio puede revisarse en las [plataformas de streaming en GuíaTV](/plataformas).\n\n## Cómo usar la lista para elegir qué ver\n\n**Compara semanas.** La página permite consultar listas anteriores, por ejemplo las de 12/10/26 - 18/10/26 y 5/10/26 - 11/10/26 [[c28]]. Así puedes ver qué títulos se mantienen de una semana a otra y cuáles entran o salen. Esa comparación separa los títulos que repiten en varias listas semanales de los que solo figuran en una, un matiz que la clasificación de una sola semana no muestra.\n\n**Busca un título concreto.** El buscador de la página muestra los detalles del ranking de cualquier título en el Top 10 a lo largo del tiempo y en distintos países [[c29]]. Si alguien te recomienda una serie o una película, ahí puedes comprobar si ha pasado por la lista de España o solo por la de otros países; en ese caso, ten en cuenta que es posible que algunos títulos no estén disponibles en todas las regiones [[c25]].\n\n## Si tienes el plan con anuncios\n\nEl plan Estándar con anuncios incluye casi todas las películas y series del catálogo, pero no todas [[c30]]. Los títulos que quedan fuera aparecen con un icono de candado, así que antes de contar con un éxito de la lista conviene comprobar que no lo lleva en tu cuenta [[c31]].\n\nSi tienes Netflix a través de un paquete, una oferta o una empresa colaboradora, es tu proveedor quien debe confirmarte si dispone de plan con anuncios [[c32]].\n\nSi un título bloqueado te lleva a cambiar de plan, se puede cambiar o cancelar la suscripción cuando se quiera, y los planes se facturan mensualmente, sin opciones anuales, de varios meses ni de por vida [[c33,c34]]. Lo que cuesta cada opción está en los [precios de las plataformas de streaming en España](/guias/precios-plataformas-streaming-espana), y para valorar si compensa frente a otros servicios está la [comparativa de planes de Netflix, HBO Max, Disney+ y Prime Video](/guias/netflix-hbo-max-disney-prime-video-que-plan-elegir).",
+  "draftHash": "1889dc19c475b5148ec108406e7a45ad4035eb65b8a32412b33a9c26c7e0df77",
+  "critic": {
+   "model": "claude-opus-5-5",
+   "verdict": "revise",
+   "modelVerdict": "revise",
+   "issues": [
+    {
+     "claimId": "c26",
+     "severity": "medium",
+     "message": "«La primera explica por qué el buscador permite comparar países solo donde Netflix publica lista» es una inferencia propia: c26 y c29 no relacionan el alcance del buscador con los países que tienen lista. Elimina la frase y deja la viñeta tal como la da la fuente. Quita también «la segunda indica en qué formato aparece la duración…», que solo repite c27."
+    },
+    {
+     "claimId": "c35",
+     "severity": "medium",
+     "message": "«Las fichas de GuíaTV recogen ese mismo tipo de dato para películas: Cada día nace un listo…» introduce en una guía del Top 10 un título cuyo puesto no está verificado (c15 se descartó). El lector puede deducir que está en la lista. Elimina la mención o aclara que no forma parte de las posiciones confirmadas."
+    },
+    {
+     "claimId": "c3",
+     "severity": "medium",
+     "message": "Se repiten los mismos datos: los títulos de las páginas (c3, c4) y las fechas (c1, c2) aparecen en el primer párrafo y otra vez en «Qué dice el nombre de la lista». Deja los títulos de las páginas solo en esa sección, junto con la explicación de las fechas, y recorta el primer párrafo al dato del n.º 1 y la semana."
+    },
+    {
+     "severity": "medium",
+     "message": "Hay frases de relleno y autorreferencia. «La tabla se limita a esas tres entradas porque son las que esta guía ha contrastado con la fuente; reproducir el resto sin verificarlo…» habla del proceso del redactor y no aporta nada al lector. En «Compara semanas», «Así puedes ver qué títulos se mantienen…» y «Esa comparación separa los títulos que repiten…» dicen lo mismo dos veces. Basta con remitir a las páginas oficiales y quedarse con una sola de esas dos frases."
+    },
+    {
+     "claimId": "c5",
+     "severity": "low",
+     "message": "«Los nombres se recogen tal como los escribe Netflix: … una entrada puede referirse a una temporada concreta» es una observación menor que se puede integrar en la tabla o eliminar."
+    }
+   ],
+   "bundleHash": "efbe3d784a30db0f2a016acff8b60a646ac1ddde43fc3cd38e517f7a22ef080b",
+   "draftHash": "1889dc19c475b5148ec108406e7a45ad4035eb65b8a32412b33a9c26c7e0df77",
+   "reviewedAt": "2026-11-03T09:17:17.903Z"
+  },
+  "cost": {
+   "entries": [
+    {
+     "role": "research",
+     "model": "claude-opus-5-5",
+     "inputTokens": 24539,
+     "outputTokens": 8145,
+     "searches": 0,
+     "usd": 0.261056
+    },
+    {
+     "role": "evidence",
+     "model": "claude-opus-5-5",
+     "inputTokens": 2273,
+     "outputTokens": 846,
+     "searches": 0,
+     "usd": 0.026012
+    },
+    {
+     "role": "editorial",
+     "model": "claude-opus-5-5",
+     "inputTokens": 4273,
+     "outputTokens": 4261,
+     "searches": 0,
+     "usd": 0.102312
+    },
+    {
+     "role": "seo",
+     "model": "claude-haiku-5-5",
+     "inputTokens": 602,
+     "outputTokens": 650,
+     "searches": 0,
+     "usd": 0.000385
+    },
+    {
+     "role": "editorial",
+     "model": "claude-opus-5-5",
+     "inputTokens": 7007,
+     "outputTokens": 3319,
+     "searches": 0,
+     "usd": 0.094408
+    },
+    {
+     "role": "critic",
+     "model": "claude-opus-5-5",
+     "inputTokens": 6179,
+     "outputTokens": 2497,
+     "searches": 0,
+     "usd": 0.074656
+    },
+    {
+     "role": "editorial",
+     "model": "claude-opus-5-5",
+     "inputTokens": 7718,
+     "outputTokens": 3942,
+     "searches": 0,
+     "usd": 0.109712
+    },
+    {
+     "role": "editorial",
+     "model": "claude-opus-5-5",
+     "inputTokens": 6592,
+     "outputTokens": 2929,
+     "searches": 0,
+     "usd": 0.084948
+    },
+    {
+     "role": "critic",
+     "model": "claude-opus-5-5",
+     "inputTokens": 5920,
+     "outputTokens": 1187,
+     "searches": 0,
+     "usd": 0.04742
+    },
+    {
+     "role": "editorial",
+     "model": "claude-opus-5-5",
+     "inputTokens": 6413,
+     "outputTokens": 3099,
+     "searches": 0,
+     "usd": 0.087632
+    },
+    {
+     "role": "critic",
+     "model": "claude-opus-5-5",
+     "inputTokens": 5868,
+     "outputTokens": 2337,
+     "searches": 0,
+     "usd": 0.070212
+    },
+    {
+     "role": "editorial",
+     "model": "claude-opus-5-5",
+     "inputTokens": 7258,
+     "outputTokens": 3864,
+     "searches": 0,
+     "usd": 0.106312
+    },
+    {
+     "role": "editorial",
+     "model": "claude-opus-5-5",
+     "inputTokens": 6394,
+     "outputTokens": 3784,
+     "searches": 0,
+     "usd": 0.101256
+    },
+    {
+     "role": "editorial",
+     "model": "claude-opus-5-5",
+     "inputTokens": 6522,
+     "outputTokens": 2743,
+     "searches": 0,
+     "usd": 0.080948
+    },
+    {
+     "role": "critic",
+     "model": "claude-opus-5-5",
+     "inputTokens": 5864,
+     "outputTokens": 2701,
+     "searches": 0,
+     "usd": 0.077476
+    },
+    {
+     "role": "editorial",
+     "model": "claude-opus-5-5",
+     "inputTokens": 7506,
+     "outputTokens": 3452,
+     "searches": 0,
+     "usd": 0.099064
+    },
+    {
+     "role": "editorial",
+     "model": "claude-opus-5-5",
+     "inputTokens": 5908,
+     "outputTokens": 3794,
+     "searches": 0,
+     "usd": 0.099512
+    },
+    {
+     "role": "critic",
+     "model": "claude-opus-5-5",
+     "inputTokens": 5920,
+     "outputTokens": 2242,
+     "searches": 0,
+     "usd": 0.06852
+    },
+    {
+     "role": "editorial",
+     "model": "claude-opus-5-5",
+     "inputTokens": 7372,
+     "outputTokens": 3614,
+     "searches": 0,
+     "usd": 0.101768
+    },
+    {
+     "role": "seo",
+     "model": "claude-haiku-5-5",
+     "inputTokens": 583,
+     "outputTokens": 640,
+     "searches": 0,
+     "usd": 0.000378
+    },
+    {
+     "role": "editorial",
+     "model": "claude-opus-5-5",
+     "inputTokens": 6064,
+     "outputTokens": 4607,
+     "searches": 0,
+     "usd": 0.116396
+    },
+    {
+     "role": "critic",
+     "model": "claude-opus-5-5",
+     "inputTokens": 5820,
+     "outputTokens": 1974,
+     "searches": 0,
+     "usd": 0.06276
+    }
+   ],
+   "usd": 1.873143,
+   "inputTokens": 142595,
+   "outputTokens": 66627,
+   "sourceFetches": 5,
+   "draftAttempts": 12,
+   "reviewFailures": 6
+  },
+  "lastVerifiedAt": "2026-11-03T09:16:59.019Z",
+  "nextReviewAt": "2026-12-03T09:07:16.139Z",
+  "version": 1,
+  "backend": "anthropic",
+  "metadataHash": "ddf6626017440aaea2fd9aebe99db481ee7a73ca6dbea9fc313a94b7dd6dcb1d",
+  "distinctValue": {
+   "readerBenefit": "Además de las posiciones verificadas del Top 10, el lector obtiene el género y año de Grande de España según la ficha de GuíaTV, que el ranking no indica, y la comprobación práctica del candado si su plan tiene anuncios antes de elegir un título de la lista.",
+   "claimIds": [
+    "c5",
+    "c36",
+    "c30",
+    "c31",
+    "c28"
+   ]
+  },
+  "signature": "72899fad673e98ab8af64398e15d509a20878262528c3958eec8c099f3bebfba"
+ },
+ "value": {
+  "internalClaims": 2,
+  "publishers": 2,
+  "tables": 1,
+  "claimsUsed": 19
+ },
+ "reason": "agotados los ciclos de revisión (5)",
+ "modelBackend": "anthropic"
+}
