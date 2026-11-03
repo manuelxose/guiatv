@@ -1,0 +1,1695 @@
+[
+ {
+  "tmdbId": 4614,
+  "title": "Pánico nuclear",
+  "releaseYear": 2002,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/panico-nuclear",
+  "apiGenres": 3,
+  "apiRuntime": 128,
+  "apiAirings": 0,
+  "legacyTmdb": 4614,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 5920,
+  "title": "Las 24 horas de Le Mans",
+  "releaseYear": 1971,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/las-24-horas-de-le-mans",
+  "apiGenres": 2,
+  "apiRuntime": 104,
+  "apiAirings": 0,
+  "legacyTmdb": 5920,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 2734,
+  "title": "La Biblia: David",
+  "releaseYear": 1997,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/la-biblia-david",
+  "apiGenres": 3,
+  "apiRuntime": 190,
+  "apiAirings": 0,
+  "legacyTmdb": 2734,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 808624,
+  "title": "O Bom Cinema",
+  "releaseYear": 2021,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime",
+   "no synopsis"
+  ],
+  "path": "/peliculas/o-bom-cinema",
+  "apiGenres": 1,
+  "apiRuntime": 82,
+  "apiAirings": 6,
+  "legacyTmdb": 808624,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 941,
+  "title": "Arma letal",
+  "releaseYear": 1987,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/arma-letal",
+  "apiGenres": 3,
+  "apiRuntime": 110,
+  "apiAirings": 9,
+  "legacyTmdb": 941,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 911430,
+  "title": "F1 la película",
+  "releaseYear": 2025,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/f1-la-pelicula",
+  "apiGenres": 2,
+  "apiRuntime": 155,
+  "apiAirings": 3,
+  "legacyTmdb": 911430,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 1400837,
+  "title": "La otra madre",
+  "releaseYear": 2026,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/la-otra-madre",
+  "apiGenres": 1,
+  "apiRuntime": 93,
+  "apiAirings": 3,
+  "legacyTmdb": 1400837,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 753,
+  "title": "Rostros",
+  "releaseYear": 1968,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/rostros",
+  "apiGenres": 1,
+  "apiRuntime": 130,
+  "apiAirings": 2,
+  "legacyTmdb": 753,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 346698,
+  "title": "Barbie",
+  "releaseYear": 2023,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/barbie",
+  "apiGenres": 3,
+  "apiRuntime": 114,
+  "apiAirings": 3,
+  "legacyTmdb": 346698,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 10396,
+  "title": "Conexión Tequila",
+  "releaseYear": 1988,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/conexion-tequila",
+  "apiGenres": 3,
+  "apiRuntime": 115,
+  "apiAirings": 2,
+  "legacyTmdb": 10396,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 5955,
+  "title": "El juramento",
+  "releaseYear": 2001,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/el-juramento",
+  "apiGenres": 4,
+  "apiRuntime": 125,
+  "apiAirings": 2,
+  "legacyTmdb": 5955,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 445954,
+  "title": "Actos de venganza",
+  "releaseYear": 2017,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/actos-de-venganza",
+  "apiGenres": 3,
+  "apiRuntime": 86,
+  "apiAirings": 3,
+  "legacyTmdb": 445954,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 1780170,
+  "title": "LA CITA",
+  "releaseYear": 2026,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime",
+   "tmdb 1249213",
+   "robots noindex, follow"
+  ],
+  "path": "/peliculas/la-cita",
+  "apiGenres": 2,
+  "apiRuntime": 95,
+  "apiAirings": 0,
+  "legacyTmdb": 1249213,
+  "status": 200,
+  "robots": "noindex, follow",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 82675,
+  "title": "Venganza: Conexión Estambul",
+  "releaseYear": 2012,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/venganza-conexion-estambul",
+  "apiGenres": 3,
+  "apiRuntime": 91,
+  "apiAirings": 2,
+  "legacyTmdb": 82675,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 995408,
+  "title": "Marie-Line et son juge",
+  "releaseYear": 2023,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime",
+   "no synopsis"
+  ],
+  "path": "/peliculas/marie-line-et-son-juge",
+  "apiGenres": 2,
+  "apiRuntime": 105,
+  "apiAirings": 2,
+  "legacyTmdb": 995408,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 752623,
+  "title": "La ciudad perdida",
+  "releaseYear": 2022,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/la-ciudad-perdida",
+  "apiGenres": 3,
+  "apiRuntime": 112,
+  "apiAirings": 0,
+  "legacyTmdb": 752623,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 564,
+  "title": "La momia",
+  "releaseYear": 1999,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/la-momia",
+  "apiGenres": 3,
+  "apiRuntime": 125,
+  "apiAirings": 2,
+  "legacyTmdb": 564,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 34851,
+  "title": "Predators",
+  "releaseYear": 2010,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/predators",
+  "apiGenres": 3,
+  "apiRuntime": 107,
+  "apiAirings": 2,
+  "legacyTmdb": 34851,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 1783597,
+  "title": "Eclipse",
+  "releaseYear": 2026,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime",
+   "no synopsis"
+  ],
+  "path": "/peliculas/eclipse",
+  "apiGenres": 2,
+  "apiRuntime": 12,
+  "apiAirings": 2,
+  "legacyTmdb": 1783597,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 3525,
+  "title": "Armas de mujer",
+  "releaseYear": 1988,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/armas-de-mujer",
+  "apiGenres": 3,
+  "apiRuntime": 113,
+  "apiAirings": 2,
+  "legacyTmdb": 3525,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 620,
+  "title": "Los Cazafantasmas",
+  "releaseYear": 1984,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/los-cazafantasmas",
+  "apiGenres": 2,
+  "apiRuntime": 107,
+  "apiAirings": 2,
+  "legacyTmdb": 620,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 244,
+  "title": "King Kong",
+  "releaseYear": 1933,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime",
+   "robots noindex, follow"
+  ],
+  "path": "/peliculas/king-kong",
+  "apiGenres": 3,
+  "apiRuntime": 100,
+  "apiAirings": 1,
+  "legacyTmdb": 244,
+  "status": 200,
+  "robots": "noindex, follow",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 140823,
+  "title": "Al encuentro de Mr. Banks",
+  "releaseYear": 2013,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/al-encuentro-de-mr-banks",
+  "apiGenres": 3,
+  "apiRuntime": 125,
+  "apiAirings": 2,
+  "legacyTmdb": 140823,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 1606362,
+  "title": "Castigo divino",
+  "releaseYear": 2026,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/castigo-divino",
+  "apiGenres": 2,
+  "apiRuntime": 91,
+  "apiAirings": 2,
+  "legacyTmdb": 1606362,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 291356,
+  "title": "El valle de la venganza",
+  "releaseYear": 2016,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/el-valle-de-la-venganza",
+  "apiGenres": 3,
+  "apiRuntime": 104,
+  "apiAirings": 2,
+  "legacyTmdb": 291356,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 31597,
+  "title": "Testigo accidental",
+  "releaseYear": 1990,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/testigo-accidental",
+  "apiGenres": 4,
+  "apiRuntime": 97,
+  "apiAirings": 1,
+  "legacyTmdb": 31597,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 49040,
+  "title": "El legado de Bourne",
+  "releaseYear": 2012,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/el-legado-de-bourne",
+  "apiGenres": 2,
+  "apiRuntime": 135,
+  "apiAirings": 0,
+  "legacyTmdb": 49040,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 26971,
+  "title": "Dieta mediterránea",
+  "releaseYear": 2009,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/dieta-mediterranea",
+  "apiGenres": 1,
+  "apiRuntime": 100,
+  "apiAirings": 1,
+  "legacyTmdb": 26971,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 1319972,
+  "title": "No dejemos que esta noche todo se pierda",
+  "releaseYear": 2025,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/no-dejemos-que-esta-noche-todo-se-pierda",
+  "apiGenres": 1,
+  "apiRuntime": 98,
+  "apiAirings": 2,
+  "legacyTmdb": 1319972,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 1406494,
+  "title": "Testigo Protegido",
+  "releaseYear": 2013,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "no synopsis",
+   "robots noindex, follow"
+  ],
+  "path": "/peliculas/testigo-protegido",
+  "apiGenres": 0,
+  "apiRuntime": null,
+  "apiAirings": 1,
+  "legacyTmdb": 1406494,
+  "status": 200,
+  "robots": "noindex, follow",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 595148,
+  "title": "Un plan irresistible",
+  "releaseYear": 2020,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/un-plan-irresistible",
+  "apiGenres": 2,
+  "apiRuntime": 102,
+  "apiAirings": 0,
+  "legacyTmdb": 595148,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 869291,
+  "title": "Cuckoo",
+  "releaseYear": 2024,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/cuckoo",
+  "apiGenres": 3,
+  "apiRuntime": 103,
+  "apiAirings": 0,
+  "legacyTmdb": 869291,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 28259,
+  "title": "Una palabra tuya",
+  "releaseYear": 2008,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/una-palabra-tuya",
+  "apiGenres": 2,
+  "apiRuntime": 100,
+  "apiAirings": 0,
+  "legacyTmdb": 28259,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 1088548,
+  "title": "Amarga Navidad",
+  "releaseYear": 2026,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/amarga-navidad",
+  "apiGenres": 2,
+  "apiRuntime": 111,
+  "apiAirings": 0,
+  "legacyTmdb": 1088548,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 800090,
+  "title": "Los Tortuga",
+  "releaseYear": 2025,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/los-tortuga",
+  "apiGenres": 1,
+  "apiRuntime": 110,
+  "apiAirings": 0,
+  "legacyTmdb": 800090,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 168259,
+  "title": "Fast & Furious 7",
+  "releaseYear": 2015,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/fast-furious-7",
+  "apiGenres": 3,
+  "apiRuntime": 139,
+  "apiAirings": 0,
+  "legacyTmdb": 168259,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 1182861,
+  "title": "Romería",
+  "releaseYear": 2025,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/romeria",
+  "apiGenres": 1,
+  "apiRuntime": 115,
+  "apiAirings": 0,
+  "legacyTmdb": 1182861,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 27150,
+  "title": "Furia silenciosa",
+  "releaseYear": 1982,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/furia-silenciosa",
+  "apiGenres": 4,
+  "apiRuntime": 105,
+  "apiAirings": 0,
+  "legacyTmdb": 27150,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 911129,
+  "title": "Sin aliento",
+  "releaseYear": 2022,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/sin-aliento",
+  "apiGenres": 2,
+  "apiRuntime": 119,
+  "apiAirings": 0,
+  "legacyTmdb": 911129,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 29805,
+  "title": "El enigma se llama Juggernaut",
+  "releaseYear": 1974,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/el-enigma-se-llama-juggernaut",
+  "apiGenres": 3,
+  "apiRuntime": 109,
+  "apiAirings": 0,
+  "legacyTmdb": 29805,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 9480,
+  "title": "Daredevil",
+  "releaseYear": 2003,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/daredevil",
+  "apiGenres": 2,
+  "apiRuntime": 103,
+  "apiAirings": 1,
+  "legacyTmdb": 9480,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 47050,
+  "title": "Perros callejeros",
+  "releaseYear": 1977,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/perros-callejeros",
+  "apiGenres": 3,
+  "apiRuntime": 103,
+  "apiAirings": 0,
+  "legacyTmdb": 47050,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 185460,
+  "title": "Willow Creek",
+  "releaseYear": 2013,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/willow-creek",
+  "apiGenres": 3,
+  "apiRuntime": 80,
+  "apiAirings": 1,
+  "legacyTmdb": 185460,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 460458,
+  "title": "Resident Evil. Bienvenidos a Raccoon City",
+  "releaseYear": 2021,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/resident-evil-bienvenidos-a-raccoon-city",
+  "apiGenres": 3,
+  "apiRuntime": 107,
+  "apiAirings": 1,
+  "legacyTmdb": 460458,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 30497,
+  "title": "La matanza de Texas",
+  "releaseYear": 1974,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/la-matanza-de-texas",
+  "apiGenres": 1,
+  "apiRuntime": 83,
+  "apiAirings": 0,
+  "legacyTmdb": 30497,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 704561,
+  "title": "Visións",
+  "releaseYear": 2016,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has runtime",
+   "no synopsis",
+   "robots noindex, follow"
+  ],
+  "path": "/peliculas/visions",
+  "apiGenres": 0,
+  "apiRuntime": 71,
+  "apiAirings": 0,
+  "legacyTmdb": 704561,
+  "status": 200,
+  "robots": "noindex, follow",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 219,
+  "title": "Volver",
+  "releaseYear": 2006,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/volver",
+  "apiGenres": 3,
+  "apiRuntime": 110,
+  "apiAirings": 0,
+  "legacyTmdb": 219,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 34985,
+  "title": "Mataharis",
+  "releaseYear": 2007,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/mataharis",
+  "apiGenres": 2,
+  "apiRuntime": 95,
+  "apiAirings": 0,
+  "legacyTmdb": 34985,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 447332,
+  "title": "Un lugar tranquilo",
+  "releaseYear": 2018,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/un-lugar-tranquilo",
+  "apiGenres": 3,
+  "apiRuntime": 91,
+  "apiAirings": 1,
+  "legacyTmdb": 447332,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 1639,
+  "title": "Speed 2",
+  "releaseYear": 1997,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/speed-2",
+  "apiGenres": 2,
+  "apiRuntime": 125,
+  "apiAirings": 0,
+  "legacyTmdb": 1639,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 9739,
+  "title": "Demolition Man",
+  "releaseYear": 1993,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/demolition-man",
+  "apiGenres": 3,
+  "apiRuntime": 115,
+  "apiAirings": 1,
+  "legacyTmdb": 9739,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 10776,
+  "title": "La tienda de los horrores",
+  "releaseYear": 1986,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/la-tienda-de-los-horrores",
+  "apiGenres": 2,
+  "apiRuntime": 94,
+  "apiAirings": 1,
+  "legacyTmdb": 10776,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 25553,
+  "title": "Último tren a Katanga",
+  "releaseYear": 1968,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/ultimo-tren-a-katanga",
+  "apiGenres": 3,
+  "apiRuntime": 100,
+  "apiAirings": 0,
+  "legacyTmdb": 25553,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 842859,
+  "title": "La mercancía más preciosa",
+  "releaseYear": 2024,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/la-mercancia-mas-preciosa",
+  "apiGenres": 3,
+  "apiRuntime": 81,
+  "apiAirings": 0,
+  "legacyTmdb": 842859,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 767304,
+  "title": "Día de redención",
+  "releaseYear": 2021,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/dia-de-redencion",
+  "apiGenres": 3,
+  "apiRuntime": 100,
+  "apiAirings": 0,
+  "legacyTmdb": 767304,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 296098,
+  "title": "El puente de los espías",
+  "releaseYear": 2015,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/el-puente-de-los-espias",
+  "apiGenres": 2,
+  "apiRuntime": 141,
+  "apiAirings": 0,
+  "legacyTmdb": 296098,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 1219548,
+  "title": "El médico II",
+  "releaseYear": 2025,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/el-medico-ii",
+  "apiGenres": 3,
+  "apiRuntime": 142,
+  "apiAirings": 1,
+  "legacyTmdb": 1219548,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 348,
+  "title": "Alien: El octavo pasajero",
+  "releaseYear": 1979,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/alien-el-octavo-pasajero",
+  "apiGenres": 2,
+  "apiRuntime": 117,
+  "apiAirings": 0,
+  "legacyTmdb": 348,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 771757,
+  "title": "El último suspiro",
+  "releaseYear": 1996,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime",
+   "tmdb 17612",
+   "robots noindex, follow"
+  ],
+  "path": "/peliculas/el-ultimo-suspiro",
+  "apiGenres": 2,
+  "apiRuntime": 103,
+  "apiAirings": 0,
+  "legacyTmdb": 17612,
+  "status": 200,
+  "robots": "noindex, follow",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 20391,
+  "title": "La leyenda de la ciudad sin nombre",
+  "releaseYear": 1969,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/la-leyenda-de-la-ciudad-sin-nombre",
+  "apiGenres": 3,
+  "apiRuntime": 158,
+  "apiAirings": 1,
+  "legacyTmdb": 20391,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 2100,
+  "title": "La última fortaleza",
+  "releaseYear": 2001,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/la-ultima-fortaleza",
+  "apiGenres": 3,
+  "apiRuntime": 131,
+  "apiAirings": 0,
+  "legacyTmdb": 2100,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 24203,
+  "title": "Su otra esposa",
+  "releaseYear": 1957,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/su-otra-esposa",
+  "apiGenres": 2,
+  "apiRuntime": 103,
+  "apiAirings": 1,
+  "legacyTmdb": 24203,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 9619,
+  "title": "Un pueblo llamado Dante's Peak",
+  "releaseYear": 1997,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime",
+   "robots noindex, follow"
+  ],
+  "path": "/peliculas/un-pueblo-llamado-dantes-peak",
+  "apiGenres": 4,
+  "apiRuntime": 112,
+  "apiAirings": 0,
+  "legacyTmdb": 9619,
+  "status": 200,
+  "robots": "noindex, follow",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 401469,
+  "title": "Viudas",
+  "releaseYear": 2018,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/viudas",
+  "apiGenres": 3,
+  "apiRuntime": 130,
+  "apiAirings": 1,
+  "legacyTmdb": 401469,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 115715,
+  "title": "Celos",
+  "releaseYear": 1999,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/celos",
+  "apiGenres": 1,
+  "apiRuntime": 105,
+  "apiAirings": 0,
+  "legacyTmdb": 115715,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 388202,
+  "title": "Arsenal",
+  "releaseYear": 2017,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime",
+   "tmdb 85715",
+   "robots noindex, follow"
+  ],
+  "path": "/peliculas/arsenal",
+  "apiGenres": 2,
+  "apiRuntime": 83,
+  "apiAirings": 0,
+  "legacyTmdb": 85715,
+  "status": 200,
+  "robots": "noindex, follow",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 1291712,
+  "title": "Las catadoras de Hitler",
+  "releaseYear": 2025,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/las-catadoras-de-hitler",
+  "apiGenres": 2,
+  "apiRuntime": 123,
+  "apiAirings": 0,
+  "legacyTmdb": 1291712,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 6068,
+  "title": "Seis días y siete noches",
+  "releaseYear": 1998,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/seis-dias-y-siete-noches",
+  "apiGenres": 4,
+  "apiRuntime": 98,
+  "apiAirings": 1,
+  "legacyTmdb": 6068,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 477044,
+  "title": "La isla de Bergman",
+  "releaseYear": 2021,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/la-isla-de-bergman",
+  "apiGenres": 2,
+  "apiRuntime": 113,
+  "apiAirings": 1,
+  "legacyTmdb": 477044,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 507076,
+  "title": "Climax",
+  "releaseYear": 2018,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/climax",
+  "apiGenres": 3,
+  "apiRuntime": 95,
+  "apiAirings": 0,
+  "legacyTmdb": 507076,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 1242898,
+  "title": "Predator: Badlands",
+  "releaseYear": 2025,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime",
+   "robots noindex, follow"
+  ],
+  "path": "/peliculas/predator-badlands",
+  "apiGenres": 3,
+  "apiRuntime": 107,
+  "apiAirings": 0,
+  "legacyTmdb": 1242898,
+  "status": 200,
+  "robots": "noindex, follow",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 756999,
+  "title": "Black Phone",
+  "releaseYear": 2022,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/black-phone",
+  "apiGenres": 2,
+  "apiRuntime": 102,
+  "apiAirings": 1,
+  "legacyTmdb": 756999,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 10802,
+  "title": "Showgirls",
+  "releaseYear": 1995,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/showgirls",
+  "apiGenres": 1,
+  "apiRuntime": 128,
+  "apiAirings": 1,
+  "legacyTmdb": 10802,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 10559,
+  "title": "Frequency",
+  "releaseYear": 2000,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/frequency",
+  "apiGenres": 3,
+  "apiRuntime": 118,
+  "apiAirings": 0,
+  "legacyTmdb": 10559,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 8271,
+  "title": "Disturbia",
+  "releaseYear": 2007,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/disturbia",
+  "apiGenres": 3,
+  "apiRuntime": 105,
+  "apiAirings": 0,
+  "legacyTmdb": 8271,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 980489,
+  "title": "Gran Turismo",
+  "releaseYear": 2023,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/gran-turismo",
+  "apiGenres": 3,
+  "apiRuntime": 134,
+  "apiAirings": 0,
+  "legacyTmdb": 980489,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 937941,
+  "title": "La maldición de Shelby Oaks",
+  "releaseYear": 2025,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/la-maldicion-de-shelby-oaks",
+  "apiGenres": 2,
+  "apiRuntime": 91,
+  "apiAirings": 1,
+  "legacyTmdb": 937941,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 13572,
+  "title": "Giro inesperado",
+  "releaseYear": 2004,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/giro-inesperado",
+  "apiGenres": 3,
+  "apiRuntime": 110,
+  "apiAirings": 0,
+  "legacyTmdb": 13572,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 1245368,
+  "title": "Grand Me",
+  "releaseYear": 2024,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/grand-me",
+  "apiGenres": 1,
+  "apiRuntime": 78,
+  "apiAirings": 0,
+  "legacyTmdb": 1245368,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ },
+ {
+  "tmdbId": 1241921,
+  "title": "Un gran viaje atrevido y maravilloso",
+  "releaseYear": 2025,
+  "datesBeyondLegacyWindow": [
+   "20261105"
+  ],
+  "ok": false,
+  "why": [
+   "has genres",
+   "has runtime"
+  ],
+  "path": "/peliculas/un-gran-viaje-atrevido-y-maravilloso",
+  "apiGenres": 3,
+  "apiRuntime": 109,
+  "apiAirings": 0,
+  "legacyTmdb": 1241921,
+  "status": 200,
+  "robots": "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+  "canonicals": 1
+ }
+]
