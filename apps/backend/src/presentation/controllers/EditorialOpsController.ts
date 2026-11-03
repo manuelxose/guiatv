@@ -240,6 +240,8 @@ export class EditorialOpsController {
     const categoryName = (post.categories ?? []).map((category) => String((category as { name?: string }).name || '')).find((name) => ['Televisión', 'Cine', 'Series', 'Streaming', 'Fútbol', 'Deportes', 'Tecnología'].includes(name));
     // The request refuses seed URLs from domains not enabled in the settings; the old research may have used others.
     const enabled = new Set((await this.generation.getSettings()).sourceDomains);
+    // A stored URL can be malformed (`https://exa mple`): it is dropped, not a 500 that leaves the draft stuck.
+    const enabledSeed = (url: string) => { try { return /^https:\/\//.test(url) && enabled.has(new URL(url).hostname.replace(/^www\./, '')); } catch { return false; } };
     const request = await this.generation.createRequest('generate', {
       title: post.title, slug: post.slug,
       topic: p.bundle.topic, intent: p.bundle.intent,
@@ -248,7 +250,7 @@ export class EditorialOpsController {
       volatility: (p.bundle.claims ?? []).map((claim) => claim.volatility).find((v) => ['stable', 'pricing', 'availability', 'sports-rights', 'catalog-ranking'].includes(v)) || 'stable',
       contentType: ['guide', 'ranking', 'analysis'].includes(String(post.contentType)) ? post.contentType : 'guide',
       length: words > 1400 ? 'long' : words > 900 ? 'medium' : 'short',
-      seedUrls: (p.bundle.sources ?? []).map((source) => source.url).filter((url) => /^https:\/\//.test(url) && enabled.has(new URL(url).hostname.replace(/^www\./, ''))).slice(0, 4),
+      seedUrls: (p.bundle.sources ?? []).map((source) => String(source.url ?? '')).filter(enabledSeed).slice(0, 4),
       internalSources: [],
     }, actor(req));
     try {

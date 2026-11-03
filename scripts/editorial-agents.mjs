@@ -164,6 +164,12 @@ if (command === 'run') {
   // M11-E2: a run that passes every gate is saved and published by policy in the same job, with no per-article person.
   const autopublish = process.argv.includes('--autopublish');
   if (autopublish && (!report || replay || process.argv.includes('--mock-images'))) { console.error('--autopublish needs --report <api> and live models (no replay, no mock images)'); process.exit(2); }
+  // M11-B1: `revises: <its own slug>` drafts a revision of a guide a person approved, as a local run file only. Saving
+  // it is the named reviewer's call (policy guides use `enrich`), so it never reports, publishes or shares a batch.
+  const revises = topics.filter((t) => t.revises);
+  if (revises.length && (topics.length > 1 || report || revises[0].revises !== revises[0].slug)) {
+    console.error('a revision topic runs alone, keeps its own slug (revises = slug) and is never reported or published'); process.exit(2);
+  }
   acquireLock();
   if (report) {
     const policy = await adminPolicy(report);
@@ -171,7 +177,8 @@ if (command === 'run') {
     if (!policy) { console.error(`cannot read the Admin daily limit from ${report}`); process.exit(2); }
     if (autopublish && !policy.active) { console.error('automatic publication is not active in the Admin (switch, activation or emergency stop): run without --autopublish'); process.exit(2); }
   }
-  await runTopics(topics, { report, autopublish, replay, corpus: await publicCorpus() });
+  // The guide being revised is not another page: it would only block its own slug (duplicates skip it already).
+  await runTopics(topics, { report, autopublish, replay, corpus: (await publicCorpus()).filter((p) => p.slug !== revises[0]?.slug) });
 } else if (command === 'cycle' || command === 'discover') {
   limits();
   const report = apiBase(arg('report'));

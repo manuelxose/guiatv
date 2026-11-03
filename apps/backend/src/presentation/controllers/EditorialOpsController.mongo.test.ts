@@ -162,9 +162,16 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     assert.equal(await BlogPostModel.countDocuments({ _id: id }), 1, 'the published article is still there');
     assert.equal((await call(ops.requeuePost, { params: { id: retryId } })).error?.name, 'ConflictError', 'a draft that passed the pipeline is not requeued');
     await BlogPostModel.updateOne({ _id: retryId }, { 'editorial.state': 'blocked' });
+    // M11-B1 (#142 regression): a malformed stored URL and disabled domains (FilmAffinity, IMDb) are dropped, and the
+    // fixture's first claim is `tv-schedule`, which is not a topic volatility.
+    await BlogPostModel.collection.updateOne({ _id: new mongoose.Types.ObjectId(retryId) }, {
+      $push: { 'editorial.bundle.sources': { $each: [{ id: 'bad', url: 'https://exa mple/x' }], $position: 0 } } as never,
+    });
     const requeued = await call(ops.requeuePost, { params: { id: retryId } });
     assert.equal(requeued.code, 201, JSON.stringify(requeued.error));
     assert.equal(requeued.body.data.status, 'queued');
+    assert.deepEqual(requeued.body.data.topic.seedUrls, ['https://www.rtve.es/play/la-2/'], 'only enabled, well-formed seed URLs');
+    assert.notEqual(requeued.body.data.topic.volatility, 'tv-schedule');
     assert.equal(await BlogPostModel.countDocuments({ _id: retryId }), 0);
     await call(ops.runnerHeartbeat, { body: { version: 'test', providers: ['openai'], webSearch: true, status: 'error', error: 'OPENAI_API_KEY missing' } });
     const operational = await ops['generation'].operationalState();
