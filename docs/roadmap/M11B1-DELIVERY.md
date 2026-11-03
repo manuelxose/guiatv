@@ -329,7 +329,22 @@ No se activó `CONTENT_LEGACY_ENRICHMENT_ENABLED` ni se inició ningún rollout.
 2. Identidad de las fichas de «Cada día nace un listo» y «Grande de España»: comprobar que son los títulos de Netflix.
 3. Slug y consulta objetivo («mejores series y películas») frente a una lista semanal. Cambiarlos necesita una 301, fuera de este hito.
 
-**Próximo submilestone recomendado (uno, no ejecutado): M11-B2, la misma técnica con Prime Video.** Antes, el propietario debe decidir si «lista oficial semanal» es el patrón correcto para los rankings. Se mantiene que no se fusione nada sin 28 días de datos de GSC.
+**Comprobación de fuentes de los otros cuatro rankings (2026-11-03, lectura de páginas públicas):** el patrón de Netflix no se generaliza.
+
+| Plataforma | Qué publica y se puede citar |
+|---|---|
+| Netflix | Top 10 semanal por país (series y películas), con fecha. Es la única lista oficial citable |
+| Prime Video | Su portada pública no muestra contenido (solo el aviso de cookies y el menú) |
+| Disney+ | Texto de marketing con las marcas del catálogo, sin posiciones ni fechas |
+| HBO Max | Precio de entrada del plan en la portada; la página `/top-10` responde 404 |
+| Movistar Plus+ | Solo una pantalla de acceso |
+
+Sin una lista oficial, un ranking por plataforma solo podría apoyarse en las notas de TMDB (que no se pueden comprobar) o en descripciones de catálogo planas. No se generaron borradores para estos cuatro, porque habrían vuelto a una plantilla con otro nombre.
+
+**Próximo submilestone recomendado (uno, no ejecutado): M11-B2, decidir el destino de los cuatro rankings sin fuente oficial.**
+1. Qué se entrega en su lugar: una sola guía comparativa «qué ver en cada plataforma» (Netflix con su Top 10, y las demás con lo que sí se puede citar: planes, marcas, canales), apoyada en los datos propios de GuíaTV.
+2. Si se opta por fusionar, las cuatro URL pasan a `/guias/rankings` por 301. Eso necesita tu autorización, 28 días de datos de Search Console y la entrada en las tablas de redirección de Angular y SSR.
+3. Mientras tanto, las cuatro guías actuales siguen publicadas sin cambios.
 
 ## PR
 
