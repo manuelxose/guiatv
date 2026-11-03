@@ -147,3 +147,10 @@ Comprobación: la salida muestra una línea por día con `inserted`/`unchanged`.
 - Observación: las filas "sin cambios" en una primera pasada son emisiones con el mismo canal e inicio que otra del mismo día; comparten identidad. Si difirieran en título provocarían revisiones cruzadas en cada pasada: vigilar `rev` > 1 los próximos días.
 - Parada: `rm /etc/guiatv/history.env` o `systemctl disable --now guiatv-history-archive.timer`.
 - No medidos: tamaño real de la colección y efecto en latencia (revisar tras unos días).
+
+## 15. Comprobaciones posteriores (2026-11-04)
+
+- Colección `tv_broadcast_observations`: 28 378 documentos (8 144 / 8 649 / 11 585 por día), tamaño medio 379 B, almacenamiento 3,8 MB + índices 1,4 MB ≈ 5,2 MB (≈ 1,8 MB/día ⇒ ~650 MB a 365 días; la estimación inicial de §5 era ~4× alta).
+- Revisiones: 1 documento con `rev` > 1 (`laliga_tv_bar_2`, "No Data" → "Próximo partido: …"): corrección legítima, sin pisado cruzado.
+- Latencia `/api/health` tras la activación: 0,11–0,22 s (0,64 s la primera, en frío). No había línea base previa, por lo que no se puede afirmar efecto nulo; el job corre a las 03:30 con `Nice=10` y `MemoryMax=1G`.
+- Hito cerrado. Seguimiento opcional: revisar `rev` > 1 y tamaño a los 30 días.
