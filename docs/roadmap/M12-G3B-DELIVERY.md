@@ -2,7 +2,7 @@
 
 Base: `main@81db34f`. Veredicto: **PASS (base de datos, desactivada)**. Tras la declaración del propietario (§2) se implementó el esquema y el archivador, apagados por defecto. M12 sigue **NO-GO**. Sin producción tocada, sin páginas, sin sitemap, sin captura activa.
 
-**Implementado:** `domain/services/BroadcastObservation.ts`, `infrastructure/database/models/TVBroadcastObservation.model.ts`, `application/services/BroadcastObservationArchiver.ts` (+ tests). Nada lo invoca: hace falta un job/CLI explícito y `HISTORY_CAPTURE_ENABLED=true`.
+**Implementado:** `domain/services/BroadcastObservation.ts`, `infrastructure/database/models/TVBroadcastObservation.model.ts`, `application/services/BroadcastObservationArchiver.ts` (+ tests). El job es `npm run job:archiveHistory` (`jobs/cli/archiveBroadcastHistory.cli.ts`): sin `HISTORY_CAPTURE_ENABLED=true` sale sin tocar la base de datos; por defecto archiva los últimos 3 días cerrados (`HISTORY_CAPTURE_CATCHUP_DAYS`) o los `YYYYMMDD` indicados. No está programado en ningún cron ni desplegado.
 
 ## 1. Datos históricos que existen hoy
 
@@ -108,7 +108,7 @@ Ninguna captura, ninguna configuración, ningún cambio de producción. Activar 
 ## 10. Bloqueos restantes
 
 - ~~B1 Licencia~~ resuelto por declaración del propietario; evidencia no incluida en el repositorio.
-- **B5** Falta el job/CLI que invoque `archiveDay` y la autorización de activación.
+- **B5** Falta programar el job en el servidor y la autorización de activación.
 - **B2** Medir recuento real y tamaño en producción.
 - **B3** H1 y H2 antes de cualquier canario M12.
 - **B4** Sin demanda de búsqueda ni historia acumulada.

@@ -13,6 +13,7 @@
     "job:syncEPG": "node dist/jobs/cli/syncEPG.cli.js",
     "job:precompute": "node dist/jobs/cli/precomputeSchedules.cli.js",
     "job:clean": "node dist/jobs/cli/cleanOldPrograms.cli.js",
+    "job:archiveHistory": "node dist/jobs/cli/archiveBroadcastHistory.cli.js",
     "create-indexes": "node dist/scripts/create-indexes.js",
     "migrate:tv-read-model": "node dist/scripts/backfill-tv-read-model.js",
     "migrate:media-catalog": "node dist/scripts/backfill-media-catalog.js",
