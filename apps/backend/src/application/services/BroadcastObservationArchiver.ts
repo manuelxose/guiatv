@@ -19,11 +19,13 @@ export interface ArchiveResult {
   revised: number;
   unchanged: number;
   raced: number;
+  /** Rows whose Madrid start date is another day (cross-midnight overlap); that day's run owns them. */
+  outOfDay: number;
   rejected: Record<RejectReason, number>;
 }
 
 const empty = (status: ArchiveResult['status']): ArchiveResult => ({
-  status, read: 0, inserted: 0, revised: 0, unchanged: 0, raced: 0,
+  status, read: 0, inserted: 0, revised: 0, unchanged: 0, raced: 0, outOfDay: 0,
   rejected: { 'no-channel': 0, 'invalid-time': 0, 'no-title': 0, 'no-source': 0 },
 });
 
@@ -44,6 +46,7 @@ export async function archiveDay(date: string, opts: ArchiveOptions = {}): Promi
   const maxRun = Number(env.HISTORY_CAPTURE_MAX_PER_RUN) || DEFAULT_MAX_PER_RUN;
   const maxTotal = Number(env.HISTORY_CAPTURE_MAX_TOTAL) || DEFAULT_MAX_TOTAL;
   const res = empty('done');
+  // shortcut: one observation per (channel, start); a day claims only broadcasts starting that Madrid day, so overlapping read-model rows never overwrite each other
   let room = Math.min(maxRun, maxTotal - (await TVBroadcastObservationModel.estimatedDocumentCount()));
   if (room <= 0) return empty('capped');
   await TVBroadcastObservationModel.collection.createIndex(TV_BROADCAST_OBSERVATION_INDEX.key, TV_BROADCAST_OBSERVATION_INDEX.options);
@@ -56,7 +59,9 @@ export async function archiveDay(date: string, opts: ArchiveOptions = {}): Promi
     for (const a of batch) {
       res.read++;
       const r = toObservation(a, now);
-      if (r.ok) obs.push(r.obs); else res.rejected[r.reason]++;
+      if (!r.ok) res.rejected[r.reason]++;
+      else if (r.obs.madridDate !== iso) res.outOfDay++;
+      else obs.push(r.obs);
     }
     batch = [];
     const stored = new Map((await TVBroadcastObservationModel.find({ _id: { $in: obs.map((o) => o._id) } }, { rev: 1, contentHash: 1, title: 1, endUtc: 1 }).lean()).map((s: any) => [s._id as string, s]));

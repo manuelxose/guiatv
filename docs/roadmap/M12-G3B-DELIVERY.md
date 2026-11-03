@@ -154,3 +154,7 @@ Comprobación: la salida muestra una línea por día con `inserted`/`unchanged`.
 - Revisiones: 1 documento con `rev` > 1 (`laliga_tv_bar_2`, "No Data" → "Próximo partido: …"): corrección legítima, sin pisado cruzado.
 - Latencia `/api/health` tras la activación: 0,11–0,22 s (0,64 s la primera, en frío). No había línea base previa, por lo que no se puede afirmar efecto nulo; el job corre a las 03:30 con `Nice=10` y `MemoryMax=1G`.
 - Hito cerrado. Seguimiento opcional: revisar `rev` > 1 y tamaño a los 30 días.
+
+## 16. Corrección: emisiones que cruzan la medianoche (2026-11-04)
+
+Hallazgo en producción: `laliga_tv_bar_2` (inicio 2026-11-01T22:00Z) estaba en el read model de dos días con distinto título y fin; al archivar ambos días se reescribía en cada pasada (`rev` 6). Causa: la identidad es (canal, inicio) y cada día archivaba todas sus filas. Corrección: cada día archiva solo las emisiones cuya fecha de inicio en Madrid es ese día (`outOfDay` cuenta el resto). Test de regresión con tres pasadas y dos días. Además, el precompute programado de las 00:15 dejó `20261103` vacío tras un timeout de Mongo (borrado + reinserción sin transacción en `rebuildDate`); se reconstruyó a mano (11 799 filas) y la causa de fondo queda como deuda aparte.
