@@ -1,5 +1,10 @@
-import { filterChannelDirectory } from './channel-catalog.component';
+import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { of } from 'rxjs';
+import { ChannelCatalogComponent, filterChannelDirectory } from './channel-catalog.component';
 import { TvReadChannelSummaryDTO } from '../../api/models';
+import { TvApiService } from '../../api/tv-api.service';
+import { MetaService } from '../../services/meta.service';
 
 describe('channel catalogue filtering', () => {
   const channels: TvReadChannelSummaryDTO[] = [
@@ -43,6 +48,40 @@ describe('channel catalogue filtering', () => {
     ] as TvReadChannelSummaryDTO[];
     expect(filterChannelDirectory(published, '', 'all')).toEqual([published[0], published[1]]);
     expect(filterChannelDirectory(published, '', 'free')).toEqual([published[0], published[1]]);
+  });
+
+  // M10-F: production ids and names of 2026-11-03. Only a feed reviewed as a channel of its own is listed; feeds whose
+  // airings are another listed channel's stay hidden, and a reviewed id never lets another feed through.
+  const feeds = [
+    { channel: { id: 'la8cyl_tv', name: 'La8CYL.TV', normalizedName: 'la8cyl_tv', group: 'online', access: 'unknown' }, counts: { total: 1, live: 0, tonight: 0 } },
+    { channel: { id: 'la2_cat_tv', name: 'La2_CAT.TV', group: 'online', access: 'unknown' }, counts: { total: 1, live: 0, tonight: 0 } },
+    { channel: { id: 'aljq_tv', name: 'AlJQ.TV', group: 'online', access: 'unknown' }, counts: { total: 1, live: 0, tonight: 0 } },
+    { channel: { id: 'la8cyl_tv_hd', name: 'La8CYL_HD.TV', group: 'online', access: 'unknown' }, counts: { total: 1, live: 0, tonight: 0 } },
+  ] as TvReadChannelSummaryDTO[];
+
+  it('lists a feed reviewed as a distinct channel and keeps duplicate feeds hidden', () => {
+    expect(filterChannelDirectory([...channels, ...feeds], '', 'all')).toEqual([...channels, feeds[0]]);
+    expect(filterChannelDirectory(feeds, 'la8', 'all')).toEqual([feeds[0]]);
+  });
+
+  it('renders the reviewed feed as a real anchor to its canonical channel page', () => {
+    TestBed.configureTestingModule({
+      imports: [ChannelCatalogComponent],
+      providers: [
+        provideRouter([]),
+        {
+          provide: TvApiService,
+          useValue: { getTvReadChannels: () => of({ data: { date: '2026-11-03', channels: [...channels, ...feeds] } }) },
+        },
+        { provide: MetaService, useValue: { setMetaTags: () => {}, markUnavailable: () => {} } },
+      ],
+    });
+    const fixture = TestBed.createComponent(ChannelCatalogComponent);
+    fixture.detectChanges();
+    const hrefs = Array.from(fixture.nativeElement.querySelectorAll('a[href^="/canales/"]'))
+      .map((a) => (a as HTMLAnchorElement).getAttribute('href'));
+    expect(hrefs).toContain('/canales/la8cyl-tv');
+    expect(hrefs.filter((href) => /la2-cat|aljq|hd/.test(String(href)))).toEqual([]);
   });
 
   it('supports explicit free/pay access filters', () => {

@@ -119,7 +119,11 @@ export function filterChannelDirectory(
   const normalizedQuery = normalizeSearch(query);
   return entries.filter((entry) => {
     const channel = entry.channel;
-    if (isRawFeedName(channel.name) && !SITEMAP_CHANNEL_GROUPS.has(String(channel.group))) return false;
+    if (
+      isRawFeedName(channel.name)
+      && !SITEMAP_CHANNEL_GROUPS.has(String(channel.group))
+      && !REVIEWED_FEED_CHANNELS.has(channel.id)
+    ) return false;
     if (access !== 'all' && channel.access !== access) return false;
     if (!normalizedQuery) return true;
     const haystack = [
@@ -139,6 +143,14 @@ export function filterChannelDirectory(
  * filter: the API drops them from the directory and their page answers 301.
  */
 const SITEMAP_CHANNEL_GROUPS = new Set(['tdt', 'autonomico']);
+
+/**
+ * M10-F: raw-named feeds reviewed one by one on the production schedule of 2026-11-03 and listed by id, never by
+ * name. `la8cyl_tv` (La 8 Castilla y León) shares at most 2 of its 25 airings with any other channel, so it is a
+ * channel of its own and its page is the only path to some programme pages. Deliberately absent: `la2_cat_tv`
+ * (its airings are LA 2's) and `aljq_tv` (8 of 8 airings are Al Jazeera English's). docs/roadmap/M10F-DELIVERY.md
+ */
+const REVIEWED_FEED_CHANNELS = new Set(['la8cyl_tv']);
 
 // Names like "Xarxa_TVMataro.TV" or "ETB1.TV" are raw ids from a secondary EPG feed. Outside the sitemap groups they
 // are mostly duplicates of a properly named channel and stay hidden; inside them the channel is published, so the
