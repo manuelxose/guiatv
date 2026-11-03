@@ -1,0 +1,393 @@
+{
+ "at": "2026-11-03T08:51:24.436Z",
+ "files": 13,
+ "quotes": 644,
+ "compared": 644,
+ "oldTrueNewFalse": 0,
+ "flips": [
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "c5",
+   "usedInDraft": false,
+   "quote": "5/7/21 - 11/7/21 28/6/21 - 4/7/21 Top 10 de series en España"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "c8",
+   "usedInDraft": false,
+   "quote": "01 Grande de España: Temporada 1 1"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "c9",
+   "usedInDraft": false,
+   "quote": "02 Bajo la superficie: Miniserie 3"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "c10",
+   "usedInDraft": false,
+   "quote": "03 Lupin: Parte 4 1"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "c11",
+   "usedInDraft": false,
+   "quote": "04 La trampa: Miniserie 2"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "c12",
+   "usedInDraft": false,
+   "quote": "05 La diplomática: Temporada 4 2"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "c13",
+   "usedInDraft": false,
+   "quote": "06 Aquel: Miniserie 3"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "c14",
+   "usedInDraft": false,
+   "quote": "07 TYSON: Miniserie 2"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "c15",
+   "usedInDraft": false,
+   "quote": "08 Al este del Edén: Miniserie 4"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "c16",
+   "usedInDraft": false,
+   "quote": "09 Nadie quiere esto: Temporada 3 1"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "c17",
+   "usedInDraft": false,
+   "quote": "10 Cyberpunk: Edgerunners 2 1"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "c18",
+   "usedInDraft": false,
+   "quote": "01 Cada día nace un listo 2"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "c19",
+   "usedInDraft": false,
+   "quote": "02 Contra el huracán 1"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "c20",
+   "usedInDraft": false,
+   "quote": "03 Animales 3 04 Weapons 1"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "c21",
+   "usedInDraft": false,
+   "quote": "04 Weapons 1 05 Lo dejamos acá 2"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "c22",
+   "usedInDraft": false,
+   "quote": "05 Lo dejamos acá 2"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "c23",
+   "usedInDraft": false,
+   "quote": "06 Asalto al camión blindado 1"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "c24",
+   "usedInDraft": false,
+   "quote": "07 Un Año Y Un Día 1"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "c25",
+   "usedInDraft": false,
+   "quote": "08 Kraven, el cazador 4"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "c26",
+   "usedInDraft": false,
+   "quote": "09 En el interior 2"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "c27",
+   "usedInDraft": false,
+   "quote": "10 Hot Wheels ¡Máxima Velocidad! Ataque del T-Rex 1"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c5",
+   "usedInDraft": false,
+   "quote": "5/7/21 - 11/7/21 28/6/21 - 4/7/21 Top 10 de series en España"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c5",
+   "usedInDraft": false,
+   "quote": "5/7/21 - 11/7/21 28/6/21 - 4/7/21 Top 10 de películas en España"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c9",
+   "usedInDraft": false,
+   "quote": "02 Bajo la superficie: Miniserie 3 03"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c10",
+   "usedInDraft": false,
+   "quote": "03 Lupin: Parte 4 1 04"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c11",
+   "usedInDraft": false,
+   "quote": "04 La trampa: Miniserie 2 05"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c12",
+   "usedInDraft": false,
+   "quote": "05 La diplomática: Temporada 4 2 06"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c13",
+   "usedInDraft": false,
+   "quote": "06 Aquel: Miniserie 3 07"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c14",
+   "usedInDraft": false,
+   "quote": "07 TYSON: Miniserie 2 08"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c15",
+   "usedInDraft": false,
+   "quote": "08 Al este del Edén: Miniserie 4 09"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c16",
+   "usedInDraft": false,
+   "quote": "09 Nadie quiere esto: Temporada 3 1 10"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c17",
+   "usedInDraft": false,
+   "quote": "10 Cyberpunk: Edgerunners 2 1 Sobre la metodología"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c19",
+   "usedInDraft": false,
+   "quote": "02 Contra el huracán 1 03"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c20",
+   "usedInDraft": false,
+   "quote": "03 Animales 3 04"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c21",
+   "usedInDraft": false,
+   "quote": "04 Weapons 1 05"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c22",
+   "usedInDraft": false,
+   "quote": "05 Lo dejamos acá 2 06"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c23",
+   "usedInDraft": false,
+   "quote": "06 Asalto al camión blindado 1 07"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c24",
+   "usedInDraft": false,
+   "quote": "07 Un Año Y Un Día 1 08"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c25",
+   "usedInDraft": false,
+   "quote": "08 Kraven, el cazador 4 09"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c26",
+   "usedInDraft": false,
+   "quote": "09 En el interior 2 10"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c27",
+   "usedInDraft": false,
+   "quote": "10 Hot Wheels ¡Máxima Velocidad! Ataque del T-Rex 1 Sobre la metodología"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c33",
+   "usedInDraft": false,
+   "quote": "19/10/26 - 25/10/26 12/10/26 - 18/10/26 5/10/26 - 11/10/26"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r2-c33",
+   "usedInDraft": false,
+   "quote": "19/10/26 - 25/10/26 12/10/26 - 18/10/26 5/10/26 - 11/10/26"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r3-c3",
+   "usedInDraft": false,
+   "quote": "España | 19/10/26 - 25/10/26 Top 10 de películas en España Ranking 01 Cada día nace un listo 2"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r3-c4",
+   "usedInDraft": false,
+   "quote": "02 Contra el huracán 1 03 Animales 3"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r3-c5",
+   "usedInDraft": false,
+   "quote": "03 Animales 3 04 Weapons 1"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r3-c6",
+   "usedInDraft": false,
+   "quote": "04 Weapons 1 05 Lo dejamos acá 2"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r3-c7",
+   "usedInDraft": false,
+   "quote": "05 Lo dejamos acá 2 06 Asalto al camión blindado 1"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r3-c8",
+   "usedInDraft": false,
+   "quote": "06 Asalto al camión blindado 1 07"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r3-c9",
+   "usedInDraft": false,
+   "quote": "07 Un Año Y Un Día 1 08 Kraven"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r3-c10",
+   "usedInDraft": false,
+   "quote": "08 Kraven, el cazador 4 09 En el interior"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r3-c11",
+   "usedInDraft": false,
+   "quote": "09 En el interior 2 10 Hot Wheels"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r3-c12",
+   "usedInDraft": false,
+   "quote": "10 Hot Wheels ¡Máxima Velocidad! Ataque del T-Rex 1 Sobre la metodología"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r3-c14",
+   "usedInDraft": false,
+   "quote": "España | 19/10/26 - 25/10/26 Top 10 en series en España Ranking 01 Grande de España: Temporada 1 1"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r3-c15",
+   "usedInDraft": false,
+   "quote": "02 Bajo la superficie: Miniserie 3 03"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r3-c16",
+   "usedInDraft": false,
+   "quote": "03 Lupin: Parte 4 1 04 La trampa"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r3-c17",
+   "usedInDraft": false,
+   "quote": "04 La trampa: Miniserie 2 05"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r3-c18",
+   "usedInDraft": false,
+   "quote": "05 La diplomática: Temporada 4 2 06"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r3-c19",
+   "usedInDraft": false,
+   "quote": "06 Aquel: Miniserie 3 07"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r3-c20",
+   "usedInDraft": false,
+   "quote": "07 TYSON: Miniserie 2 08"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r3-c21",
+   "usedInDraft": false,
+   "quote": "08 Al este del Edén: Miniserie 4 09"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r3-c22",
+   "usedInDraft": false,
+   "quote": "09 Nadie quiere esto: Temporada 3 1 10"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r3-c23",
+   "usedInDraft": false,
+   "quote": "19/10/26 - 25/10/26 19/10/26 - 25/10/26 12/10/26 - 18/10/26 5/10/26 - 11/10/26"
+  },
+  {
+   "file": "artifacts/m11b1/runs/2026-11-03-mejores-series-y-peliculas-netflix-espana.json",
+   "claim": "r3-c24",
+   "usedInDraft": false,
+   "quote": "5/7/21 - 11/7/21 28/6/21 - 4/7/21 Top 10 de series en España"
+  }
+ ]
+}

@@ -274,6 +274,25 @@ test('review M4: a quote matches only at digit boundaries', () => {
   assert.deepEqual(v.claims.map((c) => c.status), ['unverified', 'unverified']);
 });
 
+test('M11-B1: a rank in a numbered list verifies; glued digits and space-separated thousands still refuse', () => {
+  const list = 'Top 10 en series en España Ranking 01 Grande de España: Temporada 1 1 02 Bajo la superficie: Miniserie 3 03 Lupin: Parte 4 1 04';
+  const prices = 'Cuota anual: 1 200 € al año. Plan Estándar: 13,99 €/mes.';
+  const claim = (id: string, quote: string) => ({ id, text: `Dato ${id}`, volatility: 'catalog-ranking' as const, quotes: [{ sourceId: 's1', quote }] });
+  const run = (text: string, claims: ReturnType<typeof claim>[]) =>
+    verifyBundle(bundleFixture({ claims }), new Map([['s1', text]])).claims.map((c) => c.quotes[0].verified);
+  assert.deepEqual(run(list, [
+    claim('r2', '02 Bajo la superficie: Miniserie 3'),
+    claim('r2b', '02 Bajo la superficie: Miniserie'),
+    claim('r3', 'Lupin: Parte 4 1'),
+    claim('glued', '2 Bajo la superficie: Miniserie 3'),
+  ]), [true, true, true, false]);
+  assert.deepEqual(run(prices, [
+    claim('k-head', 'Cuota anual: 1'),
+    claim('k-tail', '200 € al año. Plan'),
+    claim('whole', 'Plan Estándar: 13,99 €/mes'),
+  ]), [false, false, true], 'not either half of "1 200 €"');
+});
+
 test('review L2: user-generated areas and marketplace pages of official domains are press', () => {
   const kind = (url: string) => verifyBundle(bundleFixture({ sources: [{ id: 'x', url, publisher: 'x', kind: 'official' }], claims: [] }), new Map()).sources[0].kind;
   assert.equal(kind('https://discussions.apple.com/thread/1'), 'press');

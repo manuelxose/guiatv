@@ -147,6 +147,11 @@ export const hashText = (text: string) => sha256(text);
 
 /** Whitespace-, case- and markup-insensitive form used for quote matching. */
 export function normalizeForMatch(text: string): string {
+  return spacedForMatch(text).replace(/ /g, '');
+}
+
+/** normalizeForMatch with each whitespace run kept as one space, for the digit-boundary fallback of containsQuote. */
+function spacedForMatch(text: string): string {
   return String(text || '')
     .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
@@ -158,7 +163,8 @@ export function normalizeForMatch(text: string): string {
     .replace(/[‘’´`]/g, "'")
     .replace(/[“”«»]/g, '"')
     .replace(/[‐-―]/g, '-')
-    .replace(/\s+/g, '');
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 const MIN_QUOTE_CHARS = 12;
@@ -171,14 +177,25 @@ const registrableDomain = (url: string) => hostOf(url).split('.').slice(-2).join
 
 /**
  * The quote occurs in the text as a whole: a quote ending in "1" does not match "13,99", and one
- * starting with "3,99" does not match the tail of "13,99".
+ * starting with "3,99" does not match the tail of "13,99". Both arguments are spacedForMatch forms.
  */
-function containsQuote(text: string, needle: string): boolean {
+function containsQuote(spacedText: string, spacedNeedle: string): boolean {
+  const text = spacedText.replace(/ /g, '');
+  const needle = spacedNeedle.replace(/ /g, '');
   for (let at = text.indexOf(needle); at !== -1; at = text.indexOf(needle, at + 1)) {
     const before = text[at - 1] ?? '';
     const after = text.slice(at + needle.length, at + needle.length + 2);
     if (/^\d/.test(needle) && /[\d.,]/.test(before)) continue;
     if (/\d$/.test(needle) && /^(?:\d|[.,]\d)/.test(after)) continue;
+    return true;
+  }
+  // Without spaces a numbered list ("Miniserie 3 03 Lupin") reads "…303" and every rank is refused. With the original
+  // spacing, a number across a space is a separate number, unless the space separates thousands ("1 200 €").
+  for (let at = spacedText.indexOf(spacedNeedle); at !== -1; at = spacedText.indexOf(spacedNeedle, at + 1)) {
+    const before = spacedText.slice(Math.max(0, at - 2), at);
+    const after = spacedText.slice(at + spacedNeedle.length, at + spacedNeedle.length + 6);
+    if (/^\d/.test(spacedNeedle) && (/[\d.,]$/.test(before) || (/\d $/.test(before) && /^\d{3}(?!\d)/.test(spacedNeedle)))) continue;
+    if (/\d$/.test(spacedNeedle) && (/^(?:\d|[.,]\d)/.test(after) || /^ \d{3}(?!\d)/.test(after))) continue;
     return true;
   }
   return false;
@@ -304,15 +321,15 @@ function provisionTexts(raw: string, article: string, apartado?: string): string
  */
 export function verifyBundle(bundle: EvidenceBundle, snapshots: ReadonlyMap<string, string>): EvidenceBundle {
   const sources = new Map(bundle.sources.map((s) => [s.id, s]));
-  const normalized = new Map([...snapshots].map(([id, text]) => [id, normalizeForMatch(text)]));
+  const normalized = new Map([...snapshots].map(([id, text]) => [id, spacedForMatch(text)]));
   return assessBundle({
     ...bundle,
     claims: bundle.claims.map((claim) => {
       const quotes = claim.quotes.map((q) => {
         const source = sources.get(q.sourceId);
         const text = normalized.get(q.sourceId);
-        const needle = normalizeForMatch(q.quote);
-        return { ...q, verified: Boolean(source?.retrievedAt && source.contentHash && text && needle.length >= MIN_QUOTE_CHARS && containsQuote(text, needle)) };
+        const needle = spacedForMatch(q.quote);
+        return { ...q, verified: Boolean(source?.retrievedAt && source.contentHash && text && normalizeForMatch(q.quote).length >= MIN_QUOTE_CHARS && containsQuote(text, needle)) };
       });
       // A reference counts when one verified quote comes from that law's own page and, for an article, lies inside it.
       // An article in a claim that also names a law must be found in that law, not in any page that has an article N.
@@ -327,7 +344,7 @@ export function verifyBundle(bundle: EvidenceBundle, snapshots: ReadonlyMap<stri
         const inQuote = legalRefsIn(q.quote);
         if (inQuote.some((r) => r.key === ref.key) && (inQuote.find((r) => r.id)?.key ?? ownLaw(raw)) === (law ?? ownLaw(raw))) return true;
         if (law && ownLaw(raw) !== law) return false;
-        return provisionTexts(raw, ref.article!, ref.apartado).some((p) => containsQuote(normalizeForMatch(p), normalizeForMatch(q.quote)));
+        return provisionTexts(raw, ref.article!, ref.apartado).some((p) => containsQuote(spacedForMatch(p), spacedForMatch(q.quote)));
       })).map((ref) => ref.key);
       return { ...claim, quotes, legalRefs };
     }),
