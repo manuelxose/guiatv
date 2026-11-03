@@ -325,3 +325,7 @@ No se activó `CONTENT_LEGACY_ENRICHMENT_ENABLED` ni se inició ningún rollout.
 4. **Publicación:** si pasa el crítico, la decide el revisor con nombre por `/approve`.
 
 ## PR
+
+- **PR:** [manuelxose/guiatv#144](https://github.com/manuelxose/guiatv/pull/144), base `main`, commits `34c4a90` (código) y `01b2450` (documentación y artefactos), más este apéndice.
+- **CI:** pendiente cuando se escribió este apartado. No se fusiona hasta que CI esté en verde, incluido el test Mongo de `requeuePost`.
+- **Merge:** no hecho. Es decisión del propietario.
