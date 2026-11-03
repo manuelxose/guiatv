@@ -148,6 +148,32 @@ test('M11-G enrich: refuses the reviewer key and the stopped policy; a failed sa
   rmSync(dir, { recursive: true });
 });
 
+test('M11-B1 revision run: alone, same slug, never reported or published, and no model call when refused', async () => {
+  const dir = fresh();
+  const write = (name, topics) => { const file = join(dir, name); writeFileSync(file, JSON.stringify(topics)); return file; };
+  const own = { ...queued('guia-de-persona').topic, revises: 'guia-de-persona' };
+  const local = (file) => new Promise((resolve) => {
+    const child = spawn(process.execPath, ['scripts/editorial-agents.mjs', 'run', file, '--site', base, '--out', join(dir, 'out')], {
+      env: { ...process.env, EDITORIAL_SPEND_DIR: dir, EDITORIAL_REVIEW_KEY: '', AUCTORIO_EDITORIAL_REVIEW_KEY: '', ANTHROPIC_BASE_URL: base, ANTHROPIC_API_KEY: 'test', ANTHROPIC_AUTH_TOKEN: '', EDITORIAL_BUDGET: 'unlimited' },
+    });
+    let output = '';
+    child.stdout.on('data', (d) => (output += d));
+    child.stderr.on('data', (d) => (output += d));
+    child.on('exit', (code) => resolve({ code, output }));
+  });
+  const before = seen.length;
+  for (const r of [
+    await cycle(dir, {}, 'run', [write('reported.json', [own])]),
+    await local(write('batch.json', [own, queued('otro-tema').topic])),
+    await local(write('other-slug.json', [{ ...own, revises: 'otra-guia' }])),
+  ]) {
+    assert.equal(r.code, 2, r.output);
+    assert.match(r.output, /a revision topic runs alone/);
+  }
+  assert.deepEqual(seen.slice(before), [], 'refused before any request: no model call, no read, no write');
+  rmSync(dir, { recursive: true });
+});
+
 test('restart recovery: an interrupted topic is retried once; a failing provider then holds it, never publishes', async () => {
   const dir = fresh();
   writeFileSync(join(dir, 'topic-queue.json'), JSON.stringify({ version: 1, lastDiscoveryAt: new Date().toISOString(), topics: [queued('streaming-uno', { state: 'running' })] }));
