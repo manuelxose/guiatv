@@ -38,8 +38,8 @@ Producción solo se leyó: GET públicos y GET del Admin con la clave de analít
 
   Sin impresiones ni consultas no hay ninguna evidencia de tráfico ni de canibalización real.
 - **Operación (hallazgo, sin corregir):**
-  - El worktree `guiatv-runner` de la tarea `GuiaTV\EditorialCycle` ya no existe: `git worktree list` lo marca `prunable`. La tarea sigue habilitada y su último resultado es **1**.
-  - El gateway local de modelos (OmniRoute, `127.0.0.1:20128`) estaba parado. Se arrancó ligado solo a loopback (`OMNIROUTE_SERVER_HOST=127.0.0.1`), porque por defecto escuchaba en `0.0.0.0` sin clave.
+  - El worktree `guiatv-runner` de la tarea de Windows `GuiaTV\EditorialCycle` ya no existía (`prunable`). Se recreó después en `main`. Producción ya tiene su propio runner gestionado en el servidor (`m11g-2`, en línea), así que esa tarea local no es el camino principal y su candado no se comparte con el del servidor: desactivarla es decisión de la propietaria.
+  - Los pilotos se ejecutaron desde este PC a través de un gateway local temporal de modelos, que se paró al terminar. Ya no se usa: producción llama a Claude desde su propio entorno.
 
 ## 3. Auditoría de los cinco rankings
 
@@ -191,7 +191,7 @@ Se corrigió en tres commits, con revisión de seguridad independiente:
 
 ## 7. Pipeline editorial
 
-**Seis ejecuciones reales del pipeline** sobre el mismo slug, todas como fichero local y sin publicar. El coste es solo un registro de observabilidad: el gateway es local y la propietaria lo considera nocional, así que no limitó ningún reintento.
+**Seis ejecuciones reales del pipeline** sobre el mismo slug, todas como fichero local y sin publicar. El coste es solo un registro de observabilidad y no limitó ningún reintento.
 
 | # | Qué cambió | Resultado |
 |---|---|---|
@@ -284,7 +284,7 @@ Tests:
 - **Rama:** `m11-b1-platform-ranking-pilot`. **PR:** [manuelxose/guiatv#144](https://github.com/manuelxose/guiatv/pull/144), CI verde, sin fusionar.
 - **Commits de código:** `34c4a90` (`revises`, `requeuePost`, similitud), `aa6feee` y `70538c6` (puerta, rango de lista), `456f31c` (relleno de ceros), `053573d` (ruta del script del piloto, comentario de revisión). Los demás son documentación y artefactos.
 - **Producción:** nada desplegado ni escrito. No hay release nueva ni rollback.
-- **Fuera de la rama:** el gateway OmniRoute sigue corriendo en `127.0.0.1` (`omniroute stop` lo para).
+- **Fuera de la rama:** el gateway local de los pilotos ya está parado.
 
 ## 11. Criterios de aceptación
 
