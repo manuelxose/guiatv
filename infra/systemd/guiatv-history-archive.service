@@ -14,4 +14,10 @@ Environment=NODE_OPTIONS=--max-old-space-size=512
 ExecStart=/usr/bin/node /var/www/guiatv/current/apps/backend/dist/jobs/cli/archiveBroadcastHistory.cli.js
 MemoryMax=1G
 Nice=10
+# The load lands mostly in mongod: keep the job from competing with API/SSR reads.
+CPUWeight=20
+CPUQuota=50%
+IOSchedulingClass=idle
+NoNewPrivileges=yes
+PrivateTmp=yes
 TimeoutStartSec=1800

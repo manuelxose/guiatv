@@ -6,7 +6,7 @@
  */
 import { createHash } from 'node:crypto';
 
-export const ELIGIBILITY_POLICY_VERSION = 'url-eligibility-v2';
+export const ELIGIBILITY_POLICY_VERSION = 'url-eligibility-v3';
 export const THRESHOLDS = {
   minTotalWords: 300,
   minUniqueRatio: 0.3,
@@ -76,6 +76,12 @@ const validJsonLd = (blocks: unknown[]) => blocks.length > 0 && blocks.every((b)
   return !!o && typeof o === 'object' && o['@context'] !== undefined && typeof o['@type'] === 'string' && !!o['@type'];
 });
 
+/** JSON with object keys sorted at every level, so re-serialised JSON-LD or claims hash the same. */
+const canonicalJson = (v: unknown): string =>
+  JSON.stringify(v, (_k, x) => (x && typeof x === 'object' && !Array.isArray(x)
+    ? Object.fromEntries(Object.entries(x as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+    : x));
+
 export function evaluateUrlEligibility(i: EligibilityInput): EligibilityVerdict {
   const reasons: EligibilityReason[] = [];
   const all = words(i.mainText);
@@ -97,8 +103,8 @@ export function evaluateUrlEligibility(i: EligibilityInput): EligibilityVerdict 
   if (!i.entityVerified) reasons.push('entity-unverified');
   const h = (v: string) => createHash('sha256').update(v).digest('hex');
   // Every evaluated input is covered, so a signed approval is void if any of them changes. Peers are order-independent.
-  const peers = i.peers.map((p) => `${p.path}|${p.intentKey}|${h(p.mainText)}`).sort();
-  const evidenceHash = h(JSON.stringify({
+  const peers = i.peers.map((p) => JSON.stringify([p.path, p.intentKey, h(p.mainText)])).sort();
+  const evidenceHash = h(canonicalJson({
     v: ELIGIBILITY_POLICY_VERSION, path: i.path, status: i.httpStatus, canonical: i.canonicalPath, robots: i.robots,
     title: i.title, description: i.description, text: h(i.mainText), intent: i.intentKey, claims: i.claims, jsonLd: i.jsonLd,
     inbound: i.inboundLinks, entityVerified: i.entityVerified, peers, reasons,
