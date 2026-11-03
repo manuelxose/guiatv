@@ -147,7 +147,7 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     assert.deepEqual([overview.searchConsole.lastRun, overview.searchConsole.baseline], [null, { days: 0, complete: false }], 'no GSC run yet: nothing invented');
 
     // Draft operations stay inside this admin surface: edit, refuse deleting live content, then replace a blocked draft with a fresh request.
-    const retryRun = await pipelineRun('requeue-m11c');
+    const retryRun = await pipelineRun('recuperar-borrador-m11c');
     const retryId = await create(retryRun);
     assert.equal((await call(ops.updatePost, { params: { id: retryId }, body: { title: 'corto' } })).error?.name, 'ValidationError');
     const edited = await call(ops.updatePost, { params: { id: retryId }, body: { title: 'Título corregido para una recuperación editorial completa', excerpt: 'Resumen editorial corregido' } });
