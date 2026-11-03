@@ -5,6 +5,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 const envFile = (name) => {
   const file = join(homedir(), '.guiatv', name);
   if (!existsSync(file)) return {};
@@ -12,7 +13,7 @@ const envFile = (name) => {
     .map((l) => l.replace(/^export\s+/, '')).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).replace(/^["']|["']$/g, '')]));
 };
 const secrets = { ...envFile('gateway.env'), ...envFile('runner.env') };
-const repo = new URL('../..', import.meta.url).pathname.replace(/^\/(\w:)/, '$1');
+const repo = fileURLToPath(new URL('../..', import.meta.url));
 const r = spawnSync(process.execPath, ['scripts/editorial-agents.mjs', 'run', 'artifacts/m11b1/topic-netflix.json', '--out', 'artifacts/m11b1/runs'], {
   cwd: repo, stdio: 'inherit',
   env: { ...process.env, ...secrets, EDITORIAL_SPEND_DIR: join(repo, 'artifacts', 'm11b', 'runs'), EDITORIAL_REVIEW_KEY: '', AUCTORIO_EDITORIAL_REVIEW_KEY: '',
