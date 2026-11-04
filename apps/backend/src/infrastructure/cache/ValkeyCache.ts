@@ -2,7 +2,31 @@
 
 import { createClient, RedisClientType } from 'redis';
 import { ICacheRepository } from '../../domain/repositories/ICacheRepository';
+import { addTiming } from '../../shared/utils/performanceTiming';
+import { timeStepSync } from '../../shared/utils/stepTimeline';
 import { recordCacheError, recordCacheLookup, updateCacheRuntime } from '../../shared/utils/runtimeMetrics';
+
+// M13-B5a: JSON.parse/stringify of a multi-MB value blocks the event loop. Only large values are measured (a step per small
+// read would cost more than it tells); they feed `Server-Timing` (`cache_parse`/`cache_stringify`) and the stall step overlap.
+const LARGE_JSON_CHARS = 256_000;
+const JSON_STEP = { background: true, minMs: 50 } as const;
+
+function parseJson<T>(raw: string): T {
+  if (raw.length < LARGE_JSON_CHARS) return JSON.parse(raw) as T;
+  const started = performance.now();
+  try {
+    return timeStepSync('cache.json_parse', () => JSON.parse(raw) as T, JSON_STEP);
+  } finally {
+    addTiming('cache_parse', performance.now() - started);
+  }
+}
+
+function stringifyJson(value: unknown): string {
+  const started = performance.now();
+  const serialized = timeStepSync('cache.json_stringify', () => JSON.stringify(value), JSON_STEP);
+  if (serialized.length >= LARGE_JSON_CHARS) addTiming('cache_stringify', performance.now() - started);
+  return serialized;
+}
 
 /**
  * Valkey-backed cache repository (Redis compatible) with resilience defaults.
@@ -109,7 +133,7 @@ export class ValkeyCache implements ICacheRepository {
       }
 
       recordCacheLookup(true, performance.now() - started);
-      return JSON.parse(value) as T;
+      return parseJson<T>(value);
     } catch (error) {
       recordCacheError();
       console.error(`[ValkeyCache] Error getting key ${key}:`, error);
@@ -124,7 +148,7 @@ export class ValkeyCache implements ICacheRepository {
         return;
       }
 
-      const serialized = JSON.stringify(value);
+      const serialized = stringifyJson(value);
 
       await this.client.setEx(key, ttlSeconds, serialized);
     } catch (error) {

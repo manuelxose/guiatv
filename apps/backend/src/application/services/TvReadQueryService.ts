@@ -4,10 +4,12 @@ import { DateUtils } from '@/shared/utils/dateUtils';
 import { NotFoundError } from '@/shared/errors';
 import { l1Cache } from '@/infrastructure/cache/L1Cache';
 import { addTiming, measureTiming, setCacheTiming } from '@/shared/utils/performanceTiming';
-import { timeStep } from '@/shared/utils/stepTimeline';
+import { timeStep, timeStepSync } from '@/shared/utils/stepTimeline';
 
 // M13-B3a: named so a stall can be matched to these reads; only the ones lasting >= 100 ms are kept (recent ring).
 const BACKGROUND_STEP = { background: true, minMs: 100 } as const;
+// M13-B5a: synchronous main-thread segments of this service, named so a stall event can say which one overlapped it.
+const SYNC_STEP = { background: true, minMs: 50 } as const;
 import { programDetailPath, slugifyTitle } from '@/domain/services/detailPath';
 import {
   buildChannelIdentityMetadata,
@@ -749,7 +751,7 @@ export class TvReadQueryService {
     const l1Cached = l1Cache.get(cacheKey) as TvReadResponseDTO | undefined;
     if (l1Cached) {
       setCacheTiming('hit');
-      const hydrated = this.hydrateResponseRuntimeState(l1Cached);
+      const hydrated = timeStepSync('tvread.hit_hydrate', () => this.hydrateResponseRuntimeState(l1Cached), SYNC_STEP);
       return {
         ...hydrated,
         meta: { ...hydrated.meta, cached: true },
@@ -769,7 +771,7 @@ export class TvReadQueryService {
       if (view !== 'day') {
         l1Cache.set(cacheKey, cached, this.resolveTtlMs(view));
       }
-      const hydrated = this.hydrateResponseRuntimeState(cached);
+      const hydrated = timeStepSync('tvread.hit_hydrate', () => this.hydrateResponseRuntimeState(cached), SYNC_STEP);
       return {
         ...hydrated,
         meta: { ...hydrated.meta, cached: true },
@@ -848,11 +850,13 @@ export class TvReadQueryService {
     const boundedRawItems = databasePaged ? rawItems.slice(0, limit) : rawItems;
 
     const transformStarted = process.hrtime.bigint();
-    const allMatching = boundedRawItems
-      .map((item) => hydrateTvReadItemRuntime(item, reference))
-      .filter((item) => isConsumerVisibleTvReadItem(item));
-    const filteredMatching = this.applySportFilter(allMatching, sport);
-    const items = this.applyViewTransform(view, filteredMatching, reference, date);
+    const { filteredMatching, items } = timeStepSync('tvread.hydrate_sort', () => {
+      const allMatching = boundedRawItems
+        .map((item) => hydrateTvReadItemRuntime(item, reference))
+        .filter((item) => isConsumerVisibleTvReadItem(item));
+      const filtered = this.applySportFilter(allMatching, sport);
+      return { filteredMatching: filtered, items: this.applyViewTransform(view, filtered, reference, date) };
+    }, SYNC_STEP);
     const paged = databasePaged ? items : items.slice(offset, offset + limit);
     // M13-B5b: the summaries (a second full sort plus per-channel scans) were built and then discarded for every
     // `includeChannels: false` caller; they are pure, so skipping them cannot change `items`.
@@ -863,7 +867,7 @@ export class TvReadQueryService {
           paged
         )
       : [];
-    const publicItems = paged.map(compactTvReadItem);
+    const publicItems = timeStepSync('tvread.compact', () => paged.map(compactTvReadItem), SYNC_STEP);
     const response: TvReadResponseDTO = {
       date,
       view,
@@ -887,7 +891,7 @@ export class TvReadQueryService {
     };
     addTiming('transform', Number(process.hrtime.bigint() - transformStarted) / 1_000_000);
 
-    await this.cacheRepository.set(cacheKey, response, this.resolveTtlSeconds(view));
+    await measureTiming('tv_cache_set', () => this.cacheRepository.set(cacheKey, response, this.resolveTtlSeconds(view)));
     if (view !== 'day') {
       l1Cache.set(cacheKey, response, this.resolveTtlMs(view));
     }
@@ -1108,7 +1112,11 @@ export class TvReadQueryService {
     });
   }
 
-  async getItem(airingId: string): Promise<TvReadItemResponseDTO> {
+  getItem(airingId: string): Promise<TvReadItemResponseDTO> {
+    return timeStep('tvread.get_item', () => this.loadItem(airingId), BACKGROUND_STEP);
+  }
+
+  private async loadItem(airingId: string): Promise<TvReadItemResponseDTO> {
     const cacheKey = `tv:read:item:${airingId}`;
     const l1Cached = l1Cache.get(cacheKey) as TvReadItemResponseDTO | undefined;
     if (l1Cached) {

@@ -53,6 +53,7 @@ import { TVReadAiringModel } from '@/infrastructure/database/models/TVReadAiring
 import { MediaCatalogService } from './MediaCatalogService';
 import { addPhaseReport, measureTiming } from '@/shared/utils/performanceTiming';
 import { PhaseRecorder } from '@/shared/utils/phaseTimer';
+import { timeStep } from '@/shared/utils/stepTimeline';
 import { catalogueShape, recordCatalogueQuery, type CatalogueOutcome } from '@/shared/utils/catalogueDiagnostics';
 import { performance } from 'node:perf_hooks';
 import { logger } from '@/shared/utils/logger';
@@ -201,10 +202,11 @@ export class CatalogService {
     let outcome: CatalogueOutcome = 'error';
     let resolvedQuery: Required<CatalogQueryParams> | undefined;
     try {
-      return await this.runQuery(params, recorder, (resolvedOutcome, normalized) => {
+      // M13-B5a: a named step, so a stall that overlaps a catalogue query shows it even when no tvread step was running.
+      return await timeStep('catalog.query', () => this.runQuery(params, recorder, (resolvedOutcome, normalized) => {
         outcome = resolvedOutcome;
         resolvedQuery = normalized;
-      });
+      }), { background: true, minMs: 100 });
     } catch (error) {
       outcome = 'error';
       throw error;

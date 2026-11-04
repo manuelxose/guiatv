@@ -5,6 +5,7 @@ import { CatalogService } from './CatalogService';
 import { TVReadAiringModel } from '@/infrastructure/database/models/TVReadAiring.model';
 import { l1Cache } from '@/infrastructure/cache/L1Cache';
 import type { TvReadItemDTO } from '../dto/TvReadDTO';
+import { withRequestTiming, type RequestTimingContext } from '@/shared/utils/performanceTiming';
 
 // M13-B5b: `includeChannels: false` must return exactly the same `items` as the default, while no longer building the
 // channel summaries (a second full sort of the page plus per-channel scans) that those callers discard.
@@ -105,4 +106,21 @@ test('the catalogue reads only `items`: every tvread call of CatalogService opts
   await (service as any).loadRelatedForTvReadItem(row(1));
   assert.ok(calls.length >= 2);
   for (const call of calls) assert.equal(call.includeChannels, false, JSON.stringify(call));
+});
+
+test('M13-B5a: a day read reports its synchronous phases to Server-Timing and a failure of them changes nothing', async () => {
+  const rows = Array.from({ length: 20 }, (_, n) => row(n));
+  await withStubbedModel(rows, async () => {
+    const service = new TvReadQueryService(memoryCache());
+    l1Cache.invalidatePrefix('');
+    const ctx: RequestTimingContext = { phases: new Map() };
+    const response = await new Promise<Awaited<ReturnType<TvReadQueryService['query']>>>((resolve, reject) =>
+      withRequestTiming(ctx, () => { service.query({ view: 'day', date: '20261104', limit: 2400, includeChannels: false }).then(resolve, reject); }));
+    assert.equal(response.items.length, 20);
+    for (const phase of ['transform', 'tv_cache_set', 'epg']) assert.ok(ctx.phases.has(phase), `missing ${phase}: ${[...ctx.phases.keys()]}`);
+    // The cached hit path is timed as well and returns the same items.
+    l1Cache.invalidatePrefix('');
+    const again = await service.query({ view: 'day', date: '20261104', limit: 2400, includeChannels: false });
+    assert.equal(JSON.stringify(again.items), JSON.stringify(response.items));
+  });
 });
