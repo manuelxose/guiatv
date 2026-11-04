@@ -1,8 +1,13 @@
 import { createClient, RedisClientType } from 'redis';
+import { createHash } from 'node:crypto';
+import { isIP } from 'node:net';
+import { excludedAnalyticsIps } from './analyticsExclusions';
+import { isLongIdle } from './analyticsActivity';
 import {
   AnalyticsEventQuery,
   AnalyticsEventRecord,
   AnalyticsOverview,
+  AnalyticsRealtimePages,
   AnalyticsSessionRecord,
   IAnalyticsRepository,
 } from '../../domain/repositories/IAnalyticsRepository';
@@ -24,6 +29,88 @@ const DEFAULT_TOP_LIMIT = Number.parseInt(
 );
 
 export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
+  private readonly realtimeKey = 'analytics:realtime:events:v2';
+  private readonly realtimeCoverageKey = 'analytics:realtime:coverage:v2';
+  private coverageResetRequired = false;
+
+  private realtimeSessionKey(sessionId: string): string { return `analytics:realtime:session:v2:${sessionId}`; }
+  private normalizeIp(ip?: string): string {
+    const kind = ip ? isIP(ip) : 0;
+    if (!ip || !kind) return '';
+    return new URL(`http://[${kind === 4 ? `::ffff:${ip}` : ip}]/`).hostname;
+  }
+  private exclusionPolicy(): { ips: Set<string>; fingerprint: string } {
+    const values = [...new Set(excludedAnalyticsIps().map((ip) => this.normalizeIp(ip)).filter(Boolean))].sort();
+    return { ips: new Set(values), fingerprint: createHash('sha256').update(JSON.stringify(values)).digest('hex') };
+  }
+
+  async markExcludedSession(sessionId: string): Promise<void> {
+    if (!this.canUse()) throw new Error('Valkey no está disponible para excluir la sesión');
+    const key = this.realtimeSessionKey(sessionId);
+    await this.client.multi().hSet(key, { excluded: '1' }).expire(key, this.ttlSeconds).exec();
+  }
+
+  async getRealtimePages(to: Date): Promise<AnalyticsRealtimePages | null> {
+    if (!this.canUse()) return null;
+    if (this.coverageResetRequired) {
+      await this.client.set(this.realtimeCoverageKey, String(Date.now()));
+      this.coverageResetRequired = false;
+    }
+    await this.client.set(this.realtimeCoverageKey, String(Date.now()), { NX: true });
+    const coverage = Number(await this.client.get(this.realtimeCoverageKey));
+    if (!Number.isFinite(coverage) || coverage <= 0) throw new Error('Cobertura de Analytics no disponible');
+    const from = new Date(to.getTime() - 30 * 60_000);
+    const [records, legacyRecords] = await Promise.all([
+      this.client.zRangeByScore(this.realtimeKey, from.getTime() + 1, to.getTime()),
+      this.client.lRange(this.eventsKey, 0, this.eventLogMax - 1),
+    ]);
+    const events = records.map((record) => {
+      const parsed = this.safeJsonParse<{ eventId: string; sessionId: string; anonId: string; type: string; path?: string; ipKnown: boolean; ipExcluded: boolean; policy: string; timestamp: number }>(record);
+      if (!parsed || typeof parsed.sessionId !== 'string' || typeof parsed.anonId !== 'string' || !Number.isFinite(parsed.timestamp)) throw new Error('Registro de Analytics en tiempo real no válido');
+      return parsed;
+    });
+    const sessionIds = [...new Set(events.map((event) => event.sessionId))];
+    const pipeline = this.client.multi();
+    for (const id of sessionIds) pipeline.hGetAll(this.realtimeSessionKey(id));
+    const replies = sessionIds.length ? await pipeline.exec() : [];
+    const sessions = new Map(sessionIds.map((id, index) => [id, this.normalizeHashReply(replies[index]) || {}]));
+    const policy = this.exclusionPolicy();
+    const users = new Set<string>();
+    const minuteUsers = Array.from({ length: 30 }, () => new Set<string>());
+    const pages = new Map<string, { users: Set<string>; views: number }>();
+    let pageViews = 0;
+    const indexedIds = new Set(events.map((event) => event.eventId));
+    let partial = from.getTime() < coverage || legacyRecords.length >= this.eventLogMax;
+    for (const raw of legacyRecords) {
+      const event = this.safeJsonParse<AnalyticsEventRecord>(raw);
+      if (!event) { partial = true; continue; }
+      const timestamp = new Date(event.occurredAt).getTime();
+      if (!Number.isFinite(timestamp)) { partial = true; continue; }
+      if (timestamp > from.getTime() && timestamp <= to.getTime() && (!event.eventId || !indexedIds.has(event.eventId))) partial = true;
+    }
+    for (const event of events) {
+      const session = sessions.get(event.sessionId)!;
+      if (session.excluded === '1') continue;
+      if (session.covered !== '1' || session.policy !== policy.fingerprint || event.policy !== policy.fingerprint || session.ipKnown !== '1' || !event.ipKnown) { partial = true; continue; }
+      if (session.ipExcluded === '1' || event.ipExcluded) continue;
+      if (!event.anonId) continue;
+      const index = Math.floor((to.getTime() - event.timestamp) / 60_000);
+      if (index < 0 || index >= 30) continue;
+      users.add(event.anonId);
+      minuteUsers[29 - index].add(event.anonId);
+      if (event.type === 'page_view') pageViews++;
+      if (event.path) {
+        const page = pages.get(event.path) || { users: new Set<string>(), views: 0 };
+        page.users.add(event.anonId);
+        if (event.type === 'page_view') page.views++;
+        pages.set(event.path, page);
+      }
+    }
+    return { from, to, activeUsers: users.size, pageViews, partial, coverageStartedAt: new Date(coverage),
+      minutes: minuteUsers.map((set, index) => ({ from: new Date(to.getTime() - (30 - index) * 60_000), users: set.size })),
+      pages: [...pages].map(([path, page]) => ({ path, users: page.users.size, views: page.views })).sort((a, b) => b.users - a.users || a.path.localeCompare(b.path)),
+    };
+  }
   private client: RedisClientType;
   private isConnected = false;
   private warnedDisconnected = false;
@@ -84,11 +171,13 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
 
     this.client.on('error', (err: Error) => {
       this.isConnected = false;
+      this.coverageResetRequired = true;
       logger.error('[Analytics] Valkey error', { error: err });
     });
 
     this.client.on('end', () => {
       this.isConnected = false;
+      this.coverageResetRequired = true;
       logger.warn('[Analytics] Valkey connection closed');
     });
   }
@@ -107,11 +196,25 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
     const nowMs = payload.lastSeenAt.getTime();
     const day = this.toDay(payload.startedAt);
     const sessionKey = this.sessionKey(payload.sessionId);
+    const existedBeforeIndex = await this.client.exists(sessionKey);
     const pipeline = this.client.multi();
+
+    const realtimeSession = this.realtimeSessionKey(payload.sessionId);
+    if (!existedBeforeIndex) {
+      const policy = this.exclusionPolicy();
+      const ip = this.normalizeIp(payload.ip);
+      pipeline.hSetNX(realtimeSession, 'covered', '1');
+      pipeline.hSetNX(realtimeSession, 'ipKnown', ip ? '1' : '0');
+      pipeline.hSetNX(realtimeSession, 'ipExcluded', policy.ips.has(ip) ? '1' : '0');
+      pipeline.hSetNX(realtimeSession, 'policy', policy.fingerprint);
+    }
+    if (payload.excluded) pipeline.hSet(realtimeSession, { excluded: '1' });
+    pipeline.expire(realtimeSession, this.ttlSeconds);
 
     pipeline.hSet(sessionKey, this.buildSessionMap(payload));
     pipeline.expire(sessionKey, this.ttlSeconds);
-    pipeline.zAdd(this.liveKey, [{ score: nowMs, value: payload.sessionId }]);
+    if (isLongIdle(payload.metadata)) pipeline.zRem(this.liveKey, payload.sessionId);
+    else pipeline.zAdd(this.liveKey, [{ score: nowMs, value: payload.sessionId }]);
     pipeline.incr(this.sessionCountKey(day));
     pipeline.expire(this.sessionCountKey(day), this.ttlSeconds);
     pipeline.pfAdd(this.uniqueKey(day), payload.anonId);
@@ -130,6 +233,7 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
 
     const nowMs = payload.lastSeenAt.getTime();
     const sessionKey = this.sessionKey(payload.sessionId);
+    const activityMetadata = payload.metadata ?? this.safeJsonParse(await this.client.hGet(sessionKey, 'metadata'));
     const updateMap: Record<string, string> = {
       sessionId: payload.sessionId,
       lastSeenAt: payload.lastSeenAt.toISOString(),
@@ -144,7 +248,8 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
     const pipeline = this.client.multi();
     pipeline.hSet(sessionKey, updateMap);
     pipeline.expire(sessionKey, this.ttlSeconds);
-    pipeline.zAdd(this.liveKey, [{ score: nowMs, value: payload.sessionId }]);
+    if (isLongIdle(activityMetadata)) pipeline.zRem(this.liveKey, payload.sessionId);
+    else pipeline.zAdd(this.liveKey, [{ score: nowMs, value: payload.sessionId }]);
     await pipeline.exec();
 
     return this.fetchSession(payload.sessionId);
@@ -209,6 +314,12 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
     const event = this.buildEventRecord(payload, occurredAt);
 
     const pipeline = this.client.multi();
+    const policy = this.exclusionPolicy();
+    const ip = this.normalizeIp(payload.ip);
+    pipeline.set(this.realtimeCoverageKey, String(Date.now()), { NX: true });
+    pipeline.zAdd(this.realtimeKey, [{ score: occurredAt.getTime(), value: JSON.stringify({ eventId: payload.eventId, sessionId: payload.sessionId, anonId: payload.anonId, type: payload.type, path: payload.path, ipKnown: Boolean(ip), ipExcluded: policy.ips.has(ip), policy: policy.fingerprint, timestamp: occurredAt.getTime() }) }]);
+    pipeline.zRemRangeByScore(this.realtimeKey, '-inf', Date.now() - 30 * 60_000);
+    pipeline.expire(this.realtimeKey, 3600);
     pipeline.lPush(this.eventsKey, JSON.stringify(event));
     pipeline.lTrim(this.eventsKey, 0, this.eventLogMax - 1);
     pipeline.expire(this.eventsKey, this.ttlSeconds);
@@ -338,6 +449,8 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
       topPages,
       topReferrers,
       sessionsByDay,
+      aggregateLimitations: true,
+      geographyCollectionEnabled: this.piiMode !== 'none',
     };
   }
 
@@ -395,6 +508,13 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
     if (payload.initialPath) map.initialPath = payload.initialPath;
     if (payload.lastPath) map.lastPath = payload.lastPath;
     if (payload.referrer) map.referrer = payload.referrer;
+    if (this.piiMode !== 'none') {
+      if (payload.country) map.country = payload.country;
+      if (payload.region) map.region = payload.region;
+      if (payload.city) map.city = payload.city;
+      if (payload.latitude !== undefined) map.latitude = String(payload.latitude);
+      if (payload.longitude !== undefined) map.longitude = String(payload.longitude);
+    }
 
     const userAgent = this.sanitizeUserAgent(payload.userAgent);
     const ip = this.sanitizeIp(payload.ip);
@@ -445,12 +565,17 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
       lastSeenAt,
       endedAt: this.toDate(safe.endedAt),
       endReason: safe.endReason,
-      durationSec: safe.durationSec ? Number(safe.durationSec) : undefined,
+      durationSec: safe.durationSec ? Number(safe.durationSec) : Math.max(0, Math.floor((lastSeenAt.getTime() - startedAt.getTime()) / 1000)),
       initialPath: safe.initialPath,
       lastPath: safe.lastPath,
       referrer: safe.referrer,
-      userAgent: safe.userAgent,
-      ip: safe.ip,
+      userAgent: this.sanitizeUserAgent(safe.userAgent),
+      ip: this.sanitizeIp(safe.ip),
+      country: this.piiMode === 'none' ? undefined : safe.country,
+      region: this.piiMode === 'none' ? undefined : safe.region,
+      city: this.piiMode === 'none' ? undefined : safe.city,
+      latitude: this.piiMode !== 'none' && safe.latitude !== undefined && Number.isFinite(Number(safe.latitude)) ? Number(safe.latitude) : undefined,
+      longitude: this.piiMode !== 'none' && safe.longitude !== undefined && Number.isFinite(Number(safe.longitude)) ? Number(safe.longitude) : undefined,
       language: safe.language,
       timezone: safe.timezone,
       screen: this.safeJsonParse(safe.screen),

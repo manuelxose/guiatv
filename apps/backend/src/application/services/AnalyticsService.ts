@@ -10,6 +10,14 @@ import {
 export class AnalyticsService {
   constructor(private readonly repository: IAnalyticsRepository) {}
 
+  async markExcludedSession(sessionId: string): Promise<void> {
+    await this.repository.markExcludedSession(sessionId);
+  }
+
+  async getRealtimePages() {
+    return this.repository.getRealtimePages(new Date());
+  }
+
   async startSession(payload: AnalyticsSessionRecord): Promise<void> {
     await this.repository.startSession(payload);
   }

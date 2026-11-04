@@ -12,6 +12,12 @@ export interface AnalyticsSessionRecord {
   referrer?: string;
   userAgent?: string;
   ip?: string;
+  excluded?: boolean;
+  country?: string;
+  region?: string;
+  city?: string;
+  latitude?: number;
+  longitude?: number;
   language?: string;
   timezone?: string;
   screen?: Record<string, any>;
@@ -46,6 +52,20 @@ export interface AnalyticsOverview {
   topPages: Array<{ path: string; count: number }>;
   topReferrers: Array<{ referrer: string; count: number }>;
   sessionsByDay: Array<{ date: string; count: number }>;
+  geography?: Array<{ country: string; region: string; count: number }>;
+  aggregateLimitations?: boolean;
+  geographyCollectionEnabled?: boolean;
+}
+
+export interface AnalyticsRealtimePages {
+  from: Date;
+  to: Date;
+  activeUsers: number;
+  pageViews: number;
+  minutes: Array<{ from: Date; users: number }>;
+  pages: Array<{ path: string; users: number; views: number }>;
+  partial?: boolean;
+  coverageStartedAt?: Date;
 }
 
 export interface AnalyticsEventQuery {
@@ -57,6 +77,7 @@ export interface AnalyticsEventQuery {
 }
 
 export interface IAnalyticsRepository {
+  markExcludedSession(sessionId: string): Promise<void>;
   startSession(payload: AnalyticsSessionRecord): Promise<void>;
   heartbeatSession(payload: {
     sessionId: string;
@@ -76,4 +97,5 @@ export interface IAnalyticsRepository {
   countLiveSessions(windowSec: number): Promise<number>;
   getOverview(from: Date, to: Date, liveWindowSec: number): Promise<AnalyticsOverview>;
   getRecentEvents(query: AnalyticsEventQuery): Promise<AnalyticsEventRecord[]>;
+  getRealtimePages(to: Date): Promise<AnalyticsRealtimePages | null>;
 }

@@ -3,9 +3,17 @@ import { AnalyticsService } from '../../application/services/AnalyticsService';
 import { AnalyticsEventModel } from '../../infrastructure/database/models/AnalyticsEvent.model';
 import { successResponse } from '../../shared/types/ApiResponse';
 import { ValidationError } from '../../shared/errors';
+import { analyticsExclusions } from '../../infrastructure/repositories/analyticsExclusions';
+import { AuthenticatedRequest } from '../middlewares/authGuard';
+import { analyticsClientIp, isTrustedAnalyticsProxy } from './analyticsClientIp';
+import { LIVE_IDLE_LIMIT_SECONDS } from '../../infrastructure/repositories/analyticsActivity';
 
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
+
+  async markExcludedSession(sessionId: string): Promise<void> {
+    await this.analyticsService.markExcludedSession(sessionId);
+  }
 
   async startSession(req: Request, res: Response): Promise<void> {
     const {
@@ -43,6 +51,8 @@ export class AnalyticsController {
       referrer: referrer || client.referrer,
       userAgent: client.userAgent,
       ip: client.ip,
+      excluded: (req as AuthenticatedRequest).user?.role === 'admin',
+      ...this.getGeography(req),
       language: client.language,
       timezone,
       screen,
@@ -191,8 +201,18 @@ export class AnalyticsController {
       successResponse({
         activeCount: snapshot.activeCount,
         sessions: snapshot.sessions,
+        idleTimeoutSec: LIVE_IDLE_LIMIT_SECONDS,
       })
     );
+  }
+
+  async getRealtimePages(_req: Request, res: Response): Promise<void> {
+    const report = await this.analyticsService.getRealtimePages();
+    if (!report) {
+      res.status(503).json({ success: false, message: 'El almacenamiento activo no permite calcular este informe de forma fiable.' });
+      return;
+    }
+    res.status(200).json(successResponse({ report }));
   }
 
   async getOverview(req: Request, res: Response): Promise<void> {
@@ -206,7 +226,11 @@ export class AnalyticsController {
 
     const overview = await this.analyticsService.getOverview(from, to, liveWindowSec);
 
-    res.status(200).json(successResponse({ range: { from, to }, overview }));
+    res.status(200).json(successResponse({ range: { from, to }, overview: {
+      ...overview,
+      geographyConfigured: Boolean((process.env.ANALYTICS_GEO_TRUSTED_PROXIES || '').split(',').some((ip) => ip.trim())),
+      geographyDetailConfigured: Boolean((process.env.ANALYTICS_GEO_DETAIL_TRUSTED_PROXIES || '').split(',').some((ip) => ip.trim())),
+    } }));
   }
 
   async getEvents(req: Request, res: Response): Promise<void> {
@@ -238,8 +262,9 @@ export class AnalyticsController {
     const days = Math.min(Math.max(this.parseNumber(req.query.days, 7), 1), 30);
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
+    const exclusions = await analyticsExclusions();
     const sessions = await AnalyticsEventModel.aggregate([
-      { $match: { type: 'page_view', occurredAt: { $gte: since }, path: { $exists: true, $ne: '' } } },
+      { $match: { ...exclusions.events, type: 'page_view', occurredAt: { $gte: since }, path: { $exists: true, $ne: '' } } },
       { $sort: { occurredAt: 1 } },
       { $group: { _id: '$sessionId', paths: { $push: '$path' }, last: { $max: '$occurredAt' } } },
       { $sort: { last: -1 } },
@@ -290,10 +315,7 @@ export class AnalyticsController {
     language: string | undefined;
     referrer: string | undefined;
   } {
-    const ip =
-      req.headers['x-forwarded-for']
-        ? String(req.headers['x-forwarded-for']).split(',')[0].trim()
-        : req.ip || 'unknown';
+    const ip = analyticsClientIp(req.socket.remoteAddress, req.get('X-Forwarded-For'), process.env.ANALYTICS_TRUSTED_PROXIES || '');
 
     return {
       ip,
@@ -304,6 +326,28 @@ export class AnalyticsController {
       referrer: typeof req.headers['referer'] === 'string'
         ? req.headers['referer']
         : undefined,
+    };
+  }
+
+  private getGeography(req: Request): { country?: string; region?: string; city?: string; latitude?: number; longitude?: number } {
+    if (!isTrustedAnalyticsProxy(req.socket.remoteAddress, process.env.ANALYTICS_GEO_TRUSTED_PROXIES || '')) return {};
+    const country = req.get('CF-IPCountry');
+    const region = req.get('CF-Region-Code');
+    const validCountry = country && /^[A-Z]{2}$/.test(country) && country !== 'XX' ? country : undefined;
+    const detailTrusted = isTrustedAnalyticsProxy(req.socket.remoteAddress, process.env.ANALYTICS_GEO_DETAIL_TRUSTED_PROXIES || '');
+    const rawCity = detailTrusted ? req.get('CF-IPCity') : undefined;
+    const city = validCountry && rawCity && rawCity.length <= 100 && !/[\x00-\x1f\x7f]/.test(rawCity) ? rawCity.trim() || undefined : undefined;
+    const lat = detailTrusted ? req.get('CF-IPLatitude') : undefined;
+    const lon = detailTrusted ? req.get('CF-IPLongitude') : undefined;
+    const latitude = lat && /^-?\d{1,3}(?:\.\d+)?$/.test(lat) ? Number(lat) : NaN;
+    const longitude = lon && /^-?\d{1,3}(?:\.\d+)?$/.test(lon) ? Number(lon) : NaN;
+    const validCoordinates = validCountry && Number.isFinite(latitude) && Number.isFinite(longitude) && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180;
+    return {
+      country: validCountry,
+      region: validCountry && region && /^[A-Za-z0-9-]{1,10}$/.test(region) ? region : undefined,
+      city,
+      latitude: validCoordinates ? Math.round(latitude * 10) / 10 : undefined,
+      longitude: validCoordinates ? Math.round(longitude * 10) / 10 : undefined,
     };
   }
 }

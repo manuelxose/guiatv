@@ -13,6 +13,12 @@ const PROXY_CONFIG = {
         "changeOrigin": true,
         "logLevel": "debug"
     },
+    "/socket.io": {
+        "target": backendTarget,
+        "secure": false,
+        "changeOrigin": true,
+        "ws": true
+    },
     "/api/tmdb/*": {
         "target": "https://api.themoviedb.org",
         "secure": false,

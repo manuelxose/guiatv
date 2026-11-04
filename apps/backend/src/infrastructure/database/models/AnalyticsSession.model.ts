@@ -24,6 +24,12 @@ export interface IAnalyticsSessionDocument {
   referrer?: string;
   userAgent?: string;
   ip?: string;
+  excluded?: boolean;
+  country?: string;
+  region?: string;
+  city?: string;
+  latitude?: number;
+  longitude?: number;
   language?: string;
   timezone?: string;
   screen?: Record<string, any>;
@@ -92,6 +98,12 @@ const AnalyticsSessionSchema = new Schema<IAnalyticsSessionDocument>(
       type: String,
       trim: true,
     },
+    excluded: { type: Boolean, default: false, index: true },
+    country: { type: String },
+    region: { type: String },
+    city: { type: String },
+    latitude: { type: Number },
+    longitude: { type: Number },
     language: {
       type: String,
       trim: true,

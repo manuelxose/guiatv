@@ -13,6 +13,11 @@ export interface AdminAnalyticsOverview {
   topPages: Array<{ path: string; count: number }>;
   topReferrers: Array<{ referrer: string; count: number }>;
   sessionsByDay: Array<{ date: string; count: number }>;
+  geography?: Array<{ country: string; region: string; count: number }>;
+  geographyConfigured: boolean;
+  geographyDetailConfigured?: boolean;
+  aggregateLimitations?: boolean;
+  geographyCollectionEnabled?: boolean;
 }
 
 export interface AdminAnalyticsLiveSession {
@@ -25,6 +30,11 @@ export interface AdminAnalyticsLiveSession {
   referrer?: string;
   userAgent?: string;
   ip?: string;
+  country?: string;
+  region?: string;
+  city?: string;
+  latitude?: number;
+  longitude?: number;
   language?: string;
   timezone?: string;
   screen?: Record<string, any>;
@@ -46,6 +56,7 @@ export interface AdminAnalyticsEvent {
 export interface AdminAnalyticsLiveSnapshot {
   activeCount: number;
   sessions: AdminAnalyticsLiveSession[];
+  idleTimeoutSec?: number;
 }
 
 export interface AdminAnalyticsJourney {
@@ -59,6 +70,17 @@ export interface AdminAnalyticsJourneys {
   journeys: AdminAnalyticsJourney[];
 }
 
+export interface AdminRealtimePages {
+  from: string;
+  to: string;
+  activeUsers: number;
+  pageViews: number;
+  minutes: Array<{ from: string; users: number }>;
+  pages: Array<{ path: string; users: number; views: number }>;
+  partial?: boolean;
+  coverageStartedAt?: string;
+}
+
 interface ApiResponse<T> {
   success: boolean;
   data: T;
@@ -70,6 +92,11 @@ export class AdminAnalyticsService {
   private readonly isBrowser = typeof window !== 'undefined';
 
   constructor(private http: HttpClient) {}
+
+  getRealtimePages(): Observable<AdminRealtimePages> {
+    return this.http.get<ApiResponse<{ report: AdminRealtimePages }>>(`${this.baseUrl}/analytics/realtime-pages`, { headers: this.buildHeaders() })
+      .pipe(map((response) => response.data.report));
+  }
 
   getOverview(hours = 24): Observable<AdminAnalyticsOverview> {
     const to = new Date();
@@ -95,6 +122,7 @@ export class AdminAnalyticsService {
         map((resp) => ({
           activeCount: resp.data.activeCount || 0,
           sessions: resp.data.sessions || [],
+          idleTimeoutSec: resp.data.idleTimeoutSec,
         }))
       );
   }
@@ -102,13 +130,15 @@ export class AdminAnalyticsService {
   getRecentEvents(
     limit = 50,
     type?: string,
-    sessionId?: string
+    sessionId?: string,
+    hours?: number
   ): Observable<AdminAnalyticsEvent[]> {
     const typeParam = type ? `&type=${encodeURIComponent(type)}` : '';
     const sessionParam = sessionId
       ? `&sessionId=${encodeURIComponent(sessionId)}`
       : '';
-    const url = `${this.baseUrl}/analytics/events?limit=${limit}${typeParam}${sessionParam}`;
+    const fromParam = hours ? `&from=${encodeURIComponent(new Date(Date.now() - hours * 3600000).toISOString())}` : '';
+    const url = `${this.baseUrl}/analytics/events?limit=${limit}${typeParam}${sessionParam}${fromParam}`;
     return this.http
       .get<ApiResponse<{ events: AdminAnalyticsEvent[] }>>(url, {
         headers: this.buildHeaders(),

@@ -73,10 +73,13 @@ export class AdminComponent implements OnInit {
       label: 'Analytics',
       icon: 'M4 19h16 M8 19V9 M13 19V5 M18 19v-7',
       items: [
-        { id: 'overview', label: 'Traffic overview', description: 'Traffic, behaviour and active sessions' },
-        { id: 'pages', label: 'Content performance', description: 'Top pages and engagement' },
-        { id: 'live', label: 'Live activity', description: 'Current sessions' },
-        { id: 'events', label: 'Event stream', description: 'Recent behaviour signals' },
+        { id: 'overview', label: 'Resumen', description: 'Informe panorámico' },
+        { id: 'live', label: 'Tiempo real', description: 'Sesiones activas' },
+        { id: 'pages', label: 'Páginas', description: 'Rendimiento de páginas' },
+        { id: 'events', label: 'Eventos', description: 'Actividad reciente' },
+        { id: 'journeys', label: 'Recorridos', description: 'Rutas de navegación' },
+        { id: 'retention', label: 'Retención', description: 'Cohortes de usuarios' },
+        { id: 'geography', label: 'Geografía', description: 'Ubicación agregada' },
       ],
     },
     {

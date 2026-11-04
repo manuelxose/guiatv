@@ -51,6 +51,7 @@ export class AnalyticsService implements OnDestroy {
 
   init(): void {
     if (!this.isBrowser || this.initialized) return;
+    if (['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)) return;
     this.initialized = true;
 
     this.anonId = this.getOrCreateAnonId();
@@ -271,7 +272,8 @@ export class AnalyticsService implements OnDestroy {
   }
 
   private buildHeaders(): HttpHeaders {
-    return new HttpHeaders({ 'Content-Type': 'application/json' });
+    const token = this.isBrowser ? localStorage.getItem('gtv_id_token') : null;
+    return new HttpHeaders({ 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) });
   }
 
   private buildUrl(path: string): string {

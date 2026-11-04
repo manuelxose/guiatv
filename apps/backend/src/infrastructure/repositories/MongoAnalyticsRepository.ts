@@ -1,14 +1,50 @@
 import { AnalyticsEventModel } from '../database/models/AnalyticsEvent.model';
 import { AnalyticsSessionModel } from '../database/models/AnalyticsSession.model';
+import { analyticsExclusions } from './analyticsExclusions';
+import { LIVE_IDLE_LIMIT_SECONDS } from './analyticsActivity';
 import {
   AnalyticsEventQuery,
   AnalyticsEventRecord,
   AnalyticsOverview,
+  AnalyticsRealtimePages,
   AnalyticsSessionRecord,
   IAnalyticsRepository,
 } from '../../domain/repositories/IAnalyticsRepository';
 
 export class MongoAnalyticsRepository implements IAnalyticsRepository {
+  async markExcludedSession(sessionId: string): Promise<void> {
+    await AnalyticsSessionModel.updateOne({ sessionId }, { $set: { excluded: true } }).exec();
+  }
+  async getRealtimePages(to: Date): Promise<AnalyticsRealtimePages> {
+    const from = new Date(to.getTime() - 30 * 60_000);
+    const exclusions = await analyticsExclusions();
+    const [result] = await AnalyticsEventModel.aggregate([
+      { $match: { ...exclusions.events, occurredAt: { $gt: from, $lte: to }, anonId: { $type: 'string', $ne: '' } } },
+      { $facet: {
+        totals: [
+          { $group: { _id: '$anonId', views: { $sum: { $cond: [{ $eq: ['$type', 'page_view'] }, 1, 0] } } } },
+          { $group: { _id: null, users: { $sum: 1 }, views: { $sum: '$views' } } },
+        ],
+        minutes: [
+          { $group: { _id: { minute: { $floor: { $divide: [{ $subtract: [to, '$occurredAt'] }, 60_000] } }, user: '$anonId' } } },
+          { $group: { _id: '$_id.minute', users: { $sum: 1 } } },
+        ],
+        pages: [
+          { $match: { path: { $type: 'string', $ne: '' } } },
+          { $group: { _id: { path: '$path', user: '$anonId' }, views: { $sum: { $cond: [{ $eq: ['$type', 'page_view'] }, 1, 0] } } } },
+          { $group: { _id: '$_id.path', users: { $sum: 1 }, views: { $sum: '$views' } } },
+          { $project: { _id: 0, path: '$_id', users: 1, views: 1 } },
+          { $sort: { users: -1, path: 1 } },
+        ],
+      } },
+    ]).exec();
+    const counts = new Map<number, number>(result.minutes.map((minute: { _id: number; users: number }) => [minute._id, minute.users]));
+    return {
+      from, to, activeUsers: result.totals[0]?.users || 0, pageViews: result.totals[0]?.views || 0,
+      minutes: Array.from({ length: 30 }, (_, index) => ({ from: new Date(to.getTime() - (30 - index) * 60_000), users: counts.get(29 - index) || 0 })),
+      pages: result.pages,
+    };
+  }
   async startSession(payload: AnalyticsSessionRecord): Promise<void> {
     const startedAt = payload.startedAt || new Date();
     const lastSeenAt = payload.lastSeenAt || startedAt;
@@ -21,6 +57,12 @@ export class MongoAnalyticsRepository implements IAnalyticsRepository {
       referrer: payload.referrer,
       userAgent: payload.userAgent,
       ip: payload.ip,
+      excluded: payload.excluded || false,
+      country: payload.country,
+      region: payload.region,
+      city: payload.city,
+      latitude: payload.latitude,
+      longitude: payload.longitude,
       language: payload.language,
       timezone: payload.timezone,
       screen: payload.screen,
@@ -141,9 +183,13 @@ export class MongoAnalyticsRepository implements IAnalyticsRepository {
     windowSec: number,
     limit: number
   ): Promise<AnalyticsSessionRecord[]> {
-    const since = new Date(Date.now() - windowSec * 1000);
+    const now = new Date();
+    const since = new Date(now.getTime() - windowSec * 1000);
+    const exclusions = await analyticsExclusions();
     const sessions = await AnalyticsSessionModel.find({
-      lastSeenAt: { $gte: since },
+      ...exclusions.sessions,
+      lastSeenAt: { $gte: since, $lte: now },
+      $nor: [{ 'metadata.activity.idleSec': { $gte: LIVE_IDLE_LIMIT_SECONDS } }],
       $or: [{ endedAt: null }, { endedAt: { $exists: false } }],
     })
       .sort({ lastSeenAt: -1 })
@@ -155,9 +201,13 @@ export class MongoAnalyticsRepository implements IAnalyticsRepository {
   }
 
   async countLiveSessions(windowSec: number): Promise<number> {
-    const since = new Date(Date.now() - windowSec * 1000);
+    const now = new Date();
+    const since = new Date(now.getTime() - windowSec * 1000);
+    const exclusions = await analyticsExclusions();
     return AnalyticsSessionModel.countDocuments({
-      lastSeenAt: { $gte: since },
+      ...exclusions.sessions,
+      lastSeenAt: { $gte: since, $lte: now },
+      $nor: [{ 'metadata.activity.idleSec': { $gte: LIVE_IDLE_LIMIT_SECONDS } }],
       $or: [{ endedAt: null }, { endedAt: { $exists: false } }],
     }).exec();
   }
@@ -167,14 +217,18 @@ export class MongoAnalyticsRepository implements IAnalyticsRepository {
     to: Date,
     liveWindowSec: number
   ): Promise<AnalyticsOverview> {
+    const exclusions = await analyticsExclusions();
     const [totalSessions, uniqueVisitors, totalPageViews] = await Promise.all([
       AnalyticsSessionModel.countDocuments({
+        ...exclusions.sessions,
         startedAt: { $gte: from, $lte: to },
       }).exec(),
       AnalyticsSessionModel.distinct('anonId', {
+        ...exclusions.sessions,
         startedAt: { $gte: from, $lte: to },
       }).then((items) => items.length),
       AnalyticsEventModel.countDocuments({
+        ...exclusions.events,
         type: 'page_view',
         occurredAt: { $gte: from, $lte: to },
       }).exec(),
@@ -183,6 +237,7 @@ export class MongoAnalyticsRepository implements IAnalyticsRepository {
     const avgDurationAgg = await AnalyticsSessionModel.aggregate([
       {
         $match: {
+          ...exclusions.sessions,
           endedAt: { $gte: from, $lte: to },
           durationSec: { $ne: null },
         },
@@ -198,6 +253,7 @@ export class MongoAnalyticsRepository implements IAnalyticsRepository {
     const topPages = await AnalyticsEventModel.aggregate([
       {
         $match: {
+          ...exclusions.events,
           type: 'page_view',
           occurredAt: { $gte: from, $lte: to },
           path: { $nin: [null, ''] },
@@ -205,13 +261,13 @@ export class MongoAnalyticsRepository implements IAnalyticsRepository {
       },
       { $group: { _id: '$path', count: { $sum: 1 } } },
       { $sort: { count: -1 } },
-      { $limit: 10 },
       { $project: { _id: 0, path: '$_id', count: 1 } },
     ]).exec();
 
     const topReferrers = await AnalyticsEventModel.aggregate([
       {
         $match: {
+          ...exclusions.events,
           type: 'page_view',
           occurredAt: { $gte: from, $lte: to },
           referrer: { $nin: [null, ''] },
@@ -226,6 +282,7 @@ export class MongoAnalyticsRepository implements IAnalyticsRepository {
     const sessionsByDay = await AnalyticsSessionModel.aggregate([
       {
         $match: {
+          ...exclusions.sessions,
           startedAt: { $gte: from, $lte: to },
         },
       },
@@ -242,6 +299,12 @@ export class MongoAnalyticsRepository implements IAnalyticsRepository {
     ]).exec();
 
     const liveCount = await this.countLiveSessions(liveWindowSec);
+    const geography = await AnalyticsSessionModel.aggregate([
+      { $match: { ...exclusions.sessions, startedAt: { $gte: from, $lte: to } } },
+      { $group: { _id: { country: { $ifNull: ['$country', 'Desconocido'] }, region: { $ifNull: ['$region', 'Desconocido'] } }, count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $project: { _id: 0, country: '$_id.country', region: '$_id.region', count: 1 } },
+    ]).exec();
 
     return {
       activeNow: liveCount,
@@ -254,6 +317,7 @@ export class MongoAnalyticsRepository implements IAnalyticsRepository {
       topPages,
       topReferrers,
       sessionsByDay,
+      geography,
     };
   }
 
@@ -261,10 +325,10 @@ export class MongoAnalyticsRepository implements IAnalyticsRepository {
     query: AnalyticsEventQuery
   ): Promise<AnalyticsEventRecord[]> {
     const limit = query.limit || 50;
-    const filters: Record<string, any> = {};
+    const filters: Record<string, any> = (await analyticsExclusions()).events;
 
     if (query.type) filters.type = query.type;
-    if (query.sessionId) filters.sessionId = query.sessionId;
+    if (query.sessionId) filters.$and = [{ sessionId: query.sessionId }];
     if (query.from || query.to) {
       filters.occurredAt = {};
       if (query.from) filters.occurredAt.$gte = query.from;
@@ -299,6 +363,11 @@ export class MongoAnalyticsRepository implements IAnalyticsRepository {
       referrer: doc.referrer,
       userAgent: doc.userAgent,
       ip: doc.ip,
+      country: doc.country,
+      region: doc.region,
+      city: doc.city,
+      latitude: doc.latitude,
+      longitude: doc.longitude,
       language: doc.language,
       timezone: doc.timezone,
       screen: doc.screen,
