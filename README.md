@@ -102,7 +102,8 @@ sudo BOOTSTRAP_DB=1 ./deploy-guiatv.sh  # Con re-inicialización de BD
 
 Analytics: configure `ANALYTICS_TRUSTED_PROXIES` with the exact IP addresses of
 proxies that append a trustworthy X-Forwarded-For chain. Without this setting,
-Analytics uses the direct socket address. Configure geography separately with
+Analytics trusts only the local nginx on loopback (`127.0.0.1`, `::1`), which
+appends the real peer address; any other socket address is used as is. Configure geography separately with
 `ANALYTICS_GEO_TRUSTED_PROXIES` only for proxies that overwrite the CF headers.
 For approximate city and coordinates, explicitly configure the direct proxy in
 `ANALYTICS_GEO_DETAIL_TRUSTED_PROXIES` as well. It must overwrite or remove
@@ -126,3 +127,37 @@ During mixed-version deployments it also checks the older event log; if that log
 is full or contains unindexed events, coverage is marked partial. Use a Valkey
 configuration that does not evict analytics keys to preserve the rolling index.
 Pre-existing daily aggregates cannot be corrected retrospectively by this index.
+
+### Analytics collection, consent and operations (ANALYTICS-01…06)
+
+* **Consent first.** Nothing is stored or sent for analytics until the visitor
+  accepts the analytics purpose in the banner (`cookie_consent=v1.a1.<ms>`).
+  Rejecting is one click, as prominent as accepting; "Configurar cookies" in the
+  footer and on `/cookies` reopens the choice. Revoking deletes `gtv_anon_id`,
+  `gtv_session` and the `_ga*` cookies. The collector and GA4 code are a lazy
+  chunk that only consenting visitors download.
+* **Ingestion.** Browsers send batches to `POST /v2/telemetry/collect`
+  (validated, ≤ 50 events / 64 KB, rate-limited per IP, answered `202` after
+  enqueueing). A bounded in-process queue persists them in order off the request
+  path; diagnostics: admin › Analytics › Diagnóstico or `GET /v2/telemetry/diagnostics`.
+  The old per-event endpoints answer as before but persist nothing unless
+  `ANALYTICS_LEGACY_ENDPOINTS=accept`.
+* **Emergency switch** (no restart, effective in ≤ 5 s on the server and ≤ 60 s in
+  browsers): `touch /etc/guiatv/analytics.kill` with `ANALYTICS_KILL_FILE` set,
+  or `ANALYTICS_INGEST_ENABLED=false`. Remove the file to resume.
+* **Privacy.** Mongo and Valkey store only the truncated address prefix (IPv4 /24,
+  IPv6 /48) or nothing (`ANALYTICS_PII=none`). Exclusions are decided on the
+  transient full address at ingestion.
+* **GeoIP.** Set `ANALYTICS_GEOIP_ENABLED=true` after installing the databases:
+  put `MAXMIND_ACCOUNT_ID`/`MAXMIND_LICENSE_KEY` in `/etc/guiatv/geoip.env`
+  (root, 0600), run `scripts/geoip-update.sh` once, then enable
+  `infra/systemd/guiatv-geoip-update.timer`. Locations are approximate, carry the
+  accuracy radius and database build, and are never inferred beyond what the
+  database states (no VPN detection, no person attributes).
+* **GA4.** `ANALYTICS_GA4_ENABLED=true` (and optionally
+  `ANALYTICS_GA4_MEASUREMENT_ID`) makes consenting browsers load GA4 with Consent
+  Mode v2 basic. In the GA4 property, switch off Enhanced measurement › "Page
+  changes based on browser history events" (page views are sent explicitly).
+  Aggregate demographics in the admin panel need `ANALYTICS_GA4_PROPERTY_ID` and a
+  read-only service account file (`ANALYTICS_GA4_CREDENTIALS_FILE`); see
+  `docs/roadmap/ANALYTICS-DELIVERY.md` for the external account steps.
