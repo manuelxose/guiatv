@@ -13,6 +13,10 @@ EnvironmentFile=-/etc/guiatv/history.env
 Environment=NODE_OPTIONS=--max-old-space-size=512
 ExecStart=/usr/bin/node /var/www/guiatv/current/apps/backend/dist/jobs/cli/archiveBroadcastHistory.cli.js
 MemoryMax=1G
+# Make the per-run numbers (CPUUsageNSec, MemoryPeak, IO) readable after the run, for the M12-G3D acceptance evidence.
+CPUAccounting=yes
+MemoryAccounting=yes
+IOAccounting=yes
 Nice=10
 # The load lands mostly in mongod: keep the job from competing with API/SSR reads.
 CPUWeight=20

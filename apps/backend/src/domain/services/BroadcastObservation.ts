@@ -35,6 +35,8 @@ const madridFmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', 
 export const madridDate = (d: Date): string => madridFmt.format(d);
 
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
+/** Archival identity contract: (channel, start instant in UTC ms). Local display time never enters the key. */
+export const observationId = (channelId: string, startUtc: Date): string => sha(`${channelId}|${startUtc.getTime()}`).slice(0, 24);
 const normSource = (s: unknown): string => {
   const v = String(s ?? '').trim();
   try { return new URL(v).host.toLowerCase(); } catch { return v.toLowerCase(); }
@@ -57,7 +59,7 @@ export function toObservation(airing: any, now: Date): { ok: true; obs: Broadcas
   return {
     ok: true,
     obs: {
-      _id: sha(`${channelId}|${startUtc.getTime()}`).slice(0, 24),
+      _id: observationId(channelId, startUtc),
       channelId, startUtc, endUtc, madridDate: madridDate(startUtc), title, titleKey,
       ...(typeof entityId === 'string' && ENTITY_ID_PATTERN.test(entityId) ? { workRef: entityId } : {}),
       sources, contentHash, state: 'scheduled', rev: 1, seenCount: 1, firstSeenAt: now, lastSeenAt: now,
