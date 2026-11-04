@@ -26,7 +26,7 @@ jobs:
           sparse-checkout: scripts
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
       - name: Probe production
         env:
           # Set to "canary" (repository variable) only while the owner has activated the entity canary.
