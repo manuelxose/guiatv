@@ -68,3 +68,10 @@ test('H2: evidenceHash changes with every evaluated input and ignores peer order
   const p1 = { path: '/x/b', intentKey: 'intent-b', mainText: prose('b') }, p2 = { path: '/x/c', intentKey: 'intent-c', mainText: prose('c') };
   assert.equal(evaluateUrlEligibility(good({ peers: [p1, p2] })).evidenceHash, evaluateUrlEligibility(good({ peers: [p2, p1] })).evidenceHash);
 });
+
+test('H2: evidenceHash ignores JSON key order and does not collide on separators inside peer fields', () => {
+  const ld = (o: object) => evaluateUrlEligibility(good({ jsonLd: [o] })).evidenceHash;
+  assert.equal(ld({ '@context': 'https://schema.org', '@type': 'WebPage', a: { x: 1, y: 2 } }), ld({ a: { y: 2, x: 1 }, '@type': 'WebPage', '@context': 'https://schema.org' }));
+  const peer = (path: string, intentKey: string) => evaluateUrlEligibility(good({ peers: [{ path, intentKey, mainText: prose('b') }] })).evidenceHash;
+  assert.notEqual(peer('/x/b|k', 'c'), peer('/x/b', 'k|c'));
+});

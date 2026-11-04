@@ -10,8 +10,14 @@ import { archiveDay } from '../../application/services/BroadcastObservationArchi
  */
 const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' });
 
+/** The last `count` Madrid calendar days before today, stepped by date (a 23h/25h DST day must not skip or repeat one). */
 export function closedDays(now: Date, count: number): string[] {
-  return Array.from({ length: count }, (_, i) => fmt.format(new Date(now.getTime() - (i + 1) * 86_400_000)).replace(/-/g, '')).reverse();
+  const today = fmt.format(now);
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(`${today}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - (i + 1));
+    return d.toISOString().slice(0, 10).replace(/-/g, '');
+  }).reverse();
 }
 
 async function main() {
@@ -21,13 +27,13 @@ async function main() {
   }
   const args = process.argv.slice(2);
   const days = args.length ? args : closedDays(new Date(), Number(process.env.HISTORY_CAPTURE_CATCHUP_DAYS) || 3);
-  const { createContainer } = await import('../../config/container');
-  const container = createContainer();
-  await container.initialize();
+  // Only the Mongo connection: the full container also seeds unrelated collections and connects Redis (logging its URL).
+  const { connectMongoDB, disconnectMongoDB } = await import('../../config/mongodb');
+  await connectMongoDB();
   try {
     for (const day of days) console.log(day, JSON.stringify(await archiveDay(day)));
   } finally {
-    await container.cleanup();
+    await disconnectMongoDB();
   }
 }
 

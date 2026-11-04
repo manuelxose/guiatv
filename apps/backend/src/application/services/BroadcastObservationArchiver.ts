@@ -51,7 +51,7 @@ export async function archiveDay(date: string, opts: ArchiveOptions = {}): Promi
   if (room <= 0) return empty('capped');
   await TVBroadcastObservationModel.collection.createIndex(TV_BROADCAST_OBSERVATION_INDEX.key, TV_BROADCAST_OBSERVATION_INDEX.options);
 
-  const cursor = TVReadAiringModel.find({ date }, { channel: 1, program: 1, airing: 1, sourceProvenance: 1 }).sort({ id: 1 }).lean().cursor();
+  const cursor = TVReadAiringModel.find({ date }, { channel: 1, program: 1, airing: 1, sourceProvenance: 1 }).lean().cursor();
   let batch: any[] = [];
   const flush = async () => {
     if (!batch.length) return;

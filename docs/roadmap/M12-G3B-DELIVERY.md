@@ -123,7 +123,7 @@ Ninguna captura, ninguna configuración, ningún cambio de producción. Activar 
 - **H1:** `thin-content` exige `totalWords >= 300` **y** `uniqueWords/totalWords >= 0.3`; `metrics` añade `totalWords`.
 - **H2:** `evidenceHash` cubre ahora título, descripción, JSON-LD, `entityVerified` y un digest ordenado de los pares (`path|intentKey|hash(mainText)`).
 - Tests de regresión: 400 palabras con 90 distintas, 250 distintas, variedad natural; cada insumo cambia el hash y el orden de pares no.
-- Cualquier lista firmada con hashes v1 deja de ser válida (hay que re-evaluar): ninguna existe en producción (G1/G2 inactivos).
+- Cualquier lista firmada con hashes v1 debe re-evaluarse: ninguna existe en producción (G1/G2 inactivos). Corrección G3C: `IndexBatchGate` NO compara la versión de política ni recalcula `evidenceHash` (solo comprueba su formato); la invalidación depende de quien firma el lote. Si G1/G2 se activan, el gate debe rechazar lotes de otra versión (pendiente, ver M12-G3C-DELIVERY.md). La política pasó a `url-eligibility-v3` en G3C (JSON canónico y pares codificados en JSON).
 
 ## 13. Activación en producción (solo en el servidor, requiere root)
 
@@ -131,7 +131,7 @@ Unidades en el repositorio: `infra/systemd/guiatv-history-archive.service` y `.t
 
 ```
 sudo cp /var/www/guiatv/current/infra/systemd/guiatv-history-archive.{service,timer} /etc/systemd/system/
-echo 'HISTORY_CAPTURE_ENABLED=true' | sudo tee /etc/guiatv/history.env
+echo 'HISTORY_CAPTURE_ENABLED=true' | sudo tee /etc/guiatv/history.env && sudo chmod 600 /etc/guiatv/history.env
 sudo systemctl daemon-reload && sudo systemctl enable --now guiatv-history-archive.timer
 sudo systemctl start guiatv-history-archive.service && journalctl -u guiatv-history-archive -n 20 --no-pager
 ```
