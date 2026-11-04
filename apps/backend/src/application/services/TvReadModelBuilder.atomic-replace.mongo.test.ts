@@ -67,13 +67,14 @@ test('a rebuild from zero programmes keeps the existing day (feed outage must no
     assert.deepEqual(await titles(), ['Uno']);
   }));
 
-test('concurrent rebuilds of one date with different sets end with exactly the last set', { skip: !process.env.TEST_MONGO_URI }, () =>
+test('concurrent rebuilds of one date with different sets leave exactly one complete set', { skip: !process.env.TEST_MONGO_URI }, () =>
   withDb('lock', async () => {
     const mk = (tag: string, n: number) => Array.from({ length: n }, (_, i) => ({ ...prog(`${tag}${i}`, `${tag}${i}`, i % 20), channelId: `${tag}${i}`, canonicalChannelId: `${tag}${i}` }));
     await Promise.all([builderFor(mk('A', 120)).rebuildDate(DAY), builderFor(mk('B', 80)).rebuildDate(DAY)]);
     const t = await titles();
-    assert.equal(t.length, 80);
-    assert.ok(t.every((x) => x.startsWith('B')), 'serialised: the later rebuild wins, nothing from the earlier set survives');
+    // which rebuild reaches the lock last is a race; the invariant is a whole set, never an intersection or a mix
+    const whole = (tag: string, n: number) => t.length === n && t.every((x) => x.startsWith(tag));
+    assert.ok(whole('A', 120) || whole('B', 80), `got ${t.length} rows`);
   }));
 
 test('concurrent rebuilds converge on the full set and a reader never sees an empty day', { skip: !process.env.TEST_MONGO_URI }, () =>
