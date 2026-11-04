@@ -1,6 +1,6 @@
 # M13-B5 — Root cause of the remaining stalls and first remediation
 
-> **Update after the #172 deploy (2026-11-04, owner-authorised): the 4 s stalls were NOT fixed by #172 and their cause is now identified. See section 10.**
+> **Final state (2026-11-04):** #172 did not remove the 4 s stalls; the cause was `loadChannelMap` (section 10), fixed by #173 (`269c643`), deployed and verified in production (section 11). **Verdict: M13-B5 PASS for the two multi-second stalls (B3b, B5c); not a declaration that M13 is complete.**
 
 Date: 2026-11-04 · Base `origin/main` = `6e28e88` · Branch `m13b5-attribution` · **Verdict: PARTIAL** (B5b output-identical reduction + B5a attribution instrumentation both delivered; causes unconfirmed until read in production). Both 4 s stalls now have one evidence-backed common hot path (the cold `tvread.query` day read behind `CatalogService.query`); a measured, output-identical reduction of it is delivered. Whether it explains the **full** 3.5–4 s seen in production is **not proven** (it was not reproducible locally at that magnitude) and must be read from the first process after a deploy. Not deployed, not merged.
 
@@ -99,3 +99,12 @@ Build passes. Full backend suite: section 6. Rollback: revert the PR (backend on
 * **Before / after** (real channel repository, 1 500 channels, 2 600 airings, 5 runs per arm, medians, frozen-clock digests identical): cold list max stall **1 831 -> 80 ms**, CPU 2 517 -> 438 ms; cold pair 2 010 -> 103 ms, CPU 2 999 -> 547 ms; 8 genre pairs 1 625 -> 427 ms, CPU 2 688 -> 1 016 ms. Full backend suite: 881 tests, 837 pass, 4 fail (the same environmental Windows failures), 40 skipped.
 * **Not fixed here, noted:** `tvread.channels` (boot, 852 ms, 1 256 ms CPU) and `ChannelModel.find()` without `lean()` remain; other callers of `channelRepository.findAll()` were not audited. The `channels` 60 s TTL still applies where the map is needed.
 * **Status:** branch `m13b5c-lazy-channel-map`, draft PR; **not merged or deployed** (needs the owner's separate authorisation). Verdict for B5 stays PARTIAL until a deployed process shows no 4 s event.
+
+## 11. Merge, deploy and production verification of #173 (owner-authorised, 2026-11-04)
+
+* **Merge/deploy:** #173 squash-merged as `269c643` (CI green on `6cbb75a`); `deploy-artifact.yml` run 41896464092 on `269c643`, build + deploy success. Only read-only public GETs of `/v2/health/metrics` (`artifacts/m13b5/post-deploy-c-metrics.json`, one GET at uptime 261 s); no restart, configuration, profiler or write.
+* **Result, same process (uptime 261 s, 666 requests, 0 x 5xx):** event-loop windows max delay **1 156 ms** (first minute, boot) then **325, 118, 165 ms**; **3 stall events in total, none above 1.1 s**, versus 4.6 s at 13 s, 3.8 s at 94 s and 3.9 s at 164 s in the previous process (section 10). The instants where the 4 s events appeared (13 s, ~94 s, ~164 s) are clean.
+* **Catalogue:** 85 queries (51 L1 hit, 18 cache hit, 16 miss, 0 error); slowest miss **982 ms** (previously 5 123 ms); the `channels` phase no longer appears among the miss phases.
+* **Remaining sub-second boot stalls (not addressed here):** 870 ms (`boot.container_initialize`), 1 113 ms (`boot.channel_alias_load`, `tvread.channels`, related-works reads, football refresh) and 440 ms at 9 s (`related_works` reads + `tvread.query` + `cache.json_stringify`). `tvread.channels` and `ChannelModel.find()` without `lean()` are the natural next candidates.
+* **Caveat:** one process, 261 s, observed once; the evidence is the absence of the previously deterministic 4 s events at their usual instants plus the removed phase. Longer observation (several processes, a full 60 s L1 expiry cycle under crawler load) is recommended before closing the performance line of M13 for good.
+* **Rollback:** revert `269c643` (and `82c7327` if desired) and redeploy; backend only.
