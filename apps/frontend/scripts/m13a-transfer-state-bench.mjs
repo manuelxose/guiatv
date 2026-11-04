@@ -39,7 +39,7 @@ if (mode === 'discover') {
   // One sequential, read-only GET per distinct URL listed by `discover` (outPath = fixtures file).
   const fixtures = {};
   for (const url of JSON.parse(readFileSync(fixturesPath, 'utf8'))) {
-    const r = await fetch(PROD + url, { headers: { 'user-agent': 'GuiaTV-M13A-fixture-capture/1.0 (read-only, sequential)' } });
+    const r = await fetch(PROD + url, { headers: { 'user-agent': 'GuiaTV-M13A-fixture-capture/1.0 (read-only, sequential)' }, redirect: 'manual', signal: AbortSignal.timeout(30000) });
     fixtures[url] = { status: r.status, body: await r.text() };
     await new Promise((ok) => setTimeout(ok, 400));
   }
@@ -56,8 +56,10 @@ if (mode === 'discover') {
     res.end(hit ? hit.body : '{"success":false}');
   });
   const results = { fixtures: Object.keys(fixtures), rounds, runs: [] };
-  const order = [['before', distA], ['after', distB], ['after', distB], ['before', distA]];
-  for (const [label, dist] of process.env.M13A_FLIP ? order.reverse() : order) { // M13A_FLIP=1: B A A B, to cancel order effects across repeats
+  const order = process.env.M13A_FLIP // M13A_FLIP=1: after-first (B A A B), so a first-slot effect is not always charged to 'before'
+    ? [['after', distB], ['before', distA], ['before', distA], ['after', distB]]
+    : [['before', distA], ['after', distB], ['after', distB], ['before', distA]];
+  for (const [label, dist] of order) {
     if (!existsSync(dist)) throw new Error(`missing dist ${dist}`);
     process.env.FRONTEND_RELEASE_DIR = dist;
     const ssr = await launchSsr(backend.origin);

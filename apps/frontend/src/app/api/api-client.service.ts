@@ -13,7 +13,7 @@ export class ApiClientService {
    * response to the browser through their own `TransferState` key, the HTTP copy is never read (their key is checked
    * first) and only doubles the bytes serialised into the SSR HTML (`/canales`: 2.37 MB twice).
    */
-  get<T>(path: string, params?: Record<string, any>, options: { transferCache?: boolean } = {}): Observable<T> {
+  get<T>(path: string, params?: Record<string, any>, options: { transferCache?: false } = {}): Observable<T> {
     const url = this.config.buildUrl(path);
     const httpParams = this.toParams(params);
     return this.http
