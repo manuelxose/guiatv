@@ -2,7 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
-import { archiveDay } from './BroadcastObservationArchiver';
+import { archiveDay, isDayArchived } from './BroadcastObservationArchiver';
+import { reconcileDay } from '@/domain/services/BroadcastObservationReconcile';
 import { TVReadAiringModel } from '@/infrastructure/database/models/TVReadAiring.model';
 import { TVBroadcastObservationModel } from '@/infrastructure/database/models/TVBroadcastObservation.model';
 
@@ -83,6 +84,39 @@ test('archiver', { skip: !process.env.TEST_MONGO_URI }, async (t) => {
       await archiveDay('20261102', { env: { ...ON, HISTORY_CAPTURE_MAX_PER_RUN: '1' }, now: NOW });
       const r = await archiveDay('20261102', { env: ON, now: NOW });
       assert.deepEqual([r.inserted, r.unchanged], [2, 1]);
+    });
+    await t.test('isDayArchived: true only for a day that has observations', async () => {
+      await reset();
+      await TVReadAiringModel.insertMany([row(1)]);
+      assert.equal(await isDayArchived('20261102'), false);
+      await archiveDay('20261102', { env: ON, now: NOW });
+      assert.deepEqual([await isDayArchived('20261102'), await isDayArchived('20261101')], [true, false]);
+    });
+    await t.test('a write that dies half way leaves a consistent subset; the next run completes it with no duplicates', async () => {
+      await reset();
+      await TVReadAiringModel.insertMany([row(1), row(2), row(3), row(4)]);
+      const real = TVBroadcastObservationModel.bulkWrite.bind(TVBroadcastObservationModel);
+      (TVBroadcastObservationModel as any).bulkWrite = async (ops: any[], o: any) => { await real(ops.slice(0, 2), o); throw new Error('network timeout'); };
+      try { await assert.rejects(archiveDay('20261102', { env: ON, now: NOW }), /network timeout/); } finally { delete (TVBroadcastObservationModel as any).bulkWrite; } // back to the prototype method
+      assert.equal(await TVBroadcastObservationModel.countDocuments(), 2);
+      const r = await archiveDay('20261102', { env: ON, now: NOW });
+      assert.deepEqual([r.inserted, r.unchanged, await TVBroadcastObservationModel.countDocuments()], [2, 2, 4]);
+      const rec = reconcileDay('2026-11-02', await TVReadAiringModel.find({ date: '20261102' }).lean(), await TVBroadcastObservationModel.find({}, { channelId: 1, startUtc: 1, rev: 1 }).lean() as any, NOW());
+      assert.deepEqual([rec.missing, rec.extra, rec.archiveIdentityDefects], [[], [], 0]); // the same four broadcasts, not merely the same count
+    });
+    await t.test('key reconciliation: equal counts with a swapped observation are caught; a clean archive passes', async () => {
+      await reset();
+      await TVReadAiringModel.insertMany([row(1), row(2), row(3)]);
+      await archiveDay('20261102', { env: ON, now: NOW });
+      const load = async () => reconcileDay('2026-11-02', await TVReadAiringModel.find({ date: '20261102' }).lean(), await TVBroadcastObservationModel.find({ madridDate: '2026-11-02' }, { channelId: 1, startUtc: 1, workRef: 1, rev: 1 }).lean() as any, NOW());
+      const clean = await load();
+      assert.deepEqual([clean.expected, clean.archived, clean.missing, clean.extra], [3, 3, [], []]);
+      const gone = await TVBroadcastObservationModel.findOne({ title: 'P2' }).lean() as any;
+      await TVBroadcastObservationModel.deleteOne({ _id: gone._id });
+      await TVBroadcastObservationModel.collection.insertOne({ ...gone, _id: 'f'.repeat(24), startUtc: new Date('2026-11-02T20:00:00Z') });
+      const bad = await load();
+      assert.equal(bad.expected, bad.archived);
+      assert.deepEqual([bad.missing, bad.extra.length, bad.archiveIdentityDefects], [[gone._id], 1, 1]);
     });
   } finally {
     await mongoose.connection.dropDatabase();

@@ -59,12 +59,12 @@ Medido hoy (solo lectura, `journalctl`/`systemctl show` vía SSH, 2026-11-04 ~00
 - El timer **nunca se ha disparado solo**: `LAST` vacío; primera ejecución programada 2026-11-04 03:30 CET. Solo existe una ejecución manual (00:37): 3 días en ~9 s de reloj, 13,1 s de CPU, `Result=success`; los tres días `inserted 0 / revised 0`; `unchanged` 8 144 / 8 649 / 11 585 y `outOfDay` 0 / 3 / 214 (suman las 8 144 / 8 652 / 11 799 leídas).
 - `MemoryPeak` no está disponible (`MemoryAccounting` desactivado en la unidad).
 
-**Bloqueado:** la colección (count/avgObjSize/almacenamiento/índices), los documentos con rev>1, la comparación por día contra el read model, la latencia de `/api/health` y de 3 endpoints antes/después de las 03:30 y la carga de Mongo durante el job requieren ejecutar código o sondas contra producción. El sistema de permisos denegó ejecutar `scripts/m12g3c-followup.cjs` en el servidor (la primera tentativa falló por un ajuste de pool, la segunda fue denegada), y no se ha eludido. Quedan pendientes de autorización explícita.
+**Bloqueado:** la colección (count/avgObjSize/almacenamiento/índices), los documentos con rev>1, la comparación por día contra el read model, la latencia de `/api/health` y de 3 endpoints antes/después de las 03:30 y la carga de Mongo durante el job requieren ejecutar código o sondas contra producción. El sistema de permisos denegó ejecutar `scripts/m12g3c-followup.cjs` (hoy `m12g3d-reconcile.cjs`) en el servidor (la primera tentativa falló por un ajuste de pool, la segunda fue denegada), y no se ha eludido. Quedan pendientes de autorización explícita.
 
 Comando reproducible (solo lectura; imprime recuentos, sin títulos):
 
 ```
-cat scripts/m12g3c-followup.cjs | ssh root@109.123.248.164 'systemd-run --wait --pipe -q \
+cat scripts/m12g3d-reconcile.cjs | ssh root@109.123.248.164 'systemd-run --wait --pipe -q \
   -p EnvironmentFile=/etc/guiatv/api.env -p WorkingDirectory=/var/www/guiatv/current/apps/backend \
   -p Nice=19 -E MONGODB_MAX_POOL_SIZE=2 -E MONGODB_MIN_POOL_SIZE=0 node -'
 journalctl -u guiatv-history-archive --no-pager -o short-iso --since 2026-11-04
@@ -77,4 +77,5 @@ Criterio de cierre: ≥3 ejecuciones del timer (03:30 de 2026-11-04, 05 y 06 →
 
 - M12 sigue **NO-GO**: sin historia acumulada ni demanda probada (GSC 2026-10-04..10-31: 582 impresiones, 10 clics); la captura empezó el 2026-11-01.
 - Siguiente único milestone: **M12-G3D** — cerrar la deuda C con ≥3 ejecuciones reales y decidir entonces los hallazgos 9–11 con datos (revisiones observadas, día de 25 h).
-- No se han tocado GSC, claves, páginas, rutas ni sitemap. Nada de esto está desplegado ni mergeado.
+- No se han tocado GSC, claves, páginas, rutas ni sitemap.
+- **Estado corregido en G3D:** el código de A y B **está mergeado** (PR #159 `f703577`, PR #160 `81d8232`) y desplegado (release `20261104010920`, run de Actions `41744415726`). Lo que sigue sin hacerse es la validación operativa de C. `scripts/m12g3c-followup.cjs` fue sustituido por `scripts/m12g3d-reconcile.cjs` (compara claves, no recuentos); ver `M12-G3D-DELIVERY.md`.

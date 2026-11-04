@@ -1210,7 +1210,11 @@ export function buildTvReadAiringId(input: {
     ? String(input.viewDate)
     : normalizeTvToken(input.viewDate) || 'unknown_date';
   const channelToken = normalizeTvToken(input.channelId, '_') || 'unknown_channel';
-  return `${viewDateToken}_${channelToken}_${startToken}`;
+  // Last Sunday of October the local hour 02:xx happens twice: the second pass gets a suffix so it no longer collides with the first. Every other instant keeps its id.
+  const secondPassOfRepeatedHour =
+    !Number.isNaN(start.getTime()) &&
+    start.getTimezoneOffset() > new Date(start.getTime() - 3_600_000).getTimezoneOffset();
+  return `${viewDateToken}_${channelToken}_${startToken}${secondPassOfRepeatedHour ? '_dst2' : ''}`;
 }
 
 export function buildSearchTokens(values: Array<string | null | undefined>): string[] {

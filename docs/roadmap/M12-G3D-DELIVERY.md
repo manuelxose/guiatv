@@ -1,0 +1,334 @@
+# M12-G3D — validación operativa del archivo histórico
+
+Fecha de redacción: 2026-11-04. Primera redacción 01:27 (antes del timer); actualizada a las ~10:00 tras la autorización de lectura del propietario (§12).
+Base verificada: `origin/main` = `81d82329ffa66d23ee52e476adbb12fe52a826ac` (PR #159 `f703577`, PR #160 `81d8232`).
+Veredicto: **PARTIAL**. Hecho: reconciliación por claves, tests, análisis de A/B/C, plan de despliegue de la unidad. Observada **1 de 3** ejecuciones programadas (04/11, éxito). Paridad por claves medida en producción: **20261101 y 20261102 PASS; 20261103 FAIL** (el read model cambió después del archivado; el archivo está intacto, §4). **No hecho:** las ejecuciones del 05 y 06/11 (calendario) y la comparación de latencia (no hay línea base). **El propietario aceptó cerrar G3D con este PARTIAL el 2026-11-04** (§16); no es un PASS.
+
+## 1. Qué es G3D y qué no es
+
+G3C dejó el código de A y B mergeado y desplegado (release `20261104010920`, run `41744415726`) y C pendiente. Esa es la única parte operativa abierta. G3D no abre ninguna familia de páginas, no toca producción, no activa `INDEX_BATCH_ENABLED`, no expone el archivo en rutas públicas, no cambia identificadores ni el algoritmo de `contentHash`.
+
+## 2. Estado Git y producción
+
+| Elemento | Valor | Cómo se comprobó |
+|---|---|---|
+| `origin/main` | `81d8232` | `git fetch` + `git log` |
+| Checkout `guiatv` (`main`) | `30cdf72`, **por detrás** de origin; con ficheros sin seguir | No se ha tocado |
+| Worktrees y stash previos | 6 worktrees y `stash@{0}: m11b-review-fixes` | Intactos |
+| Rama de trabajo | `docs/m12-g3d-validation` en worktree `../guiatv-m12g3d` | Creada desde `origin/main` |
+| Release en producción | `20261104010920` (run `41744415726`) | **Dato del encargo y de G3C; no re-verificado hoy** |
+| Estado del servidor (04/11 ~10:00) | systemd 255, kernel 6.8.0-147, cgroup v2, `mongod` activo, timer activo con siguiente disparo 05/11 03:31:29 | SSH de solo lectura, autorizado después del bloqueo inicial (§12) |
+| Release desplegada | `/var/www/guiatv/releases/20261104010920` (visto en la ruta del error de módulo) | confirma el dato del encargo; **no contiene la PR #161** |
+
+## 3. Tres ejecuciones del timer (AC-01)
+
+El timer es `OnCalendar=*-*-* 03:30:00`, `RandomizedDelaySec=120`, `Persistent=true`. A las ~10:00 del 04/11 se ha leído **la primera ejecución programada**; faltan las del 05 y 06. Las manuales (00:03, 00:18, 00:28, 00:37 ×2) no cuentan.
+
+| Fecha | Disparado por timer | Inicio / fin reales | Result / exit | Duración | CPU | Memoria | Días procesados | inserted / revised / unchanged / rejected | Reintentos | Solape | Archivo previo intacto |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 2026-11-04 | **Sí**: `LastTriggerUSec` 03:30:42 (retardo aleatorio 42 s) | 03:30:42 → 03:30:48 | `success` / exit 0 | 6 s | 8,803 s (`CPUUsageNSec`; journal «Consumed 8.803s») | **no disponible** (`MemoryPeak=[not set]` tras terminar) | 20261101, 20261102, 20261103 | inserted 0 / revised 0 / unchanged 8 144, 8 649, 11 585 / rejected 0; outOfDay 0, 3, 214; read 8 144, 8 652, 11 799; raced 0 | ninguno (`NRestarts=0`) | no (un solo par Starting/Finished; `oneshot`) | recuentos idénticos a la manual de las 00:37, 0 revisiones: **no hay pérdida visible en los contadores; no es paridad por claves** |
+| 2026-11-05 | **PENDIENTE** | — | — | — | — | — | — | — | — | — | — |
+| 2026-11-06 | **PENDIENTE** | — | — | — | — | — | — | — | — | — | — |
+
+Referencia no válida para AC-01 (manual, G3C §3, 2026-11-04 00:37): 3 días, ~9 s de reloj, 13,1 s de CPU, `Result=success`, `inserted 0 / revised 0`, `unchanged` 8 144 / 8 649 / 11 585, `outOfDay` 0 / 3 / 214.
+
+Cómo rellenar la tabla (lectura, tras cada 03:30; requiere autorización de acceso al servidor):
+
+```
+journalctl -u guiatv-history-archive --no-pager -o short-iso --since "2026-11-04"
+systemctl list-timers guiatv-history-archive.timer --no-pager
+systemctl show guiatv-history-archive.service -p Result,ExecMainStatus,ExecMainStartTimestamp,ExecMainExitTimestamp,CPUUsageNSec,MemoryPeak,NRestarts
+```
+
+Resultado de AC-01: **1/3**. Siguiente disparo previsto: 2026-11-05 03:31:29.
+
+Aviso de medición: `systemctl show` solo conserva **la última** invocación. Hay que leerlo cada día entre las 03:35 y las 23:59; el 05/11 sobrescribe el 04/11. El `journalctl` sí conserva las tres. `MemoryPeak` sigue vacío incluso con `MemoryAccounting=yes`, systemd 255, kernel 6.8 y cgroup v2: **la memoria de un `oneshot` no se puede leer después de que termina**; el journal solo da el tiempo de CPU. La memoria exigiría muestreo durante la ejecución (p. ej. `systemd-run --wait` con `-p MemoryAccounting=yes` y su resumen), que no se ha hecho.
+
+## 4. Integridad del histórico por fecha (AC-03, AC-04)
+
+**Defecto del procedimiento anterior.** `m12g3c-followup.cjs` calculaba `missing = max(0, readModelOwnUnique - observations)`. Con el mismo número de filas pero claves distintas devolvía `missing = 0`: un falso PASS. Además la clave que usaba, `channel.id|airing.start` en texto, no es el contrato de identidad del archivo (`sha256(channelId|startUtcMs)`).
+
+**Sustituto (PR de G3D).**
+- `apps/backend/src/domain/services/BroadcastObservationReconcile.ts`: `reconcileDay(day, filasReadModel, claveArchivada[])` pura, sin escrituras. Compara por `_id` = `observationId(channelId, startUtc)` (exportado ahora desde `BroadcastObservation.ts`, misma función que usa el archivador).
+- `scripts/m12g3d-reconcile.cjs`: acotado (`--days` entero 1–14, 7 por defecto; una consulta por día en cada colección, con proyección y `maxTimeMS`), bajo `readOnlyGuard` (cualquier escritura termina el proceso con 97), sin títulos en la salida, con 5 ids de muestra por categoría.
+
+| Categoría | Qué significa |
+|---|---|
+| `missing` | el read model posee la emisión ese día Madrid y el archivo no la tiene |
+| `extra` | el archivo tiene un id sin fila en el read model (revisión de una fila retirada, o defecto) |
+| `duplicateSourceRows` / `conflictingSourceRows` | varias filas del read model con el mismo canal+inicio; cuántas con título distinto |
+| `archiveIdentityDefects` | dos documentos con mismo canal+instante, o `_id` ≠ hash de identidad |
+| `outOfDay` | el inicio cae en otro día Madrid: lo posee la ejecución de ese día; **no es** `missing` |
+| `rejected` | filas que el archivador rechaza por diseño (`no-channel`, `invalid-time`, `no-title`, `no-source`) |
+| `archivedWithoutWorkRef` | evidencia, no inferencia: filas sin identidad de obra verificada |
+| `archivedRevised` | `rev > 1` ese día |
+| `status: not-reconcilable` | el read model ya no conserva ese día: **no se asume paridad** |
+
+Fecha local: la comparación usa `madridDate(startUtc)` (`Intl`, zona Europe/Madrid), independiente de la TZ del proceso.
+
+**Limitaciones declaradas.**
+1. El read model **no es un registro histórico**: se reconstruye, y G3C ya mostró que puede reemplazar o vaciar un día. Un día sin filas se informa como `not-reconcilable`; un día con filas parciales produciría `extra`, no `missing`. La paridad solo prueba que el archivo cubre lo que el read model tiene **hoy** para ese día; no prueba que el read model fuese completo cuando se archivó.
+2. Los `extra` tras una corrección de fuente son esperables (la fila corregida conserva clave y cambia contenido: eso es revisión, no `extra`); un `extra` solo aparece si la fila desapareció del read model.
+3. La lectura de observaciones se hace por `madridDate`, sin índice: recorrido de colección (~5 MB hoy). Aceptable; ver `shortcut:` en el script.
+4. **Solo claves**: una corrección de título o fin que el archivo no hubiera aplicado no se detecta. `extra` mezcla «fila retirada aguas arriba» con «defecto»: cualquier `extra` exige mirar.
+5. El script emite un `verdict` por día (`PASS` solo con `missing`, `extra`, `archiveIdentityDefects` y `outOfDayUnarchived` en 0; `NOT-RECONCILABLE` si el read model no tiene filas). La lista de días es el rango de los últimos `--days` días cerrados (entero 1–14), **no** los días presentes en el archivo: un día que el archivador nunca escribió aparece como `missing`, no desaparece. Las filas `outOfDay` se comprueban contra el archivo del día propietario.
+
+**Validado en local (Mongo 8.0.34 en Docker, base desechable):** el script corre de punta a punta bajo el guard (10 comandos, todos lectura) y devuelve `reconciled`, `missing 0`, `extra 0`.
+
+**Ejecución en producción (04/11 ~10:30, solo lectura).** El primer intento con la receta autorizada falló al cargar `…/dist/domain/services/BroadcastObservationReconcile.js` (solo existe en la PR #161, no desplegada): falló en el `require` inicial, antes del guard y de conectar, sin ningún comando a la BD. Con la elección expresa del propietario («reconciliar ya»), se ejecutó **una copia autónoma**: el mismo script con el módulo compilado embebido y usando el `BroadcastObservation.js` ya desplegado (como la release no exporta `observationId`, se usa la misma fórmula `sha256(canal|startMs)[0..24]`, comprobada idéntica en local). Mismo guard, pool 2, `Nice=19`, `--days 3`; 77 comandos, todos lecturas (`find`, `aggregate`, `getMore`, `collStats`, `dbStats`, `buildInfo`, `hello`, `serverStatus`). Nada se desplegó ni se escribió en el servidor. No es el código desplegado, sino una copia de la lógica probada.
+
+| Día | Veredicto | Esperadas (read model) | Archivadas | missing | extra | Duplicados / defectos de identidad | outOfDay (sin archivar) | rechazadas | sin `workRef` | `rev>1` |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 2026-11-01 | **PASS** | 8 144 | 8 144 | 0 | 0 | 0 / 0 | 0 | 0 | 8 144 | 1 |
+| 2026-11-02 | **PASS** | 8 649 | 8 649 | 0 | 0 | 0 / 0 | 3 (0) | 0 | 8 649 | 0 |
+| 2026-11-03 | **FAIL** | 11 418 | 11 585 | **161** | **328** | 0 / 0 | 1 (0) | 0 | 11 585 | 0 |
+
+**Lectura del FAIL de 2026-11-03 (hechos y límite).** El archivo no ha perdido nada: 28 378 documentos, igual que la medición de G3B, y 8 144 / 8 649 / 11 585 por día. Lo que cambió es el read model: a las 03:30 la ejecución programada leyó 11 799 filas de 20261103 y encontró las 11 585 en día ya archivadas (`unchanged`); a las ~10:30 el día tiene 11 418 claves propias + 1 de otro día. Es decir, **el read model de un día ya cerrado cambió después del archivado** (161 claves nuevas que el archivo no tiene; 328 claves archivadas que el read model ya no tiene). Ese día es además el del vaciado de 00:15 y los rebuilds de la noche (G3C). **Causa identificada (misma tarde, solo lectura).** Segunda pasada del reconciliador con clasificación de deriva (sin títulos): las 161 claves nuevas están en **22 canales** y las 328 sobrantes en **167 canales** (solo 15 en común); de las 131 nuevas emparejables con una sobrante del mismo canal, 26 están a ≤ 5 min, 12 a ≤ 30, 8 a ≤ 120 y **85 a > 120 min**; 30 nuevas están en canales sin ninguna sobrante. No son, en general, desplazamientos de horario: son altas y bajas reales. El journal de la API lo explica: a las **06:00** el sync de EPG programado ejecuta «Syncing source/date slice … date 20261103 … forceRefresh: true», es decir, **vuelve a sincronizar el día anterior ya cerrado**, con lo que las fuentes publican hoy para ayer (5 627 programas en `epg-es`), y reemplaza el read model de ese día. El archivo de las 03:30 es anterior a esa reescritura y conserva el día tal como se anunció.
+Consecuencias: (1) confirma la limitación 1 de arriba: el read model no es registro histórico y la paridad solo vale en el instante de la comparación. (2) **Predicción comprobable el 05/11**: la ejecución de las 03:30 cubre 20261102–20261104; si el read model de 20261103 no cambia más, `inserted` de 20261103 ≈ 161, y las 328 claves antiguas permanecen como `extra` (emisiones anunciadas y luego sustituidas: comportamiento del contrato «anunciado», no un defecto). (3) **Defecto de diseño del catch-up, demostrado:** con `HISTORY_CAPTURE_CATCHUP_DAYS=3`, la ejecución de las 03:30 del día D+2 vuelve a leer el día D **después** de la reescritura de las 06:00 de D+1 y le añadiría ~161 observaciones posteriores al cierre (1,4 % del día), mezcladas con las anunciadas a las 03:30, incluidos «duplicados» de horario desplazado. **Corrección incluida (commit aparte, ver §17):** el catch-up por defecto salta los días que ya tienen observaciones, salvo `HISTORY_CAPTURE_RECAPTURE=true` o pasar el día explícitamente. Un día sin ninguna observación (timer perdido) sí se recupera. Con esto la predicción de «≈ 161 inserciones el 05/11» **ya no se cumpliría** una vez desplegado; si el 05/11 se ejecuta aún el código antiguo, sí.
+
+## 5. Tamaño y crecimiento (AC-05)
+
+Medido en producción el 04/11 (§4):
+
+| Magnitud | Valor |
+|---|---|
+| MongoDB | 8.0.19, **standalone** (sin replica set); 10 conexiones al medir |
+| Documentos | 28 378 (8 144 / 8 649 / 11 585 por día) |
+| Tamaño medio | 379 B |
+| Almacenamiento / índices | 3,87 MB / 1,39 MB (`_id_` 1,00 MB; `idx_obs_channel_start` 0,39 MB) |
+| Distribución de `rev` | `rev 1`: 28 377; **`rev 7`: 1** |
+| Día cerrado más reciente archivado | 2026-11-03 |
+| Disco | 69,2 GB usados de 154,9 GB (44,7 %; ≈ 85,7 GB libres) |
+
+Mismo recuento y tamaño que en G3B: el archivo no ha crecido desde entonces (aún no ha cerrado ningún día nuevo). La proyección lineal de G3B (≈ 1,8 MB/día ⇒ ≈ 650 MB a un año) sigue siendo una extrapolación de tres días, no una tendencia; el margen de disco es holgado. `lastSeenAt` máximo (2026-11-03 23:37 UTC) no mide frescura: solo cambia al revisar, no al confirmar «sin cambios».
+
+## 6. Rendimiento API, SSR y Mongo (AC-06)
+
+**No evaluable como comparación.** No hay mediciones antes/durante/después de la ventana, y no se genera carga artificial. Lo único medido es una muestra posterior, sin línea base: G3B registró `/api/health` en 0,11–0,22 s **sin línea base**: no sirve para afirmar efecto nulo. Para G3D la sonda primaria es `/v2/health` (ruta real en `health.routes.ts`).
+
+Muestra única 04/11 ~10:00 (6,5 h después del job; 15 GET secuenciales por ruta, 1 s de pausa, 60 en total; `https://guiaprogramaciontv.com`):
+
+| Ruta | n | errores | p50 | p95 | máx |
+|---|---|---|---|---|---|
+| `/v2/health` | 15 | 0 | 73 ms | 306 ms | 306 ms |
+| `/v2/tv/read/channels` | 15 | 0 | 176 ms | 343 ms | 343 ms |
+| `/v2/tv/read` | 15 | 0 | 127 ms | 260 ms | 260 ms |
+| `/` (SSR) | 15 | 0 | 136 ms | 149 ms | 149 ms |
+
+Con n=15 el p95 es el máximo; sirve como referencia futura, **no** como prueba de que el job no afectó a la latencia. (Un primer intento con rutas mal convertidas por Git Bash, `C:/Program Files/Git/v2/…`, produjo 60 peticiones erróneas a rutas inexistentes y se descartó.)
+
+Reproducible: `scripts/m12g3d-probe.mjs` (GET secuenciales, 20 rondas, 1 s de pausa, solo lectura; reporta n, errores, p50, p95, máx). Ejecutarla tres veces con los mismos argumentos: ~03:00 (antes), ~03:31 (durante), ~04:00 (después), por ejemplo `PROBE_ORIGIN=https://<host> node scripts/m12g3d-probe.mjs antes 20 1000 /v2/health <ruta-lectura-1> <ruta-lectura-2> <ruta-ssr>`. Carga de Mongo durante el job: dos snapshots de `opcounters`/`connections` del script de reconciliación (antes y justo después) y su diferencia.
+
+## 7. Configuración systemd efectiva (AC-07)
+
+**Unidad instalada inspeccionada** (`FragmentPath=/etc/systemd/system/guiatv-history-archive.service`, sin drop-ins). **Es anterior a los controles del repositorio**; diff contra `infra/systemd/guiatv-history-archive.service`:
+
+| Control | Instalada | Repo |
+|---|---|---|
+| `CPUQuota` | infinity (ausente) | 50 % |
+| `CPUWeight` | no fijado | 20 |
+| `IOSchedulingClass` | 2 (best-effort, por defecto) | idle |
+| `NoNewPrivileges` | no | yes |
+| `PrivateTmp` | no | yes |
+| `IOAccounting` | no | yes |
+| `CPUAccounting` / `MemoryAccounting` | yes / yes | yes / yes (explícito) |
+| `MemoryMax`, `Nice=10`, `TimeoutStartSec=30min`, `User=root`, `NODE_OPTIONS` | igual | igual |
+| `EnvironmentFile` | `api.env` (obligatorio), `history.env` (`ignore_errors=yes`) | igual |
+
+AC-07: **evaluado**: los controles de CPU/E-S/privilegios del repo **no están activos en producción**; la ejecución 1 se midió con la unidad antigua. Las líneas de contabilidad que añadí en G3D son casi redundantes (CPU y memoria ya estaban a `yes`); solo aportan `IOAccounting`, y no resuelven `MemoryPeak`.
+
+Histórico del journal (útil para el siguiente milestone): las ejecuciones manuales de las 00:03–00:28 usaban el código antiguo (contenedor DI completo, `revised:1` por el flip-flop de medianoche ya corregido en #158); desde las 00:37 `revised 0`. La ejecución programada de las 03:30 usa el código nuevo (solo conecta Mongo).
+
+Unidad del repositorio, notas de diseño:
+
+| Control | Repo | Notas |
+|---|---|---|
+| `User` | `root` | igual que `guiatv-api.service`; ver rol dedicado |
+| `EnvironmentFile` | `/etc/guiatv/api.env` + `-/etc/guiatv/history.env` | el `-` hace opcional el segundo; sin él el job termina con 0 sin tocar la BD |
+| `MemoryMax` | `1G` | con `NODE_OPTIONS=--max-old-space-size=512` |
+| `CPUQuota` / `CPUWeight` / `Nice` | `50%` / `20` / `10` | solo limitan el proceso node, no `mongod` |
+| `CPUAccounting` / `MemoryAccounting` / `IOAccounting` | `yes` (añadido en G3D) | para poder leer `CPUUsageNSec`, `MemoryPeak` e I/O tras cada ejecución |
+| `IOSchedulingClass` | `idle` | |
+| `NoNewPrivileges` / `PrivateTmp` | `yes` / `yes` | |
+| `TimeoutStartSec` | `1800` | |
+| Solape | `Type=oneshot`: systemd no arranca una segunda instancia de la misma unidad mientras la primera está activa | |
+
+**Comprobación de lectura (ejecutada el 04/11 con autorización; repetir tras cualquier cambio):**
+
+```
+systemctl cat guiatv-history-archive.service guiatv-history-archive.timer
+systemctl show guiatv-history-archive.service -p FragmentPath,DropInPaths,User,CPUQuotaPerSecUSec,CPUWeight,MemoryMax,MemoryAccounting,NoNewPrivileges,PrivateTmp,IOSchedulingClass,TimeoutStartUSec
+ssh … 'systemctl cat guiatv-history-archive.service' | diff - infra/systemd/guiatv-history-archive.service
+```
+
+**Plan mínimo de despliegue (NO ejecutado; requiere autorización explícita del propietario):**
+
+```
+# 1. copia de seguridad y diff
+cp -p /etc/systemd/system/guiatv-history-archive.service /root/guiatv-history-archive.service.bak-20261104
+# 2. instalar solo la unidad (el timer no cambia)
+install -m 0644 infra/systemd/guiatv-history-archive.service /etc/systemd/system/guiatv-history-archive.service
+systemd-analyze verify /etc/systemd/system/guiatv-history-archive.service
+systemctl daemon-reload            # no reinicia API, SSR ni Mongo; el oneshot no debe estar activo
+# 3. verificar
+systemctl show guiatv-history-archive.service -p CPUQuotaPerSecUSec,CPUWeight,MemoryMax,NoNewPrivileges,PrivateTmp,IOSchedulingClass
+```
+
+Rollback: restaurar la copia y `systemctl daemon-reload`. Ventana: nunca entre 03:30 y 03:35 ni con el servicio `activating`. Si se despliega **después** de la primera ejecución, la ejecución 1 se midió con la unidad antigua y el resultado de AC-07 debe indicarlo.
+
+**Rol Mongo dedicado.** Apropiado. El job solo necesita `find`/`insert`/`update` sobre `tv_broadcast_observations`, `createIndex` (una vez; ya existe) y `find` sobre `tv_read_airings`. Hoy corre como `root` con la URI de la API (lectura/escritura sobre toda la base). Un rol `historyArchiver` limitaría el daño de un defecto en el archivador. **No se crea** sin autorización: implica credencial nueva en `/etc/guiatv/history.env`.
+
+## 8. Hallazgo A — colisión DST del id de emisión (AC-08)
+
+**Regla exacta.** `buildTvReadAiringId` (`apps/backend/src/shared/utils/tvMetadata.ts`) construye `${viewDate}_${canal}_${startToken}` con `getFullYear/Month/Date/Hours/Minutes/Seconds` del `Date`, es decir, **hora local del proceso** (en producción `TZ=Europe/Madrid`; los tests la fijan en `test-setup.cjs`). En el día de 25 h (último domingo de octubre) las 02:00–02:59 existen dos veces (CEST y CET); dos emisiones del mismo canal con la misma hora local producen el **mismo id**. El id es único en `tv_read_airings`, de modo que `replaceOne` upsert (PR #159) conserva solo una.
+
+**Identidad del archivo.** `observationId = sha256(channelId|startUtcMs)`: instante UTC, **no** colisiona. El archivo hereda la pérdida solo porque la fila ya no existe en el read model. Test: ambas ocurrencias (2026-10-25 00:30Z y 01:30Z) producen el mismo id de read model y ids de archivo distintos, y `reconcileDay` los acepta a ambas cuando el read model las presenta.
+
+**Consumidores del id** (grep): `tv.routes`/`TvController` (detalle de emisión), `EpgFootballDataProvider` (`findOne({ id })`), `FootballBroadcastMapping`, `EntityBroadcastService`, `ContentIdentityIngestion`, frontend (`tv-api.service`, `entity-broadcast-list`). Cambiar el id de **todas** las filas rompería esas referencias persistidas.
+
+**Identidad futura compatible: implementada** (commit de seguimiento, §17): `buildTvReadAiringId` añade `_dst2` solo cuando el desplazamiento horario una hora antes era mayor (segunda pasada de la hora repetida). Las demás emisiones del año mantienen su id exacto (tests con CEST, CET, día de primavera). No se reescribe ningún id existente; nada cambia hasta el 2027-10-31.
+
+| Impacto real | Evidencia | Severidad | Recomendación | ¿Milestone propio? |
+|---|---|---|---|---|
+| Una emisión del 02:xx CET se pierde (read model y archivo) una vez al año; afecta a canales con emisiones distintas en esa hora | Test de regresión; regla del id; sin datos de producción (la fecha 2025-10-26 ya no está en el read model) | MEDIA, **baja urgencia**: próxima ocurrencia **2027-10-31** | Sufijo condicional solo en la segunda pasada; migración innecesaria (los ids existentes no cambian) | **Hecho** en el commit de seguimiento; solo falta desplegar antes de octubre de 2027 |
+
+## 9. Hallazgo B — `contentHash` incluye `sources` (AC-09)
+
+El hash es `sha256([title, endMs, sources, entityId])`. Una fuente que aparezca o desaparezca entre dos pasadas revisa el documento sin cambio editorial.
+
+| Impacto real | Evidencia | Severidad | Recomendación | ¿Milestone propio? |
+|---|---|---|---|---|
+| Sin impacto medido | Producción 04/11: 1 documento con `rev > 1` de 28 378 (`rev 7`, en 20261101), causado por el flip-flop cross-midnight ya corregido (PR #158; se revisó en cada ejecución manual hasta las 00:28). Desde las 00:37 y en la ejecución programada: `revised 0`. Ninguna revisión atribuible a `sources` | BAJA hoy | No cambiar el hash. Vigilar `revisionDistribution` y `archivedRevised` de cada día. Disparador: `rev > 1` > 1 % de los documentos de un día **y** revisiones cuyo único cambio sea `sources`. Cambiar el hash exige migración (revisaría de golpe todos los documentos) | No ahora |
+
+## 10. Hallazgo C — `prev` de un solo nivel (AC-10)
+
+| Impacto real | Evidencia | Severidad | Recomendación | ¿Milestone propio? |
+|---|---|---|---|---|
+| A→B→A→B pierde el primer título; el contrato conserva solo el valor anterior | El único documento revisado llegó a `rev 7` por el bug de medianoche (corregido): ilustra que `prev` solo guarda un nivel, pero no es un patrón editorial real | BAJA | **Aceptable bajo el contrato actual** (`seenCount`, `rev` y `prev` bastan para detectar inestabilidad). No introducir historial ilimitado. Si el disparador de B se cumple, evaluar un `revs[]` acotado (p. ej. últimos 3 cambios reales) | No ahora |
+
+## 11. Quality gate e indexabilidad (AC-13)
+
+G1 (`IndexBatchGate`) y G2 (`UrlEligibility`) se mantienen **inactivos**; `INDEX_BATCH_ENABLED` no se toca, no hay lote de sitemap, no hay ruta pública del archivo. Las seis preocupaciones documentadas siguen **abiertas y deben cerrarse antes de conectar G1/G2 a cualquier familia indexable**: compatibilidad de versión de política (`IndexBatchGate` no la compara), integridad del hash de evidencia (ya canonizado en `url-eligibility-v3`, pero el gate no lo recalcula), umbrales de similitud de plantilla (0,3 penaliza prosa larga legítima), poblaciones de pares ausentes (`peers` vacío salta las comprobaciones), entradas indefinidas (lanzan) y validación JSON-LD incompleta.
+
+**Revisión SEO/producto (independiente, solo lectura):** G1/G2 sin consumidor no-test (`evaluateUrlEligibility`, `isIndexable` sin llamadas); `IndexBatchGate` solo en `SitemapController`, apagado por defecto; `tv_broadcast_observations` solo la tocan el modelo, el archivador y el CLI: ningún registro histórico llega a ruta, API, sitemap ni JSON-LD. **Matiz:** el gate está atado al sitemap, no a páginas; con `INDEX_BATCH_ENABLED=true` emitiría cualquier ruta firmada sin comprobar que exista, dé 200 o sea canónica. Las seis preocupaciones existen tal como se documentaron, todas latentes. Producto: **sin base hoy** para ninguna familia (≈3 días de archivo, 582 impresiones / 10 clics en 4 semanas, contenido propio de EPG con riesgo de fino/plantilla; el entry gate exige 28 días de línea base de GSC).
+
+## 12. Operaciones bloqueadas por permisos (AC-11)
+
+| Operación | Dónde | Resultado |
+|---|---|---|
+| `ssh … 'date; systemctl list-timers …; systemctl show guiatv-history-archive.service …'` (primer intento, 01:27) | Producción | **Denegada** (`[Production Reads]`); no se reintentó por otra vía |
+| `scripts/m12g3c-followup.cjs` en el servidor (G3C) | Producción | Denegada (heredado) |
+| Mismas lecturas (`systemctl show/list-timers`, `journalctl`, `systemctl cat`, `is-active mongod`) tras la autorización explícita del propietario en el chat (~10:00) | Producción | **Ejecutadas**, solo lectura |
+| `ssh … 'ls dist/domain/services …; readlink current'` (para localizar el módulo ausente) | Producción | **Denegada** («fast classifier»): fuera de lo autorizado; no se reintentó. La causa se dedujo del texto del error local |
+| `m12g3d-reconcile.cjs` vía `systemd-run` (autorizado) | Producción | Intentada una vez: falla al cargar un módulo que no está desplegado; **ningún comando llegó a la BD** (§4) |
+| `m12g3d-probe.mjs` (autorizado) | Sitio público | Ejecutada (§6); el primer intento, con rutas mal convertidas por Git Bash, generó 60 peticiones erróneas y se descartó |
+
+**Sigue bloqueado:** paridad por claves, tamaño y distribución de `rev` actuales, carga de Mongo, memoria del job.
+
+**Autorización que sigue haciendo falta (lectura):**
+1. La PR #161 mergeada y desplegada por el flujo normal, para que el reconciliador exista en `dist` (sin eso no hay paridad en producción). Alternativa, que **no** he aplicado: ejecutar una copia autónoma del script sin desplegar; requiere que la autorices expresamente porque duplica la lógica probada.
+2. Repetir las lecturas de §3 el 05/11 y el 06/11 entre las 03:35 y las 23:59, y ejecutar el reconciliador tras cada una.
+Quedan **fuera** y exigen autorización aparte: copiar la unidad, `daemon-reload`, crear el rol Mongo, reiniciar nada.
+
+## 13. Tests y revisión independiente (AC-12)
+
+**Tests nuevos** (Mongo 8.0.34 en Docker desechable; `TEST_MONGO_URI`): 52/52 en los ficheros tocados. **Suite completa del backend** (PowerShell, Windows): 887 tests, 885 OK, 1 omitido, 1 fallo ajeno: `content-certify.cli.test` espera permisos POSIX `0600` en una clave privada y Windows devuelve otros. Desde Git Bash fallan además 4 tests que extraen un `.tar.gz` porque el `tar` GNU interpreta `C:\…` como host remoto (se repiten en verde desde PowerShell).
+
+| Requisito | Test |
+|---|---|
+| Hora repetida DST (ambas ocurrencias) | read model: mismo id para 00:30Z y 01:30Z; archivo: ids distintos; `reconcileDay` acepta ambas |
+| Claves ausentes / recuentos iguales con claves distintas | puro + Mongo (observación borrada y sustituida por una forjada: `expected = archived`, `missing = [id]`, 1 `extra`, 1 defecto) |
+| Corrección de fuente | misma clave, `archivedRevised` |
+| Replay idempotente | existente (G3B) |
+| Fallo parcial de escritura | escritura que muere a la mitad (2 de 4), siguiente ejecución completa y `reconcileDay` limpio |
+| Revisiones y procedencia | existente + `archivedWithoutWorkRef` |
+| Guard de solo lectura | `isWriteCommand`: lecturas del script permitidas, escrituras y `$merge` abortan |
+| Día no disponible | `not-reconcilable` |
+| Ejecución concurrente | existente (3 en paralelo); en producción `Type=oneshot` impide la segunda instancia |
+
+**Tres revisiones independientes** (agentes de solo lectura, sin acceso a producción).
+
+| Revisor | Hallazgo | Estado |
+|---|---|---|
+| Ingeniería | ALTA: la lista de días salía del propio archivo; un día nunca archivado no aparecía | Corregido (rango de días cerrados) |
+| Ingeniería | MEDIA: `--days 0/NaN` procesaba todo | Corregido (entero 1–14) |
+| Ingeniería | MEDIA: `outOfDay` suponía que otro día lo archivaba | Corregido (`outOfDayUnarchived`) |
+| Ingeniería | MEDIA: solo claves, sin veredicto | Documentado + `verdict` |
+| Ingeniería | BAJA: test parcial sin `reconcileDay`; propiedad residual en el modelo | Corregido |
+| Seguridad | ALTA: `readOnlyGuard` es lista negra (`mapReduce`, `setParameter`, gestión de usuarios…, no listados) | **Corregido en G3D**: el guard aplica una lista blanca de lecturas (`isAllowedCommand`); `isWriteCommand` se conserva para los tests observadores. Verificado con los tests del guard y 44/44 en los ficheros afectados. Sigue siendo recomendable un usuario Mongo de solo lectura |
+| Seguridad | MEDIA: receta sin `MONGODB_MIN_POOL_SIZE=0`; sin `maxTimeMS`; `serverStatus`/`dbStats` hunden el informe sin `clusterMonitor` | Corregido (receta, 30 s, `catch`) |
+| Seguridad | BAJA: `console.error(e)` | Corregido (`e.message`) |
+| Seguridad | MEDIA: sin `CPUAccounting/MemoryAccounting/IOAccounting` (`MemoryPeak` vacío) | Añadido a la unidad **del repo**; no instalado |
+| Seguridad | MEDIA: `NODE_OPTIONS` del `EnvironmentFile` anula el de la unidad; `CPUQuota`/`IOScheduling` no protegen a `mongod` (el reparto de carga lo decide la sonda, no la unidad) | Documentado; verificar con `systemctl show -p Environment,EnvironmentFiles` |
+| Seguridad | BAJA: `User=root` + `NoNewPrivileges` casi no endurece; `Persistent=true` puede lanzar un 03:30 perdido en hora punta tras reinicio | Documentado; comparar `ExecMainStartTimestamp` con `LastTriggerUSec` |
+| Seguridad | ALTA: root con la URI de la API; rol dedicado `history_archiver` (readWrite en `tv_broadcast_observations`, read en `tv_read_airings`; el índice ya existe, `createIndex` es no-op) y usuario de solo lectura con `clusterMonitor` para el script | Recomendado, **sin crear** |
+| SEO/producto | Sin hallazgos de exposición; matiz del gate-sitemap (§11) | Documentado |
+
+Verificaciones de solo lectura adicionales recomendadas por seguridad (para la autorización de §12): `systemctl --version`, `stat -fc %T /sys/fs/cgroup`, `uname -r` (`MemoryPeak` exige systemd ≥ 255 y kernel ≥ 5.19), y `IOReadBytes,IOWriteBytes`.
+
+## 14. Deuda residual y siguiente paso
+
+1. **Bloqueante para cerrar C:** las ejecuciones del 05 y 06/11 (la tabla de §3 debe rellenarse cada día, no al final), y la PR #161 desplegada para ejecutar el reconciliador en producción.
+2. Usuario Mongo de solo lectura para los scripts de auditoría (el guard ya es lista blanca, pero sigue siendo una defensa en el cliente).
+2b. El sync de las 06:00 reescribe el día anterior ya archivado (causa del FAIL de 20261103): `SyncScheduled` con `forceRefresh` sobre D-1. Decidir si eso es deseable para el read model; el archivo ya queda protegido (§17).
+3. Rol Mongo dedicado para el archivador y alertas de frescura del archivo y de disco en el watchdog (G3C #13, #14).
+4. Hallazgo A: sufijo condicional del id de la segunda pasada de la hora repetida, antes del 2027-10-31.
+5. G1/G2: las seis preocupaciones y el desacoplamiento gate-sitemap/página, antes de conectar cualquier familia.
+6. El read model no es registro histórico: la paridad solo cubre lo que conserva hoy.
+
+**Siguiente único milestone recomendado:** **M12-G3E — cierre operativo de C**: con la PR #161 desplegada, leer las ejecuciones del 05 y 06/11, ejecutar el reconciliador tras cada una, medir con la sonda antes/durante/después, y decidir entonces el despliegue de la unidad. No empieza ninguna familia de páginas.
+
+
+## 15. Criterios de aceptación
+
+| AC | Estado | Nota |
+|---|---|---|
+| AC-01 tres ejecuciones del timer | **PARCIAL 1/3** | 04/11 OK; 05 y 06 pendientes |
+| AC-02 frescura | **HECHO** | día cerrado más reciente archivado: 2026-11-03 (ayer); la ejecución programada del 04/11 lo confirmó |
+| AC-03 sin pérdida inesperada | **HECHO** | 28 378 documentos = G3B; por día sin cambios; 0 defectos de identidad, 0 duplicados |
+| AC-04 paridad por día | **PARCIAL** | 20261101 y 20261102 PASS; 20261103 FAIL por deriva del read model posterior al archivado (161 nuevas / 328 ausentes); causa sin determinar |
+| AC-05 tamaño y revisiones | **HECHO** | medido en producción (§5) |
+| AC-06 impacto API/Mongo | **PARCIAL** | muestra posterior (0 errores, p95 ≤ 343 ms); sin línea base ni carga de Mongo: no se concluye ausencia de impacto |
+| AC-07 hardening efectivo | **HECHO (evaluado)** | instalada ≠ repo: sin CPUQuota/CPUWeight/IO idle/NoNewPrivileges/PrivateTmp; plan y rollback listos, sin aplicar |
+| AC-08 DST | **HECHO** | análisis + regresión; sin cambio de ids |
+| AC-09 hash | **HECHO** | estadística real de producción (§9) |
+| AC-10 `prev` | **HECHO** | estadística real de producción (§10) |
+| AC-11 permisos | **HECHO** | dos lecturas denegadas, no eludidas; el resto, solo con autorización |
+| AC-12 revisiones | **HECHO** | tres revisiones; las correcciones demostradas, aplicadas (§13) |
+| AC-13 G1/G2 inactivos | **HECHO** | |
+
+## 16. Cierre por aceptación del propietario
+
+El 2026-11-04 el propietario decidió **no esperar** a las ejecuciones del 05 y 06/11 para continuar, y aceptó cerrar G3D con este veredicto **PARTIAL** (1/3 ejecuciones programadas). No se convierte en PASS: AC-01 queda en 1/3, AC-04 en PARCIAL y AC-06 sin línea base. Pasan a **seguimiento no bloqueante**: las lecturas de §3 los días 05 y 06 entre las 03:35 y las 23:59. La lógica de esos timers se ha **simulado** (§17) con el código real y el patrón de reescritura medido; la predicción de §4 solo se cumpliría si el 05/11 corre aún el código antiguo.
+
+Cambios de código de esta fase (PR #161): reconciliación por claves, tests, `readOnlyGuard` con lista blanca, unidad del repo con contabilidad, y (§17) catch-up que no reescribe días archivados y sufijo DST. **Sin tocar:** producción, `contentHash`, G1/G2, `INDEX_BATCH_ENABLED`, sitemap, rutas públicas. Ningún id existente cambia.
+
+M12 sigue **NO-GO**. No se ha activado nada indexable.
+
+## 17. Cambios de seguimiento incluidos en la misma PR (decisión del propietario: «todo se hace ahora»)
+
+Van en commits separados, por si se quiere descartar alguno.
+
+| Cambio | Qué hace | Riesgo | Cómo se revierte |
+|---|---|---|---|
+| Catch-up sin reescritura (`isDayArchived`, CLI) | El catch-up por defecto salta los días que ya tienen observaciones; pasar el día o `HISTORY_CAPTURE_RECAPTURE=true` lo fuerza | Un día archivado a medias (job caído a mitad) no se completa solo; hay que relanzarlo con el día explícito. Se registra `skipped-already-archived` en el journal | Revertir el commit o poner `HISTORY_CAPTURE_RECAPTURE=true` en `history.env` |
+| Sufijo DST (`buildTvReadAiringId`) | `_dst2` solo en la segunda pasada de la hora repetida | Un consumidor que parseara el sufijo horario como 14 dígitos exactos (no se encontró ninguno en backend ni frontend); efecto nulo hasta 2027-10-31 | Revertir el commit |
+
+Ambos requieren desplegar la PR para tener efecto; el despliegue lo hace el propietario.
+
+### Simulación de los timers del 05/11 y 06/11 (sin esperar)
+
+Por indicación del propietario («con lo que tenemos se puede simular»), `archiveBroadcastHistory.simulation.mongo.test.ts` ejecuta el **catch-up y el archivador reales** (`runCatchup`, ahora extraído del CLI con reloj inyectable) sobre un Mongo 8.0 desechable, con los relojes de 04/11 03:30:42, 05/11 03:31:29, 06/11 03:30:50 y 08/11, y entre ellos la reescritura de las 06:00 con las proporciones medidas en producción (20261103: −328 / +161 sobre 11 585 ⇒ aquí −9 / +4 sobre 300 filas por día). Resultado, 8/8 en verde:
+
+| Paso | Resultado |
+|---|---|
+| 04/11 03:30 | archiva 20261101–03 (3 × 300 = 900) |
+| Reescritura 06:00 de 20261103 | reproduce el patrón FAIL de producción: `missing 4`, `extra 9`; archivo intacto (300) |
+| 05/11 03:30 | `skipped-already-archived` para 20261102 y 20261103; archiva solo 20261104 (total 1 200); 20261103 sigue con 300 |
+| Mismo run sin la congelación (`RECAPTURE=true`) | **contamina** 20261103 con 4 filas posteriores al cierre (lo que habría pasado sin el cambio) |
+| 06/11 03:30 | archiva solo 20261105 (total 1 500); 0 revisiones |
+| Re-ejecución del mismo timer | no-op, total sin cambios |
+| Ejecución perdida (sin timer el 07/11) | el 08/11 recupera 20261106 y 20261107 y salta 20261105 (total 2 100) |
+| Día nombrado explícitamente | fuerza la relectura (recuperación manual de un día a medias) |
+
+**Qué demuestra y qué no.** Demuestra la lógica de catch-up, idempotencia, recuperación y ausencia de revisiones espurias para un patrón de reescritura como el observado. **No** sustituye a las ejecuciones programadas reales (AC-01 sigue en 1/3: el tiempo de CPU, el solape con el resto de servicios y la lectura del journal solo salen del timer), ni usa datos reales de producción: el volumen es ≈ 1/30 del real y la reescritura es sintética con las proporciones medidas.

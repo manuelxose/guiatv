@@ -2,7 +2,7 @@
  * Read-only enforcement for audit commands (2D-2D; the 2D-2C shadow run used the same guard as a
  * `/tmp` preload). Call before connecting. It turns off mongoose's automatic collection and index
  * creation (`TVReadAiring` and `Program` keep the defaults) and inspects every command the driver
- * starts: a write, DDL or `$out`/`$merge` pipeline ends the process with code 97 before the
+ * starts: anything not on the read allowlist, or a `$out`/`$merge` pipeline, ends the process with code 97 before the
  * command is sent. `summary()` tallies the commands by name and collection.
  */
 import fs from 'node:fs';
@@ -19,6 +19,17 @@ const WRITE_COMMANDS = new Set([
 export function isWriteCommand(name: string, command: Record<string, unknown>): boolean {
   const pipeline = JSON.stringify(command.pipeline ?? []);
   return WRITE_COMMANDS.has(name) || pipeline.includes('"$out"') || pipeline.includes('"$merge"');
+}
+
+/** Enforcement is an allowlist: a command nobody listed (mapReduce, setParameter, user/role management, ...) aborts instead of passing. */
+const READ_COMMANDS = new Set([
+  'find', 'aggregate', 'getMore', 'count', 'distinct', 'explain', 'killCursors', 'endSessions', 'ping',
+  'collStats', 'dbStats', 'serverStatus', 'buildInfo', 'hello', 'isMaster', 'ismaster', 'hostInfo',
+  'listCollections', 'listIndexes', 'listDatabases', 'connectionStatus', 'saslStart', 'saslContinue',
+]);
+
+export function isAllowedCommand(name: string, command: Record<string, unknown>): boolean {
+  return READ_COMMANDS.has(name) && !isWriteCommand(name, command);
 }
 
 let installed: { total: number; counts: Record<string, number> } | null = null;
@@ -38,7 +49,7 @@ export function installReadOnlyGuard(): { summary: () => { total: number; counts
       this.on('commandStarted', (event: { commandName: string; command: Record<string, unknown> }) => {
         const target = event.command[event.commandName];
         const collection = typeof target === 'string' ? target : '';
-        if (isWriteCommand(event.commandName, event.command)) {
+        if (!isAllowedCommand(event.commandName, event.command)) {
           fs.writeSync(2, `READ_ONLY_GUARD abort: ${event.commandName} ${collection}\n`);
           process.exit(READ_ONLY_VIOLATION_EXIT);
         }
