@@ -26,6 +26,7 @@ import { TVReadAiringModel } from '@/infrastructure/database/models/TVReadAiring
 import { buildDetailPath, slugify, slugifyTitle } from '@/domain/services/detailPath';
 import { cohortApplies } from './ProgrammeSeoPolicy';
 import { QUALITY_THRESHOLDS } from './PublicationQuality';
+import { timeStep, timeStepSync } from '@/shared/utils/stepTimeline';
 import { slugLookupKey } from './VerifiedWorkLinks';
 
 export type WorkDisposition = 'indexable' | 'airing' | 'thin' | 'ambiguous' | 'variant';
@@ -144,13 +145,22 @@ export async function indexableWorkPaths(env: NodeJS.ProcessEnv = process.env): 
 /** The works behind `indexableWorkPaths`, one per path, sorted by path. Throws on a database failure. */
 export async function indexableWorks(env: NodeJS.ProcessEnv = process.env): Promise<IndexableWork[]> {
   if (!['on', 'canary'].includes(env.WORK_SEO_POLICY ?? '')) return [];
+  // M13-B1: the two reads run in parallel and are timed apart; the selection below is synchronous CPU.
   const [rows, aired] = await Promise.all([
-    MediaCatalogModel.find({ tmdbId: { $type: 'number' } }).select({ ...ROW_FIELDS, rating: 1 }).lean<Array<WorkRow & { rating?: number }>>().exec(),
-    TVReadAiringModel.aggregate<{ _id: { id: number; c: string } }>([
+    timeStep('related_works.read_media_rows', () => MediaCatalogModel.find({ tmdbId: { $type: 'number' } }).select({ ...ROW_FIELDS, rating: 1 }).lean<Array<WorkRow & { rating?: number }>>().exec()),
+    timeStep('related_works.read_airings', () => TVReadAiringModel.aggregate<{ _id: { id: number; c: string } }>([
       { $match: { 'program.tmdbId': { $type: 'number' }, 'program.editorialCategory': { $in: Object.values(CATEGORY) } } },
       { $group: { _id: { id: '$program.tmdbId', c: '$program.editorialCategory' } } },
-    ]).allowDiskUse(true).exec(),
+    ]).allowDiskUse(true).exec()),
   ]);
+  return timeStepSync('related_works.select_works', () => selectIndexableWorks(rows, aired, env));
+}
+
+function selectIndexableWorks(
+  rows: Array<WorkRow & { rating?: number }>,
+  aired: Array<{ _id: { id: number; c: string } }>,
+  env: NodeJS.ProcessEnv
+): IndexableWork[] {
   const airedKeys = new Set(aired.map((a) => `${a._id.c === 'Cine' ? 'movie' : 'tv'}:${a._id.id}`));
   const byKey = new Map<string, WorkRow[]>();
   for (const r of rows) (byKey.get(r.normalizedTitle ?? '') ?? byKey.set(r.normalizedTitle ?? '', []).get(r.normalizedTitle ?? '')!).push(r);

@@ -1,0 +1,18 @@
+{
+ "tickMicrosPerCall": {
+  "median": 2.11,
+  "runs": [
+   2.37,
+   2.18,
+   2.13,
+   2.11,
+   2.11,
+   2.09,
+   2.11
+  ]
+ },
+ "recorderTwoSpansAndReportMicros": {
+  "median": 0.36
+ },
+ "ticksPerSecondInProduction": 10
+}

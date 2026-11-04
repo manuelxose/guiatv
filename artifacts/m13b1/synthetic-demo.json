@@ -1,0 +1,354 @@
+{
+ "note": "Synthetic. Graph builds are real CPU on this machine; catalogue latencies are stubbed sleeps.",
+ "node": "v24.18.0",
+ "graphBuilds": [
+  {
+   "works": 2000,
+   "wallMs": 223.2
+  },
+  {
+   "works": 10000,
+   "wallMs": 352.5
+  },
+  {
+   "works": 40000,
+   "wallMs": 1012.4
+  }
+ ],
+ "stalls": {
+  "count": 2,
+  "totalMs": 983,
+  "suppressedLogs": 0,
+  "worst": {
+   "at": "2026-11-04T12:31:57.294Z",
+   "uptimeMs": 2316,
+   "durationMs": 830.3,
+   "cpuMs": 906,
+   "cpuRatio": 0.97,
+   "involuntaryCtxSwitches": 0,
+   "voluntaryCtxSwitches": 0,
+   "majorPageFaults": 65573,
+   "rssMb": 200,
+   "steps": [
+    {
+     "step": "related_works.build_graph",
+     "sync": true,
+     "running": false
+    }
+   ]
+  },
+  "recent": [
+   {
+    "at": "2026-11-04T12:31:56.261Z",
+    "uptimeMs": 1282,
+    "durationMs": 152.7,
+    "cpuMs": 250,
+    "cpuRatio": 0.99,
+    "involuntaryCtxSwitches": 0,
+    "voluntaryCtxSwitches": 0,
+    "majorPageFaults": 20566,
+    "rssMb": 116,
+    "steps": [
+     {
+      "step": "related_works.build_graph",
+      "sync": true,
+      "running": false
+     }
+    ]
+   },
+   {
+    "at": "2026-11-04T12:31:57.294Z",
+    "uptimeMs": 2316,
+    "durationMs": 830.3,
+    "cpuMs": 906,
+    "cpuRatio": 0.97,
+    "involuntaryCtxSwitches": 0,
+    "voluntaryCtxSwitches": 0,
+    "majorPageFaults": 65573,
+    "rssMb": 200,
+    "steps": [
+     {
+      "step": "related_works.build_graph",
+      "sync": true,
+      "running": false
+     }
+    ]
+   }
+  ]
+ },
+ "startupAndBackgroundSteps": {
+  "startup": [
+   {
+    "step": "related_works.load",
+    "startMs": 883.8,
+    "durationMs": 0.1,
+    "cpuMs": 0,
+    "sync": false,
+    "ok": true
+   },
+   {
+    "step": "related_works.build_graph",
+    "startMs": 884.8,
+    "durationMs": 39.1,
+    "cpuMs": 78,
+    "sync": true,
+    "ok": true
+   },
+   {
+    "step": "related_works.load",
+    "startMs": 1111.3,
+    "durationMs": 0,
+    "cpuMs": 0,
+    "sync": false,
+    "ok": true
+   },
+   {
+    "step": "related_works.build_graph",
+    "startMs": 1111.5,
+    "durationMs": 169,
+    "cpuMs": 250,
+    "sync": true,
+    "ok": true
+   },
+   {
+    "step": "related_works.load",
+    "startMs": 1479.3,
+    "durationMs": 0.1,
+    "cpuMs": 0,
+    "sync": false,
+    "ok": true
+   },
+   {
+    "step": "related_works.build_graph",
+    "startMs": 1479.5,
+    "durationMs": 835.7,
+    "cpuMs": 890,
+    "sync": true,
+    "ok": true
+   }
+  ],
+  "recent": [],
+  "running": [],
+  "droppedStartup": 0
+ },
+ "catalogueServerTiming": "cat_cache_lookup;dur=0.1, cat_parallel;dur=1276.4, cat_channels;dur=0.4, cat_preferences;dur=0.4, cat_streaming;dur=1276.2, cat_tmdb_discover;dur=700.3, cat_providers;dur=575.6;desc=\"n=24 sum=8022.4\", cat_transform;dur=9.0, cat_workpaths;dur=0.2, cat_interactions;dur=0.0, cat_response_build;dur=0.1, cat_cache_set;dur=0.0, cat_total;dur=1286.7, total;dur=1287.5",
+ "catalogue": {
+  "queries": {
+   "l1_hit": 0,
+   "cache_hit": 0,
+   "miss": 1,
+   "error": 0
+  },
+  "totalMs": {
+   "l1_hit": {
+    "count": 0,
+    "p50": 0,
+    "p95": 0,
+    "max": 0
+   },
+   "cache_hit": {
+    "count": 0,
+    "p50": 0,
+    "p95": 0,
+    "max": 0
+   },
+   "miss": {
+    "count": 1,
+    "p50": 1286.72,
+    "p95": 1286.72,
+    "max": 1286.7
+   },
+   "error": {
+    "count": 0,
+    "p50": 0,
+    "p95": 0,
+    "max": 0
+   }
+  },
+  "missPhasesWallMs": {
+   "cache_lookup": {
+    "count": 1,
+    "p50": 0.1,
+    "p95": 0.1,
+    "max": 0.1,
+    "maxSpanMs": 0.1
+   },
+   "parallel": {
+    "count": 1,
+    "p50": 1276.4,
+    "p95": 1276.4,
+    "max": 1276.4,
+    "maxSpanMs": 1276.4
+   },
+   "channels": {
+    "count": 1,
+    "p50": 0.4,
+    "p95": 0.4,
+    "max": 0.4,
+    "maxSpanMs": 0.4
+   },
+   "preferences": {
+    "count": 1,
+    "p50": 0.4,
+    "p95": 0.4,
+    "max": 0.4,
+    "maxSpanMs": 0.4
+   },
+   "streaming": {
+    "count": 1,
+    "p50": 1276.2,
+    "p95": 1276.2,
+    "max": 1276.2,
+    "maxSpanMs": 1276.2
+   },
+   "tmdb_discover": {
+    "count": 1,
+    "p50": 700.3,
+    "p95": 700.3,
+    "max": 700.3,
+    "maxSpanMs": 700.3
+   },
+   "providers": {
+    "count": 1,
+    "p50": 575.6,
+    "p95": 575.6,
+    "max": 575.6,
+    "maxSpanMs": 575.4
+   },
+   "transform": {
+    "count": 1,
+    "p50": 9,
+    "p95": 9,
+    "max": 9,
+    "maxSpanMs": 9
+   },
+   "workpaths": {
+    "count": 1,
+    "p50": 0.2,
+    "p95": 0.2,
+    "max": 0.2,
+    "maxSpanMs": 0.2
+   },
+   "interactions": {
+    "count": 1,
+    "p50": 0,
+    "p95": 0,
+    "max": 0,
+    "maxSpanMs": 0
+   },
+   "response_build": {
+    "count": 1,
+    "p50": 0.1,
+    "p95": 0.1,
+    "max": 0.1,
+    "maxSpanMs": 0.1
+   },
+   "cache_set": {
+    "count": 1,
+    "p50": 0,
+    "p95": 0,
+    "max": 0,
+    "maxSpanMs": 0
+   }
+  },
+  "slow": [
+   {
+    "at": "2026-11-04T12:31:58.758Z",
+    "uptimeMs": 3779,
+    "outcome": "miss",
+    "totalMs": 1286.7,
+    "phases": {
+     "cache_lookup": {
+      "count": 1,
+      "wallMs": 0.1,
+      "sumMs": 0.1,
+      "maxMs": 0.1
+     },
+     "parallel": {
+      "count": 1,
+      "wallMs": 1276.4,
+      "sumMs": 1276.4,
+      "maxMs": 1276.4
+     },
+     "channels": {
+      "count": 1,
+      "wallMs": 0.4,
+      "sumMs": 0.4,
+      "maxMs": 0.4
+     },
+     "preferences": {
+      "count": 1,
+      "wallMs": 0.4,
+      "sumMs": 0.4,
+      "maxMs": 0.4
+     },
+     "streaming": {
+      "count": 1,
+      "wallMs": 1276.2,
+      "sumMs": 1276.2,
+      "maxMs": 1276.2
+     },
+     "tmdb_discover": {
+      "count": 1,
+      "wallMs": 700.3,
+      "sumMs": 700.3,
+      "maxMs": 700.3
+     },
+     "providers": {
+      "count": 24,
+      "wallMs": 575.6,
+      "sumMs": 8022.4,
+      "maxMs": 575.4
+     },
+     "transform": {
+      "count": 1,
+      "wallMs": 9,
+      "sumMs": 9,
+      "maxMs": 9
+     },
+     "workpaths": {
+      "count": 1,
+      "wallMs": 0.2,
+      "sumMs": 0.2,
+      "maxMs": 0.2
+     },
+     "interactions": {
+      "count": 1,
+      "wallMs": 0,
+      "sumMs": 0,
+      "maxMs": 0
+     },
+     "response_build": {
+      "count": 1,
+      "wallMs": 0.1,
+      "sumMs": 0.1,
+      "maxMs": 0.1
+     },
+     "cache_set": {
+      "count": 1,
+      "wallMs": 0,
+      "sumMs": 0,
+      "maxMs": 0
+     }
+    },
+    "shape": {
+     "types": "movie",
+     "availability": "streaming",
+     "sort": "popular",
+     "page": 1,
+     "limit": 24,
+     "platforms": 0,
+     "genres": 0,
+     "hasQuery": false,
+     "authenticated": false
+    }
+   }
+  ],
+  "suppressedLogs": 0
+ },
+ "cumulativeEventLoopLagMs": {
+  "mean": 43.44,
+  "p95": 32.95,
+  "max": 852.49
+ }
+}

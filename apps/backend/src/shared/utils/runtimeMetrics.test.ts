@@ -86,3 +86,25 @@ test('runtimeMetricsSnapshot tracks mongo/provider request counts and a distinct
   assert.equal(after.provider.requestCount, providerBefore + 1);
   assert.ok(after.epg.latencyMs.count >= 1);
 });
+
+test('M13-B1: existing snapshot keys keep their shape; diagnostics are purely additive', () => {
+  const snapshot = runtimeMetricsSnapshot() as any;
+  for (const key of ['requests', 'mongo', 'provider', 'epg', 'routes', 'cache', 'process']) {
+    assert.ok(key in snapshot, `missing ${key}`);
+  }
+  assert.deepEqual(Object.keys(snapshot.process.eventLoopLagMs).sort(), ['max', 'mean', 'p95']);
+  for (const key of ['uptimeSeconds', 'rssBytes', 'heapUsedBytes', 'heapTotalBytes']) assert.equal(typeof snapshot.process[key], 'number');
+  assert.deepEqual(Object.keys(snapshot.requests.latencyMs).sort(), ['count', 'p50', 'p95', 'p99']);
+  const diagnostics = snapshot.diagnostics;
+  assert.ok(diagnostics.eventLoop && diagnostics.steps && diagnostics.catalogue && diagnostics.cpu && diagnostics.host);
+  assert.doesNotThrow(() => JSON.stringify(snapshot));
+});
+
+test('M13-B1: a new timing phase does not leak into the mongo/provider/epg buckets', () => {
+  const before = runtimeMetricsSnapshot() as any;
+  recordRequestMetric({ durationMs: 10, statusCode: 200, timings: { cat_providers: 900, cat_total: 950 } });
+  const after = runtimeMetricsSnapshot() as any;
+  assert.equal(after.mongo.requestCount, before.mongo.requestCount);
+  assert.equal(after.provider.requestCount, before.provider.requestCount);
+  assert.equal(after.epg.latencyMs.count, before.epg.latencyMs.count);
+});

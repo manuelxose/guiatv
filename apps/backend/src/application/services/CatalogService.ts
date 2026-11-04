@@ -51,7 +51,10 @@ import { TvReadItemDTO, TvReadView } from '../dto/TvReadDTO';
 import { TvReadQueryService, isConsumerVisibleTvReadItem } from './TvReadQueryService';
 import { TVReadAiringModel } from '@/infrastructure/database/models/TVReadAiring.model';
 import { MediaCatalogService } from './MediaCatalogService';
-import { measureTiming } from '@/shared/utils/performanceTiming';
+import { addPhaseReport, measureTiming } from '@/shared/utils/performanceTiming';
+import { PhaseRecorder } from '@/shared/utils/phaseTimer';
+import { catalogueShape, recordCatalogueQuery, type CatalogueOutcome } from '@/shared/utils/catalogueDiagnostics';
+import { performance } from 'node:perf_hooks';
 import { logger } from '@/shared/utils/logger';
 import { titleIdentityKey } from '@/domain/services/contentIdentity';
 import { airingDetailSlug, buildDetailPath, episodeWorkTitle, inferContentType, normalizeToken, programDetailPath, slugify, slugifyTitle } from '@/domain/services/detailPath';
@@ -185,56 +188,97 @@ export class CatalogService {
     return CATALOG_PLATFORM_REGISTRY;
   }
 
+  /**
+   * M13-B1: the original body is `runQuery`, unchanged apart from the phase spans. Phases (`cache_lookup`, `parallel` =
+   * the Promise.all below, its legs `channels` / `preferences` / `programme` (`tvread` inside it) / `streaming`
+   * (`tmdb_discover` and `providers` inside it), `transform`, `workpaths`, `interactions`, `cache_set`) are wall-clock
+   * unions: parallel legs overlap and do not add up to `total`. Reported to `Server-Timing` as `cat_*`, to the logs and to
+   * `/v2/health/metrics`; a diagnostics failure never changes the result.
+   */
   async query(params: CatalogQueryParams): Promise<CatalogQueryResultDTO> {
+    const recorder = new PhaseRecorder();
+    const startedAt = performance.now();
+    let outcome: CatalogueOutcome = 'error';
+    let resolvedQuery: Required<CatalogQueryParams> | undefined;
+    try {
+      return await this.runQuery(params, recorder, (resolvedOutcome, normalized) => {
+        outcome = resolvedOutcome;
+        resolvedQuery = normalized;
+      });
+    } catch (error) {
+      outcome = 'error';
+      throw error;
+    } finally {
+      try {
+        const phases = recorder.report();
+        const totalMs = performance.now() - startedAt;
+        addPhaseReport('cat_', { ...phases, total: { count: 1, wallMs: Math.round(totalMs * 10) / 10, sumMs: totalMs, maxMs: totalMs } });
+        recordCatalogueQuery({ outcome, totalMs, phases, shape: catalogueShape(resolvedQuery ?? {}) });
+      } catch {
+        // Diagnostics must not change the outcome of the query.
+      }
+    }
+  }
+
+  private async runQuery(
+    params: CatalogQueryParams,
+    recorder: PhaseRecorder,
+    resolved: (outcome: CatalogueOutcome, normalized: Required<CatalogQueryParams>) => void
+  ): Promise<CatalogQueryResultDTO> {
     const normalized = this.normalizeQuery(params);
     const hotCacheKey = this.buildHotCatalogCacheKey(normalized);
     if (hotCacheKey) {
       const hotCached = l1Cache.get(hotCacheKey) as CatalogQueryResultDTO | undefined;
       if (hotCached) {
+        resolved('l1_hit', normalized);
         return hotCached;
       }
     }
     const cacheKey = `catalog:query:v2:${JSON.stringify(normalized)}`;
-    const cached = await this.cacheRepository.get<CatalogQueryResultDTO>(cacheKey);
+    const cached = await recorder.span('cache_lookup', () => this.cacheRepository.get<CatalogQueryResultDTO>(cacheKey));
     if (cached) {
       if (hotCacheKey) {
         l1Cache.set(hotCacheKey, cached, this.hotCacheTtlMs);
       }
+      resolved('cache_hit', normalized);
       return cached;
     }
+    resolved('miss', normalized);
 
-    const [channelMap, preferences, programItems, streamingItems] = await Promise.all([
-      this.loadChannelMap(),
-      this.loadPreferences(normalized.userId),
-      normalized.types.includes('program') ? this.loadProgramItems(normalized) : Promise.resolve([]),
-      this.loadStreamingItems(normalized),
-    ]);
+    const [channelMap, preferences, programItems, streamingItems] = await recorder.span('parallel', () => Promise.all([
+      recorder.span('channels', () => this.loadChannelMap()),
+      recorder.span('preferences', () => this.loadPreferences(normalized.userId)),
+      normalized.types.includes('program')
+        ? recorder.span('programme', () => this.loadProgramItems(normalized, recorder))
+        : Promise.resolve([]),
+      recorder.span('streaming', () => this.loadStreamingItems(normalized, recorder)),
+    ]));
 
-    const merged = this.mergeItems(
-      [...programItems, ...streamingItems],
-      channelMap
-    );
-    const scored = merged
-      .map((item) => ({
-        item,
-        score: this.computeScore(item, normalized.sort, preferences),
-      }))
-      .sort((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title, 'es'))
-      .map((entry) => entry.item)
-      .filter((item) => this.matchesAvailability(item, normalized.availability))
-      .filter((item) => this.matchesPlatforms(item, normalized.platforms))
-      .filter((item) => this.matchesGenres(item, normalized.genres))
-      .filter((item) => this.matchesSeenFilter(item, normalized.sort, preferences));
-
-    const total = scored.length;
-    const startIndex = (normalized.page - 1) * normalized.limit;
-    const paged = await this.markUnresolvedWorkPaths(scored.slice(startIndex, startIndex + normalized.limit));
-    const withInteractions = await this.attachUserInteractions(
+    const { scored, total, startIndex } = recorder.sync('transform', () => {
+      const merged = this.mergeItems(
+        [...programItems, ...streamingItems],
+        channelMap
+      );
+      const sorted = merged
+        .map((item) => ({
+          item,
+          score: this.computeScore(item, normalized.sort, preferences),
+        }))
+        .sort((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title, 'es'))
+        .map((entry) => entry.item)
+        .filter((item) => this.matchesAvailability(item, normalized.availability))
+        .filter((item) => this.matchesPlatforms(item, normalized.platforms))
+        .filter((item) => this.matchesGenres(item, normalized.genres))
+        .filter((item) => this.matchesSeenFilter(item, normalized.sort, preferences));
+      return { scored: sorted, total: sorted.length, startIndex: (normalized.page - 1) * normalized.limit };
+    });
+    const paged = await recorder.span('workpaths', () => this.markUnresolvedWorkPaths(scored.slice(startIndex, startIndex + normalized.limit)));
+    const withInteractions = await recorder.span('interactions', () => this.attachUserInteractions(
       paged,
       normalized.userId
-    );
+    ));
 
-    const response: CatalogQueryResultDTO = {
+    const response: CatalogQueryResultDTO = recorder.sync('response_build', () => ({
       items: withInteractions,
       meta: {
         page: normalized.page,
@@ -250,9 +294,9 @@ export class CatalogService {
         .filter(Boolean)
         .sort((a, b) => a.localeCompare(b, 'es')),
       availablePlatforms: this.getPlatforms(),
-    };
+    }));
 
-    await this.cacheRepository.set(cacheKey, response, this.ttlSeconds);
+    await recorder.span('cache_set', () => this.cacheRepository.set(cacheKey, response, this.ttlSeconds));
     if (hotCacheKey) {
       l1Cache.set(hotCacheKey, response, this.hotCacheTtlMs);
     }
@@ -703,7 +747,8 @@ export class CatalogService {
   }
 
   private async loadProgramItems(
-    query: Required<CatalogQueryParams>
+    query: Required<CatalogQueryParams>,
+    recorder?: PhaseRecorder
   ): Promise<CatalogItemDTO[]> {
     if (
       !query.types.includes('program') &&
@@ -719,7 +764,9 @@ export class CatalogService {
       return [];
     }
 
-    const items = await this.loadTvReadItems(query);
+    const items = recorder
+      ? await recorder.span('tvread', () => this.loadTvReadItems(query))
+      : await this.loadTvReadItems(query);
     const filtered = items
       .filter((item) => {
         const type = this.inferTvReadContentType(item);
@@ -751,7 +798,8 @@ export class CatalogService {
   }
 
   private async loadStreamingItems(
-    query: Required<CatalogQueryParams>
+    query: Required<CatalogQueryParams>,
+    recorder?: PhaseRecorder
   ): Promise<CatalogItemDTO[]> {
     const includeStreaming =
       !query.availability.length ||
@@ -791,7 +839,7 @@ export class CatalogService {
           monetizationTypes,
           genreIds: movieGenreIds,
           providerHydrationLimit,
-        })
+        }, recorder)
       );
     }
     if (tmdbTypes.includes('series')) {
@@ -804,7 +852,7 @@ export class CatalogService {
           monetizationTypes,
           genreIds: tvGenreIds,
           providerHydrationLimit,
-        })
+        }, recorder)
       );
     }
 
@@ -822,9 +870,14 @@ export class CatalogService {
       monetizationTypes: Array<'flatrate' | 'free' | 'rent' | 'buy'>;
       genreIds: number[];
       providerHydrationLimit: number;
-    }
+    },
+    recorder?: PhaseRecorder
   ): Promise<CatalogItemDTO[]> {
-    const items = params.q
+    // Optional spans: `tmdb_discover` (search or discover) and `providers` (the per-item provider lookups, run in
+    // parallel, so its wall time is the slowest lookup chain, not the sum).
+    const span = <T>(name: string, operation: () => Promise<T>): Promise<T> =>
+      recorder ? recorder.span(name, operation) : operation();
+    const items = await span('tmdb_discover', async () => params.q
       ? type === 'movie'
         ? await this.tmdbService.searchMovies(params.q, { page: params.page, limit: 24 })
         : await this.tmdbService.searchTV(params.q, { page: params.page, limit: 24 })
@@ -844,16 +897,16 @@ export class CatalogService {
                 withGenres: params.genreIds,
                 watchMonetizationTypes: params.monetizationTypes,
               })
-        ).results;
+        ).results);
 
     const withProviders = await Promise.all(
-      items.slice(0, params.providerHydrationLimit).map(async (entry) => {
+      items.slice(0, params.providerHydrationLimit).map((entry) => span('providers', async () => {
         const whereToWatch =
           type === 'movie'
             ? await this.streamingProvidersService.getMovieProviders(entry.id)
             : await this.streamingProvidersService.getTVProviders(entry.id);
         return this.mapTmdbToCatalogItem(entry, type, whereToWatch || undefined);
-      })
+      }))
     );
 
     return withProviders.filter(Boolean) as CatalogItemDTO[];

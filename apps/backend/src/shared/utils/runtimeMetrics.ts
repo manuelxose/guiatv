@@ -1,4 +1,8 @@
+import os from 'node:os';
 import { monitorEventLoopDelay } from 'node:perf_hooks';
+import { catalogueDiagnosticsSnapshot } from './catalogueDiagnostics';
+import { eventLoopDiagnosticsSnapshot } from './eventLoopDiagnostics';
+import { stepTimelineSnapshot } from './stepTimeline';
 
 const MAX_SAMPLES = 2_000;
 // Per-route sample cap is smaller than the global cap: with dozens of routes
@@ -130,7 +134,32 @@ export function runtimeMetricsSnapshot(): Record<string, unknown> {
         max: round(eventLoop.max / 1e6),
       },
     },
+    // M13-B1: additive. The cumulative figures above keep their meaning; these are windowed / attributed.
+    diagnostics: diagnosticsSnapshot(),
   };
+}
+
+function diagnosticsSnapshot(): Record<string, unknown> {
+  try {
+    const cpu = process.cpuUsage();
+    const memory = process.memoryUsage();
+    return {
+      note: 'Durations are client-observed in this process (they include pool waits, BSON decoding and event-loop waits); none is MongoDB server execution time.',
+      eventLoop: eventLoopDiagnosticsSnapshot(),
+      steps: stepTimelineSnapshot(),
+      catalogue: catalogueDiagnosticsSnapshot(),
+      cpu: { userMs: Math.round(cpu.user / 1_000), systemMs: Math.round(cpu.system / 1_000) },
+      memory: { externalBytes: memory.external, arrayBuffersBytes: memory.arrayBuffers },
+      host: {
+        cpuCount: os.cpus().length,
+        loadAverage: os.loadavg().map(round),
+        freeMemoryBytes: os.freemem(),
+        totalMemoryBytes: os.totalmem(),
+      },
+    };
+  } catch {
+    return { enabled: false };
+  }
 }
 
 function push(target: number[], value: number, cap: number = MAX_SAMPLES): void {

@@ -1,6 +1,7 @@
 import { LegacyEnrichmentService } from '../application/services/LegacyEnrichmentService';
 import type { ProgrammeDisposition } from '../application/services/ProgrammeSeoPolicy';
 import { logger } from '../shared/utils/logger';
+import { timeStep } from '../shared/utils/stepTimeline';
 import { connectMongoDB, mongoose as mongooseInstance } from './mongodb';
 import { ensureMongoCollectionsAndIndexes } from '../infrastructure/database/initializeMongoCollections';
 import { ensureEditorialSeedData } from '../application/services/EditorialSeedService';
@@ -42,12 +43,12 @@ export class Container {
     logger.info('Initializing DI Container...');
     const start = Date.now();
 
-    await this.initializeDatabase();
-    const cache = await this.initializeCache();
-    await this.registerRepositories(cache);
-    await this.registerServices();
-    await this.registerUseCases();
-    await this.registerControllers();
+    await timeStep('boot.container.database', () => this.initializeDatabase());
+    const cache = await timeStep('boot.container.cache', () => this.initializeCache());
+    await timeStep('boot.container.repositories', () => this.registerRepositories(cache));
+    await timeStep('boot.container.services', () => this.registerServices());
+    await timeStep('boot.container.use_cases', () => this.registerUseCases());
+    await timeStep('boot.container.controllers', () => this.registerControllers());
 
     this.initialized = true;
     logger.info('DI Container initialized successfully', { totalMs: Date.now() - start });
@@ -55,15 +56,15 @@ export class Container {
 
   private async initializeDatabase(): Promise<void> {
     try {
-      await connectMongoDB();
+      await timeStep('boot.mongo.connect', () => connectMongoDB());
 
       this.dependencies.set('mongoose', mongooseInstance);
       const nativeDb = mongooseInstance.connection.db;
       this.dependencies.set('mongoDb', nativeDb);
 
-      await ensureMongoCollectionsAndIndexes();
-      await ensureEditorialSeedData();
-      await ensureAffiliateSeedData();
+      await timeStep('boot.mongo.ensure_collections_indexes', () => ensureMongoCollectionsAndIndexes());
+      await timeStep('boot.mongo.seed_editorial', () => ensureEditorialSeedData());
+      await timeStep('boot.mongo.seed_affiliate', () => ensureAffiliateSeedData());
 
       logger.info('MongoDB (mongoose) initialized and registered in container');
     } catch (e) {

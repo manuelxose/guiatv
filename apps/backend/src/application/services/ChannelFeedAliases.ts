@@ -18,6 +18,7 @@ import type { TvReadQueryService } from './TvReadQueryService';
 import type { TvReadItemDTO } from '../dto/TvReadDTO';
 import { normalizeTvToken } from '../../shared/utils/tvMetadata';
 import { logger } from '../../shared/utils/logger';
+import { timeStep } from '../../shared/utils/stepTimeline';
 
 const log = logger.child('ChannelFeedAliases');
 
@@ -154,7 +155,7 @@ export class ChannelFeedAliasResolver {
   }
 
   private async load(date: string): Promise<Map<string, FeedAliasTarget>> {
-    const directory = await this.reader.getChannels(date);
+    const directory = await timeStep('boot.channel_alias_load', () => this.reader.getChannels(date));
     const channels = directory.channels.map((entry) => entry.channel);
     const verified = new Map<string, FeedAliasTarget>();
     for (const [aliasId, target] of feedAliasCandidates(channels)) {
