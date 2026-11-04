@@ -19,6 +19,9 @@ import {
   AdminAnalyticsOverview,
   AdminAnalyticsService,
   AdminRealtimePages,
+  AdminAnalyticsDiagnostics,
+  AdminGa4Demographics,
+  describeAnalyticsError,
 } from '../../../../services/admin-analytics.service';
 import {
   AdminRetentionCohort,
@@ -145,6 +148,7 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
     if (this.activeItem === 'pages') this.loadRealtimePages();
     if (this.activeItem === 'journeys' && !this.journeysLoaded) this.loadJourneys();
     if (this.activeItem === 'retention' && !this.retentionLoaded) this.loadRetention();
+    if (this.activeItem === 'diagnostics') this.loadDiagnostics();
   }
 
   toggleSession(sessionId: string): void {
@@ -225,7 +229,7 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
     URL.revokeObjectURL(link.href);
   }
 
-  get filteredPages(): Array<{ path: string; users: number; views: number }> {
+  get filteredPages(): AdminRealtimePages['pages'] {
     const search = this.pageSearch.toLocaleLowerCase();
     return (this.realtimePages?.pages || []).filter((page) => page.path.toLocaleLowerCase().includes(search))
       .sort((a, b) => (this.pageAscending ? 1 : -1) * (this.pageSort === 'path' ? a.path.localeCompare(b.path) : a[this.pageSort] - b[this.pageSort]));
@@ -391,6 +395,7 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
     if (this.activeItem === 'journeys') this.loadJourneys();
     if (this.activeItem === 'retention') this.loadRetention();
     if (this.activeItem === 'pages') this.loadRealtimePages();
+    if (this.activeItem === 'diagnostics') this.loadDiagnostics();
   }
 
   private loadRealtimePages(): void {
@@ -409,7 +414,8 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
       },
       error: (error) => {
         this.realtimePagesLoading = false;
-        this.realtimePagesError = error.status === 404 ? 'El servidor conectado no dispone de este informe. Actualiza o reinicia el backend con la versión actual.' : error.status === 401 || error.status === 403 ? 'Tu sesión no tiene acceso al informe. Vuelve a iniciar sesión con una cuenta de administración.' : error.status === 503 ? 'El almacenamiento activo no está disponible para este informe.' : 'No se ha podido actualizar el informe en tiempo real.';
+        const described = describeAnalyticsError(error);
+        this.realtimePagesError = described.kind === 'storage_unavailable' ? `El almacenamiento activo no está disponible para este informe. ${described.message}` : described.message;
         if (error.status === 404 && !this.realtimePages) this.loadFallbackEvents();
       },
     });
@@ -436,10 +442,10 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
         this.journeysSessionsAnalyzed = result.sessionsAnalyzed;
         this.journeysLoaded = true;
       },
-      error: () => {
+      error: (error) => {
         this.journeys = [];
         this.journeysLoaded = true;
-        this.error = 'No se han podido cargar los recorridos.';
+        this.error = `No se han podido cargar los recorridos: ${describeAnalyticsError(error).message}`;
       },
     });
   }
@@ -474,10 +480,10 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
         this.error = null;
         this.touchUpdated();
       },
-      error: () => {
+      error: (error) => {
         this.overviewLoading = false;
         this.overviewError = true;
-        this.error = 'No se ha podido cargar el resumen de Analytics.';
+        this.error = `No se ha podido cargar el resumen de Analytics: ${describeAnalyticsError(error).message}`;
       },
     });
   }
@@ -527,10 +533,10 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
         this.error = null;
         this.touchUpdated();
       },
-      error: () => {
+      error: (error) => {
         this.liveLoading = false;
         this.liveError = true;
-        this.error = 'No se han podido cargar las sesiones en tiempo real.';
+        this.error = `No se han podido cargar las sesiones en tiempo real: ${describeAnalyticsError(error).message}`;
       },
     });
   }
@@ -545,12 +551,36 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
         this.error = null;
         this.touchUpdated();
       },
-      error: () => {
+      error: (error) => {
         this.eventsLoading = false;
         this.eventsError = true;
-        this.error = 'No se han podido cargar los eventos recientes.';
+        this.error = `No se han podido cargar los eventos recientes: ${describeAnalyticsError(error).message}`;
       },
     });
+  }
+
+  public diagnostics: AdminAnalyticsDiagnostics | null = null;
+  public diagnosticsError: string | null = null;
+  public ga4Demographics: AdminGa4Demographics | null = null;
+  public ga4Error: string | null = null;
+  public readonly ga4DimensionLabels: Record<string, string> = { userAgeBracket: 'Edad', userGender: 'Sexo', brandingInterest: 'Intereses' };
+
+  /** Diagnostics and GA4 aggregates: measured values or an explicit unavailable state, never placeholders. */
+  loadDiagnostics(): void {
+    this.diagnosticsError = null;
+    this.analyticsService.getDiagnostics().subscribe({
+      next: (diagnostics) => { this.diagnostics = diagnostics; this.touchUpdated(); },
+      error: (error) => { this.diagnostics = null; this.diagnosticsError = describeAnalyticsError(error).message; },
+    });
+    this.ga4Error = null;
+    this.analyticsService.getGa4Demographics(28).subscribe({
+      next: (result) => { this.ga4Demographics = result; },
+      error: (error) => { this.ga4Demographics = null; this.ga4Error = describeAnalyticsError(error).message; },
+    });
+  }
+
+  ga4Share(row: { activeUsers: number }, total: number): number {
+    return total > 0 ? Math.round((row.activeUsers / total) * 1000) / 10 : 0;
   }
 
   private touchUpdated(): void {

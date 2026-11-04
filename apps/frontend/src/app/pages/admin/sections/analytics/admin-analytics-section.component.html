@@ -66,7 +66,7 @@
             <p>{{ overview.aggregateLimitations ? 'Rutas con más eventos en los días incluidos.' : 'Rutas con más vistas durante el periodo seleccionado.' }}</p>
             <div class="overview-table-wrap">
               <table><thead><tr><th scope="col">Página</th><th scope="col">{{ overview.aggregateLimitations ? 'Eventos' : 'Vistas' }}</th></tr></thead>
-                <tbody><tr *ngFor="let page of overview.topPages.slice(0, 8)"><td>{{ page.path }}</td><td>{{ page.count | number }}</td></tr></tbody>
+                <tbody><tr *ngFor="let page of overview.topPages.slice(0, 8)"><td [attr.title]="page.path">{{ page.label || page.path }}</td><td>{{ page.count | number }}</td></tr></tbody>
               </table>
             </div>
             <p *ngIf="!overview.topPages.length" class="overview-empty">No hay datos disponibles para este periodo.</p>
@@ -128,7 +128,7 @@
         <h5>Muestra de eventos recientes</h5>
         <p>Hasta 40 eventos de los últimos 30 minutos. Es una muestra limitada, no un recuento completo de usuarios ni de vistas.</p>
         <div class="overview-table-wrap" *ngIf="fallbackEvents.length">
-          <table><thead><tr><th scope="col">Hora</th><th scope="col">Evento</th><th scope="col">Ruta</th></tr></thead><tbody><tr *ngFor="let event of fallbackEvents"><td>{{ event.occurredAt | date:'shortTime' }}</td><td>{{ event.type }}</td><td>{{ event.path || 'No disponible' }}</td></tr></tbody></table>
+          <table><thead><tr><th scope="col">Hora</th><th scope="col">Evento</th><th scope="col">Ruta</th></tr></thead><tbody><tr *ngFor="let event of fallbackEvents"><td>{{ event.occurredAt | date:'shortTime' }}</td><td>{{ event.type }}</td><td [attr.title]="event.path">{{ event.pathLabel || event.path || 'No disponible' }}</td></tr></tbody></table>
         </div>
         <p *ngIf="!fallbackEvents.length" class="overview-empty">No hay eventos en esta muestra.</p>
       </section>
@@ -160,7 +160,7 @@
                 <th scope="col" [attr.aria-sort]="pageSort === 'users' ? (pageAscending ? 'ascending' : 'descending') : 'none'"><button type="button" (click)="sortPages('users')">Usuarios activos <span aria-hidden="true">{{ pageSort === 'users' ? (pageAscending ? '↑' : '↓') : '↕' }}</span></button></th>
                 <th scope="col" [attr.aria-sort]="pageSort === 'views' ? (pageAscending ? 'ascending' : 'descending') : 'none'"><button type="button" (click)="sortPages('views')">Vistas <span aria-hidden="true">{{ pageSort === 'views' ? (pageAscending ? '↑' : '↓') : '↕' }}</span></button></th>
               </tr></thead>
-              <tbody><tr *ngFor="let page of filteredPages.slice(pageNumber * 10, (pageNumber + 1) * 10); trackBy: trackByPage"><td><strong>{{ page.path }}</strong></td><td>{{ page.users | number }}</td><td>{{ page.views | number }}</td></tr></tbody>
+              <tbody><tr *ngFor="let page of filteredPages.slice(pageNumber * 10, (pageNumber + 1) * 10); trackBy: trackByPage"><td [attr.title]="page.path"><strong>{{ page.label || page.path }}</strong></td><td>{{ page.users | number }}</td><td>{{ page.views | number }}</td></tr></tbody>
             </table>
           </div>
           <p *ngIf="!filteredPages.length" class="overview-empty">{{ pageSearch ? 'No hay páginas que coincidan con la búsqueda.' : 'No hay datos disponibles en los últimos 30 minutos.' }}</p>
@@ -234,7 +234,7 @@
             <tbody>
             <ng-container *ngFor="let session of filteredLiveSessions.slice(sessionPage * 10, (sessionPage + 1) * 10); trackBy: trackBySession">
               <tr class="session-table__row">
-                <td><strong class="session-table__path">{{ session.lastPath || 'Ruta desconocida' }}</strong><span class="session-table__sub">Sesión {{ session.sessionId.slice(0, 8) }}</span><span *ngIf="getCrawlerName(session.userAgent) as crawler" class="session-table__badge">Rastreador identificado: {{ crawler }}</span></td>
+                <td><strong class="session-table__path" [attr.title]="session.lastPath">{{ session.lastPathLabel || session.lastPath || 'Ruta desconocida' }}</strong><span class="session-table__sub">Sesión {{ session.sessionId.slice(0, 8) }}</span><span *ngIf="getCrawlerName(session.userAgent) as crawler" class="session-table__badge">Rastreador identificado: {{ crawler }}</span></td>
                 <td><span>{{ getDeviceSummary(session) }}</span><span class="session-table__sub">{{ getBrowserSummary(session.userAgent) || 'Navegador desconocido' }} · {{ getOsSummary(session.userAgent) || 'Sistema desconocido' }}</span><span *ngIf="getConnectionSummary(session)" class="session-table__sub">{{ getConnectionSummary(session) }}</span></td>
                 <td>{{ session.city || session.region || session.country || 'Desconocida' }}<span *ngIf="session.city && session.country" class="session-table__sub">{{ session.country }}</span></td>
                 <td>{{ getSessionDuration(session) }}</td>
@@ -260,7 +260,7 @@
                 <p *ngIf="sessionEventErrors[session.sessionId]" role="alert">No se han podido cargar los eventos.</p>
                 <p *ngIf="!sessionEventErrors[session.sessionId] && sessionEvents[session.sessionId]?.length === 0">No hay eventos disponibles para esta sesión.</p>
                 <ul *ngIf="sessionEvents[session.sessionId]?.length">
-                  <li *ngFor="let event of sessionEvents[session.sessionId]; trackBy: trackByEvent"><time>{{ event.occurredAt | date:'shortTime' }}</time><strong>{{ event.type }}</strong><span>{{ event.path || event.name || 'Sin ruta' }}</span></li>
+                  <li *ngFor="let event of sessionEvents[session.sessionId]; trackBy: trackByEvent"><time>{{ event.occurredAt | date:'shortTime' }}</time><strong>{{ event.type }}</strong><span [attr.title]="event.path">{{ event.pathLabel || event.path || event.name || 'Sin ruta' }}</span></li>
                 </ul>
               </div>
             </div></td></tr>
@@ -292,7 +292,7 @@
             *ngFor="let event of recentEvents; trackBy: trackByEvent"
             class="p-4 rounded-2xl bg-[var(--portal-surface)] border border-[var(--portal-border)]"
           >
-            <p class="text-[var(--portal-text)] text-sm font-medium">{{ event.path || event.name || event.type }}</p>
+            <p class="text-[var(--portal-text)] text-sm font-medium">{{ event.pathLabel || event.path || event.name || event.type }}</p>
             <p class="text-xs text-[var(--portal-text-muted)]">
               {{ event.type }} | {{ event.occurredAt | date: 'shortTime' }} | {{ event.sessionId.slice(0, 8) }}
             </p>
@@ -323,7 +323,7 @@
             *ngFor="let journey of journeys"
             class="flex items-center justify-between gap-4 p-4 rounded-2xl bg-[var(--portal-surface)] border border-[var(--portal-border)]"
           >
-            <span class="text-sm text-[var(--portal-text)] break-all">{{ journey.steps.join(' → ') }}</span>
+            <span class="text-sm text-[var(--portal-text)] break-all">{{ (journey.labels || journey.steps).join(' → ') }}</span>
             <span class="text-xs text-[var(--portal-text-soft)] whitespace-nowrap">{{ journey.count }} sessions</span>
           </div>
         </div>
@@ -402,6 +402,66 @@
           </div>
         </ng-container>
       </ng-container>
+    </div>
+    <div *ngSwitchCase="'diagnostics'" class="space-y-6 analytics-diagnostics">
+      <section class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6" aria-labelledby="diag-ingest-title">
+        <h4 id="diag-ingest-title" class="text-lg font-semibold text-[var(--portal-text)] mb-3">Ingesta propia</h4>
+        <p *ngIf="diagnosticsError" class="text-sm text-[var(--spotify-warning)]" role="alert">{{ diagnosticsError }}</p>
+        <p *ngIf="!diagnostics && !diagnosticsError" class="text-sm text-[var(--portal-text-soft)]">Cargando diagnóstico…</p>
+        <ng-container *ngIf="diagnostics as d">
+          <p class="text-sm text-[var(--portal-text-soft)] mb-3">
+            Almacenamiento: <strong>{{ d.store }}</strong> ·
+            {{ d.ingest?.storageAvailable === false ? 'no disponible' : 'disponible' }} ·
+            Recogida: <strong>{{ d.flags.ingestEnabled ? 'activa' : 'desactivada (interruptor de emergencia)' }}</strong> ·
+            Endpoints antiguos: {{ d.flags.legacyEndpoints === 'accept' ? 'aceptados' : 'descartados' }}
+          </p>
+          <div *ngIf="d.ingest as ingest" class="overflow-x-auto" tabindex="0" role="region" aria-label="Métricas de la cola de ingesta">
+            <table class="w-full text-sm text-left">
+              <caption class="sr-only">Métricas medidas desde el último arranque del proceso</caption>
+              <tbody>
+                <tr><th scope="row" class="py-1 pr-4">En cola (lotes / eventos)</th><td>{{ ingest.queue.depth | number }} / {{ ingest.queue.depthEvents | number }}</td></tr>
+                <tr><th scope="row" class="py-1 pr-4">Aceptados (lotes / eventos)</th><td>{{ ingest.queue.accepted | number }} / {{ ingest.queue.acceptedEvents | number }}</td></tr>
+                <tr><th scope="row" class="py-1 pr-4">Persistidos (lotes / eventos)</th><td>{{ ingest.queue.processed | number }} / {{ ingest.queue.processedEvents | number }}</td></tr>
+                <tr><th scope="row" class="py-1 pr-4">Rechazados por cola llena</th><td>{{ ingest.queue.rejectedFull | number }}</td></tr>
+                <tr><th scope="row" class="py-1 pr-4">Descartados tras reintentos (eventos)</th><td>{{ ingest.queue.droppedEventsAfterRetries | number }}</td></tr>
+                <tr><th scope="row" class="py-1 pr-4">Lotes o eventos no válidos</th><td>{{ ingest.invalidBatches | number }} / {{ ingest.rejectedEvents | number }}</td></tr>
+                <tr><th scope="row" class="py-1 pr-4">Retraso de persistencia (último / máximo)</th><td>{{ ingest.queue.lastLagMs | number }} ms / {{ ingest.queue.maxLagMs | number }} ms</td></tr>
+                <tr *ngIf="ingest.queue.lastError"><th scope="row" class="py-1 pr-4">Último error</th><td>{{ ingest.queue.lastError }} ({{ ingest.queue.lastErrorAt | date:'short' }})</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p *ngIf="!d.ingest" class="text-sm text-[var(--portal-text-soft)]">El backend no expone métricas de ingesta.</p>
+          <h5 class="font-semibold text-[var(--portal-text)] mt-4 mb-1">GeoIP local (MaxMind)</h5>
+          <p *ngIf="d.ingest?.geoip as geo" class="text-sm text-[var(--portal-text-soft)]">
+            <ng-container *ngIf="!geo.enabled">Desactivado (ANALYTICS_GEOIP_ENABLED). Las sesiones se guardan sin ubicación salvo cabeceras de un proxy de confianza.</ng-container>
+            <ng-container *ngIf="geo.enabled">
+              Ciudad: {{ geo.city.loaded ? geo.city.version : 'no cargada' }}<span *ngIf="geo.city.error"> ({{ geo.city.error }})</span> ·
+              ASN: {{ geo.asn.loaded ? geo.asn.version : 'no cargada' }}<span *ngIf="geo.asn.error"> ({{ geo.asn.error }})</span> ·
+              {{ geo.located | number }} de {{ geo.lookups | number }} consultas con ubicación. La ubicación por IP es aproximada (radio de precisión incluido) y no detecta VPN.
+            </ng-container>
+          </p>
+          <p class="text-xs text-[var(--portal-text-faint)] mt-2">Actualizado {{ d.generatedAt | date:'mediumTime' }}. Valores del proceso actual (se reinician con cada despliegue).</p>
+        </ng-container>
+      </section>
+      <section class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6" aria-labelledby="diag-ga4-title">
+        <h4 id="diag-ga4-title" class="text-lg font-semibold text-[var(--portal-text)] mb-1">Demografía agregada (Google Analytics 4)</h4>
+        <p class="text-xs text-[var(--portal-text-soft)] mb-3">Solo datos agregados que GA4 calcula con Google Signals. No se infiere edad, sexo ni intereses de ninguna persona ni de su IP.</p>
+        <p *ngIf="ga4Error" class="text-sm text-[var(--spotify-warning)]" role="alert">{{ ga4Error }}</p>
+        <p *ngIf="!ga4Demographics && !ga4Error" class="text-sm text-[var(--portal-text-soft)]">Cargando…</p>
+        <ng-container *ngIf="ga4Demographics as ga4">
+          <p *ngIf="!ga4.available" class="text-sm text-[var(--portal-text-soft)]">No disponible: {{ $any(ga4).message }}</p>
+          <div *ngIf="ga4.available" class="grid gap-4 md:grid-cols-3">
+            <div *ngFor="let breakdown of $any(ga4).breakdowns" class="min-w-0">
+              <h5 class="font-semibold text-[var(--portal-text)] mb-1">{{ ga4DimensionLabels[breakdown.dimension] || breakdown.dimension }}</h5>
+              <p *ngIf="!breakdown.rows.length || breakdown.thresholded" class="text-xs text-[var(--portal-text-soft)] mb-1">Datos insuficientes o protegidos por los umbrales de GA4.</p>
+              <ul *ngIf="breakdown.rows.length" class="text-sm space-y-1">
+                <li *ngFor="let row of breakdown.rows.slice(0, 8)" class="flex justify-between gap-2"><span class="truncate">{{ row.value }}</span><span>{{ ga4Share(row, breakdown.totalUsers) }} %</span></li>
+              </ul>
+            </div>
+          </div>
+          <p *ngIf="ga4.available" class="text-xs text-[var(--portal-text-faint)] mt-2">Últimos {{ $any(ga4).days }} días · propiedad {{ $any(ga4).propertyId }} · {{ $any(ga4).cached ? 'en caché' : 'consultado' }} {{ $any(ga4).generatedAt | date:'short' }}</p>
+        </ng-container>
+      </section>
     </div>
     <div *ngSwitchDefault class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-8">
       <h4 class="text-xl font-semibold text-[var(--portal-text)] mb-2">This view is ready for build-out.</h4>

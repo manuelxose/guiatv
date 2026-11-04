@@ -10,7 +10,7 @@ export interface AdminAnalyticsOverview {
   uniqueVisitors: number;
   totalPageViews: number;
   avgSessionDurationSec: number;
-  topPages: Array<{ path: string; count: number }>;
+  topPages: Array<{ path: string; count: number; label?: string }>;
   topReferrers: Array<{ referrer: string; count: number }>;
   sessionsByDay: Array<{ date: string; count: number }>;
   geography?: Array<{ country: string; region: string; count: number }>;
@@ -18,6 +18,8 @@ export interface AdminAnalyticsOverview {
   geographyDetailConfigured?: boolean;
   aggregateLimitations?: boolean;
   geographyCollectionEnabled?: boolean;
+  store?: 'mongo' | 'valkey';
+  geoipEnabled?: boolean;
 }
 
 export interface AdminAnalyticsLiveSession {
@@ -26,6 +28,9 @@ export interface AdminAnalyticsLiveSession {
   startedAt: string;
   lastSeenAt: string;
   lastPath?: string;
+  lastPathLabel?: string;
+  initialPathLabel?: string;
+  geo?: { status?: string; source?: string; regionName?: string; accuracyRadiusKm?: number; asn?: number; asOrg?: string; db?: string };
   durationSec?: number;
   referrer?: string;
   userAgent?: string;
@@ -47,6 +52,7 @@ export interface AdminAnalyticsEvent {
   type: string;
   name?: string;
   path?: string;
+  pathLabel?: string;
   title?: string;
   occurredAt: string;
   sessionId: string;
@@ -61,6 +67,7 @@ export interface AdminAnalyticsLiveSnapshot {
 
 export interface AdminAnalyticsJourney {
   steps: string[];
+  labels?: string[];
   count: number;
 }
 
@@ -76,9 +83,58 @@ export interface AdminRealtimePages {
   activeUsers: number;
   pageViews: number;
   minutes: Array<{ from: string; users: number }>;
-  pages: Array<{ path: string; users: number; views: number }>;
+  pages: Array<{ path: string; users: number; views: number; label?: string }>;
   partial?: boolean;
   coverageStartedAt?: string;
+}
+
+export interface AdminAnalyticsDiagnostics {
+  store: 'mongo' | 'valkey';
+  flags: { ingestEnabled: boolean; killed: boolean; ga4Enabled: boolean; geoipEnabled: boolean; legacyEndpoints: string };
+  ingest: {
+    queue: { depth: number; depthEvents: number; accepted: number; acceptedEvents: number; rejectedFull: number; processed: number; processedEvents: number; failedAttempts: number; droppedAfterRetries: number; droppedEventsAfterRetries: number; storageUnavailableWaits: number; maxLagMs: number; lastLagMs: number; lastError?: string; lastErrorAt?: string };
+    rejectedEvents: number;
+    invalidBatches: number;
+    droppedWhileDisabled: number;
+    storageAvailable: boolean | null;
+    geoip: { enabled: boolean; city: { loaded: boolean; version: string | null; error: string | null }; asn: { loaded: boolean; version: string | null; error: string | null }; lookups: number; located: number };
+  } | null;
+  generatedAt: string;
+}
+
+export interface AdminGa4Breakdown {
+  dimension: 'userAgeBracket' | 'userGender' | 'brandingInterest' | string;
+  rows: Array<{ value: string; activeUsers: number }>;
+  totalUsers: number;
+  thresholded: boolean;
+}
+
+export type AdminGa4Demographics =
+  | { available: true; propertyId: string; days: number; generatedAt: string; cached: boolean; breakdowns: AdminGa4Breakdown[] }
+  | { available: false; reason: string; message: string };
+
+export type AnalyticsErrorKind = 'network' | 'unauthorized' | 'forbidden' | 'not_deployed' | 'storage_unavailable' | 'unsupported_store' | 'rate_limited' | 'server' | 'unknown';
+
+/**
+ * Turns an HTTP failure into a distinguishable, human-readable state: expired session (401), missing role (403),
+ * backend without this report (404), storage down (503 storage_unavailable), report not supported by the active
+ * store, rate limit, other server errors (with status) and network failures. "No data" is never an error: it is a
+ * successful, empty response and is rendered as an empty state.
+ */
+export function describeAnalyticsError(error: unknown): { kind: AnalyticsErrorKind; message: string; status: number } {
+  const err = error as { status?: number; error?: { code?: string; message?: string } } | null;
+  const status = typeof err?.status === 'number' ? err.status : 0;
+  const code = err?.error?.code;
+  const serverMessage = typeof err?.error?.message === 'string' ? err.error.message : undefined;
+  if (status === 0) return { kind: 'network', status, message: 'Sin conexión con el servidor de Analytics. Comprueba la red o el estado del backend.' };
+  if (status === 401) return { kind: 'unauthorized', status, message: 'Tu sesión ha caducado. Vuelve a iniciar sesión con una cuenta de administración.' };
+  if (status === 403) return { kind: 'forbidden', status, message: 'Tu cuenta no tiene permisos de administración para ver Analytics.' };
+  if (status === 404) return { kind: 'not_deployed', status, message: 'El backend conectado no dispone de este informe. Actualiza o reinicia el backend con la versión actual.' };
+  if (status === 429) return { kind: 'rate_limited', status, message: 'Demasiadas peticiones. Espera unos segundos y vuelve a intentarlo.' };
+  if ((status === 501 || status === 503) && code === 'unsupported_store') return { kind: 'unsupported_store', status, message: serverMessage || 'Este informe no está disponible con el almacenamiento activo.' };
+  if (status === 503) return { kind: 'storage_unavailable', status, message: serverMessage || 'El almacenamiento de Analytics no está disponible en este momento.' };
+  if (status >= 500) return { kind: 'server', status, message: `Error del servidor (${status}) al cargar Analytics.` };
+  return { kind: 'unknown', status, message: serverMessage || `No se ha podido cargar el informe (${status}).` };
 }
 
 interface ApiResponse<T> {
@@ -153,6 +209,18 @@ export class AdminAnalyticsService {
         headers: this.buildHeaders(),
       })
       .pipe(map((resp) => resp.data || { days, sessionsAnalyzed: 0, journeys: [] }));
+  }
+
+  getDiagnostics(): Observable<AdminAnalyticsDiagnostics> {
+    return this.http
+      .get<ApiResponse<AdminAnalyticsDiagnostics>>(`${this.baseUrl}/analytics/diagnostics`, { headers: this.buildHeaders() })
+      .pipe(map((resp) => resp.data));
+  }
+
+  getGa4Demographics(days = 28): Observable<AdminGa4Demographics> {
+    return this.http
+      .get<ApiResponse<{ ga4: AdminGa4Demographics }>>(`${this.baseUrl}/analytics/ga4/demographics?days=${days}`, { headers: this.buildHeaders() })
+      .pipe(map((resp) => resp.data.ga4));
   }
 
   private buildHeaders(): HttpHeaders {
