@@ -1,5 +1,5 @@
 /**
- * M13-B3b: `indexableWorks` reads the catalogue through bounded cursors and returns exactly what the pre-change code did.
+ * M13-B3b: `indexableWorks` (reads unchanged, selection in time slices) returns exactly what the pre-change code did.
  * Runs only with TEST_MONGO_URI (throwaway database, dropped afterwards).
  */
 import assert from 'node:assert/strict';
@@ -8,7 +8,7 @@ import mongoose from 'mongoose';
 import { MediaCatalogModel } from '@/infrastructure/database/models/MediaCatalogEntry.model';
 import { TVReadAiringModel } from '@/infrastructure/database/models/TVReadAiring.model';
 import { TimeSlice } from '@/shared/utils/timeSlice';
-import { indexableWorks, READ_BATCH_SIZE } from './WorkSeoPolicy';
+import { indexableWorks } from './WorkSeoPolicy';
 import { air, ENV, fixture, oracle, prng, row, type Aired, type Row } from './WorkSeoPolicy.parity.fixtures';
 
 const mongoUri = process.env.TEST_MONGO_URI;
@@ -49,22 +49,15 @@ async function seed(extraRows = 0): Promise<void> {
   await TVReadAiringModel.collection.insertMany([...aired, ...extraAired].map(airingDoc));
 }
 
-test('bounded read: 2 600 rows (6 batches) give exactly the reference result, read with the configured batch sizes', { skip: !mongoUri }, () =>
+test('sliced selection: 2 600 rows read from MongoDB give exactly the reference result', { skip: !mongoUri }, () =>
   withDb('parity', async () => {
     await seed(2_600);
-    const started: Array<{ name: string; batchSize?: number; cursorBatch?: number }> = [];
-    mongoose.connection.getClient().on('commandStarted', (e) => {
-      if (e.commandName === 'find' || e.commandName === 'aggregate') started.push({ name: e.commandName, batchSize: e.command.batchSize, cursorBatch: e.command.cursor?.batchSize });
-    });
     const expected = await referenceRead();
-    started.length = 0;
     const slice = new TimeSlice(0);
     const works = await indexableWorks(ENV, slice);
     assert.ok(expected.length > 1_000, `${expected.length} reference works`);
     assert.deepEqual(works, expected, 'identical works, fields and order');
-    assert.equal(started.find((c) => c.name === 'find')?.batchSize, READ_BATCH_SIZE);
-    assert.equal(started.find((c) => c.name === 'aggregate')?.cursorBatch, READ_BATCH_SIZE * 2);
-    assert.ok(slice.yields > 2_000, `the whole pass yielded to the event loop (${slice.yields})`);
+    assert.ok(slice.yields > 2_000, `the selection yielded to the event loop (${slice.yields})`);
   }));
 
 test('a catalogue write during the refresh cannot break the read: sorted, unique, and every pre-existing work is present', { skip: !mongoUri }, () =>
