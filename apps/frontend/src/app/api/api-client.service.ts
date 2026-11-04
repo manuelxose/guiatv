@@ -8,11 +8,16 @@ import { ApiConfigService } from './api-config.service';
 export class ApiClientService {
   constructor(private http: HttpClient, private config: ApiConfigService) {}
 
-  get<T>(path: string, params?: Record<string, any>): Observable<T> {
+  /**
+   * `transferCache: false` keeps the response out of Angular's HTTP transfer cache. For callers that already hand the
+   * response to the browser through their own `TransferState` key, the HTTP copy is never read (their key is checked
+   * first) and only doubles the bytes serialised into the SSR HTML (`/canales`: 2.37 MB twice).
+   */
+  get<T>(path: string, params?: Record<string, any>, options: { transferCache?: false } = {}): Observable<T> {
     const url = this.config.buildUrl(path);
     const httpParams = this.toParams(params);
     return this.http
-      .get<T>(url, { params: httpParams })
+      .get<T>(url, options.transferCache === false ? { params: httpParams, transferCache: false } : { params: httpParams })
       .pipe(catchError((err) => this.handleError(err, url)));
   }
 

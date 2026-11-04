@@ -195,7 +195,9 @@ export class TvApiService {
       return existing;
     }
 
-    const request = this.client.get<T>(path, params).pipe(
+    // The `tv-api-v2:` TransferState key above is this service's own hand-off to the browser; do not also serialise the
+    // same response through the HTTP transfer cache.
+    const request = this.client.get<T>(path, params, { transferCache: false }).pipe(
       tap((response) => {
         this.cache.set(cacheKey, response, ttlMs);
         if (!this.isBrowser) this.transferState.set(stateKey, response);
