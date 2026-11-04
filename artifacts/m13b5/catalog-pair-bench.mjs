@@ -96,10 +96,14 @@ if (process.argv.includes('--child')) {
     async setIfAbsent() { return true; }, async releaseLock() {}, async exists(k) { return store.has(k); }, async ttl() { return 100; },
     async mget(keys) { return keys.map((k) => (store.has(k) ? JSON.parse(store.get(k)) : null)); }, async mset() {},
   };
+  // M13-B5c: the real channel repository against the seeded `channels` collection (the first harness stubbed it with [], which
+  // is why production's 4 s `channels` phase never showed up locally).
+  const { MongoChannelRepository } = dist('infrastructure/repositories/MongoChannelRepository.js');
+  const channelRepo = process.env.CHANNELS === '0' ? { findAll: async () => [], findById: async () => null } : new MongoChannelRepository();
   const tvRead = new TvReadQueryService(cache);
   const empty = async () => ({ results: [] });
   const service = new CatalogService(
-    { findAll: async () => [], findById: async () => null }, cache,
+    channelRepo, cache,
     { getImageUrl: (p) => (p ? `https://img.example${p}` : undefined), discoverMovies: empty, discoverTV: empty, searchMovies: async () => [], searchTV: async () => [], getMovieDetails: async () => null, getTVDetails: async () => null },
     { getMovieProviders: async () => null, getTVProviders: async () => null },
     { findByUserAndContentIds: async () => [], findByUser: async () => [] }, tvRead,
@@ -199,13 +203,19 @@ try {
     const date = DateUtils.getTodayYYYYMMDD();
     const docs = buildRows(rows, date);
     for (let i = 0; i < docs.length; i += 2000) await TVReadAiringModel.collection.insertMany(docs.slice(i, i + 2000));
+    const channelCount = Number(arg('channels', '1500'));
+    if (channelCount) {
+      const { ChannelModel } = reqParent(join(backend, 'dist/infrastructure/database/models/Channel.model.js'));
+      await ChannelModel.collection.insertMany(Array.from({ length: channelCount }, (_, i) => ({ id: `ch${i}`, name: `Canal ${i}`, normalizedName: `canal ${i}`, aliases: [`canal ${i}`, `ch${i}`, `Canal ${i} HD`, `C${i}`], sourceIds: [`src-${i}`, `epg-${i}`], logo: `/logos/ch${i}.webp`, type: 'TDT', country: 'España', countryCode: 'ES', region: i % 3 ? 'nacional' : 'Madrid', language: 'es', category: 'general', description: 'Canal sintético '.repeat(8), distribution: 'terrestrial', access: 'free', operator: 'x', providers: ['p1', 'p2'], contentFacets: ['general'], market: { country: 'España', countryCode: 'ES', region: 'nacional', scope: 'national' }, quality: { resolution: 'hd', timeshift: 'none' }, capabilities: { linear: 'yes', catchup: 'no', streaming: 'no' }, provenance: { classification: 'synthetic', sourceIds: [`src-${i}`] }, active: true, order: i, createdAt: new Date(), updatedAt: new Date() })));
+    }
+    report.channels = channelCount;
     const stats = await mongoose.connection.db.command({ collStats: 'tv_read_airings' });
     report.sizes[rows] = { avgObjSizeBytes: Math.round(stats.avgObjSize), scenarios: {} };
     for (const scenario of scenarios) {
       const list = [];
       for (let r = 0; r < runs; r += 1) {
         const text = await new Promise((resolveRun, reject) => {
-          const child = spawn(process.execPath, [...(arg('prof') ? ['--cpu-prof', '--cpu-prof-dir', arg('prof'), '--cpu-prof-interval', '500'] : []), fileURLToPath(import.meta.url), '--child', backend, '--uri', uri, '--db', dbName, '--scenario', scenario], { stdio: ['ignore', 'pipe', 'inherit'], env: { ...process.env, TZ: 'Europe/Madrid', ...(process.argv.includes('--frozen') ? { FROZEN_NOW: frozenNow } : {}) } });
+          const child = spawn(process.execPath, [...(arg('prof') ? ['--cpu-prof', '--cpu-prof-dir', arg('prof'), '--cpu-prof-interval', '500'] : []), fileURLToPath(import.meta.url), '--child', backend, '--uri', uri, '--db', dbName, '--scenario', scenario], { stdio: ['ignore', 'pipe', 'inherit'], env: { ...process.env, TZ: 'Europe/Madrid', CHANNELS: arg('channels', '1500'), ...(process.argv.includes('--frozen') ? { FROZEN_NOW: frozenNow } : {}) } });
           let buf = ''; child.stdout.on('data', (d) => { buf += d; }); child.on('exit', (code) => (code === 0 ? resolveRun(buf) : reject(new Error(`child ${scenario} exit ${code}`))));
         });
         list.push(JSON.parse(text.trim().split('\n').pop()));

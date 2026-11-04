@@ -124,3 +124,26 @@ test('M13-B5a: a day read reports its synchronous phases to Server-Timing and a 
     assert.equal(JSON.stringify(again.items), JSON.stringify(response.items));
   });
 });
+
+test('M13-B5c: the channel map is read only when an item has airings but no channel, and then yields the same result', async () => {
+  let findAllCalls = 0;
+  const channels = { findAll: async () => { findAllCalls += 1; return [{ id: 'ch1', toJSON: () => ({ id: 'ch1', icon: '/logos/ch1.webp' }) }]; } } as any;
+  const tvItem = { ...row(1), program: { ...row(1).program, tmdbId: undefined, editorialCategory: 'Otros' } } as TvReadItemDTO;
+  const tvRead = { query: async () => ({ items: [tvItem], channels: [], meta: {} }) } as any;
+  const build = () => new CatalogService(channels, memoryCache(), {} as any, {} as any, {} as any, tvRead);
+
+  // Program items carry their channel: no read at all.
+  l1Cache.invalidatePrefix('');
+  const normal = await build().query({ types: ['program'], sort: 'airtime', limit: 5 });
+  assert.equal(normal.items.length, 1);
+  assert.equal(findAllCalls, 0);
+
+  // An item with airings and no channel still takes its icon from the map, as before.
+  l1Cache.invalidatePrefix('');
+  const service = build();
+  const original = service.mapTvReadItemToCatalogItem.bind(service);
+  (service as any).mapTvReadItemToCatalogItem = (item: TvReadItemDTO) => ({ ...original(item), channel: undefined });
+  const withMap = await service.query({ types: ['program'], sort: 'airtime', limit: 6 });
+  assert.equal(findAllCalls, 1);
+  assert.equal(withMap.items[0]?.channel?.id, 'ch1');
+});
