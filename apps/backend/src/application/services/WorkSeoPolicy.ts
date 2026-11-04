@@ -144,50 +144,36 @@ export async function indexableWorkPaths(env: NodeJS.ProcessEnv = process.env): 
 }
 
 /**
- * M13-B3b: the catalogue read is bounded. The read used to return one array through the driver's `toArray()`, whose
- * microtask-only loop decodes (BSON) every buffered batch in a single event-loop block, and the selection and the graph
- * build ran as one synchronous pass each. Now the rows come through a cursor with a small `batchSize` (each server reply
- * is small) and every loop yields to the event loop when its time slice is spent. The rows, the selection rule and the
- * output are unchanged; only when the work runs differs (see artifacts/m13b3 for the measurements).
+ * M13-B3b: the refresh used to run its selection and the graph build as one contiguous synchronous pass (locally the
+ * largest main-thread block of the refresh, growing with the catalogue). Both now run in time slices that yield to the
+ * event loop. The two catalogue reads are unchanged: a cursor/`batchSize` variant was benchmarked and removed because it
+ * did not change the stall at all (ablation in artifacts/m13b3) while adding round trips and CPU. The rows, the selection
+ * rule and the output are unchanged; only when the work runs differs.
  */
-export const READ_BATCH_SIZE = 500;
 type MediaRow = WorkRow & { rating?: number };
 
 /** The works behind `indexableWorkPaths`, one per path, sorted by path. Throws on a database failure. */
 export async function indexableWorks(env: NodeJS.ProcessEnv = process.env, slice: TimeSlice = new TimeSlice()): Promise<IndexableWork[]> {
   if (!['on', 'canary'].includes(env.WORK_SEO_POLICY ?? '')) return [];
-  // M13-B1: the two reads run in parallel and are timed apart; M13-B3b: both are cursor reads that yield.
-  const [rows, airedKeys] = await Promise.all([
-    timeStep('related_works.read_media_rows', () => readMediaRows(slice)),
-    timeStep('related_works.read_airings', () => readAiredKeys(slice)),
+  // M13-B1: the two reads run in parallel and are timed apart (unchanged); the selection below yields (M13-B3b).
+  const [rows, aired] = await Promise.all([
+    timeStep('related_works.read_media_rows', () => MediaCatalogModel.find({ tmdbId: { $type: 'number' } }).select({ ...ROW_FIELDS, rating: 1 }).lean<MediaRow[]>().exec()),
+    timeStep('related_works.read_airings', () => TVReadAiringModel.aggregate<{ _id: { id: number; c: string } }>([
+      { $match: { 'program.tmdbId': { $type: 'number' }, 'program.editorialCategory': { $in: Object.values(CATEGORY) } } },
+      { $group: { _id: { id: '$program.tmdbId', c: '$program.editorialCategory' } } },
+    ]).allowDiskUse(true).exec()),
   ]);
-  return timeStep('related_works.select_works', () => selectIndexableWorksSliced(rows, airedKeys, env, slice));
-}
-
-async function readMediaRows(slice: TimeSlice): Promise<MediaRow[]> {
-  const rows: MediaRow[] = [];
-  const cursor = MediaCatalogModel.find({ tmdbId: { $type: 'number' } }).select({ ...ROW_FIELDS, rating: 1 }).lean().batchSize(READ_BATCH_SIZE).cursor();
-  for await (const row of cursor) {
-    rows.push(row as unknown as MediaRow);
-    await slice.tick();
-  }
-  return rows;
+  return timeStep('related_works.select_works', async () => {
+    const airedKeys = new Set<string>();
+    for (const a of aired) {
+      airedKeys.add(airedKey(a._id.c, a._id.id));
+      await slice.tick();
+    }
+    return selectIndexableWorksSliced(rows, airedKeys, env, slice);
+  });
 }
 
 const airedKey = (category: string, id: number) => `${category === 'Cine' ? 'movie' : 'tv'}:${id}`;
-
-async function readAiredKeys(slice: TimeSlice): Promise<Set<string>> {
-  const keys = new Set<string>();
-  const cursor = TVReadAiringModel.aggregate<{ _id: { id: number; c: string } }>([
-    { $match: { 'program.tmdbId': { $type: 'number' }, 'program.editorialCategory': { $in: Object.values(CATEGORY) } } },
-    { $group: { _id: { id: '$program.tmdbId', c: '$program.editorialCategory' } } },
-  ]).allowDiskUse(true).cursor({ batchSize: READ_BATCH_SIZE * 2 });
-  for await (const a of cursor) {
-    keys.add(airedKey(a._id.c, a._id.id));
-    await slice.tick();
-  }
-  return keys;
-}
 
 /** Rows grouped by their slug key: the namesakes a work is checked against. */
 function groupByKey(rows: readonly MediaRow[]): Map<string, WorkRow[]> {
