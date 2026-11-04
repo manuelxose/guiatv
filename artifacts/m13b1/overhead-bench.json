@@ -1,0 +1,269 @@
+{
+ "startedAt": "2026-11-04T12:24:31.921Z",
+ "node": "v24.18.0",
+ "processes": 8,
+ "queriesPerProcess": 4000,
+ "query": {
+  "before": [
+   {
+    "medianUs": 60.3,
+    "p95Us": 113.9,
+    "n": 4000
+   },
+   {
+    "medianUs": 68.8,
+    "p95Us": 234.5,
+    "n": 4000
+   },
+   {
+    "medianUs": 67.8,
+    "p95Us": 126.5,
+    "n": 4000
+   },
+   {
+    "medianUs": 62.4,
+    "p95Us": 109,
+    "n": 4000
+   },
+   {
+    "medianUs": 67.5,
+    "p95Us": 125.4,
+    "n": 4000
+   },
+   {
+    "medianUs": 65.5,
+    "p95Us": 126.4,
+    "n": 4000
+   },
+   {
+    "medianUs": 66.2,
+    "p95Us": 124.8,
+    "n": 4000
+   },
+   {
+    "medianUs": 67.9,
+    "p95Us": 128.6,
+    "n": 4000
+   }
+  ],
+  "after": [
+   {
+    "medianUs": 70.6,
+    "p95Us": 133.6,
+    "n": 4000
+   },
+   {
+    "medianUs": 75.1,
+    "p95Us": 151,
+    "n": 4000
+   },
+   {
+    "medianUs": 73.8,
+    "p95Us": 138,
+    "n": 4000
+   },
+   {
+    "medianUs": 66.5,
+    "p95Us": 133.4,
+    "n": 4000
+   },
+   {
+    "medianUs": 70.4,
+    "p95Us": 129.2,
+    "n": 4000
+   },
+   {
+    "medianUs": 71.9,
+    "p95Us": 132.6,
+    "n": 4000
+   },
+   {
+    "medianUs": 72.4,
+    "p95Us": 140.5,
+    "n": 4000
+   },
+   {
+    "medianUs": 71,
+    "p95Us": 136.4,
+    "n": 4000
+   }
+  ],
+  "afterControl": [
+   {
+    "medianUs": 72.5,
+    "p95Us": 148.4,
+    "n": 4000
+   },
+   {
+    "medianUs": 75.3,
+    "p95Us": 150.6,
+    "n": 4000
+   },
+   {
+    "medianUs": 70.1,
+    "p95Us": 145.8,
+    "n": 4000
+   },
+   {
+    "medianUs": 72.8,
+    "p95Us": 140.7,
+    "n": 4000
+   },
+   {
+    "medianUs": 70,
+    "p95Us": 124.6,
+    "n": 4000
+   },
+   {
+    "medianUs": 67.5,
+    "p95Us": 119.3,
+    "n": 4000
+   },
+   {
+    "medianUs": 86.2,
+    "p95Us": 184.1,
+    "n": 4000
+   },
+   {
+    "medianUs": 74,
+    "p95Us": 139.1,
+    "n": 4000
+   }
+  ]
+ },
+ "loop": {
+  "off": [
+   {
+    "itersPerSec": 6982.3,
+    "sink": true
+   },
+   {
+    "itersPerSec": 7450.3,
+    "sink": true
+   },
+   {
+    "itersPerSec": 8274.7,
+    "sink": true
+   },
+   {
+    "itersPerSec": 9034,
+    "sink": true
+   },
+   {
+    "itersPerSec": 8510,
+    "sink": true
+   },
+   {
+    "itersPerSec": 8995.3,
+    "sink": true
+   },
+   {
+    "itersPerSec": 7544.3,
+    "sink": true
+   },
+   {
+    "itersPerSec": 8110.7,
+    "sink": true
+   }
+  ],
+  "on": [
+   {
+    "itersPerSec": 7471.3,
+    "sink": true
+   },
+   {
+    "itersPerSec": 7777.7,
+    "sink": true
+   },
+   {
+    "itersPerSec": 8257.7,
+    "sink": true
+   },
+   {
+    "itersPerSec": 8313.7,
+    "sink": true
+   },
+   {
+    "itersPerSec": 7911,
+    "sink": true
+   },
+   {
+    "itersPerSec": 7728.3,
+    "sink": true
+   },
+   {
+    "itersPerSec": 7783.3,
+    "sink": true
+   },
+   {
+    "itersPerSec": 7833.3,
+    "sink": true
+   }
+  ]
+ },
+ "summary": {
+  "queryMedianMicrosPerProcess": {
+   "before": [
+    60.3,
+    68.8,
+    67.8,
+    62.4,
+    67.5,
+    65.5,
+    66.2,
+    67.9
+   ],
+   "after": [
+    70.6,
+    75.1,
+    73.8,
+    66.5,
+    70.4,
+    71.9,
+    72.4,
+    71
+   ],
+   "afterControl": [
+    72.5,
+    75.3,
+    70.1,
+    72.8,
+    70,
+    67.5,
+    86.2,
+    74
+   ]
+  },
+  "queryMedianOfMedians": {
+   "before": 67.5,
+   "after": 71.9,
+   "afterControl": 72.8
+  },
+  "loopIterationsPerSecondPerProcess": {
+   "off": [
+    6982.3,
+    7450.3,
+    8274.7,
+    9034,
+    8510,
+    8995.3,
+    7544.3,
+    8110.7
+   ],
+   "on": [
+    7471.3,
+    7777.7,
+    8257.7,
+    8313.7,
+    7911,
+    7728.3,
+    7783.3,
+    7833.3
+   ]
+  },
+  "loopMedianOfMedians": {
+   "off": 8274.7,
+   "on": 7833.3
+  }
+ }
+}

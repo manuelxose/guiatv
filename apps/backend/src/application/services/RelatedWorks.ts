@@ -15,6 +15,7 @@
  */
 import { createHash } from 'node:crypto';
 import { logger } from '@/shared/utils/logger';
+import { timeStep, timeStepSync } from '@/shared/utils/stepTimeline';
 import { IndexableWork, indexableWorks } from './WorkSeoPolicy';
 
 const log = logger.child('RelatedWorks');
@@ -115,9 +116,10 @@ export class RelatedWorkIndex {
   }
 
   private refresh(): Promise<RelatedWorkGraph | undefined> {
-    this.inFlight ??= this.load()
+    // M13-B1: the catalogue read (I/O) and the graph build (synchronous CPU on the event loop) are timed apart.
+    this.inFlight ??= timeStep('related_works.load', () => this.load())
       .then((works) => {
-        this.graph = new RelatedWorkGraph(works);
+        this.graph = timeStepSync('related_works.build_graph', () => new RelatedWorkGraph(works));
         this.loadedAt = this.now();
         return this.graph;
       })

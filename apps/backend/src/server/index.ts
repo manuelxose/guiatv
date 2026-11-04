@@ -9,24 +9,37 @@ import { createContainer } from '../config/container';
 import { logger } from '../shared/utils/logger';
 import { ChatSocketHub } from '../presentation/realtime/ChatSocketHub';
 import { createShutdown } from './shutdown';
+import { startEventLoopDiagnostics } from '../shared/utils/eventLoopDiagnostics';
+import { startStartupCpuProfile } from '../shared/utils/cpuProfile';
+import { recordElapsedStep, timeStep, timeStepSync } from '../shared/utils/stepTimeline';
+import { performance } from 'node:perf_hooks';
 
 /**
  * Entry point for the standalone Express server.
  */
 async function startServer() {
   try {
+    // M13-B1: diagnostics first, so a start-up stall is already inside the monitored window. Both are bounded; the CPU
+    // profile is off unless DIAG_CPU_PROFILE=startup and DIAG_CPU_PROFILE_DIR are set.
+    try {
+      recordElapsedStep('boot.modules_loaded', performance.now());
+      startEventLoopDiagnostics();
+      startStartupCpuProfile();
+    } catch (error) {
+      logger.warn('Diagnostics could not start', { reason: (error as Error).name });
+    }
     logger.info('Starting Express server', { env: config.nodeEnv, port: config.port });
 
-    validateConfig();
+    timeStepSync('boot.validate_config', () => validateConfig());
 
-    const container = createContainer();
-    await container.initialize();
+    const container = timeStepSync('boot.create_container', () => createContainer());
+    await timeStep('boot.container_initialize', () => container.initialize());
     logger.info('Container initialized');
     // M10-C: load the channel feed-alias list now, so the first pages after a restart already redirect and hide
     // aliases (requests never wait for it; a failure is logged and retried after a minute).
-    container.get<{ current(date?: string): unknown }>('channelFeedAliases').current('today');
+    timeStepSync('boot.channel_alias_kickoff', () => container.get<{ current(date?: string): unknown }>('channelFeedAliases').current('today'));
 
-    const app = createRoutesApp({
+    const app = timeStepSync('boot.create_routes_app', () => createRoutesApp({
       adminController: container.get('adminController'),
       adminUsersController: container.get('adminUsersController'),
       authController: container.get('authController'),
@@ -50,13 +63,14 @@ async function startServer() {
       aiAnalyticsController: container.get('aiAnalyticsController'),
       editorialAIAssistantController: container.get('editorialAIAssistantController'),
       sitemapController: container.get('sitemapController'),
-    });
+    }));
 
     if (process.env.DISABLE_SCHEDULED_JOBS !== 'true') {
-      const { initializeJobs } = await import('../jobs');
-      initializeJobs({
-        refreshFootballHome: () => container.get<any>('footballQueryService').getHome(),
-      });
+      const { initializeJobs } = await timeStep('boot.import_jobs', () => import('../jobs'));
+      timeStepSync('boot.initialize_jobs', () => initializeJobs({
+        // minMs: the per-minute refresh is only stored when it is slow; the first run (set at boot) always is.
+        refreshFootballHome: () => timeStep('background.football_home_refresh', () => container.get<any>('footballQueryService').getHome(), { minMs: 50 }),
+      }));
     }
 
     const httpServer = createServer(app);
@@ -96,14 +110,15 @@ async function startServer() {
       }
     }
 
-    await ChatSocketHub.getInstance().initialize(
+    await timeStep('boot.chat_socket_hub', () => ChatSocketHub.getInstance().initialize(
       httpServer,
       container.get('authService'),
       hubDeps
-    );
+    ));
 
     const server = httpServer.listen(config.port, () => {
       logger.info(`Server listening on http://localhost:${config.port}`);
+      timeStepSync('boot.listening', () => undefined);
       // M10-B: read the related-works set once in the background, so no work page waits for that catalogue scan.
       void import('../application/services/RelatedWorks').then(({ relatedWorkIndex }) => relatedWorkIndex.warm());
     });
