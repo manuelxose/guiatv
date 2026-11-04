@@ -74,6 +74,7 @@ export interface TvReadModelBuildResult {
 
 export class TvReadModelBuilder {
   private readonly log = logger.child('TvReadModelBuilder');
+  private static readonly dayLocks = new Map<string, Promise<void>>();
 
   constructor(
     private readonly programRepository: IProgramRepository,
@@ -415,10 +416,7 @@ export class TvReadModelBuilder {
     // M03-L1: no-op unless EPG_CATALOGUE_LINK_MODE=shadow; reads the built programme fields (resolved category), never mutates.
     await runCatalogueLinkShadow(airings.map((airing) => airing.program));
 
-    await TVReadAiringModel.deleteMany({ date }).exec();
-    if (airings.length) {
-      await TVReadAiringModel.insertMany(airings, { ordered: false });
-    }
+    await this.replaceDayAirings(date, airings);
 
     const brandOps = Array.from(brands.values()).map((brand) => ({
       updateOne: {
@@ -458,6 +456,44 @@ export class TvReadModelBuilder {
       brandsUpserted: brandOps.length,
       generatedAt,
     };
+  }
+
+  /**
+   * Upsert the new set by its stable `id`, then drop the day's rows the set no longer has. The old
+   * deleteMany-then-insertMany left the day empty when the insert (or the link) failed in between;
+   * now a failed write throws before any delete and the previous day stays readable. No transaction:
+   * production Mongo may be standalone. replaceOne (not $set) so a field the new item lacks does not survive.
+   */
+  private async replaceDayAirings(date: string, airings: any[]): Promise<void> {
+    // shortcut: serialised per date inside this process only; a second process rebuilding the same date with a different set can still drop rows until the next rebuild.
+    const previous = TvReadModelBuilder.dayLocks.get(date) ?? Promise.resolve();
+    const run = previous.catch(() => undefined).then(() => this.writeDay(date, airings));
+    TvReadModelBuilder.dayLocks.set(date, run);
+    try {
+      await run;
+    } finally {
+      if (TvReadModelBuilder.dayLocks.get(date) === run) TvReadModelBuilder.dayLocks.delete(date);
+    }
+  }
+
+  private async writeDay(date: string, airings: any[]): Promise<void> {
+    try {
+      // An empty source (feed outage) must not wipe a populated day; the old behaviour did.
+      if (!airings.length) {
+        this.log.warn('TV read model rebuilt from zero programmes; existing rows kept', { date });
+        return;
+      }
+      await TVReadAiringModel.bulkWrite(
+        airings.map((airing) => ({
+          replaceOne: { filter: { id: airing.id }, replacement: airing, upsert: true },
+        })),
+        { ordered: false }
+      );
+      await TVReadAiringModel.deleteMany({ date, id: { $nin: airings.map((airing) => airing.id) } }).exec();
+    } catch (error) {
+      this.log.error('TV read model day replace failed; nothing was deleted', { date, error });
+      throw error;
+    }
   }
 
   private mergeAiringItems(primary: any, secondary: any): any {
