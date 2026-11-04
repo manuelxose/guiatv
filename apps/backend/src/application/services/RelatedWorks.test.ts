@@ -62,7 +62,7 @@ test('M10-B: a request never waits for the catalogue read; refresh in the backgr
   assert.equal(b, undefined);
   assert.equal(calls, 1, 'one read in flight');
   release();
-  await new Promise((ok) => setImmediate(ok));
+  await (index as any).inFlight; // M13-B3b: the graph is built in time slices, so wait for the refresh itself, not for one loop turn
   const g = await index.get();
   assert.equal(g?.size, 600);
   now = 2000; fail = true;

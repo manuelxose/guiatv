@@ -15,7 +15,8 @@
  */
 import { createHash } from 'node:crypto';
 import { logger } from '@/shared/utils/logger';
-import { timeStep, timeStepSync } from '@/shared/utils/stepTimeline';
+import { timeStep } from '@/shared/utils/stepTimeline';
+import { TimeSlice } from '@/shared/utils/timeSlice';
 import { IndexableWork, indexableWorks } from './WorkSeoPolicy';
 
 const log = logger.child('RelatedWorks');
@@ -26,21 +27,43 @@ const TTL_MS = Number(process.env.RELATED_WORKS_TTL_MS) || 6 * 60 * 60 * 1000;
 const rank = (seed: number, genre: number, w: { kind: string; tmdbId: number }) =>
   createHash('sha1').update(`${seed}:${genre}:${w.kind}:${w.tmdbId}`).digest().readUInt32BE(0);
 
+const byRank = (a: { r: number; w: { tmdbId: number } }, b: { r: number; w: { tmdbId: number } }) => a.r - b.r || a.w.tmdbId - b.w.tmdbId;
+
 export class RelatedWorkGraph {
   private readonly rings = new Map<string, Array<{ r: number; w: IndexableWork }>>();
   private readonly byId = new Map<string, IndexableWork>();
 
   constructor(works: readonly IndexableWork[]) {
+    for (const w of works) this.add(w);
+    for (const ring of this.rings.values()) ring.sort(byRank);
+  }
+
+  /**
+   * M13-B3b: the same graph as the constructor, built in time slices so a large set does not hold the event loop (the
+   * synchronous build of ~13 k works took ~270 ms). Nothing is observable before it returns: the caller swaps the
+   * finished graph in atomically.
+   */
+  static async buildSliced(works: readonly IndexableWork[], slice: TimeSlice = new TimeSlice()): Promise<RelatedWorkGraph> {
+    const graph = new RelatedWorkGraph([]);
     for (const w of works) {
-      this.byId.set(`${w.kind}:${w.tmdbId}`, w);
-      for (const g of [...new Set(w.genreIds), ANY_GENRE]) {
-        for (let s = 0; s < SEEDS; s++) {
-          const k = `${w.kind}:${g}:${s}`;
-          (this.rings.get(k) ?? this.rings.set(k, []).get(k)!).push({ r: rank(s, g, w), w });
-        }
+      graph.add(w);
+      await slice.tick();
+    }
+    for (const ring of graph.rings.values()) {
+      ring.sort(byRank);
+      await slice.tick();
+    }
+    return graph;
+  }
+
+  private add(w: IndexableWork): void {
+    this.byId.set(`${w.kind}:${w.tmdbId}`, w);
+    for (const g of [...new Set(w.genreIds), ANY_GENRE]) {
+      for (let s = 0; s < SEEDS; s++) {
+        const k = `${w.kind}:${g}:${s}`;
+        (this.rings.get(k) ?? this.rings.set(k, []).get(k)!).push({ r: rank(s, g, w), w });
       }
     }
-    for (const ring of this.rings.values()) ring.sort((a, b) => a.r - b.r || a.w.tmdbId - b.w.tmdbId);
   }
 
   get size(): number { return this.byId.size; }
@@ -118,10 +141,12 @@ export class RelatedWorkIndex {
   private refresh(): Promise<RelatedWorkGraph | undefined> {
     // M13-B1: the catalogue read (I/O) and the graph build (synchronous CPU on the event loop) are timed apart.
     this.inFlight ??= timeStep('related_works.load', () => this.load())
-      .then((works) => {
-        this.graph = timeStepSync('related_works.build_graph', () => new RelatedWorkGraph(works));
+      .then(async (works) => {
+        // M13-B3b: built in time slices off to the side; the finished graph replaces the previous one in one assignment.
+        const graph = await timeStep('related_works.build_graph', () => RelatedWorkGraph.buildSliced(works));
+        this.graph = graph;
         this.loadedAt = this.now();
-        return this.graph;
+        return graph;
       })
       .catch((error) => {
         this.failedAt = this.now();
