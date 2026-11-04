@@ -2,6 +2,7 @@ import os from 'node:os';
 import { monitorEventLoopDelay } from 'node:perf_hooks';
 import { catalogueDiagnosticsSnapshot } from './catalogueDiagnostics';
 import { eventLoopDiagnosticsSnapshot } from './eventLoopDiagnostics';
+import { inflightRequests } from './inflightRequests';
 import { stepTimelineSnapshot } from './stepTimeline';
 
 const MAX_SAMPLES = 2_000;
@@ -147,6 +148,7 @@ function diagnosticsSnapshot(): Record<string, unknown> {
       note: 'Durations are client-observed in this process (they include pool waits, BSON decoding and event-loop waits); none is MongoDB server execution time.',
       eventLoop: eventLoopDiagnosticsSnapshot(),
       steps: stepTimelineSnapshot(),
+      requests: inflightRequests.stats(),
       catalogue: catalogueDiagnosticsSnapshot(),
       cpu: { userMs: Math.round(cpu.user / 1_000), systemMs: Math.round(cpu.system / 1_000) },
       memory: { externalBytes: memory.external, arrayBuffersBytes: memory.arrayBuffers },

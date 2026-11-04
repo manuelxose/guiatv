@@ -4,6 +4,10 @@ import { DateUtils } from '@/shared/utils/dateUtils';
 import { NotFoundError } from '@/shared/errors';
 import { l1Cache } from '@/infrastructure/cache/L1Cache';
 import { addTiming, measureTiming, setCacheTiming } from '@/shared/utils/performanceTiming';
+import { timeStep } from '@/shared/utils/stepTimeline';
+
+// M13-B3a: named so a stall can be matched to these reads; only the ones lasting >= 100 ms are kept (recent ring).
+const BACKGROUND_STEP = { background: true, minMs: 100 } as const;
 import { programDetailPath, slugifyTitle } from '@/domain/services/detailPath';
 import {
   buildChannelIdentityMetadata,
@@ -709,7 +713,7 @@ export class TvReadQueryService {
   }
 
   query(params: TvReadQueryParams): Promise<TvReadResponseDTO> {
-    return this.singleFlight(`query:${JSON.stringify(params)}`, () => this.loadQuery(params));
+    return this.singleFlight(`query:${JSON.stringify(params)}`, () => timeStep('tvread.query', () => this.loadQuery(params), BACKGROUND_STEP));
   }
 
   getChannels(
@@ -719,12 +723,12 @@ export class TvReadQueryService {
   ): Promise<TvReadChannelsResponseDTO> {
     return this.singleFlight(
       `channels:${JSON.stringify([dateAliasOrDate, group, limit])}`,
-      () => this.loadChannels(dateAliasOrDate, group, limit)
+      () => timeStep('tvread.channels', () => this.loadChannels(dateAliasOrDate, group, limit), BACKGROUND_STEP)
     );
   }
 
   getSchedule(params: TvReadScheduleParams): Promise<TvReadScheduleResponseDTO> {
-    return this.singleFlight(`schedule:${JSON.stringify(params)}`, () => this.loadSchedule(params));
+    return this.singleFlight(`schedule:${JSON.stringify(params)}`, () => timeStep('tvread.schedule', () => this.loadSchedule(params), BACKGROUND_STEP));
   }
 
   private async loadQuery(params: TvReadQueryParams): Promise<TvReadResponseDTO> {

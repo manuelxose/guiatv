@@ -1,6 +1,7 @@
 import { monitorEventLoopDelay, performance, PerformanceObserver, type IntervalHistogram } from 'node:perf_hooks';
 import { envNumber, LogBudget, pushBounded, round1, round2 } from './diagnosticsCommon';
 import { logger } from './logger';
+import { inflightRequests, type RequestOverlap } from './inflightRequests';
 import { stepsOverlapping, type StepOverlap } from './stepTimeline';
 
 /**
@@ -28,6 +29,13 @@ export interface StallEvent {
   majorPageFaults: number;
   rssMb: number;
   steps: StepOverlap[];
+  /** M13-B3a: requests in flight / completed during the stall. Correlation only: an open request is not proven to be the cause. */
+  requests: RequestOverlap;
+  /**
+   * What the overlapping evidence is, never a verdict: 'none' = nothing instrumented overlapped (an explicit
+   * "unattributed" stall, not a guessed cause); 'steps', 'requests' or 'steps+requests' = candidates to investigate.
+   */
+  correlation: 'none' | 'steps' | 'requests' | 'steps+requests';
 }
 
 export interface WindowSummary {
@@ -51,6 +59,8 @@ export interface EventLoopDiagnosticsOptions {
   maxLogsPerMinute?: number;
   now?: () => number;
   wallClock?: () => number;
+  /** Request overlap provider (defaults to the process-wide registry). */
+  requestOverlap?: (fromMs: number, toMs: number) => RequestOverlap;
 }
 
 const log = logger.child('EventLoop');
@@ -64,6 +74,7 @@ export class EventLoopDiagnostics {
   private readonly now: () => number;
   private readonly wallClock: () => number;
   private readonly logBudget: LogBudget;
+  private readonly requestOverlap: (fromMs: number, toMs: number) => RequestOverlap;
 
   private histogram?: IntervalHistogram;
   private timer?: NodeJS.Timeout;
@@ -91,6 +102,7 @@ export class EventLoopDiagnostics {
     this.maxStalls = options.maxStalls ?? 25;
     this.now = options.now ?? (() => performance.now());
     this.wallClock = options.wallClock ?? (() => Date.now());
+    this.requestOverlap = options.requestOverlap ?? ((from, to) => inflightRequests.overlap(from, to));
     this.logBudget = new LogBudget(options.maxLogsPerMinute ?? 6, this.wallClock);
   }
 
@@ -210,6 +222,14 @@ export class EventLoopDiagnostics {
     };
   }
 
+  private safeRequestOverlap(fromMs: number, toMs: number): RequestOverlap {
+    try {
+      return this.requestOverlap(fromMs, toMs);
+    } catch {
+      return { activeCount: 0, inFlight: [], completed: [], omitted: 0, byRoute: [] };
+    }
+  }
+
   private recordStall(now: number, lateness: number, cpu: NodeJS.CpuUsage, usage: ReturnType<typeof safeResourceUsage>): void {
     const interval = Math.max(now - this.lastTickAt, 1);
     const cpuMs = (cpu.user + cpu.system - this.lastCpu.user - this.lastCpu.system) / 1_000;
@@ -224,7 +244,11 @@ export class EventLoopDiagnostics {
       majorPageFaults: usage.majorPageFault - this.lastUsage.majorPageFault,
       rssMb: Math.round(process.memoryUsage().rss / 1_048_576),
       steps: stepsOverlapping(this.lastTickAt + this.intervalMs, now),
+      requests: this.safeRequestOverlap(this.lastTickAt, now),
+      correlation: 'none',
     };
+    const hasRequests = event.requests.inFlight.length > 0 || event.requests.completed.length > 0;
+    event.correlation = event.steps.length > 0 ? (hasRequests ? 'steps+requests' : 'steps') : hasRequests ? 'requests' : 'none';
     this.stallCount += 1;
     this.stallTotalMs += lateness;
     this.windowStalls += 1;
