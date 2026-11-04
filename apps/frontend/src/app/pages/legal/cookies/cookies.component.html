@@ -13,7 +13,7 @@
       </nav>
       <h1 class="text-3xl md:text-4xl font-bold text-[var(--portal-text)] mb-4">Política de Cookies</h1>
       <p class="text-[var(--portal-text-muted)] text-lg">Información sobre el uso de cookies en GPTV.</p>
-      <p class="text-[var(--portal-text-muted)] text-sm mt-4">Última actualización: Diciembre 2024</p>
+      <p class="text-[var(--portal-text-muted)] text-sm mt-4">Última actualización: Noviembre 2026</p>
     </div>
   </div>
 
@@ -118,16 +118,28 @@
                 <td class="py-3 px-4 text-[var(--portal-text-muted)]">Guardar preferencias del usuario</td>
               </tr>
               <tr class="border-b border-[var(--portal-border)]">
-                <td class="py-3 px-4 font-mono text-xs">_ga</td>
+                <td class="py-3 px-4 font-mono text-xs">_ga, _ga_&lt;id&gt;</td>
                 <td class="py-3 px-4"><span class="px-2 py-1 rounded-full bg-[var(--accent-discover-soft)] text-[var(--accent-discover)] text-xs">Análisis</span></td>
                 <td class="py-3 px-4">2 años</td>
-                <td class="py-3 px-4 text-[var(--portal-text-muted)]">Google Analytics - Distinguir usuarios</td>
+                <td class="py-3 px-4 text-[var(--portal-text-muted)]">Google Analytics: distinguir visitantes de forma agregada. Solo con tu consentimiento; se borran al retirarlo</td>
+              </tr>
+              <tr class="border-b border-[var(--portal-border)]">
+                <td class="py-3 px-4 font-mono text-xs">gtv_anon_id (almacenamiento local)</td>
+                <td class="py-3 px-4"><span class="px-2 py-1 rounded-full bg-[var(--accent-discover-soft)] text-[var(--accent-discover)] text-xs">Análisis</span></td>
+                <td class="py-3 px-4">Hasta que retires el consentimiento</td>
+                <td class="py-3 px-4 text-[var(--portal-text-muted)]">Analítica propia: identificador aleatorio para contar visitantes únicos. Solo con tu consentimiento</td>
+              </tr>
+              <tr class="border-b border-[var(--portal-border)]">
+                <td class="py-3 px-4 font-mono text-xs">gtv_session (almacenamiento de sesión)</td>
+                <td class="py-3 px-4"><span class="px-2 py-1 rounded-full bg-[var(--accent-discover-soft)] text-[var(--accent-discover)] text-xs">Análisis</span></td>
+                <td class="py-3 px-4">Sesión del navegador (30 min de inactividad)</td>
+                <td class="py-3 px-4 text-[var(--portal-text-muted)]">Analítica propia: agrupar las páginas de una misma visita. Solo con tu consentimiento</td>
               </tr>
               <tr>
                 <td class="py-3 px-4 font-mono text-xs">cookie_consent</td>
                 <td class="py-3 px-4"><span class="px-2 py-1 rounded-full bg-[var(--accent-streaming-soft)] text-[var(--accent-streaming)] text-xs">Técnica</span></td>
                 <td class="py-3 px-4">1 año</td>
-                <td class="py-3 px-4 text-[var(--portal-text-muted)]">Recordar consentimiento de cookies</td>
+                <td class="py-3 px-4 text-[var(--portal-text-muted)]">Recordar tu elección sobre las cookies de análisis</td>
               </tr>
             </tbody>
           </table>
@@ -145,6 +157,7 @@
           </div>
           <h2 class="text-xl font-semibold text-[var(--portal-text)]">Gestionar tus Preferencias</h2>
         </div>
+        <p class="text-[var(--portal-text-muted)] mb-4">Puedes aceptar o rechazar las cookies de análisis en cualquier momento: <button type="button" class="underline font-semibold" (click)="consent.openPreferences()">Configurar cookies</button>. Sin tu consentimiento no se guarda ningún identificador de análisis ni se envían datos de navegación.</p>
         <p class="text-[var(--portal-text-muted)] mb-6">Puedes gestionar o desactivar las cookies desde la configuración de tu navegador:</p>
         <div class="grid sm:grid-cols-2 gap-3">
           <a href="https://support.google.com/chrome/answer/95647" target="_blank" rel="noopener" class="flex items-center gap-3 p-3 bg-[var(--portal-surface-strong)]/30 rounded-lg hover:bg-[var(--portal-surface-strong)] transition-colors text-[var(--portal-text-soft)] hover:text-[var(--portal-text)] text-sm">

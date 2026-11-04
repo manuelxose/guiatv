@@ -12,6 +12,11 @@ export const environment = {
     chatbotEnabled: true,
     maxMessagesPerSession: 50,
   },
+  analytics: {
+    // Fallback GA4 property; the server decides whether GA4 loads at all (ANALYTICS_GA4_ENABLED) and may override
+    // the id (ANALYTICS_GA4_MEASUREMENT_ID). Never loaded before the visitor grants analytics consent.
+    ga4MeasurementId: '',
+  },
 };
 
 /*

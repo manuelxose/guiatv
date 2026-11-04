@@ -108,8 +108,20 @@
 
 .portal-footer__highlight span,
 .portal-footer__column-head span,
-.portal-footer__meta-links a {
+.portal-footer__meta-links a,
+.portal-footer__consent {
   font-size: 0.78rem;
+}
+
+.portal-footer__consent {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .portal-footer__highlight span,
