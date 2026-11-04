@@ -1,0 +1,1662 @@
+{
+ "label": "chan-base",
+ "node": "v24.18.0",
+ "backend": "C:\\Users\\Admin\\Documents\\workspace\\guiatv-m13b5\\apps\\backend",
+ "startedAt": "2026-11-04T19:11:30.479Z",
+ "cache": "in-memory JSON round-trip (Valkey stand-in)",
+ "sizes": {
+  "2600": {
+   "avgObjSizeBytes": 2958,
+   "scenarios": {
+    "list_cold": [
+     {
+      "scenario": "list_cold",
+      "wallMs": 1985,
+      "cpuMs": 2312,
+      "elu": 0.98,
+      "maxStallMs": 1622,
+      "stalls50": [
+       1622,
+       54,
+       57,
+       91
+      ],
+      "loopP99Ms": 1627,
+      "loopMaxMs": 1627,
+      "gc": {
+       "count": 62,
+       "totalMs": 54,
+       "maxMs": 8,
+       "major": 2
+      },
+      "peakHeapMb": 94,
+      "mongo": {
+       "find": 7,
+       "count": 1,
+       "other": 27,
+       "docs": 3902
+      },
+      "listMs": 1985,
+      "listItems": 8,
+      "listTotal": 1200,
+      "digest": "984d3afe8fd869e503cec5f0352fe990eae325df91354e1a5b26f77c46858302",
+      "store": [
+       {
+        "key": "v3:tv:read:20261104:day:all:all:all:all::2400:0:items",
+        "bytes": 5890876,
+        "parseMs": 17.7
+       },
+       {
+        "key": "catalog:query:v2:{\"userId\":\"\",\"q\":\"\",\"types\":[\"program\"],\"genres\":[],\"",
+        "bytes": 19305,
+        "parseMs": 0.1
+       }
+      ],
+      "phases": {
+       "queries": {
+        "l1_hit": 0,
+        "cache_hit": 0,
+        "miss": 1,
+        "error": 0
+       },
+       "totalMs": {
+        "l1_hit": {
+         "count": 0,
+         "p50": 0,
+         "p95": 0,
+         "max": 0
+        },
+        "cache_hit": {
+         "count": 0,
+         "p50": 0,
+         "p95": 0,
+         "max": 0
+        },
+        "miss": {
+         "count": 1,
+         "p50": 1984.32,
+         "p95": 1984.32,
+         "max": 1984.3
+        },
+        "error": {
+         "count": 0,
+         "p50": 0,
+         "p95": 0,
+         "max": 0
+        }
+       },
+       "missPhasesWallMs": {
+        "cache_lookup": {
+         "count": 1,
+         "p50": 0,
+         "p95": 0,
+         "max": 0,
+         "maxSpanMs": 0
+        },
+        "parallel": {
+         "count": 1,
+         "p50": 1976.7,
+         "p95": 1976.7,
+         "max": 1976.7,
+         "maxSpanMs": 1976.7
+        },
+        "channels": {
+         "count": 1,
+         "p50": 1707.7,
+         "p95": 1707.7,
+         "max": 1707.7,
+         "maxSpanMs": 1707.7
+        },
+        "preferences": {
+         "count": 1,
+         "p50": 1.1,
+         "p95": 1.1,
+         "max": 1.1,
+         "maxSpanMs": 1.1
+        },
+        "programme": {
+         "count": 1,
+         "p50": 1976,
+         "p95": 1976,
+         "max": 1976,
+         "maxSpanMs": 1976
+        },
+        "tvread": {
+         "count": 1,
+         "p50": 1948.7,
+         "p95": 1948.7,
+         "max": 1948.7,
+         "maxSpanMs": 1948.7
+        },
+        "streaming": {
+         "count": 1,
+         "p50": 0.1,
+         "p95": 0.1,
+         "max": 0.1,
+         "maxSpanMs": 0.1
+        },
+        "transform": {
+         "count": 1,
+         "p50": 5.8,
+         "p95": 5.8,
+         "max": 5.8,
+         "maxSpanMs": 5.8
+        },
+        "workpaths": {
+         "count": 1,
+         "p50": 0.1,
+         "p95": 0.1,
+         "max": 0.1,
+         "maxSpanMs": 0.1
+        },
+        "interactions": {
+         "count": 1,
+         "p50": 0,
+         "p95": 0,
+         "max": 0,
+         "maxSpanMs": 0
+        },
+        "response_build": {
+         "count": 1,
+         "p50": 0.8,
+         "p95": 0.8,
+         "max": 0.8,
+         "maxSpanMs": 0.8
+        },
+        "cache_set": {
+         "count": 1,
+         "p50": 0.1,
+         "p95": 0.1,
+         "max": 0.1,
+         "maxSpanMs": 0.1
+        }
+       },
+       "slow": [
+        {
+         "at": "2026-11-04T19:11:34.140Z",
+         "uptimeMs": 2677,
+         "outcome": "miss",
+         "totalMs": 1984.3,
+         "phases": {
+          "cache_lookup": {
+           "count": 1,
+           "wallMs": 0,
+           "sumMs": 0,
+           "maxMs": 0
+          },
+          "parallel": {
+           "count": 1,
+           "wallMs": 1976.7,
+           "sumMs": 1976.7,
+           "maxMs": 1976.7
+          },
+          "channels": {
+           "count": 1,
+           "wallMs": 1707.7,
+           "sumMs": 1707.7,
+           "maxMs": 1707.7
+          },
+          "preferences": {
+           "count": 1,
+           "wallMs": 1.1,
+           "sumMs": 1.1,
+           "maxMs": 1.1
+          },
+          "programme": {
+           "count": 1,
+           "wallMs": 1976,
+           "sumMs": 1976,
+           "maxMs": 1976
+          },
+          "tvread": {
+           "count": 1,
+           "wallMs": 1948.7,
+           "sumMs": 1948.7,
+           "maxMs": 1948.7
+          },
+          "streaming": {
+           "count": 1,
+           "wallMs": 0.1,
+           "sumMs": 0.1,
+           "maxMs": 0.1
+          },
+          "transform": {
+           "count": 1,
+           "wallMs": 5.8,
+           "sumMs": 5.8,
+           "maxMs": 5.8
+          },
+          "workpaths": {
+           "count": 1,
+           "wallMs": 0.1,
+           "sumMs": 0.1,
+           "maxMs": 0.1
+          },
+          "interactions": {
+           "count": 1,
+           "wallMs": 0,
+           "sumMs": 0,
+           "maxMs": 0
+          },
+          "response_build": {
+           "count": 1,
+           "wallMs": 0.8,
+           "sumMs": 0.8,
+           "maxMs": 0.8
+          },
+          "cache_set": {
+           "count": 1,
+           "wallMs": 0.1,
+           "sumMs": 0.1,
+           "maxMs": 0.1
+          }
+         },
+         "shape": {
+          "types": "program",
+          "availability": "",
+          "sort": "airtime",
+          "page": 1,
+          "limit": 8,
+          "platforms": 0,
+          "genres": 0,
+          "hasQuery": false,
+          "authenticated": false
+         }
+        }
+       ],
+       "suppressedLogs": 0
+      },
+      "steps": [
+       {
+        "step": "tvread.query",
+        "ms": 1948
+       },
+       {
+        "step": "catalog.query",
+        "ms": 1984
+       }
+      ]
+     },
+     {
+      "scenario": "list_cold",
+      "wallMs": 1982,
+      "cpuMs": 2374,
+      "elu": 0.99,
+      "maxStallMs": 1649,
+      "stalls50": [
+       57,
+       1649,
+       53,
+       55,
+       54
+      ],
+      "loopP99Ms": 1654,
+      "loopMaxMs": 1654,
+      "gc": {
+       "count": 35,
+       "totalMs": 47,
+       "maxMs": 6,
+       "major": 2
+      },
+      "peakHeapMb": 108,
+      "mongo": {
+       "find": 7,
+       "count": 1,
+       "other": 41,
+       "docs": 3902
+      },
+      "listMs": 1982,
+      "listItems": 8,
+      "listTotal": 1200,
+      "digest": "984d3afe8fd869e503cec5f0352fe990eae325df91354e1a5b26f77c46858302",
+      "store": [
+       {
+        "key": "v3:tv:read:20261104:day:all:all:all:all::2400:0:items",
+        "bytes": 5890876,
+        "parseMs": 15.9
+       },
+       {
+        "key": "catalog:query:v2:{\"userId\":\"\",\"q\":\"\",\"types\":[\"program\"],\"genres\":[],\"",
+        "bytes": 19305,
+        "parseMs": 0.1
+       }
+      ],
+      "phases": {
+       "queries": {
+        "l1_hit": 0,
+        "cache_hit": 0,
+        "miss": 1,
+        "error": 0
+       },
+       "totalMs": {
+        "l1_hit": {
+         "count": 0,
+         "p50": 0,
+         "p95": 0,
+         "max": 0
+        },
+        "cache_hit": {
+         "count": 0,
+         "p50": 0,
+         "p95": 0,
+         "max": 0
+        },
+        "miss": {
+         "count": 1,
+         "p50": 1981.94,
+         "p95": 1981.94,
+         "max": 1981.9
+        },
+        "error": {
+         "count": 0,
+         "p50": 0,
+         "p95": 0,
+         "max": 0
+        }
+       },
+       "missPhasesWallMs": {
+        "cache_lookup": {
+         "count": 1,
+         "p50": 0.1,
+         "p95": 0.1,
+         "max": 0.1,
+         "maxSpanMs": 0.1
+        },
+        "parallel": {
+         "count": 1,
+         "p50": 1976.4,
+         "p95": 1976.4,
+         "max": 1976.4,
+         "maxSpanMs": 1976.4
+        },
+        "channels": {
+         "count": 1,
+         "p50": 1762.6,
+         "p95": 1762.6,
+         "max": 1762.6,
+         "maxSpanMs": 1762.6
+        },
+        "preferences": {
+         "count": 1,
+         "p50": 0.9,
+         "p95": 0.9,
+         "max": 0.9,
+         "maxSpanMs": 0.9
+        },
+        "programme": {
+         "count": 1,
+         "p50": 1975.8,
+         "p95": 1975.8,
+         "max": 1975.8,
+         "maxSpanMs": 1975.8
+        },
+        "tvread": {
+         "count": 1,
+         "p50": 1961.6,
+         "p95": 1961.6,
+         "max": 1961.6,
+         "maxSpanMs": 1961.6
+        },
+        "streaming": {
+         "count": 1,
+         "p50": 0.1,
+         "p95": 0.1,
+         "max": 0.1,
+         "maxSpanMs": 0.1
+        },
+        "transform": {
+         "count": 1,
+         "p50": 3.7,
+         "p95": 3.7,
+         "max": 3.7,
+         "maxSpanMs": 3.7
+        },
+        "workpaths": {
+         "count": 1,
+         "p50": 0.1,
+         "p95": 0.1,
+         "max": 0.1,
+         "maxSpanMs": 0.1
+        },
+        "interactions": {
+         "count": 1,
+         "p50": 0,
+         "p95": 0,
+         "max": 0,
+         "maxSpanMs": 0
+        },
+        "response_build": {
+         "count": 1,
+         "p50": 0.5,
+         "p95": 0.5,
+         "max": 0.5,
+         "maxSpanMs": 0.5
+        },
+        "cache_set": {
+         "count": 1,
+         "p50": 0.2,
+         "p95": 0.2,
+         "max": 0.2,
+         "maxSpanMs": 0.2
+        }
+       },
+       "slow": [
+        {
+         "at": "2026-11-04T19:11:37.053Z",
+         "uptimeMs": 2805,
+         "outcome": "miss",
+         "totalMs": 1981.9,
+         "phases": {
+          "cache_lookup": {
+           "count": 1,
+           "wallMs": 0.1,
+           "sumMs": 0.1,
+           "maxMs": 0.1
+          },
+          "parallel": {
+           "count": 1,
+           "wallMs": 1976.4,
+           "sumMs": 1976.4,
+           "maxMs": 1976.4
+          },
+          "channels": {
+           "count": 1,
+           "wallMs": 1762.6,
+           "sumMs": 1762.6,
+           "maxMs": 1762.6
+          },
+          "preferences": {
+           "count": 1,
+           "wallMs": 0.9,
+           "sumMs": 0.9,
+           "maxMs": 0.9
+          },
+          "programme": {
+           "count": 1,
+           "wallMs": 1975.8,
+           "sumMs": 1975.8,
+           "maxMs": 1975.8
+          },
+          "tvread": {
+           "count": 1,
+           "wallMs": 1961.6,
+           "sumMs": 1961.6,
+           "maxMs": 1961.6
+          },
+          "streaming": {
+           "count": 1,
+           "wallMs": 0.1,
+           "sumMs": 0.1,
+           "maxMs": 0.1
+          },
+          "transform": {
+           "count": 1,
+           "wallMs": 3.7,
+           "sumMs": 3.7,
+           "maxMs": 3.7
+          },
+          "workpaths": {
+           "count": 1,
+           "wallMs": 0.1,
+           "sumMs": 0.1,
+           "maxMs": 0.1
+          },
+          "interactions": {
+           "count": 1,
+           "wallMs": 0,
+           "sumMs": 0,
+           "maxMs": 0
+          },
+          "response_build": {
+           "count": 1,
+           "wallMs": 0.5,
+           "sumMs": 0.5,
+           "maxMs": 0.5
+          },
+          "cache_set": {
+           "count": 1,
+           "wallMs": 0.2,
+           "sumMs": 0.2,
+           "maxMs": 0.2
+          }
+         },
+         "shape": {
+          "types": "program",
+          "availability": "",
+          "sort": "airtime",
+          "page": 1,
+          "limit": 8,
+          "platforms": 0,
+          "genres": 0,
+          "hasQuery": false,
+          "authenticated": false
+         }
+        }
+       ],
+       "suppressedLogs": 0
+      },
+      "steps": [
+       {
+        "step": "tvread.query",
+        "ms": 1961
+       },
+       {
+        "step": "catalog.query",
+        "ms": 1982
+       }
+      ]
+     },
+     {
+      "scenario": "list_cold",
+      "wallMs": 1839,
+      "cpuMs": 2125,
+      "elu": 0.99,
+      "maxStallMs": 1539,
+      "stalls50": [
+       1539,
+       52,
+       60
+      ],
+      "loopP99Ms": 1546,
+      "loopMaxMs": 1546,
+      "gc": {
+       "count": 57,
+       "totalMs": 44,
+       "maxMs": 5,
+       "major": 1
+      },
+      "peakHeapMb": 132,
+      "mongo": {
+       "find": 7,
+       "count": 1,
+       "other": 40,
+       "docs": 3902
+      },
+      "listMs": 1839,
+      "listItems": 8,
+      "listTotal": 1200,
+      "digest": "ddd1a81a9dbd40a069765116a537ae8f906589c1c4427d93265aa1100827b593",
+      "store": [
+       {
+        "key": "v3:tv:read:20261104:day:all:all:all:all::2400:0:items",
+        "bytes": 5890876,
+        "parseMs": 14.6
+       },
+       {
+        "key": "catalog:query:v2:{\"userId\":\"\",\"q\":\"\",\"types\":[\"program\"],\"genres\":[],\"",
+        "bytes": 19183,
+        "parseMs": 0.1
+       }
+      ],
+      "phases": {
+       "queries": {
+        "l1_hit": 0,
+        "cache_hit": 0,
+        "miss": 1,
+        "error": 0
+       },
+       "totalMs": {
+        "l1_hit": {
+         "count": 0,
+         "p50": 0,
+         "p95": 0,
+         "max": 0
+        },
+        "cache_hit": {
+         "count": 0,
+         "p50": 0,
+         "p95": 0,
+         "max": 0
+        },
+        "miss": {
+         "count": 1,
+         "p50": 1838.8,
+         "p95": 1838.8,
+         "max": 1838.8
+        },
+        "error": {
+         "count": 0,
+         "p50": 0,
+         "p95": 0,
+         "max": 0
+        }
+       },
+       "missPhasesWallMs": {
+        "cache_lookup": {
+         "count": 1,
+         "p50": 0,
+         "p95": 0,
+         "max": 0,
+         "maxSpanMs": 0
+        },
+        "parallel": {
+         "count": 1,
+         "p50": 1833.6,
+         "p95": 1833.6,
+         "max": 1833.6,
+         "maxSpanMs": 1833.6
+        },
+        "channels": {
+         "count": 1,
+         "p50": 1627.4,
+         "p95": 1627.4,
+         "max": 1627.4,
+         "maxSpanMs": 1627.4
+        },
+        "preferences": {
+         "count": 1,
+         "p50": 0.8,
+         "p95": 0.8,
+         "max": 0.8,
+         "maxSpanMs": 0.8
+        },
+        "programme": {
+         "count": 1,
+         "p50": 1833,
+         "p95": 1833,
+         "max": 1833,
+         "maxSpanMs": 1833
+        },
+        "tvread": {
+         "count": 1,
+         "p50": 1818.8,
+         "p95": 1818.8,
+         "max": 1818.8,
+         "maxSpanMs": 1818.8
+        },
+        "streaming": {
+         "count": 1,
+         "p50": 0.1,
+         "p95": 0.1,
+         "max": 0.1,
+         "maxSpanMs": 0.1
+        },
+        "transform": {
+         "count": 1,
+         "p50": 3.5,
+         "p95": 3.5,
+         "max": 3.5,
+         "maxSpanMs": 3.5
+        },
+        "workpaths": {
+         "count": 1,
+         "p50": 0.2,
+         "p95": 0.2,
+         "max": 0.2,
+         "maxSpanMs": 0.2
+        },
+        "interactions": {
+         "count": 1,
+         "p50": 0.1,
+         "p95": 0.1,
+         "max": 0.1,
+         "maxSpanMs": 0.1
+        },
+        "response_build": {
+         "count": 1,
+         "p50": 0.4,
+         "p95": 0.4,
+         "max": 0.4,
+         "maxSpanMs": 0.4
+        },
+        "cache_set": {
+         "count": 1,
+         "p50": 0.1,
+         "p95": 0.1,
+         "max": 0.1,
+         "maxSpanMs": 0.1
+        }
+       },
+       "slow": [
+        {
+         "at": "2026-11-04T19:11:39.571Z",
+         "uptimeMs": 2414,
+         "outcome": "miss",
+         "totalMs": 1838.8,
+         "phases": {
+          "cache_lookup": {
+           "count": 1,
+           "wallMs": 0,
+           "sumMs": 0,
+           "maxMs": 0
+          },
+          "parallel": {
+           "count": 1,
+           "wallMs": 1833.6,
+           "sumMs": 1833.6,
+           "maxMs": 1833.6
+          },
+          "channels": {
+           "count": 1,
+           "wallMs": 1627.4,
+           "sumMs": 1627.4,
+           "maxMs": 1627.4
+          },
+          "preferences": {
+           "count": 1,
+           "wallMs": 0.8,
+           "sumMs": 0.8,
+           "maxMs": 0.8
+          },
+          "programme": {
+           "count": 1,
+           "wallMs": 1833,
+           "sumMs": 1833,
+           "maxMs": 1833
+          },
+          "tvread": {
+           "count": 1,
+           "wallMs": 1818.8,
+           "sumMs": 1818.8,
+           "maxMs": 1818.8
+          },
+          "streaming": {
+           "count": 1,
+           "wallMs": 0.1,
+           "sumMs": 0.1,
+           "maxMs": 0.1
+          },
+          "transform": {
+           "count": 1,
+           "wallMs": 3.5,
+           "sumMs": 3.5,
+           "maxMs": 3.5
+          },
+          "workpaths": {
+           "count": 1,
+           "wallMs": 0.2,
+           "sumMs": 0.2,
+           "maxMs": 0.2
+          },
+          "interactions": {
+           "count": 1,
+           "wallMs": 0.1,
+           "sumMs": 0.1,
+           "maxMs": 0.1
+          },
+          "response_build": {
+           "count": 1,
+           "wallMs": 0.4,
+           "sumMs": 0.4,
+           "maxMs": 0.4
+          },
+          "cache_set": {
+           "count": 1,
+           "wallMs": 0.1,
+           "sumMs": 0.1,
+           "maxMs": 0.1
+          }
+         },
+         "shape": {
+          "types": "program",
+          "availability": "",
+          "sort": "airtime",
+          "page": 1,
+          "limit": 8,
+          "platforms": 0,
+          "genres": 0,
+          "hasQuery": false,
+          "authenticated": false
+         }
+        }
+       ],
+       "suppressedLogs": 0
+      },
+      "steps": [
+       {
+        "step": "tvread.query",
+        "ms": 1819
+       },
+       {
+        "step": "catalog.query",
+        "ms": 1839
+       }
+      ]
+     }
+    ],
+    "pair_cold": [
+     {
+      "scenario": "pair_cold",
+      "wallMs": 1890,
+      "cpuMs": 2016,
+      "elu": 0.98,
+      "maxStallMs": 1564,
+      "stalls50": [
+       1564,
+       56,
+       57,
+       56
+      ],
+      "loopP99Ms": 1570,
+      "loopMaxMs": 1570,
+      "gc": {
+       "count": 61,
+       "totalMs": 50,
+       "maxMs": 6,
+       "major": 1
+      },
+      "peakHeapMb": 122,
+      "mongo": {
+       "find": 10,
+       "count": 2,
+       "other": 41,
+       "docs": 3925
+      },
+      "listMs": 1889,
+      "enrichMs": 37,
+      "listItems": 8,
+      "listTotal": 1200,
+      "enrichRelated": 8,
+      "digest": "68f0defb632344a151dd5a3382eeee7a28198ad42e15ea4898423c31da09682d",
+      "store": [
+       {
+        "key": "v3:tv:read:20261104:day:all:all:all:all::2400:0:items",
+        "bytes": 5890876,
+        "parseMs": 15.8
+       },
+       {
+        "key": "v3:tv:read:20261104:day:all:Entretenimiento:all:all::18:0:items",
+        "bytes": 44188,
+        "parseMs": 0.1
+       },
+       {
+        "key": "catalog:query:v2:{\"userId\":\"\",\"q\":\"\",\"types\":[\"program\"],\"genres\":[],\"",
+        "bytes": 19221,
+        "parseMs": 0.1
+       },
+       {
+        "key": "tv:read:item:20261104_ch3_51",
+        "bytes": 8542,
+        "parseMs": 0.1
+       }
+      ],
+      "phases": {
+       "queries": {
+        "l1_hit": 0,
+        "cache_hit": 0,
+        "miss": 1,
+        "error": 0
+       },
+       "totalMs": {
+        "l1_hit": {
+         "count": 0,
+         "p50": 0,
+         "p95": 0,
+         "max": 0
+        },
+        "cache_hit": {
+         "count": 0,
+         "p50": 0,
+         "p95": 0,
+         "max": 0
+        },
+        "miss": {
+         "count": 1,
+         "p50": 1889.05,
+         "p95": 1889.05,
+         "max": 1889.1
+        },
+        "error": {
+         "count": 0,
+         "p50": 0,
+         "p95": 0,
+         "max": 0
+        }
+       },
+       "missPhasesWallMs": {
+        "cache_lookup": {
+         "count": 1,
+         "p50": 0.5,
+         "p95": 0.5,
+         "max": 0.5,
+         "maxSpanMs": 0.5
+        },
+        "parallel": {
+         "count": 1,
+         "p50": 1882.7,
+         "p95": 1882.7,
+         "max": 1882.7,
+         "maxSpanMs": 1882.7
+        },
+        "channels": {
+         "count": 1,
+         "p50": 1666,
+         "p95": 1666,
+         "max": 1666,
+         "maxSpanMs": 1666
+        },
+        "preferences": {
+         "count": 1,
+         "p50": 0.8,
+         "p95": 0.8,
+         "max": 0.8,
+         "maxSpanMs": 0.8
+        },
+        "programme": {
+         "count": 1,
+         "p50": 1882.2,
+         "p95": 1882.2,
+         "max": 1882.2,
+         "maxSpanMs": 1882.2
+        },
+        "tvread": {
+         "count": 1,
+         "p50": 1868.8,
+         "p95": 1868.8,
+         "max": 1868.8,
+         "maxSpanMs": 1868.8
+        },
+        "streaming": {
+         "count": 1,
+         "p50": 0.1,
+         "p95": 0.1,
+         "max": 0.1,
+         "maxSpanMs": 0.1
+        },
+        "transform": {
+         "count": 1,
+         "p50": 4.3,
+         "p95": 4.3,
+         "max": 4.3,
+         "maxSpanMs": 4.3
+        },
+        "workpaths": {
+         "count": 1,
+         "p50": 0.1,
+         "p95": 0.1,
+         "max": 0.1,
+         "maxSpanMs": 0.1
+        },
+        "interactions": {
+         "count": 1,
+         "p50": 0,
+         "p95": 0,
+         "max": 0,
+         "maxSpanMs": 0
+        },
+        "response_build": {
+         "count": 1,
+         "p50": 0.7,
+         "p95": 0.7,
+         "max": 0.7,
+         "maxSpanMs": 0.7
+        },
+        "cache_set": {
+         "count": 1,
+         "p50": 0.1,
+         "p95": 0.1,
+         "max": 0.1,
+         "maxSpanMs": 0.1
+        }
+       },
+       "slow": [
+        {
+         "at": "2026-11-04T19:11:42.153Z",
+         "uptimeMs": 2483,
+         "outcome": "miss",
+         "totalMs": 1889.1,
+         "phases": {
+          "cache_lookup": {
+           "count": 1,
+           "wallMs": 0.5,
+           "sumMs": 0.5,
+           "maxMs": 0.5
+          },
+          "parallel": {
+           "count": 1,
+           "wallMs": 1882.7,
+           "sumMs": 1882.7,
+           "maxMs": 1882.7
+          },
+          "channels": {
+           "count": 1,
+           "wallMs": 1666,
+           "sumMs": 1666,
+           "maxMs": 1666
+          },
+          "preferences": {
+           "count": 1,
+           "wallMs": 0.8,
+           "sumMs": 0.8,
+           "maxMs": 0.8
+          },
+          "programme": {
+           "count": 1,
+           "wallMs": 1882.2,
+           "sumMs": 1882.2,
+           "maxMs": 1882.2
+          },
+          "tvread": {
+           "count": 1,
+           "wallMs": 1868.8,
+           "sumMs": 1868.8,
+           "maxMs": 1868.8
+          },
+          "streaming": {
+           "count": 1,
+           "wallMs": 0.1,
+           "sumMs": 0.1,
+           "maxMs": 0.1
+          },
+          "transform": {
+           "count": 1,
+           "wallMs": 4.3,
+           "sumMs": 4.3,
+           "maxMs": 4.3
+          },
+          "workpaths": {
+           "count": 1,
+           "wallMs": 0.1,
+           "sumMs": 0.1,
+           "maxMs": 0.1
+          },
+          "interactions": {
+           "count": 1,
+           "wallMs": 0,
+           "sumMs": 0,
+           "maxMs": 0
+          },
+          "response_build": {
+           "count": 1,
+           "wallMs": 0.7,
+           "sumMs": 0.7,
+           "maxMs": 0.7
+          },
+          "cache_set": {
+           "count": 1,
+           "wallMs": 0.1,
+           "sumMs": 0.1,
+           "maxMs": 0.1
+          }
+         },
+         "shape": {
+          "types": "program",
+          "availability": "",
+          "sort": "airtime",
+          "page": 1,
+          "limit": 8,
+          "platforms": 0,
+          "genres": 0,
+          "hasQuery": false,
+          "authenticated": false
+         }
+        }
+       ],
+       "suppressedLogs": 0
+      },
+      "steps": [
+       {
+        "step": "tvread.query",
+        "ms": 1869
+       },
+       {
+        "step": "catalog.query",
+        "ms": 1889
+       }
+      ]
+     },
+     {
+      "scenario": "pair_cold",
+      "wallMs": 1900,
+      "cpuMs": 2125,
+      "elu": 0.99,
+      "maxStallMs": 1555,
+      "stalls50": [
+       1555,
+       77,
+       59,
+       74
+      ],
+      "loopP99Ms": 1560,
+      "loopMaxMs": 1560,
+      "gc": {
+       "count": 39,
+       "totalMs": 51,
+       "maxMs": 7,
+       "major": 3
+      },
+      "peakHeapMb": 139,
+      "mongo": {
+       "find": 10,
+       "count": 2,
+       "other": 41,
+       "docs": 3925
+      },
+      "listMs": 1900,
+      "enrichMs": 44,
+      "listItems": 8,
+      "listTotal": 1200,
+      "enrichRelated": 8,
+      "digest": "68f0defb632344a151dd5a3382eeee7a28198ad42e15ea4898423c31da09682d",
+      "store": [
+       {
+        "key": "v3:tv:read:20261104:day:all:all:all:all::2400:0:items",
+        "bytes": 5890876,
+        "parseMs": 15.3
+       },
+       {
+        "key": "v3:tv:read:20261104:day:all:Entretenimiento:all:all::18:0:items",
+        "bytes": 44188,
+        "parseMs": 0.2
+       },
+       {
+        "key": "catalog:query:v2:{\"userId\":\"\",\"q\":\"\",\"types\":[\"program\"],\"genres\":[],\"",
+        "bytes": 19221,
+        "parseMs": 0.1
+       },
+       {
+        "key": "tv:read:item:20261104_ch3_51",
+        "bytes": 8542,
+        "parseMs": 0.2
+       }
+      ],
+      "phases": {
+       "queries": {
+        "l1_hit": 0,
+        "cache_hit": 0,
+        "miss": 1,
+        "error": 0
+       },
+       "totalMs": {
+        "l1_hit": {
+         "count": 0,
+         "p50": 0,
+         "p95": 0,
+         "max": 0
+        },
+        "cache_hit": {
+         "count": 0,
+         "p50": 0,
+         "p95": 0,
+         "max": 0
+        },
+        "miss": {
+         "count": 1,
+         "p50": 1899.69,
+         "p95": 1899.69,
+         "max": 1899.7
+        },
+        "error": {
+         "count": 0,
+         "p50": 0,
+         "p95": 0,
+         "max": 0
+        }
+       },
+       "missPhasesWallMs": {
+        "cache_lookup": {
+         "count": 1,
+         "p50": 0.3,
+         "p95": 0.3,
+         "max": 0.3,
+         "maxSpanMs": 0.3
+        },
+        "parallel": {
+         "count": 1,
+         "p50": 1894.3,
+         "p95": 1894.3,
+         "max": 1894.3,
+         "maxSpanMs": 1894.3
+        },
+        "channels": {
+         "count": 1,
+         "p50": 1651.7,
+         "p95": 1651.7,
+         "max": 1651.7,
+         "maxSpanMs": 1651.7
+        },
+        "preferences": {
+         "count": 1,
+         "p50": 0.8,
+         "p95": 0.8,
+         "max": 0.8,
+         "maxSpanMs": 0.8
+        },
+        "programme": {
+         "count": 1,
+         "p50": 1893.9,
+         "p95": 1893.9,
+         "max": 1893.9,
+         "maxSpanMs": 1893.9
+        },
+        "tvread": {
+         "count": 1,
+         "p50": 1875.1,
+         "p95": 1875.1,
+         "max": 1875.1,
+         "maxSpanMs": 1875.1
+        },
+        "streaming": {
+         "count": 1,
+         "p50": 0.1,
+         "p95": 0.1,
+         "max": 0.1,
+         "maxSpanMs": 0.1
+        },
+        "transform": {
+         "count": 1,
+         "p50": 3.6,
+         "p95": 3.6,
+         "max": 3.6,
+         "maxSpanMs": 3.6
+        },
+        "workpaths": {
+         "count": 1,
+         "p50": 0.1,
+         "p95": 0.1,
+         "max": 0.1,
+         "maxSpanMs": 0.1
+        },
+        "interactions": {
+         "count": 1,
+         "p50": 0,
+         "p95": 0,
+         "max": 0,
+         "maxSpanMs": 0
+        },
+        "response_build": {
+         "count": 1,
+         "p50": 0.5,
+         "p95": 0.5,
+         "max": 0.5,
+         "maxSpanMs": 0.5
+        },
+        "cache_set": {
+         "count": 1,
+         "p50": 0.1,
+         "p95": 0.1,
+         "max": 0.1,
+         "maxSpanMs": 0.1
+        }
+       },
+       "slow": [
+        {
+         "at": "2026-11-04T19:11:44.764Z",
+         "uptimeMs": 2499,
+         "outcome": "miss",
+         "totalMs": 1899.7,
+         "phases": {
+          "cache_lookup": {
+           "count": 1,
+           "wallMs": 0.3,
+           "sumMs": 0.3,
+           "maxMs": 0.3
+          },
+          "parallel": {
+           "count": 1,
+           "wallMs": 1894.3,
+           "sumMs": 1894.3,
+           "maxMs": 1894.3
+          },
+          "channels": {
+           "count": 1,
+           "wallMs": 1651.7,
+           "sumMs": 1651.7,
+           "maxMs": 1651.7
+          },
+          "preferences": {
+           "count": 1,
+           "wallMs": 0.8,
+           "sumMs": 0.8,
+           "maxMs": 0.8
+          },
+          "programme": {
+           "count": 1,
+           "wallMs": 1893.9,
+           "sumMs": 1893.9,
+           "maxMs": 1893.9
+          },
+          "tvread": {
+           "count": 1,
+           "wallMs": 1875.1,
+           "sumMs": 1875.1,
+           "maxMs": 1875.1
+          },
+          "streaming": {
+           "count": 1,
+           "wallMs": 0.1,
+           "sumMs": 0.1,
+           "maxMs": 0.1
+          },
+          "transform": {
+           "count": 1,
+           "wallMs": 3.6,
+           "sumMs": 3.6,
+           "maxMs": 3.6
+          },
+          "workpaths": {
+           "count": 1,
+           "wallMs": 0.1,
+           "sumMs": 0.1,
+           "maxMs": 0.1
+          },
+          "interactions": {
+           "count": 1,
+           "wallMs": 0,
+           "sumMs": 0,
+           "maxMs": 0
+          },
+          "response_build": {
+           "count": 1,
+           "wallMs": 0.5,
+           "sumMs": 0.5,
+           "maxMs": 0.5
+          },
+          "cache_set": {
+           "count": 1,
+           "wallMs": 0.1,
+           "sumMs": 0.1,
+           "maxMs": 0.1
+          }
+         },
+         "shape": {
+          "types": "program",
+          "availability": "",
+          "sort": "airtime",
+          "page": 1,
+          "limit": 8,
+          "platforms": 0,
+          "genres": 0,
+          "hasQuery": false,
+          "authenticated": false
+         }
+        }
+       ],
+       "suppressedLogs": 0
+      },
+      "steps": [
+       {
+        "step": "tvread.query",
+        "ms": 1875
+       },
+       {
+        "step": "catalog.query",
+        "ms": 1900
+       }
+      ]
+     },
+     {
+      "scenario": "pair_cold",
+      "wallMs": 1826,
+      "cpuMs": 2047,
+      "elu": 0.99,
+      "maxStallMs": 1589,
+      "stalls50": [
+       1589,
+       51,
+       59
+      ],
+      "loopP99Ms": 1596,
+      "loopMaxMs": 1596,
+      "gc": {
+       "count": 41,
+       "totalMs": 50,
+       "maxMs": 7,
+       "major": 3
+      },
+      "peakHeapMb": 88,
+      "mongo": {
+       "find": 10,
+       "count": 2,
+       "other": 49,
+       "docs": 3925
+      },
+      "listMs": 1825,
+      "enrichMs": 48,
+      "listItems": 8,
+      "listTotal": 1200,
+      "enrichRelated": 8,
+      "digest": "07a0631cf4e584b0e2a373a24220b6f1b3e4b1fff055d25afa3389d331a96236",
+      "store": [
+       {
+        "key": "v3:tv:read:20261104:day:all:all:all:all::2400:0:items",
+        "bytes": 5890876,
+        "parseMs": 16.5
+       },
+       {
+        "key": "v3:tv:read:20261104:day:all:Entretenimiento:all:all::18:0:items",
+        "bytes": 44188,
+        "parseMs": 0.4
+       },
+       {
+        "key": "catalog:query:v2:{\"userId\":\"\",\"q\":\"\",\"types\":[\"program\"],\"genres\":[],\"",
+        "bytes": 19246,
+        "parseMs": 0.1
+       },
+       {
+        "key": "tv:read:item:20261104_ch3_51",
+        "bytes": 8542,
+        "parseMs": 0.1
+       }
+      ],
+      "phases": {
+       "queries": {
+        "l1_hit": 0,
+        "cache_hit": 0,
+        "miss": 1,
+        "error": 0
+       },
+       "totalMs": {
+        "l1_hit": {
+         "count": 0,
+         "p50": 0,
+         "p95": 0,
+         "max": 0
+        },
+        "cache_hit": {
+         "count": 0,
+         "p50": 0,
+         "p95": 0,
+         "max": 0
+        },
+        "miss": {
+         "count": 1,
+         "p50": 1825.06,
+         "p95": 1825.06,
+         "max": 1825.1
+        },
+        "error": {
+         "count": 0,
+         "p50": 0,
+         "p95": 0,
+         "max": 0
+        }
+       },
+       "missPhasesWallMs": {
+        "cache_lookup": {
+         "count": 1,
+         "p50": 0.3,
+         "p95": 0.3,
+         "max": 0.3,
+         "maxSpanMs": 0.3
+        },
+        "parallel": {
+         "count": 1,
+         "p50": 1819.2,
+         "p95": 1819.2,
+         "max": 1819.2,
+         "maxSpanMs": 1819.2
+        },
+        "channels": {
+         "count": 1,
+         "p50": 1677.3,
+         "p95": 1677.3,
+         "max": 1677.3,
+         "maxSpanMs": 1677.3
+        },
+        "preferences": {
+         "count": 1,
+         "p50": 0.7,
+         "p95": 0.7,
+         "max": 0.7,
+         "maxSpanMs": 0.7
+        },
+        "programme": {
+         "count": 1,
+         "p50": 1818.8,
+         "p95": 1818.8,
+         "max": 1818.8,
+         "maxSpanMs": 1818.8
+        },
+        "tvread": {
+         "count": 1,
+         "p50": 1799.8,
+         "p95": 1799.8,
+         "max": 1799.8,
+         "maxSpanMs": 1799.8
+        },
+        "streaming": {
+         "count": 1,
+         "p50": 0.1,
+         "p95": 0.1,
+         "max": 0.1,
+         "maxSpanMs": 0.1
+        },
+        "transform": {
+         "count": 1,
+         "p50": 4.1,
+         "p95": 4.1,
+         "max": 4.1,
+         "maxSpanMs": 4.1
+        },
+        "workpaths": {
+         "count": 1,
+         "p50": 0.1,
+         "p95": 0.1,
+         "max": 0.1,
+         "maxSpanMs": 0.1
+        },
+        "interactions": {
+         "count": 1,
+         "p50": 0,
+         "p95": 0,
+         "max": 0,
+         "maxSpanMs": 0
+        },
+        "response_build": {
+         "count": 1,
+         "p50": 0.6,
+         "p95": 0.6,
+         "max": 0.6,
+         "maxSpanMs": 0.6
+        },
+        "cache_set": {
+         "count": 1,
+         "p50": 0.1,
+         "p95": 0.1,
+         "max": 0.1,
+         "maxSpanMs": 0.1
+        }
+       },
+       "slow": [
+        {
+         "at": "2026-11-04T19:11:47.291Z",
+         "uptimeMs": 2417,
+         "outcome": "miss",
+         "totalMs": 1825.1,
+         "phases": {
+          "cache_lookup": {
+           "count": 1,
+           "wallMs": 0.3,
+           "sumMs": 0.3,
+           "maxMs": 0.3
+          },
+          "parallel": {
+           "count": 1,
+           "wallMs": 1819.2,
+           "sumMs": 1819.2,
+           "maxMs": 1819.2
+          },
+          "channels": {
+           "count": 1,
+           "wallMs": 1677.3,
+           "sumMs": 1677.3,
+           "maxMs": 1677.3
+          },
+          "preferences": {
+           "count": 1,
+           "wallMs": 0.7,
+           "sumMs": 0.7,
+           "maxMs": 0.7
+          },
+          "programme": {
+           "count": 1,
+           "wallMs": 1818.8,
+           "sumMs": 1818.8,
+           "maxMs": 1818.8
+          },
+          "tvread": {
+           "count": 1,
+           "wallMs": 1799.8,
+           "sumMs": 1799.8,
+           "maxMs": 1799.8
+          },
+          "streaming": {
+           "count": 1,
+           "wallMs": 0.1,
+           "sumMs": 0.1,
+           "maxMs": 0.1
+          },
+          "transform": {
+           "count": 1,
+           "wallMs": 4.1,
+           "sumMs": 4.1,
+           "maxMs": 4.1
+          },
+          "workpaths": {
+           "count": 1,
+           "wallMs": 0.1,
+           "sumMs": 0.1,
+           "maxMs": 0.1
+          },
+          "interactions": {
+           "count": 1,
+           "wallMs": 0,
+           "sumMs": 0,
+           "maxMs": 0
+          },
+          "response_build": {
+           "count": 1,
+           "wallMs": 0.6,
+           "sumMs": 0.6,
+           "maxMs": 0.6
+          },
+          "cache_set": {
+           "count": 1,
+           "wallMs": 0.1,
+           "sumMs": 0.1,
+           "maxMs": 0.1
+          }
+         },
+         "shape": {
+          "types": "program",
+          "availability": "",
+          "sort": "airtime",
+          "page": 1,
+          "limit": 8,
+          "platforms": 0,
+          "genres": 0,
+          "hasQuery": false,
+          "authenticated": false
+         }
+        }
+       ],
+       "suppressedLogs": 0
+      },
+      "steps": [
+       {
+        "step": "tvread.query",
+        "ms": 1800
+       },
+       {
+        "step": "catalog.query",
+        "ms": 1825
+       }
+      ]
+     }
+    ]
+   }
+  }
+ },
+ "channels": 1500
+}

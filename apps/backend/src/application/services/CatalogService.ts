@@ -247,14 +247,21 @@ export class CatalogService {
     }
     resolved('miss', normalized);
 
-    const [channelMap, preferences, programItems, streamingItems] = await recorder.span('parallel', () => Promise.all([
-      recorder.span('channels', () => this.loadChannelMap()),
+    const [preferences, programItems, streamingItems] = await recorder.span('parallel', () => Promise.all([
       recorder.span('preferences', () => this.loadPreferences(normalized.userId)),
       normalized.types.includes('program')
         ? recorder.span('programme', () => this.loadProgramItems(normalized, recorder))
         : Promise.resolve([]),
       recorder.span('streaming', () => this.loadStreamingItems(normalized, recorder)),
     ]));
+
+    // M13-B5c: the channel map (every channel hydrated as a Mongoose document, ~4 s of main-thread CPU in production, rebuilt
+    // whenever its 60 s in-process copy expired) is read only by the last step of `mergeItems`, for an item that has
+    // airings but no channel. Program items always carry their channel and TMDB items carry no airings, so it is loaded
+    // only when an item could need it; the result is identical either way.
+    const channelMap = [...programItems, ...streamingItems].some((item) => !item.channel && item.airings?.length)
+      ? await recorder.span('channels', () => this.loadChannelMap())
+      : new Map<string, any>();
 
     const { scored, total, startIndex } = recorder.sync('transform', () => {
       const merged = this.mergeItems(

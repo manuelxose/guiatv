@@ -1,5 +1,7 @@
 # M13-B5 — Root cause of the remaining stalls and first remediation
 
+> **Update after the #172 deploy (2026-11-04, owner-authorised): the 4 s stalls were NOT fixed by #172 and their cause is now identified. See section 10.**
+
 Date: 2026-11-04 · Base `origin/main` = `6e28e88` · Branch `m13b5-attribution` · **Verdict: PARTIAL** (B5b output-identical reduction + B5a attribution instrumentation both delivered; causes unconfirmed until read in production). Both 4 s stalls now have one evidence-backed common hot path (the cold `tvread.query` day read behind `CatalogService.query`); a measured, output-identical reduction of it is delivered. Whether it explains the **full** 3.5–4 s seen in production is **not proven** (it was not reproducible locally at that magnitude) and must be read from the first process after a deploy. Not deployed, not merged.
 
 ## 1. Call graph (from the code)
@@ -85,3 +87,15 @@ Build passes. Full backend suite: section 6. Rollback: revert the PR (backend on
 ## 9. Artifacts
 
 `artifacts/m13b5/`: `catalog-pair-bench.mjs` (harness; `--frozen` for parity runs, `--prof <dir>` for a CPU profile), `bench-baseline.json`, `bench-ab-{base,cand}-{1,2}.json`, `bench-parity-{base,cand}.json`.
+
+## 10. Production evidence after the #172 deploy, and the real cause (M13-B5c)
+
+* **Deploy:** #172 squash-merged as `82c7327` on the owner's explicit instruction; `deploy-artifact.yml` run 41892931345, build + deploy success. Two public read-only GETs of `/v2/health/metrics` (uptime 73 s and 225 s, `artifacts/m13b5/post-deploy-metrics-{1,2}.json`), 331 requests, 0 x 5xx. No restart, configuration, profiler or write was made.
+* **The 4 s stalls are unchanged** (13 s: 4 634 ms; 94 s: 3 841 ms; 164 s: 3 943 ms). The new steps ruled out the JavaScript segments instrumented in #172: no `tvread.hydrate_sort`, `tvread.compact`, `tvread.hit_hydrate` or `cache.json_*` overlapped any of them, and at 164 s `tvread.query` was not even running (only `catalog.query`). So the day-read hypothesis behind B5b was **wrong as the cause of the 4 s** (the change itself remains valid and measured, but small).
+* **The catalogue miss phases name the culprit.** In every 4 s `catalog.query` miss (13 s, 94 s, 164 s) the `channels` leg lasted 4 768 / 3 876 / 3 967 ms, the same as the stall, while `transform` was 0.6–1.5 ms. `channels` is `loadChannelMap`: `channelRepository.findAll()` (every channel hydrated as a Mongoose document, `mapToDomain`, `toJSON`) cached in the in-process L1 for **60 s**. Expiry plus the next catalogue miss reproduces the observed cadence (94 s -> 164 s = 70 s) and the first one at start-up (13 s, `/v2/discovery/browse`). `tmdb_discover` and `providers` legs of the same events are long only because the blocked event loop delays their continuations.
+* **Why the local harness missed it:** it stubbed `channelRepository.findAll` with `[]`. With the real `MongoChannelRepository` and 1 500 synthetic channels the baseline reproduces it: the `channels` phase takes ~1.7 s and a cold list stalls 1.6–2.0 s (versus ~0.13 s). Production has more channels and slower CPU.
+* **What reads the map:** only the last step of `mergeItems`, for an item with airings but no channel. Program items always get their channel in `mapTvReadItemToCatalogItem` and TMDB items have no airings, so in practice the map was never used.
+* **Fix (`CatalogService.runQuery`):** the channel map is no longer part of the parallel loads; it is loaded only if some program/streaming item has airings and no channel (a conservative superset of when `mergeItems` could read it). Output is identical either way. Tests: the `query-phases` test no longer expects a `channels` phase on a TMDB-only miss; `TvReadQueryService.m13b5.test.ts` checks no `findAll` for normal program items and the same icon from the map when an item needs it.
+* **Before / after** (real channel repository, 1 500 channels, 2 600 airings, 5 runs per arm, medians, frozen-clock digests identical): cold list max stall **1 831 -> 80 ms**, CPU 2 517 -> 438 ms; cold pair 2 010 -> 103 ms, CPU 2 999 -> 547 ms; 8 genre pairs 1 625 -> 427 ms, CPU 2 688 -> 1 016 ms. Full backend suite: 881 tests, 837 pass, 4 fail (the same environmental Windows failures), 40 skipped.
+* **Not fixed here, noted:** `tvread.channels` (boot, 852 ms, 1 256 ms CPU) and `ChannelModel.find()` without `lean()` remain; other callers of `channelRepository.findAll()` were not audited. The `channels` 60 s TTL still applies where the map is needed.
+* **Status:** branch `m13b5c-lazy-channel-map`, draft PR; **not merged or deployed** (needs the owner's separate authorisation). Verdict for B5 stays PARTIAL until a deployed process shows no 4 s event.

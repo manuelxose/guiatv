@@ -44,7 +44,8 @@ test('a cold miss reports every phase; parallel provider lookups are a wall-cloc
   const snap = catalogueDiagnosticsSnapshot() as any;
   assert.deepEqual(snap.queries, { l1_hit: 0, cache_hit: 0, miss: 1, error: 0 });
   const phases = snap.missPhasesWallMs;
-  for (const name of ['cache_lookup', 'parallel', 'channels', 'preferences', 'streaming', 'tmdb_discover', 'providers', 'transform', 'workpaths', 'interactions', 'response_build', 'cache_set']) {
+  assert.ok(!('channels' in phases), 'M13-B5c: the channel map is not loaded when no item needs it');
+  for (const name of ['cache_lookup', 'parallel', 'preferences', 'streaming', 'tmdb_discover', 'providers', 'transform', 'workpaths', 'interactions', 'response_build', 'cache_set']) {
     assert.ok(name in phases, `missing phase ${name}: ${Object.keys(phases)}`);
   }
   // The request header: providers = 3 spans, ~50 ms wall, ~150 ms of work.
