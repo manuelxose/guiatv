@@ -13,6 +13,6 @@ export async function analyticsExclusions(): Promise<{ sessions: Record<string, 
   }).exec();
   return {
     sessions: { excluded: { $ne: true }, ip: { $nin: ips } },
-    events: { sessionId: { $nin: excludedSessions }, ip: { $nin: ips } },
+    events: { excluded: { $ne: true }, sessionId: { $nin: excludedSessions }, ip: { $nin: ips } },
   };
 }

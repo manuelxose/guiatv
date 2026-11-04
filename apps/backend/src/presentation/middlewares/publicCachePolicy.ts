@@ -32,6 +32,10 @@ export function resolvePolicy(
   path: string,
   query: Record<string, unknown>
 ): HttpCachePolicy | null {
+  if (path === '/v2/telemetry/config') {
+    // Analytics switch: a flip (emergency disable) reaches browsers within about a minute.
+    return { browserSeconds: 60, sharedSeconds: 60, staleSeconds: 60 };
+  }
   if (path === '/v2/tv/read' || path === '/tv/read') {
     const view = String(query.view || 'day');
     if (view === 'now') return { browserSeconds: 5, sharedSeconds: 30, staleSeconds: 60 };

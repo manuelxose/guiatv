@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { APP_PATHS } from '../../config/route-map';
+import { ConsentService } from '../../services/analytics/consent.service';
 
 interface FooterLinkGroup {
   id: string;
@@ -17,6 +18,7 @@ interface FooterLinkGroup {
   imports: [CommonModule, RouterModule],
 })
 export class FooterComponent {
+  readonly consent = inject(ConsentService);
   readonly currentYear = new Date().getFullYear();
   readonly highlightLinks = [
     { label: 'TV en directo', description: 'Qué emiten ahora los canales', path: APP_PATHS.guide },

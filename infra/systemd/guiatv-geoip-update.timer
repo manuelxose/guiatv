@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh GeoLite2 databases twice a week (MaxMind publishes GeoLite2 updates on Tuesdays and Fridays)
+
+[Timer]
+OnCalendar=Wed,Sat *-*-* 04:40:00
+Persistent=true
+RandomizedDelaySec=900
+
+[Install]
+WantedBy=timers.target

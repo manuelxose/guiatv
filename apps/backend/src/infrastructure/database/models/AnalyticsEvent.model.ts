@@ -24,6 +24,7 @@ export interface IAnalyticsEventDocument {
   data?: Record<string, any>;
   userAgent?: string;
   ip?: string;
+  excluded?: boolean;
   language?: string;
   timezone?: string;
   createdAt?: Date;
@@ -90,6 +91,7 @@ const AnalyticsEventSchema = new Schema<IAnalyticsEventDocument>(
       type: String,
       trim: true,
     },
+    excluded: { type: Boolean },
     language: {
       type: String,
       trim: true,

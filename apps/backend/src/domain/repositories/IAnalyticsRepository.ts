@@ -18,6 +18,16 @@ export interface AnalyticsSessionRecord {
   city?: string;
   latitude?: number;
   longitude?: number;
+  /** Provenance and uncertainty of the location (never a precise position). */
+  geo?: {
+    status?: string;
+    source?: string;
+    regionName?: string;
+    accuracyRadiusKm?: number;
+    asn?: number;
+    asOrg?: string;
+    db?: string;
+  };
   language?: string;
   timezone?: string;
   screen?: Record<string, any>;
@@ -39,8 +49,17 @@ export interface AnalyticsEventRecord {
   data?: Record<string, any>;
   userAgent?: string;
   ip?: string;
+  /** Administrator or excluded-address traffic, decided at ingestion (the full address is not stored). */
+  excluded?: boolean;
   language?: string;
   timezone?: string;
+}
+
+export interface AnalyticsSessionActivity {
+  idleSec: number;
+  isIdle: boolean;
+  lastActivityAt: string;
+  visible?: boolean;
 }
 
 export interface AnalyticsOverview {
@@ -84,6 +103,10 @@ export interface IAnalyticsRepository {
     lastSeenAt: Date;
     lastPath?: string;
     metadata?: Record<string, any>;
+    /** Updates only `metadata.activity` (keeps the device/utm metadata written at session start). */
+    activity?: AnalyticsSessionActivity;
+    /** A BFCache-restored page: the session is open again. */
+    resume?: boolean;
   }): Promise<AnalyticsSessionRecord | null>;
   endSession(payload: {
     sessionId: string;
@@ -93,6 +116,10 @@ export interface IAnalyticsRepository {
     endReason?: string;
   }): Promise<AnalyticsSessionRecord | null>;
   createEvent(payload: AnalyticsEventRecord): Promise<void>;
+  /** Bulk insert; idempotent on `eventId` (a repeated id is ignored). */
+  createEvents?(payloads: AnalyticsEventRecord[]): Promise<void>;
+  /** False while the store cannot accept writes (the ingestion queue waits instead of losing events). */
+  isAvailable?(): boolean;
   getLiveSessions(windowSec: number, limit: number): Promise<AnalyticsSessionRecord[]>;
   countLiveSessions(windowSec: number): Promise<number>;
   getOverview(from: Date, to: Date, liveWindowSec: number): Promise<AnalyticsOverview>;

@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
+import { ConsentService } from '../../../services/analytics/consent.service';
 
 @Component({
   selector: 'app-cookies',
@@ -8,4 +9,6 @@ import { RouterModule } from '@angular/router';
   standalone: true,
   imports: [RouterModule],
 })
-export class CookiesComponent {}
+export class CookiesComponent {
+  readonly consent = inject(ConsentService);
+}

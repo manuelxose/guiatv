@@ -51,6 +51,18 @@
       })();
     </script>
 
+    <!-- Consent bootstrap: hide the SSR consent banner before first paint for visitors who already chose.
+         Must match parseConsentCookie() in services/analytics/consent.service.ts (v1, ≤ 365 days old). Reads only. -->
+    <script>
+      (function () {
+        try {
+          var m = /(?:^|;\s*)cookie_consent=v1\.a[01]\.(\d{10,14})(?:;|$)/.exec(document.cookie);
+          var age = m ? Date.now() - Number(m[1]) : -1;
+          if (m && age > -86400000 && age < 31536000000) document.documentElement.setAttribute('data-consent-known', '');
+        } catch (e) {}
+      })();
+    </script>
+
     <!-- Critical CSS inline (estilos mínimos para above-the-fold, respetan tema) -->
     <style>
       /* Critical CSS - Evita FOUC */

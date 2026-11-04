@@ -8,12 +8,20 @@ import {
   AnalyticsEventRecord,
   AnalyticsOverview,
   AnalyticsRealtimePages,
+  AnalyticsSessionActivity,
   AnalyticsSessionRecord,
   IAnalyticsRepository,
 } from '../../domain/repositories/IAnalyticsRepository';
 import { logger } from '../../shared/utils/logger';
+import { analyticsPiiMode, anonymizeIp, AnalyticsPiiMode } from '../analytics/ipPrivacy';
 
-type PiiMode = 'full' | 'anonymized' | 'none';
+type PiiMode = AnalyticsPiiMode;
+/** Events kept per session for the admin session drill-down (newest first), and for how long. Bounded per session
+ *  and by a short TTL so rotating session ids cannot pin memory for the whole 14-day analytics retention. */
+const SESSION_EVENT_MAX = 200;
+const SESSION_EVENT_TTL_SECONDS = 48 * 60 * 60;
+/** Window in which a repeated eventId (client retry, beacon + fetch) is ignored. */
+const EVENT_DEDUPE_TTL_SECONDS = 60 * 60;
 
 const DEFAULT_TTL_DAYS = Number.parseInt(
   process.env.ANALYTICS_TTL_DAYS || '14',
@@ -34,6 +42,12 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
   private coverageResetRequired = false;
 
   private realtimeSessionKey(sessionId: string): string { return `analytics:realtime:session:v2:${sessionId}`; }
+  private sessionEventsKey(sessionId: string): string { return `analytics:session:events:v1:${sessionId}`; }
+  private eventDedupeKey(eventId: string): string { return `analytics:event:seen:v1:${eventId}`; }
+
+  isAvailable(): boolean {
+    return this.isConnected;
+  }
   private normalizeIp(ip?: string): string {
     const kind = ip ? isIP(ip) : 0;
     if (!ip || !kind) return '';
@@ -127,9 +141,7 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
     Number.isFinite(DEFAULT_TOP_LIMIT) && DEFAULT_TOP_LIMIT > 0
       ? DEFAULT_TOP_LIMIT
       : 200;
-  private readonly piiMode: PiiMode = this.parsePiiMode(
-    process.env.ANALYTICS_PII
-  );
+  private readonly piiMode: PiiMode = analyticsPiiMode();
 
   private readonly liveKey = 'analytics:sessions:live';
   private readonly eventsKey = 'analytics:events';
@@ -203,8 +215,11 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
     if (!existedBeforeIndex) {
       const policy = this.exclusionPolicy();
       const ip = this.normalizeIp(payload.ip);
+      // Current ingestion decides exclusion on the transient full address and passes `excluded`; the stored address
+      // is only a prefix, so the policy check below applies to legacy callers that still pass a full address.
+      const known = Boolean(ip) || payload.excluded !== undefined;
       pipeline.hSetNX(realtimeSession, 'covered', '1');
-      pipeline.hSetNX(realtimeSession, 'ipKnown', ip ? '1' : '0');
+      pipeline.hSetNX(realtimeSession, 'ipKnown', known ? '1' : '0');
       pipeline.hSetNX(realtimeSession, 'ipExcluded', policy.ips.has(ip) ? '1' : '0');
       pipeline.hSetNX(realtimeSession, 'policy', policy.fingerprint);
     }
@@ -215,10 +230,12 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
     pipeline.expire(sessionKey, this.ttlSeconds);
     if (isLongIdle(payload.metadata)) pipeline.zRem(this.liveKey, payload.sessionId);
     else pipeline.zAdd(this.liveKey, [{ score: nowMs, value: payload.sessionId }]);
-    pipeline.incr(this.sessionCountKey(day));
-    pipeline.expire(this.sessionCountKey(day), this.ttlSeconds);
-    pipeline.pfAdd(this.uniqueKey(day), payload.anonId);
-    pipeline.expire(this.uniqueKey(day), this.ttlSeconds);
+    if (!payload.excluded && !existedBeforeIndex) {
+      pipeline.incr(this.sessionCountKey(day));
+      pipeline.expire(this.sessionCountKey(day), this.ttlSeconds);
+      pipeline.pfAdd(this.uniqueKey(day), payload.anonId);
+      pipeline.expire(this.uniqueKey(day), this.ttlSeconds);
+    }
 
     await pipeline.exec();
   }
@@ -228,12 +245,17 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
     lastSeenAt: Date;
     lastPath?: string;
     metadata?: Record<string, any>;
+    activity?: AnalyticsSessionActivity;
+    resume?: boolean;
   }): Promise<AnalyticsSessionRecord | null> {
     if (!this.canUse()) return null;
 
     const nowMs = payload.lastSeenAt.getTime();
     const sessionKey = this.sessionKey(payload.sessionId);
-    const activityMetadata = payload.metadata ?? this.safeJsonParse(await this.client.hGet(sessionKey, 'metadata'));
+    const storedMetadata = payload.metadata ? undefined : this.safeJsonParse<Record<string, any>>(await this.client.hGet(sessionKey, 'metadata'));
+    // Activity-only heartbeats keep the device/utm metadata written at session start.
+    const metadata = payload.metadata ?? (payload.activity ? { ...(storedMetadata || {}), activity: payload.activity } : undefined);
+    const activityMetadata = metadata ?? storedMetadata;
     const updateMap: Record<string, string> = {
       sessionId: payload.sessionId,
       lastSeenAt: payload.lastSeenAt.toISOString(),
@@ -241,12 +263,13 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
     if (payload.lastPath) {
       updateMap.lastPath = payload.lastPath;
     }
-    if (payload.metadata) {
-      updateMap.metadata = JSON.stringify(payload.metadata);
+    if (metadata) {
+      updateMap.metadata = JSON.stringify(metadata);
     }
 
     const pipeline = this.client.multi();
     pipeline.hSet(sessionKey, updateMap);
+    if (payload.resume) pipeline.hDel(sessionKey, ['endedAt', 'endReason']);
     pipeline.expire(sessionKey, this.ttlSeconds);
     if (isLongIdle(activityMetadata)) pipeline.zRem(this.liveKey, payload.sessionId);
     else pipeline.zAdd(this.liveKey, [{ score: nowMs, value: payload.sessionId }]);
@@ -307,41 +330,71 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
   }
 
   async createEvent(payload: AnalyticsEventRecord): Promise<void> {
-    if (!this.canUse()) return;
+    await this.createEvents([payload]);
+  }
 
-    const occurredAt = payload.occurredAt || new Date();
-    const day = this.toDay(occurredAt);
-    const event = this.buildEventRecord(payload, occurredAt);
+  async createEvents(payloads: AnalyticsEventRecord[]): Promise<void> {
+    if (!this.canUse() || !payloads.length) return;
+
+    // Idempotency: one SET NX per eventId; only first-seen ids are written.
+    const withIds = payloads.filter((payload) => payload.eventId);
+    let fresh = payloads;
+    if (withIds.length) {
+      const dedupe = this.client.multi();
+      for (const payload of withIds) dedupe.set(this.eventDedupeKey(payload.eventId!), '1', { NX: true, EX: EVENT_DEDUPE_TTL_SECONDS });
+      const replies = await dedupe.exec();
+      const seen = new Set<string>();
+      withIds.forEach((payload, index) => { if (String(replies[index]) !== 'OK') seen.add(payload.eventId!); });
+      fresh = payloads.filter((payload) => !payload.eventId || !seen.has(payload.eventId));
+    }
+    if (!fresh.length) return;
 
     const pipeline = this.client.multi();
     const policy = this.exclusionPolicy();
-    const ip = this.normalizeIp(payload.ip);
     pipeline.set(this.realtimeCoverageKey, String(Date.now()), { NX: true });
-    pipeline.zAdd(this.realtimeKey, [{ score: occurredAt.getTime(), value: JSON.stringify({ eventId: payload.eventId, sessionId: payload.sessionId, anonId: payload.anonId, type: payload.type, path: payload.path, ipKnown: Boolean(ip), ipExcluded: policy.ips.has(ip), policy: policy.fingerprint, timestamp: occurredAt.getTime() }) }]);
+    for (const payload of fresh) {
+      const occurredAt = payload.occurredAt || new Date();
+      const day = this.toDay(occurredAt);
+      const event = this.buildEventRecord(payload, occurredAt);
+      const ip = this.normalizeIp(payload.ip);
+      const excluded = Boolean(payload.excluded) || policy.ips.has(ip);
+      const serialized = JSON.stringify(event);
+      pipeline.zAdd(this.realtimeKey, [{ score: occurredAt.getTime(), value: JSON.stringify({ eventId: payload.eventId, sessionId: payload.sessionId, anonId: payload.anonId, type: payload.type, path: payload.path, ipKnown: Boolean(ip) || payload.excluded !== undefined, ipExcluded: excluded, policy: policy.fingerprint, timestamp: occurredAt.getTime() }) }]);
+      pipeline.lPush(this.eventsKey, serialized);
+      // Per-session list: the session drill-down no longer depends on the shared, capped global log.
+      pipeline.lPush(this.sessionEventsKey(payload.sessionId), serialized);
+      pipeline.lTrim(this.sessionEventsKey(payload.sessionId), 0, SESSION_EVENT_MAX - 1);
+      pipeline.expire(this.sessionEventsKey(payload.sessionId), SESSION_EVENT_TTL_SECONDS);
+      if (excluded) continue;
+
+      if (payload.type === 'page_view') {
+        pipeline.incr(this.pageViewKey(day));
+        pipeline.expire(this.pageViewKey(day), this.ttlSeconds);
+      }
+      if (event.path) {
+        pipeline.zIncrBy(this.topPagesKey(day), 1, event.path);
+        pipeline.expire(this.topPagesKey(day), this.ttlSeconds);
+        this.pruneTopSet(pipeline, this.topPagesKey(day));
+      }
+      if (event.referrer) {
+        pipeline.zIncrBy(this.topReferrersKey(day), 1, event.referrer);
+        pipeline.expire(this.topReferrersKey(day), this.ttlSeconds);
+        this.pruneTopSet(pipeline, this.topReferrersKey(day));
+      }
+    }
     pipeline.zRemRangeByScore(this.realtimeKey, '-inf', Date.now() - 30 * 60_000);
     pipeline.expire(this.realtimeKey, 3600);
-    pipeline.lPush(this.eventsKey, JSON.stringify(event));
     pipeline.lTrim(this.eventsKey, 0, this.eventLogMax - 1);
     pipeline.expire(this.eventsKey, this.ttlSeconds);
 
-    if (payload.type === 'page_view') {
-      pipeline.incr(this.pageViewKey(day));
-      pipeline.expire(this.pageViewKey(day), this.ttlSeconds);
+    try {
+      await pipeline.exec();
+    } catch (error) {
+      // The write failed after the ids were marked seen: release them so the queue's retry is not deduplicated away.
+      const ids = fresh.map((payload) => payload.eventId).filter((id): id is string => Boolean(id));
+      if (ids.length) await this.client.del(ids.map((id) => this.eventDedupeKey(id))).catch(() => undefined);
+      throw error;
     }
-
-    if (event.path) {
-      pipeline.zIncrBy(this.topPagesKey(day), 1, event.path);
-      pipeline.expire(this.topPagesKey(day), this.ttlSeconds);
-      this.pruneTopSet(pipeline, this.topPagesKey(day));
-    }
-
-    if (event.referrer) {
-      pipeline.zIncrBy(this.topReferrersKey(day), 1, event.referrer);
-      pipeline.expire(this.topReferrersKey(day), this.ttlSeconds);
-      this.pruneTopSet(pipeline, this.topReferrersKey(day));
-    }
-
-    await pipeline.exec();
   }
 
   async getLiveSessions(
@@ -459,13 +512,12 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
   ): Promise<AnalyticsEventRecord[]> {
     if (!this.canUse()) return [];
 
-    const limit = query.limit ?? 50;
-    const fetchLimit = Math.min(
-      this.eventLogMax,
-      Math.max(limit * 5, 200)
-    );
-
-    const rawEvents = await this.client.lRange(this.eventsKey, 0, fetchLimit - 1);
+    const limit = Math.max(1, Math.min(query.limit ?? 50, 500));
+    // A session's events come from its own bounded list (complete up to SESSION_EVENT_MAX), not from a scan of
+    // the most recent slice of the global log, where an older session's events were invisible.
+    const rawEvents = query.sessionId
+      ? await this.client.lRange(this.sessionEventsKey(query.sessionId), 0, SESSION_EVENT_MAX - 1)
+      : await this.client.lRange(this.eventsKey, 0, Math.min(this.eventLogMax, Math.max(limit * 5, 200)) - 1);
     if (!rawEvents.length) return [];
 
     const filtered: AnalyticsEventRecord[] = [];
@@ -505,6 +557,7 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
     };
 
     if (payload.userId) map.userId = payload.userId;
+    if (payload.excluded) map.excluded = '1';
     if (payload.initialPath) map.initialPath = payload.initialPath;
     if (payload.lastPath) map.lastPath = payload.lastPath;
     if (payload.referrer) map.referrer = payload.referrer;
@@ -514,6 +567,7 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
       if (payload.city) map.city = payload.city;
       if (payload.latitude !== undefined) map.latitude = String(payload.latitude);
       if (payload.longitude !== undefined) map.longitude = String(payload.longitude);
+      if (payload.geo) map.geo = JSON.stringify(payload.geo);
     }
 
     const userAgent = this.sanitizeUserAgent(payload.userAgent);
@@ -576,6 +630,7 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
       city: this.piiMode === 'none' ? undefined : safe.city,
       latitude: this.piiMode !== 'none' && safe.latitude !== undefined && Number.isFinite(Number(safe.latitude)) ? Number(safe.latitude) : undefined,
       longitude: this.piiMode !== 'none' && safe.longitude !== undefined && Number.isFinite(Number(safe.longitude)) ? Number(safe.longitude) : undefined,
+      geo: this.piiMode === 'none' ? undefined : this.safeJsonParse(safe.geo),
       language: safe.language,
       timezone: safe.timezone,
       screen: this.safeJsonParse(safe.screen),
@@ -736,14 +791,6 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
-  private parsePiiMode(value?: string): PiiMode {
-    const normalized = (value || 'anonymized').toLowerCase();
-    if (normalized === 'full' || normalized === 'none' || normalized === 'anonymized') {
-      return normalized;
-    }
-    return 'anonymized';
-  }
-
   private sanitizeUserAgent(userAgent?: string): string | undefined {
     if (!userAgent) return undefined;
     if (this.piiMode === 'none') return undefined;
@@ -751,22 +798,8 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
   }
 
   private sanitizeIp(ip?: string): string | undefined {
-    if (!ip) return undefined;
-    if (this.piiMode === 'none') return undefined;
-
-    const normalized = ip.replace('::ffff:', '');
-    if (this.piiMode === 'full') return normalized;
-
-    if (normalized.includes(':')) {
-      const parts = normalized.split(':');
-      return `${parts.slice(0, 4).join(':')}::`;
-    }
-
-    const octets = normalized.split('.');
-    if (octets.length === 4) {
-      return `${octets[0]}.${octets[1]}.${octets[2]}.0`;
-    }
-    return normalized;
+    if (!ip || this.piiMode === 'none') return undefined;
+    return anonymizeIp(ip);
   }
 
   private safeJsonParse<T = any>(value?: string | null): T | undefined {

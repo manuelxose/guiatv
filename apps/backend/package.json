@@ -44,6 +44,7 @@
     "express-rate-limit": "^8.2.1",
     "google-auth-library": "^9.15.1",
     "jsonwebtoken": "^9.0.2",
+    "maxmind": "5.0.8",
     "mongodb": "^6.10.0",
     "mongoose": "^8.20.0",
     "multer": "^1.4.5-lts.1",

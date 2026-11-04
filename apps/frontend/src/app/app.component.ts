@@ -16,6 +16,8 @@ import { AppPublicLayoutShellComponent } from './components/app-public-layout-sh
 import { ModalComponent } from './components/modal/modal.component';
 import { UnifiedChatShellComponent } from './components/unified-chat-shell/unified-chat-shell.component';
 import { AnalyticsService } from './services/analytics.service';
+import { ConsentBannerComponent } from './components/consent-banner/consent-banner.component';
+import { ConsentService } from './services/analytics/consent.service';
 import { ChatService } from './services/chat.service';
 import { MetaService } from './services/meta.service';
 import { environment } from '../environments/environment';
@@ -47,6 +49,7 @@ export function shouldMinimizeChatDrag(distance: number, elapsedMs: number): boo
     ModalComponent,
     AuthLoginModalComponent,
     UnifiedChatShellComponent,
+    ConsentBannerComponent,
   ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss'],
@@ -63,6 +66,8 @@ export class AppComponent implements OnInit, OnDestroy {
   public mobileMoreOpen = false;
   public chatSocialTargetUser: { userId: string; nonce: number } | null = null;
   public readonly theme = inject(ThemeService);
+  /** Withdrawing consent must be as easy as giving it: the mobile "Más" sheet reopens the choice (the footer is desktop-only). */
+  public readonly consent = inject(ConsentService);
   @ViewChild('mobileMoreTrigger') private readonly mobileMoreTrigger?: ElementRef<HTMLButtonElement>;
   @ViewChild('mobileMoreSheet') private readonly mobileMoreSheet?: ElementRef<HTMLElement>;
   @ViewChild('chatMinibar') private readonly chatMinibar?: ElementRef<HTMLButtonElement>;

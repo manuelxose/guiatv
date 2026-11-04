@@ -69,6 +69,7 @@
       </nav>
       <section class="app-shell__more-account" aria-label="Tu cuenta"><p>Tu cuenta</p><div>@for (destination of accountDestinations; track destination.id) {<a [routerLink]="destination.path" (click)="closeMobileMore()">{{ destination.label }}</a>}</div></section>
       <section class="app-shell__more-theme" aria-label="Preferencia de tema"><p>Tema</p><div>@for (mode of ['system', 'light', 'dark']; track mode) {<button type="button" (click)="setTheme(mode)" [class.is-selected]="theme.mode() === mode" [attr.aria-pressed]="theme.mode() === mode">{{ mode === 'system' ? 'Sistema' : mode === 'light' ? 'Claro' : 'Oscuro' }}</button>}</div></section>
+      <section class="app-shell__more-theme" aria-label="Privacidad"><p>Privacidad</p><div><button type="button" (click)="closeMobileMore(); consent.openPreferences()">Configurar cookies</button></div></section>
     </section>
   </div>
   }
@@ -177,4 +178,7 @@
 
   <app-modal></app-modal>
   <app-auth-login-modal></app-auth-login-modal>
+  @if (!currentPath.startsWith('/embed')) {
+    <app-consent-banner></app-consent-banner>
+  }
 </div>

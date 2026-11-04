@@ -10,6 +10,11 @@ import {
 export class AnalyticsService {
   constructor(private readonly repository: IAnalyticsRepository) {}
 
+  /** False while the configured store cannot be read or written (admin reports answer 503, not empty data). */
+  isAvailable(): boolean {
+    return this.repository.isAvailable?.() ?? true;
+  }
+
   async markExcludedSession(sessionId: string): Promise<void> {
     await this.repository.markExcludedSession(sessionId);
   }

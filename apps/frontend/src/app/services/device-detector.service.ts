@@ -13,6 +13,7 @@ import {
   Inject,
   Optional,
   REQUEST,
+  afterNextRender,
 } from '@angular/core';
 import { isPlatformBrowser, isPlatformServer } from '@angular/common';
 import { Request } from 'express';
@@ -32,6 +33,50 @@ export interface DeviceInfo {
   height: number;
   orientation: 'portrait' | 'landscape';
   isTouchDevice: boolean;
+}
+
+/** Hardware class and orientation, kept apart: a phone is a phone in landscape, and a desktop window can be narrow. */
+export interface DeviceClassification {
+  type: DeviceType;
+  orientation: 'portrait' | 'landscape';
+  isTouchDevice: boolean;
+}
+
+export interface DeviceSignals {
+  userAgent?: string;
+  /** `navigator.userAgentData.mobile` (Client Hints), when the browser exposes it. */
+  uaMobile?: boolean;
+  screenWidth?: number;
+  screenHeight?: number;
+  viewportWidth?: number;
+  viewportHeight?: number;
+  maxTouchPoints?: number;
+  coarsePointer?: boolean;
+}
+
+const MOBILE_UA = /iphone|ipod|android.+mobile|windows phone|iemobile|blackberry|opera mini|mobile safari|\bmobile\b/i;
+const TABLET_UA = /ipad|tablet|kindle|silk|playbook|android(?!.*mobile)/i;
+
+/**
+ * Device class from the strongest available signal: Client Hints, then the User-Agent, then touch + physical screen
+ * size. Viewport width is deliberately not used for the class (it is the layout breakpoint, see `deviceType`), and
+ * orientation comes from the viewport (falling back to the screen), independently of the class.
+ */
+export function classifyDevice(signals: DeviceSignals): DeviceClassification {
+  const ua = signals.userAgent || '';
+  const touch = (signals.maxTouchPoints || 0) > 0 || signals.coarsePointer === true;
+  const shortSide = Math.min(signals.screenWidth || 0, signals.screenHeight || 0);
+  let type: DeviceType;
+  if (signals.uaMobile === true) type = 'mobile';
+  else if (/macintosh/i.test(ua) && (signals.maxTouchPoints || 0) > 1) type = 'tablet'; // iPadOS desktop-mode UA
+  else if (TABLET_UA.test(ua)) type = 'tablet';
+  else if (MOBILE_UA.test(ua)) type = 'mobile';
+  else if (touch && signals.coarsePointer && shortSide > 0 && shortSide < 600) type = 'mobile';
+  else if (touch && signals.coarsePointer && shortSide >= 600 && shortSide < 1100) type = 'tablet';
+  else type = 'desktop';
+  const w = signals.viewportWidth || signals.screenWidth || 0;
+  const h = signals.viewportHeight || signals.screenHeight || 0;
+  return { type, orientation: w > 0 && h > 0 && w > h ? 'landscape' : 'portrait', isTouchDevice: touch || type !== 'desktop' };
 }
 
 // Keys para TransferState
@@ -132,10 +177,12 @@ export class DeviceDetectorService {
     );
 
     if (serverDeviceInfo) {
+      // The server value is only an estimate from the User-Agent, and nginx caches SSR HTML per URL for every
+      // device, so it may even belong to another visitor's device. Use it for the hydrating render (the DOM must
+      // match the server HTML), then replace it with the real viewport right after the first render.
       this.applyDeviceInfo(serverDeviceInfo);
-
-      // Limpiar TransferState
       this.transferState.remove(DEVICE_INFO_KEY);
+      afterNextRender(() => this.detectDeviceOnClient());
     } else {
       this.detectDeviceOnClient();
     }
@@ -234,11 +281,11 @@ export class DeviceDetectorService {
       }
     }
 
-    const type: DeviceType = isMobileUA
-      ? 'mobile'
-      : isTabletUA
-      ? 'tablet'
-      : 'desktop';
+    const type: DeviceType = classifyDevice({ userAgent }).type;
+    if (type === 'tablet' && isMobileUA) {
+      width = 768;
+      height = 1024;
+    }
 
     return {
       type,
@@ -321,6 +368,31 @@ export class DeviceDetectorService {
 
   public isInitialized(): boolean {
     return this.initialized();
+  }
+
+  /** Real-browser classification for analytics (hardware class + current orientation). */
+  public classifyCurrent(): DeviceClassification {
+    if (!this.isBrowser || typeof window === 'undefined') {
+      const info = this.deviceInfo();
+      return { type: info.type, orientation: info.orientation, isTouchDevice: info.isTouchDevice };
+    }
+    const nav = navigator as Navigator & { userAgentData?: { mobile?: boolean } };
+    let coarse = false;
+    try {
+      coarse = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+    } catch {
+      coarse = false;
+    }
+    return classifyDevice({
+      userAgent: nav.userAgent,
+      uaMobile: nav.userAgentData?.mobile,
+      screenWidth: window.screen?.width,
+      screenHeight: window.screen?.height,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      maxTouchPoints: nav.maxTouchPoints,
+      coarsePointer: coarse,
+    });
   }
 
   public forceDetection(): void {

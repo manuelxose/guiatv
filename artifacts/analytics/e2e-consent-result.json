@@ -1,0 +1,186 @@
+{
+  "generatedAt": "2026-11-04T22:05:41.466Z",
+  "target": "http://127.0.0.1:3002",
+  "checks": [
+    {
+      "name": "no first-party telemetry before consent",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "no Google request before consent",
+      "ok": true,
+      "detail": []
+    },
+    {
+      "name": "no analytics identifier before consent",
+      "ok": true,
+      "detail": {
+        "anon": null,
+        "session": null,
+        "cookies": ""
+      }
+    },
+    {
+      "name": "banner visible after hydration",
+      "ok": true
+    },
+    {
+      "name": "SSR HTML: banner present for every visitor (paints with FCP), no GA4 tag",
+      "ok": true
+    },
+    {
+      "name": "reject is as prominent as accept",
+      "ok": true,
+      "detail": [
+        {
+          "text": "Rechazar análisis",
+          "w": 164,
+          "h": 44
+        },
+        {
+          "text": "Aceptar análisis",
+          "w": 164,
+          "h": 44
+        }
+      ]
+    },
+    {
+      "name": "known choice: banner hidden at first paint and removed after hydration",
+      "ok": true,
+      "detail": {
+        "atDcl": "none",
+        "afterHydration": 0
+      }
+    },
+    {
+      "name": "session start delivered first after consent",
+      "ok": true,
+      "detail": [
+        "v",
+        "sessionId",
+        "anonId",
+        "session",
+        "events"
+      ]
+    },
+    {
+      "name": "landing page view delivered after consent",
+      "ok": true,
+      "detail": [
+        "/cookies"
+      ]
+    },
+    {
+      "name": "mobile fixture classified mobile/portrait",
+      "ok": true,
+      "detail": {
+        "type": "mobile",
+        "orientation": "portrait",
+        "touch": true
+      }
+    },
+    {
+      "name": "payload has no query string, IP or user agent",
+      "ok": true
+    },
+    {
+      "name": "GA4 script requested only after consent",
+      "ok": true,
+      "detail": [
+        "https://www.googletagmanager.com/gtag/js"
+      ]
+    },
+    {
+      "name": "Consent Mode v2: default(denied) → update(analytics granted) → config",
+      "ok": true,
+      "detail": [
+        [
+          "consent",
+          "default",
+          {
+            "ad_storage": "denied",
+            "ad_user_data": "denied",
+            "ad_personalization": "denied",
+            "analytics_storage": "denied"
+          }
+        ],
+        [
+          "consent",
+          "update",
+          {
+            "analytics_storage": "granted"
+          }
+        ],
+        [
+          "js",
+          "2026-11-04T22:05:13.838Z",
+          null
+        ],
+        [
+          "set",
+          {
+            "page_location": "http://guiaprogramaciontv.com/cookies",
+            "page_referrer": ""
+          },
+          null
+        ],
+        [
+          "config",
+          "G-P6Z3BY2DVW",
+          {
+            "send_page_view": false,
+            "page_location": "http://guiaprogramaciontv.com/cookies",
+            "page_referrer": ""
+          }
+        ]
+      ]
+    },
+    {
+      "name": "one GA4 page_view for the landing page",
+      "ok": true,
+      "detail": [
+        [
+          "event",
+          "page_view",
+          {
+            "page_location": "http://guiaprogramaciontv.com/cookies",
+            "page_path": "/cookies",
+            "page_title": "Política de cookies | Guía TV"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "one page_view per SPA navigation (repeat click deduplicated)",
+      "ok": true,
+      "detail": [
+        "/privacidad"
+      ]
+    },
+    {
+      "name": "GA4 page_view count matches first-party (2 pages)",
+      "ok": true,
+      "detail": 2
+    },
+    {
+      "name": "revocation deletes identifiers and disables GA4",
+      "ok": true,
+      "detail": {
+        "anon": null,
+        "session": null,
+        "consent": "v1.a0.1793829929751",
+        "gaDisabled": true
+      }
+    },
+    {
+      "name": "no collection after revocation",
+      "ok": true,
+      "detail": 0
+    },
+    {
+      "name": "mobile \"Más\" sheet reopens the cookie choice",
+      "ok": true
+    }
+  ]
+}
