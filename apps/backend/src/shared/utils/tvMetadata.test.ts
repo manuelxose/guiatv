@@ -189,6 +189,14 @@ test('buildTvReadAiringId scopes overlapping airings by viewDate', () => {
   );
 });
 
+test('buildTvReadAiringId keeps both 02:30 airings of the 25-hour day apart and leaves every other id unchanged', () => {
+  const id = (iso: string) => buildTvReadAiringId({ viewDate: '20261025', channelId: 'la_1', startTime: new Date(iso), normalizedTitle: 'x' });
+  assert.equal(id('2026-10-25T00:30:00Z'), '20261025_la_1_20261025023000'); // 02:30 CEST: legacy id
+  assert.equal(id('2026-10-25T01:30:00Z'), '20261025_la_1_20261025023000_dst2'); // 02:30 CET, second pass
+  assert.equal(id('2026-10-25T02:30:00Z'), '20261025_la_1_20261025033000'); // 03:30 CET
+  assert.equal(id('2026-03-29T01:30:00Z'), '20261025_la_1_20260329033000'); // spring-forward day: no repeated hour
+});
+
 test('inferChannelGroup classifies La 2 as TDT and DAZN F1 as deporte', () => {
   assert.equal(
     inferChannelGroup({ name: 'La 2', type: 'TDT', sourceId: 'LA2.es' }),

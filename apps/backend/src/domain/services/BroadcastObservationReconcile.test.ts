@@ -64,10 +64,10 @@ test('a day the read model no longer holds is not independently reconcilable, ne
   assert.deepEqual([r.status, r.archived, r.missing, r.extra], ['not-reconcilable', 1, [], []]);
 });
 
-test('DST fall-back (2026-10-25): the read-model airing id collides for the two 02:30, the archive identity does not', () => {
+test('DST fall-back (2026-10-25): read-model ids and archive identities both keep the two 02:30 airings apart', () => {
   const cest = new Date('2026-10-25T00:30:00Z'), cet = new Date('2026-10-25T01:30:00Z'); // both 02:30 local
   const id = (startTime: Date) => buildTvReadAiringId({ viewDate: '20261025', channelId: 'la_1', startTime, normalizedTitle: 'x' });
-  assert.equal(id(cest), id(cet)); // Finding A: characterises today's behaviour; the read model keeps one row (unique id)
+  assert.notEqual(id(cest), id(cet)); // Finding A fixed in G3D follow-up: the second pass carries `_dst2`, so the read model keeps both rows
   assert.notEqual(observationId('la_1', cest), observationId('la_1', cet));
   const rows = [row(cest.toISOString()), row(cet.toISOString())];
   const r = reconcileDay('2026-10-25', rows, rows.map((x) => archivedOf(x)), NOW);
