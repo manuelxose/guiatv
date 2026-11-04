@@ -4,7 +4,8 @@
 #   2. a smoke failure after publishing rolls `current` back to the previous release and restarts both services;
 #   3. one deploy at a time (lock), and a build that would starve the host is refused before any change;
 #   4. a deploy of what is live, or of documentation only, builds and restarts nothing;
-#   5. an off-host artifact is verified (checksum, commit) and published without installing or compiling;
+#   5. an off-host artifact is verified (checksum, commit) and published without installing or compiling; an install
+#      that rewrites the lockfile leaves the checkout clean, so the next deploy still syncs with origin;
 #   6. the ops script rolls back to the previous release and verifies the services.
 set -euo pipefail
 
@@ -30,6 +31,8 @@ ln -sfn "${SRV}/releases/R1" "${SRV}/current"
 cat >"${T}/bin/npm" <<'EOF'
 #!/bin/bash
 echo "$*" >>"${NPM_LOG:-/dev/null}"
+# Like npm 10 on the VPS: an install rewrites the lockfile it was given.
+if [ "$1" = "install" ] && [ -f package-lock.json ]; then echo '"devOptional": true' >>package-lock.json; fi
 if [ "$1 $2" = "run publish:release" ]; then
   n=$(( $(ls "${APP_DIR}/releases" | wc -l) + 1 ))
   mkdir -p "${APP_DIR}/releases/R${n}"
@@ -120,6 +123,8 @@ grep -q "run build" "${T}/npm.log" || fail "FORCE_DEPLOY did not build"
 (cd "${T}/work" && echo lock1 >package-lock.json && git add package-lock.json && git commit -qm "lock 1" && git push -q origin main)
 bash "${ROOT}/deploy-guiatv.sh" >"${T}/run8b.log" 2>&1 || { cat "${T}/run8b.log"; fail "deploy with a lockfile must succeed"; }
 [ -f "${SRV}/.deploy-lock-sha256" ] || fail "the lockfile hash was not recorded after the install"
+git -C "${SRV}" diff --quiet || { git -C "${SRV}" status --short; fail "npm's lockfile rewrite left the checkout dirty (the next deploy would skip the git sync)"; }
+grep -q "restoring the committed lockfile" "${T}/run8b.log" || fail "the lockfile restore was not announced"
 : >"${T}/npm.log"
 (cd "${T}/work" && echo lock2 >package-lock.json && git commit -qam "lock 2" && git push -q origin main)
 sha="$(git -C "${T}/origin.git" rev-parse main)"
@@ -130,6 +135,8 @@ set +e; DEPLOY_ARTIFACT="${T}/lockart.tgz" DEPLOY_ARTIFACT_SHA256="$(sha256sum "
 [ "${code}" != "0" ] && grep -q "package-lock.json changed since the last install" "${T}/run8c.log" && [ "$(readlink -f "${SRV}/current")" = "${live}" ] || { cat "${T}/run8c.log"; fail "an artifact over a changed lockfile must be refused before any change"; }
 bash "${ROOT}/deploy-guiatv.sh" >"${T}/run8d.log" 2>&1 || { cat "${T}/run8d.log"; fail "a normal deploy must install the new lockfile"; }
 grep -q "install" "${T}/npm.log" || fail "the changed lockfile was not installed"
+grep -q "HEAD is now at" "${T}/run8d.log" || { cat "${T}/run8d.log"; fail "the deploy after a lockfile install did not sync with origin"; }
+git -C "${SRV}" diff --quiet || fail "the checkout is dirty after a lockfile install"
 (cd "${T}/work" && echo second >f && git commit -qam "runtime change 2" && git push -q origin main)
 sha="$(git -C "${T}/origin.git" rev-parse main)"
 art="${T}/art"; mkdir -p "${art}/apps/backend/dist/server" "${art}/apps/frontend/dist/guiatv/browser" "${art}/apps/frontend/dist/guiatv/server"

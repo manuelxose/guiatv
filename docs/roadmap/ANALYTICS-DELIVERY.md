@@ -269,25 +269,18 @@ Backend 874/914 pass with 0 failures and 40 skipped; frontend 439/439; ops 40/40
    * Event-loop max under synthetic saturation (§6).
 7. **Affiliate impressions (verified 2026-11-04, no change needed):** `AffiliateImpressionDirective` calls `trackImpressions` without an identity. `AffiliateAnalyticsService.emit` stores each impression with a fresh random `affiliate:<uuid>` id and no IP or user agent. Nothing is read from or written to the browser's storage, so ePrivacy consent is not triggered and the data is not linkable to a visitor.
 
-## 10. Merge and deploy status (2026-11-04)
+## 10. Merge and deploy status (2026-11-04/05)
 
 * #175 was merged by the owner as `ee35cb7`.
-* **Deploy: BLOCKED.** The owner asked for the deploy. The required route is `deploy.yml` ("Deploy a producción (Contabo)", `workflow_dispatch`): the artifact route refuses this lockfile change. Dispatching it from this session returned `403 Resource not accessible by integration`, because the GitHub App has no Actions write permission. There is also no SSH access or network route to the host.
-* **Next action (owner):** Actions → "Deploy a producción (Contabo)" → Run workflow on `main`. Alternatively, grant the app Actions write permission and the session dispatches it. Then run the post-deploy checks in §6.
-
-## 8. Test evidence (final runs on the branch)
-
-| Gate | Result |
-|---|---|
-| Backend `npm test` (with a local Valkey; Mongo integration tests skip without `TEST_MONGO_URI`) | 914 tests: **874 pass, 0 fail, 40 skipped** (baseline on `a008fb5`: 887 tests, 847 pass, 0 fail, 40 skipped) |
-| Frontend `ng test` (full suite, ChromeHeadless) | **439 / 439** |
-| Analytics-focused frontend specs | 48 / 48 (+1 ESLint-only follow-up) |
-| `npm run test:ops` | **40 / 40** (includes `geoip-update.test.mjs`) |
-| `npm run lint` | 0 errors; warnings are pre-existing except one fixed in the collector |
-| Production SSR build | passes (`ng build --configuration production --ssr`) |
-| Browser E2E `e2e-consent.mjs` (production build, real Chromium, Android fixture) | **19 / 19** (`artifacts/analytics/e2e-consent-result.json`) |
-| CI (GitHub Actions on the PR) | see the PR checks |
-
-## 9. Commits
-
-See the PR description for the commit list (one per milestone).
+* **Correction to §0:** production was not on `269c643` before this deploy. The owner ran a normal deploy of `a008fb5` at 20:33Z (`deploy.yml` run 68, success) after the failed artifact run 49.
+* **Runs 69 and 70** (22:44Z, 23:36Z) reported success but **built the old code**. The log shows "Working tree has local changes. Deploying current checkout without git sync.", and `main-UE72GUL5.js` at 189.56 kB is the old bundle.
+  * Cause: run 68's `npm install` (npm 10.9.4 on the VPS) rewrote the tracked `package-lock.json`.
+  * `deploy-guiatv.sh` only syncs when `git diff` is clean, so every later deploy silently rebuilt the stale checkout.
+  * The owner restored the lockfile on the server.
+* **Run 71 (41935886301, 23:42Z): deployed `ee35cb7`.** The log shows:
+  * `HEAD is now at ee35cb7`
+  * `added 3 packages` (`maxmind`, `mmdb-lib`, `tiny-lru`)
+  * `main` 194.00 kB; initial 273.11 kB estimated transfer, which matches the local candidate's 273.07 kB
+  * release `20261105004452` active; every smoke check and all ten SSR warm-ups answered 200
+* **Production verification still open:** this session cannot reach `guiaprogramaciontv.com`. The owner runs the checks in §6 (config, banner before consent, 202 on `/collect`, Diagnóstico).
+* **Prevention:** `deploy-guiatv.sh` now restores the committed `package-lock.json` after `npm install`. `scripts/test-deploy-script.sh` adds a case where the npm stub rewrites the lockfile, as npm did on the VPS. It fails on the old script ("npm's lockfile rewrite left the checkout dirty") and passes with the fix.
