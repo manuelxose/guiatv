@@ -1,8 +1,8 @@
 # M12-G3D — validación operativa del archivo histórico
 
-Fecha de redacción: 2026-11-04 (reloj local 01:27–01:50 Madrid, **antes** de la primera ejecución programada de las 03:30).
+Fecha de redacción: 2026-11-04. Primera redacción 01:27 (antes del timer); actualizada a las ~10:00 tras la autorización de lectura del propietario (§12).
 Base verificada: `origin/main` = `81d82329ffa66d23ee52e476adbb12fe52a826ac` (PR #159 `f703577`, PR #160 `81d8232`).
-Veredicto: **PARTIAL**. Hecho: reconciliación por claves, tests, análisis de A/B/C, plan de despliegue de la unidad. **No hecho, por calendario y por permisos:** las tres ejecuciones del timer, y toda medición en producción.
+Veredicto: **PARTIAL**. Hecho: reconciliación por claves, tests, análisis de A/B/C, plan de despliegue de la unidad. Observada **1 de 3** ejecuciones programadas (04/11, éxito). **No hecho:** las ejecuciones del 05 y 06/11 (calendario), la paridad por claves en producción (el reconciliador necesita la PR #161 desplegada) y la comparación de latencia (no hay línea base).
 
 ## 1. Qué es G3D y qué no es
 
@@ -17,15 +17,16 @@ G3C dejó el código de A y B mergeado y desplegado (release `20261104010920`, r
 | Worktrees y stash previos | 6 worktrees y `stash@{0}: m11b-review-fixes` | Intactos |
 | Rama de trabajo | `docs/m12-g3d-validation` en worktree `../guiatv-m12g3d` | Creada desde `origin/main` |
 | Release en producción | `20261104010920` (run `41744415726`) | **Dato del encargo y de G3C; no re-verificado hoy** |
-| Estado del servidor hoy | **No verificado** | SSH de lectura denegado (§12) |
+| Estado del servidor (04/11 ~10:00) | systemd 255, kernel 6.8.0-147, cgroup v2, `mongod` activo, timer activo con siguiente disparo 05/11 03:31:29 | SSH de solo lectura, autorizado después del bloqueo inicial (§12) |
+| Release desplegada | `/var/www/guiatv/releases/20261104010920` (visto en la ruta del error de módulo) | confirma el dato del encargo; **no contiene la PR #161** |
 
 ## 3. Tres ejecuciones del timer (AC-01)
 
-El timer es `OnCalendar=*-*-* 03:30:00`, `RandomizedDelaySec=120`, `Persistent=true`. Al redactar esto el reloj marcaba 01:27 del 2026-11-04: **ninguna ejecución programada ha ocurrido todavía**. Aunque se hubiera autorizado el acceso, no habría datos que leer. Las manuales no cuentan.
+El timer es `OnCalendar=*-*-* 03:30:00`, `RandomizedDelaySec=120`, `Persistent=true`. A las ~10:00 del 04/11 se ha leído **la primera ejecución programada**; faltan las del 05 y 06. Las manuales (00:03, 00:18, 00:28, 00:37 ×2) no cuentan.
 
 | Fecha | Disparado por timer | Inicio / fin reales | Result / exit | Duración | CPU | Memoria | Días procesados | inserted / revised / unchanged / rejected | Reintentos | Solape | Archivo previo intacto |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| 2026-11-04 | **PENDIENTE** | — | — | — | — | — | — | — | — | — | — |
+| 2026-11-04 | **Sí**: `LastTriggerUSec` 03:30:42 (retardo aleatorio 42 s) | 03:30:42 → 03:30:48 | `success` / exit 0 | 6 s | 8,803 s (`CPUUsageNSec`; journal «Consumed 8.803s») | **no disponible** (`MemoryPeak=[not set]` tras terminar) | 20261101, 20261102, 20261103 | inserted 0 / revised 0 / unchanged 8 144, 8 649, 11 585 / rejected 0; outOfDay 0, 3, 214; read 8 144, 8 652, 11 799; raced 0 | ninguno (`NRestarts=0`) | no (un solo par Starting/Finished; `oneshot`) | recuentos idénticos a la manual de las 00:37, 0 revisiones: **no hay pérdida visible en los contadores; no es paridad por claves** |
 | 2026-11-05 | **PENDIENTE** | — | — | — | — | — | — | — | — | — | — |
 | 2026-11-06 | **PENDIENTE** | — | — | — | — | — | — | — | — | — | — |
 
@@ -39,7 +40,9 @@ systemctl list-timers guiatv-history-archive.timer --no-pager
 systemctl show guiatv-history-archive.service -p Result,ExecMainStatus,ExecMainStartTimestamp,ExecMainExitTimestamp,CPUUsageNSec,MemoryPeak,NRestarts
 ```
 
-Aviso de medición: `systemctl show` solo conserva **la última** invocación. Hay que leerlo cada día entre las 03:35 y las 23:59; el 05/11 sobrescribe el 04/11. El `journalctl` sí conserva las tres. `MemoryPeak` salía vacío en G3C (ver §7).
+Resultado de AC-01: **1/3**. Siguiente disparo previsto: 2026-11-05 03:31:29.
+
+Aviso de medición: `systemctl show` solo conserva **la última** invocación. Hay que leerlo cada día entre las 03:35 y las 23:59; el 05/11 sobrescribe el 04/11. El `journalctl` sí conserva las tres. `MemoryPeak` sigue vacío incluso con `MemoryAccounting=yes`, systemd 255, kernel 6.8 y cgroup v2: **la memoria de un `oneshot` no se puede leer después de que termina**; el journal solo da el tiempo de CPU. La memoria exigiría muestreo durante la ejecución (p. ej. `systemd-run --wait` con `-p MemoryAccounting=yes` y su resumen), que no se ha hecho.
 
 ## 4. Integridad del histórico por fecha (AC-03, AC-04)
 
@@ -72,23 +75,50 @@ Fecha local: la comparación usa `madridDate(startUtc)` (`Intl`, zona Europe/Mad
 
 **Validado en local (Mongo 8.0.34 en Docker, base desechable):** el script corre de punta a punta bajo el guard (10 comandos, todos lectura) y devuelve `reconciled`, `missing 0`, `extra 0`.
 
-**Estado en producción: BLOQUEADO** (§12). No se ha ejecutado nada contra el servidor real.
+**Estado en producción: BLOQUEADO por despliegue.** Se ejecutó con la receta autorizada y falló al arrancar: `Cannot find module …/releases/20261104010920/apps/backend/dist/domain/services/BroadcastObservationReconcile.js`. El módulo solo existe en la PR #161. El fallo ocurre en el `require` inicial, antes de instalar el guard y de conectar: **no se emitió ningún comando a la base de datos**. Desplegar no estaba autorizado y no se ha intentado otra vía. Se desbloquea con la PR #161 mergeada y desplegada por el flujo normal (o con autorización explícita para otra ruta).
 
 ## 5. Tamaño y crecimiento (AC-05)
 
-No medido hoy. Última medición registrada (G3B §activación, 2026-11-03): 28 378 documentos, 379 B de media, 3,8 MB de almacenamiento + 1,4 MB de índices, ≈ 1,8 MB/día ⇒ ≈ 650 MB a 365 días; 1 documento con `rev > 1` (corrección cross-midnight ya impedida por PR #158). Es una extrapolación lineal de tres días, no una tendencia. El script nuevo emite `count`, `avgObjSize`, `storageSize`, `totalIndexSize`, distribución de `rev`, observaciones por día y `fsUsedSize/fsTotalSize`.
+No medido hoy (el reconciliador no pudo ejecutarse, §4). Última medición registrada (G3B §activación, 2026-11-03): 28 378 documentos, 379 B de media, 3,8 MB de almacenamiento + 1,4 MB de índices, ≈ 1,8 MB/día ⇒ ≈ 650 MB a 365 días; 1 documento con `rev > 1` (corrección cross-midnight ya impedida por PR #158). Es una extrapolación lineal de tres días, no una tendencia. El script nuevo emite `count`, `avgObjSize`, `storageSize`, `totalIndexSize`, distribución de `rev`, observaciones por día y `fsUsedSize/fsTotalSize`.
 
 ## 6. Rendimiento API, SSR y Mongo (AC-06)
 
-**No evaluable hoy.** No hay mediciones antes/durante/después de la ventana, y no se generará carga artificial. G3B registró `/api/health` en 0,11–0,22 s **sin línea base**: no sirve para afirmar efecto nulo. Para G3D la sonda primaria es `/v2/health` (ruta real en `health.routes.ts`).
+**No evaluable como comparación.** No hay mediciones antes/durante/después de la ventana, y no se genera carga artificial. Lo único medido es una muestra posterior, sin línea base: G3B registró `/api/health` en 0,11–0,22 s **sin línea base**: no sirve para afirmar efecto nulo. Para G3D la sonda primaria es `/v2/health` (ruta real en `health.routes.ts`).
 
-Preparado, sin ejecutar: `scripts/m12g3d-probe.mjs` (GET secuenciales, 20 rondas, 1 s de pausa, solo lectura; reporta n, errores, p50, p95, máx). Ejecutarla tres veces con los mismos argumentos: ~03:00 (antes), ~03:31 (durante), ~04:00 (después), por ejemplo `PROBE_ORIGIN=https://<host> node scripts/m12g3d-probe.mjs antes 20 1000 /v2/health <ruta-lectura-1> <ruta-lectura-2> <ruta-ssr>`. Carga de Mongo durante el job: dos snapshots de `opcounters`/`connections` del script de reconciliación (antes y justo después) y su diferencia.
+Muestra única 04/11 ~10:00 (6,5 h después del job; 15 GET secuenciales por ruta, 1 s de pausa, 60 en total; `https://guiaprogramaciontv.com`):
+
+| Ruta | n | errores | p50 | p95 | máx |
+|---|---|---|---|---|---|
+| `/v2/health` | 15 | 0 | 73 ms | 306 ms | 306 ms |
+| `/v2/tv/read/channels` | 15 | 0 | 176 ms | 343 ms | 343 ms |
+| `/v2/tv/read` | 15 | 0 | 127 ms | 260 ms | 260 ms |
+| `/` (SSR) | 15 | 0 | 136 ms | 149 ms | 149 ms |
+
+Con n=15 el p95 es el máximo; sirve como referencia futura, **no** como prueba de que el job no afectó a la latencia. (Un primer intento con rutas mal convertidas por Git Bash, `C:/Program Files/Git/v2/…`, produjo 60 peticiones erróneas a rutas inexistentes y se descartó.)
+
+Reproducible: `scripts/m12g3d-probe.mjs` (GET secuenciales, 20 rondas, 1 s de pausa, solo lectura; reporta n, errores, p50, p95, máx). Ejecutarla tres veces con los mismos argumentos: ~03:00 (antes), ~03:31 (durante), ~04:00 (después), por ejemplo `PROBE_ORIGIN=https://<host> node scripts/m12g3d-probe.mjs antes 20 1000 /v2/health <ruta-lectura-1> <ruta-lectura-2> <ruta-ssr>`. Carga de Mongo durante el job: dos snapshots de `opcounters`/`connections` del script de reconciliación (antes y justo después) y su diferencia.
 
 ## 7. Configuración systemd efectiva (AC-07)
 
-**La unidad instalada NO se ha inspeccionado** (SSH denegado). Lo único que consta es G3C §3: la unidad instalada no tenía `MemoryAccounting` (`MemoryPeak` vacío), es decir, **es anterior a los cambios del repositorio**.
+**Unidad instalada inspeccionada** (`FragmentPath=/etc/systemd/system/guiatv-history-archive.service`, sin drop-ins). **Es anterior a los controles del repositorio**; diff contra `infra/systemd/guiatv-history-archive.service`:
 
-Unidad del repositorio (`infra/systemd/guiatv-history-archive.service`), a verificar contra la instalada:
+| Control | Instalada | Repo |
+|---|---|---|
+| `CPUQuota` | infinity (ausente) | 50 % |
+| `CPUWeight` | no fijado | 20 |
+| `IOSchedulingClass` | 2 (best-effort, por defecto) | idle |
+| `NoNewPrivileges` | no | yes |
+| `PrivateTmp` | no | yes |
+| `IOAccounting` | no | yes |
+| `CPUAccounting` / `MemoryAccounting` | yes / yes | yes / yes (explícito) |
+| `MemoryMax`, `Nice=10`, `TimeoutStartSec=30min`, `User=root`, `NODE_OPTIONS` | igual | igual |
+| `EnvironmentFile` | `api.env` (obligatorio), `history.env` (`ignore_errors=yes`) | igual |
+
+AC-07: **evaluado**: los controles de CPU/E-S/privilegios del repo **no están activos en producción**; la ejecución 1 se midió con la unidad antigua. Las líneas de contabilidad que añadí en G3D son casi redundantes (CPU y memoria ya estaban a `yes`); solo aportan `IOAccounting`, y no resuelven `MemoryPeak`.
+
+Histórico del journal (útil para el siguiente milestone): las ejecuciones manuales de las 00:03–00:28 usaban el código antiguo (contenedor DI completo, `revised:1` por el flip-flop de medianoche ya corregido en #158); desde las 00:37 `revised 0`. La ejecución programada de las 03:30 usa el código nuevo (solo conecta Mongo).
+
+Unidad del repositorio, notas de diseño:
 
 | Control | Repo | Notas |
 |---|---|---|
@@ -102,7 +132,7 @@ Unidad del repositorio (`infra/systemd/guiatv-history-archive.service`), a verif
 | `TimeoutStartSec` | `1800` | |
 | Solape | `Type=oneshot`: systemd no arranca una segunda instancia de la misma unidad mientras la primera está activa | |
 
-**Comprobación de lectura (pendiente de autorización):**
+**Comprobación de lectura (ejecutada el 04/11 con autorización; repetir tras cualquier cambio):**
 
 ```
 systemctl cat guiatv-history-archive.service guiatv-history-archive.timer
@@ -165,15 +195,18 @@ G1 (`IndexBatchGate`) y G2 (`UrlEligibility`) se mantienen **inactivos**; `INDEX
 
 | Operación | Dónde | Resultado |
 |---|---|---|
-| `ssh root@<host> 'date; systemctl list-timers …; systemctl show guiatv-history-archive.service -p Result,ExecMainStatus,…,FragmentPath'` (metadatos de solo lectura de la unidad y del timer) | Producción | **Denegada** por el sistema de permisos (`[Production Reads]`) en esta sesión. No se reintentó por otra vía |
+| `ssh … 'date; systemctl list-timers …; systemctl show guiatv-history-archive.service …'` (primer intento, 01:27) | Producción | **Denegada** (`[Production Reads]`); no se reintentó por otra vía |
 | `scripts/m12g3c-followup.cjs` en el servidor (G3C) | Producción | Denegada (heredado) |
+| Mismas lecturas (`systemctl show/list-timers`, `journalctl`, `systemctl cat`, `is-active mongod`) tras la autorización explícita del propietario en el chat (~10:00) | Producción | **Ejecutadas**, solo lectura |
+| `ssh … 'ls dist/domain/services …; readlink current'` (para localizar el módulo ausente) | Producción | **Denegada** («fast classifier»): fuera de lo autorizado; no se reintentó. La causa se dedujo del texto del error local |
+| `m12g3d-reconcile.cjs` vía `systemd-run` (autorizado) | Producción | Intentada una vez: falla al cargar un módulo que no está desplegado; **ningún comando llegó a la BD** (§4) |
+| `m12g3d-probe.mjs` (autorizado) | Sitio público | Ejecutada (§6); el primer intento, con rutas mal convertidas por Git Bash, generó 60 peticiones erróneas y se descartó |
 
-Todo lo que depende de esas lecturas queda **bloqueado, no inferido**: tabla de §3, paridad por día en producción (§4), tamaño actual (§5), sondas de latencia (§6), unidad instalada (§7).
+**Sigue bloqueado:** paridad por claves, tamaño y distribución de `rev` actuales, carga de Mongo, memoria del job.
 
-**Autorización mínima que se solicita (una sola, de solo lectura):**
-1. SSH de lectura a producción solo para: `journalctl -u guiatv-history-archive`, `systemctl show/cat/list-timers` de esa unidad y del timer, `systemctl is-active mongod`.
-2. Ejecutar `scripts/m12g3d-reconcile.cjs` con la receta `systemd-run` documentada en el script (guard de solo lectura, pool 2, `Nice=19`), una vez tras cada una de las tres ejecuciones.
-3. Ejecutar `scripts/m12g3d-probe.mjs` contra el sitio público (≤ 20 GET secuenciales por ruta y por ventana).
+**Autorización que sigue haciendo falta (lectura):**
+1. La PR #161 mergeada y desplegada por el flujo normal, para que el reconciliador exista en `dist` (sin eso no hay paridad en producción). Alternativa, que **no** he aplicado: ejecutar una copia autónoma del script sin desplegar; requiere que la autorices expresamente porque duplica la lógica probada.
+2. Repetir las lecturas de §3 el 05/11 y el 06/11 entre las 03:35 y las 23:59, y ejecutar el reconciliador tras cada una.
 Quedan **fuera** y exigen autorización aparte: copiar la unidad, `daemon-reload`, crear el rol Mongo, reiniciar nada.
 
 ## 13. Tests y revisión independiente (AC-12)
@@ -214,31 +247,31 @@ Verificaciones de solo lectura adicionales recomendadas por seguridad (para la a
 
 ## 14. Deuda residual y siguiente paso
 
-1. **Bloqueante para cerrar C:** autorización de lectura (§12) y las tres ejecuciones (hasta el 2026-11-06 tras las 03:30; la tabla de §3 debe rellenarse cada día, no al final).
+1. **Bloqueante para cerrar C:** las ejecuciones del 05 y 06/11 (la tabla de §3 debe rellenarse cada día, no al final), y la PR #161 desplegada para ejecutar el reconciliador en producción.
 2. `readOnlyGuard` como lista blanca (o usuario Mongo de solo lectura): el archivador y los scripts de auditoría dependen de ella.
 3. Rol Mongo dedicado para el archivador y alertas de frescura del archivo y de disco en el watchdog (G3C #13, #14).
 4. Hallazgo A: sufijo condicional del id de la segunda pasada de la hora repetida, antes del 2027-10-31.
 5. G1/G2: las seis preocupaciones y el desacoplamiento gate-sitemap/página, antes de conectar cualquier familia.
 6. El read model no es registro histórico: la paridad solo cubre lo que conserva hoy.
 
-**Siguiente único milestone recomendado:** **M12-G3E — cierre operativo de C**: con la autorización de §12, leer las tres ejecuciones reales (04, 05 y 06/11), ejecutar el reconciliador tras cada una, medir con la sonda antes/durante/después, y decidir entonces el despliegue de la unidad. No empieza ninguna familia de páginas.
+**Siguiente único milestone recomendado:** **M12-G3E — cierre operativo de C**: con la PR #161 desplegada, leer las ejecuciones del 05 y 06/11, ejecutar el reconciliador tras cada una, medir con la sonda antes/durante/después, y decidir entonces el despliegue de la unidad. No empieza ninguna familia de páginas.
 
 
 ## 15. Criterios de aceptación
 
 | AC | Estado | Nota |
 |---|---|---|
-| AC-01 tres ejecuciones del timer | **PENDIENTE** | 0/3; la primera es a las 03:30 de hoy |
-| AC-02 frescura | **BLOQUEADO** | script preparado |
-| AC-03 sin pérdida inesperada | **BLOQUEADO** | método y tests listos; sin datos |
+| AC-01 tres ejecuciones del timer | **PARCIAL 1/3** | 04/11 OK; 05 y 06 pendientes |
+| AC-02 frescura | **PARCIAL** | el job del 04/11 leyó/confirmó 20261101–03 sin cambios; frescura de la colección (`lastSeenAt`, día más reciente) sin medir |
+| AC-03 sin pérdida inesperada | **PARCIAL** | contadores idénticos a la manual (0 inserted/0 revised); sin comparación por claves |
 | AC-04 paridad por día | **BLOQUEADO** | método clave a clave listo; `not-reconcilable` definido |
 | AC-05 tamaño y revisiones | **PARCIAL** | solo datos de G3B (3 días) |
-| AC-06 impacto API/Mongo | **BLOQUEADO** | sonda preparada; no hay línea base |
-| AC-07 hardening efectivo | **BLOQUEADO** | unidad instalada sin inspeccionar; plan y rollback listos |
+| AC-06 impacto API/Mongo | **PARCIAL** | muestra posterior (0 errores, p95 ≤ 343 ms); sin línea base ni carga de Mongo: no se concluye ausencia de impacto |
+| AC-07 hardening efectivo | **HECHO (evaluado)** | instalada ≠ repo: sin CPUQuota/CPUWeight/IO idle/NoNewPrivileges/PrivateTmp; plan y rollback listos, sin aplicar |
 | AC-08 DST | **HECHO** | análisis + regresión; sin cambio de ids |
 | AC-09 hash | **HECHO** (sin estadística de hoy) | |
 | AC-10 `prev` | **HECHO** (sin estadística de hoy) | |
-| AC-11 permisos | **HECHO** | una lectura denegada, no eludida |
+| AC-11 permisos | **HECHO** | dos lecturas denegadas, no eludidas; el resto, solo con autorización |
 | AC-12 revisiones | **HECHO** | tres revisiones; las correcciones demostradas, aplicadas (§13) |
 | AC-13 G1/G2 inactivos | **HECHO** | |
 
