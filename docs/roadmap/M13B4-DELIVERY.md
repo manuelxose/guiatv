@@ -1,6 +1,6 @@
 # M13-B4 — Stall A: GC attribution and start-up read concurrency
 
-Date: 2026-11-04 · Base `origin/main` = `dd3822b` (M13-B3a merged and deployed) · Branch `m13b4a-gc-attribution` · **Verdict: PARTIAL.** B4a (observation) is an engineering pass, not merged, not deployed. Root cause of stall A remains **unconfirmed**; no remediation is proposed without evidence.
+Date: 2026-11-04 · Base `origin/main` = `dd3822b` (M13-B3a merged and deployed) · **Verdict: PARTIAL.** B4a (observation) is an engineering pass, **merged (#168 `77e8d3f`) and deployed with B3b** (`997f61f`, section 7). Root cause of stall A remains **unconfirmed**; no remediation is proposed without evidence.
 
 ## 1. Why this milestone
 
@@ -46,3 +46,33 @@ Untested differences that could explain it (hypotheses, not findings): productio
 ## 6. Artifacts
 
 `artifacts/m13b4/`: `gc-bench.mjs`, `bench-gc-plain.json`, `bench-gc-concurrent.json` (raw runs, digests and GC figures).
+
+## 7. Merge, deploy and production verification (2026-11-04, on the owner's instruction)
+
+* **CI fix before merge:** the first CI run of #168 failed one test: Node delivers GC entries **after** the late timer, so the stall event was always created with zero GC on Linux. The event is now completed when the collections arrive (also for the worst stall after eviction); a deterministic test covers it. #169 (Node 24 in CI/engines) `2e2d94e`, #168 `77e8d3f`, #170 (B3b rebased on main, replaces #167) `997f61f`; all CI green.
+* **Deploy:** `deploy-artifact.yml` run 41861326520 on `997f61f`, build + deploy success. Two sequential public GETs of `/v2/health/metrics` 60 s apart (`artifacts/m13b4/post-deploy-metrics-{1,2}.json`), process uptime 191 s, 0 x 5xx, `diagnostics.requests` and per-stall `gc` present. The VPS Node version was not changed or read.
+
+Stall events of this process (7 recorded, `gc` = collections inside the interval):
+
+| Uptime | Duration | CPU ratio | GC inside (count / ms / max pause / major) | Steps running | Requests open (age) |
+|--:|--:|--:|---|---|---|
+| 3.5 s | 652 ms | 0.76 | 5 / 29 / 10 / 0 | `boot.container_initialize` | none |
+| 4.2 s | 605 ms | 1.05 | 5 / 19 / 5 / 1 | catalogue reads, football refresh | none |
+| 4.9 s | 266 ms | 1.74 | 10 / 101 / 35 / 1 | catalogue reads | none |
+| **10.1 s** | **3 486 ms** | 1.07 | 141 / **202** / 10 / 0 | `related_works.load/read_airings`, `tvread.query` | `/v2/discovery/browse` (3.5 s) |
+| 51.5 s | 507 ms | **3.67** | 1 / **556** / **556** / 1 | none | none |
+| **89.5 s** | **3 731 ms** | 1.09 | 169 / 189 / 18 / 1 | **none** | `/v2/catalog/:catalogId/enrichment` (3.8 s) and `/v2/catalog/` (3.8 s), nothing else |
+| **191.5 s** | **3 928 ms** | 1.13 | 181 / 252 / 18 / 1 | `tvread.query` | the same two requests (4.0 s / 4.0 s) |
+
+Window GC totals: 372 collections / 2 216 ms (max 556 ms) in the first 62 s; 194 / 361 ms; 41 / 142 ms. 8.2 GB free, load < 1. Correlations, not proofs:
+
+* **The GC hypothesis for the 4 s stalls is refuted by the measurement.** Both 4 s-class stalls at start-up and later spent only 5–7 % of their interval in GC (189–252 ms of 3.5–3.9 s): they are JavaScript between collections. Stall A (10.1 s, during the catalogue reads and `tvread.query`) is decode/materialisation work, not GC.
+* **GC does explain the small "unattributed" class:** the 507 ms stall at 51.5 s has no step and no request, one **major** collection of 556 ms and CPU ratio 3.67 (GC helper threads). The earlier 0.4–0.7 s events with ratio ≈ 2 and `correlation: none` are this class.
+* **Stall B has a new, specific candidate.** Two ~4 s stalls, 102 s apart (89.5 s and 191.5 s), have **no instrumented step** (once) and exactly the **same two requests open and nothing else, both opened when the stall began**: `GET /v2/catalog/:catalogId/enrichment` and `GET /v2/catalog/`, a pair that arrives together. The same pair was open during a 344 ms stall in the previous process. It is still a correlation (the registry cannot prove which of the two burns the CPU, and the periodicity may be a client polling), but it is the first lead with a request-level signature. The handlers were not inspected in this milestone.
+* B3b removed the 508 ms select+graph event: none appears at ≈ 28 s in this process (the 4.9 s event is the read phase). Its effect on user-visible latency was not measured in production.
+
+## 8. Next milestone (M13-B5)
+
+1. Read the handlers behind `GET /v2/catalog/:catalogId/enrichment` and `GET /v2/catalog/` and reproduce a pair locally against the throwaway Mongo (the harness in `artifacts/m13b3` and the in-flight registry give the measurement); look for unbounded reads, large sorts/serialisation or per-request catalogue scans.
+2. Stall A (start-up reads + `tvread.query`, JS-dominated): reduce what start-up materialises at once with exact output parity; Node 24 is now the project baseline, so the earlier "Node 22 vs 24" local question is moot.
+3. M13-B2 stays deferred. The blocking SEO/URL remediation (no consumer URL may carry internal ids such as `/contenido/program:<id>`) is untouched.
