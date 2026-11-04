@@ -1,0 +1,29 @@
+[Unit]
+Description=GuiaTV: refresh MaxMind GeoLite2 City/ASN databases for local analytics GeoIP (no per-request lookups)
+After=network-online.target
+Wants=network-online.target
+OnFailure=guiatv-crash-alert@%n.service
+
+[Service]
+Type=oneshot
+# Not root (the script lives in the deploy checkout): a system user that can write only /var/lib/GeoIP. One-time:
+#   useradd --system --no-create-home --shell /usr/sbin/nologin geoip
+# StateDirectory creates /var/lib/GeoIP owned by it, world-readable so the API can open the .mmdb files.
+# systemd (PID 1, as root) reads the root-only credentials file and passes them as environment.
+User=geoip
+Group=geoip
+StateDirectory=GeoIP
+StateDirectoryMode=0755
+EnvironmentFile=/etc/guiatv/geoip.env
+Environment=GEOIP_ENV_FILE=/nonexistent
+Environment=GEOIP_DIR=/var/lib/GeoIP
+ProtectSystem=strict
+ProtectHome=yes
+# The repository checkout (APP_DIR), not a release: releases carry only the built apps.
+ExecStart=/var/www/guiatv/scripts/geoip-update.sh
+Nice=10
+CPUQuota=25%
+IOSchedulingClass=idle
+NoNewPrivileges=yes
+PrivateTmp=yes
+TimeoutStartSec=900
