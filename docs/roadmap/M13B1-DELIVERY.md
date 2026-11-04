@@ -1,7 +1,7 @@
 # M13-B1 — Production performance diagnostics and event-loop stall attribution
 
-Date: 2026-11-04 · Branch `feat/m13-b1-perf-diagnostics` · draft PR (see the PR list) · **Verdict: ENGINEERING PASS (instrumentation) · production diagnosis PARTIAL**
-Scope: observability only. No runtime behaviour, public contract, URL, canonical, robots, sitemap, SSR or EPG-identity change. Nothing merged, deployed, restarted or reconfigured in production.
+Date: 2026-11-04 · Branch `feat/m13-b1-perf-diagnostics` · PR [#164](https://github.com/manuelxose/guiatv/pull/164), merged `ead8907` and deployed 2026-11-04 · **Verdict: ENGINEERING PASS (instrumentation, deployed) · production diagnosis PARTIAL, first post-deploy evidence in section 14**
+Scope: observability only. No runtime behaviour, public contract, URL, canonical, robots, sitemap, SSR or EPG-identity change. Section 14 supersedes the pre-deploy classification of sections 7 and 12 where they differ.
 
 ## 1. Baseline
 
@@ -125,10 +125,72 @@ Code: revert the squash-merge commit of this PR (backend only, no data, schema, 
 
 ## 12. Handoff
 
-* **Next: M13-B2 — catalogue cold-miss remediation** (supported by production evidence; independent of the stall): single-flight on `CatalogService.query` and in-flight maps in `StreamingProvidersService`/`TMDBService.discover`, short TTL for provider errors, then SWR only for anonymous hot keys; local TMDB stub benchmark (the `CatalogService.query-phases` harness is the starting point). Before shipping it, deploy B1 (with owner approval) so `cat_tmdb_discover` / `cat_providers` confirm the phase.
+* **Superseded by section 14 (B3 first).** Original text: **M13-B2 — catalogue cold-miss remediation** (supported by production evidence; independent of the stall): single-flight on `CatalogService.query` and in-flight maps in `StreamingProvidersService`/`TMDBService.discover`, short TTL for provider errors, then SWR only for anonymous hot keys; local TMDB stub benchmark (the `CatalogService.query-phases` harness is the starting point). Before shipping it, deploy B1 (with owner approval) so `cat_tmdb_discover` / `cat_providers` confirm the phase.
 * **M13-B3 — start-up stall remediation: blocked on a measurement**, not on code: the first minutes of `diagnostics.steps` + `eventLoop.stalls` (or an authorised `journalctl` read) from a freshly restarted process; if the stall is `related_works.build_graph`/`read_media_rows`, defer or yield it; if `cpuRatio ≪ 1`, it is a host problem.
 * M13 remains **open**; M14 stays NO-GO. M13-B2 was not started in this execution.
 
+## 14. Post-deploy evidence (2026-11-04, first process lifetime after the deploy)
+
+Deploy: PR #164 squash-merged as `ead8907` on the owner's instruction ("despliega pr"), `deploy-artifact.yml` run 41832169040 (build + deploy success). Release id not read (no `guiatv-ops.sh` access). Verification used public sequential GETs only: `/v2/health/metrics` x3, one `/v2/catalog` hit, one `/canales`. Snapshot: `artifacts/m13b1/post-deploy-metrics.json` (process uptime 164 s, 600 requests, **0 x 5xx**). Parity: `/canales` 200, canonical self, robots `index, follow`, 3.17 MB decoded; `Server-Timing` of `/v2/catalog` now carries `cat_*`.
+
+One process lifetime of about 2.5 minutes: the findings are **n = 1** and say what happened in this process, not how often.
+
+### 14.1 Stall events (10 recorded >= 250 ms; host: 6 CPUs, load 0.7-2.3, 8.2 of 12 GB free)
+
+| Uptime | Duration | CPU in interval (ratio) | Invol. ctx switches | Steps overlapping |
+|--:|--:|--:|--:|---|
+| 3.1 s | 561 ms | 487 ms (0.74) | 1 | `boot.container.cache` |
+| 3.8 s | 640 ms | 770 ms (1.04) | 3 | `boot.channel_alias_load`, `related_works.{load,read_media_rows,read_airings}`, football first refresh |
+| **9.5 s** | **3 711 ms** | 4 165 ms (**1.09**) | 38 | `related_works.{load,read_media_rows,read_airings}` (in flight, async) |
+| 10.9 s | 387 ms | 627 ms (1.29) | 11 | same |
+| 25.3 s | 501 ms | 790 ms (1.31) | 21 | `related_works.{select_works,build_graph}` (sync) |
+| 44.1 s | 314 ms | 472 ms (1.14) | 68 | `related_works.read_airings` (second read) |
+| 94.1 s | 435 ms | 988 ms (1.85) | 8 | **none** |
+| **98.3 s** | **4 138 ms** | 4 553 ms (**1.07**) | 18 | **none** |
+| 99.3 s | 377 ms | 606 ms (1.27) | 37 | none |
+| 129.2 s | 447 ms | 1 100 ms (2.01) | 4 | none |
+
+Window 1 max 3 791 ms, window 2 max 4 238 ms (p99 87 / 41 ms; GC max 48 / 90 ms, so not a GC pause).
+
+Reading:
+
+* **Every stall is CPU-bound** (cpuRatio >= 0.74, about 1 for the two multi-second ones; above 1 means native threadpool work as well) with few involuntary context switches, a quiet host and free memory. **H5 (host contention) is contradicted for this process; H3 as *Mongo server* time is contradicted**: the time is spent in the Node process. Waiting on the database would show cpuRatio well below 1.
+* **Start-up stall (H1/H2): the 3.7 s stall at 9.5 s coincides only with the in-flight catalogue reads of `RelatedWorkIndex.warm()`** (`read_media_rows` 7.2 s, `read_airings` 21.0 s wall, both client-observed), with the process burning about 4.2 s of CPU in it. The synchronous `build_graph` (273 ms) and `select_works` (261 ms) are *not* the multi-second part: **the graph-build hypothesis is rejected as the main cause; the decoding of the catalogue read is the leading candidate** (BSON deserialisation of the whole `media_catalog` result on the main thread). Status: **probable, not confirmed** (n = 1; a CPU profile of the window, `DIAG_CPU_PROFILE=startup`, would confirm it).
+* **A second multi-second stall exists at 98.3 s (4.1 s, CPU-bound) with no instrumented step in flight.** It is not `warm()` (finished at 25 s) and not a boot step. It is **unattributed**. Candidates, none proven: a request-time job (the `tv/read` now/next/night unbounded read or the JSON serialisation of its 2.4 MB payload, M13-A item 5), a sitemap/work-policy call, or a per-minute cron-side effect. The missing measurement is **which requests were in flight**; see the follow-up below.
+* A second catalogue read at 41.9 s (`read_media_rows` 1.2 s, `read_airings` 3.0 s, `select_works` 223 ms) did not come from `warm()` (already succeeded): the same `indexableWorks()` is also reached through `indexableWorkPaths` (container, `SitemapController`), probably a sitemap request after the restart. Unproven; it shows the heavy catalogue read has more than one trigger.
+
+### 14.2 Catalogue misses, now with phases (14 misses, 81 L1 hits, 31 cache hits, 0 errors)
+
+Miss `total` p50 287 ms, max 4 757 ms. Phase medians (wall clock, ms): `tmdb_discover` 33 (n = 9), `providers` 13.5 (p95 259), `channels` 1.7, `preferences` 1.4, `tvread` 354 (n = 5), `transform` 0.5, `workpaths` 8.8, `cache_set` 5.4. Two slow records, **both coincide with the stalls above**:
+
+| Slow miss | Total | Dominant phase | Explanation |
+|---|--:|---|---|
+| uptime 9.8 s, `movie`, limit 1 | 4 191 ms | `tmdb_discover` 4 035 ms (the 16 provider lookups took 15 ms wall) | the await spanned the 3.7 s start-up stall |
+| uptime 98.3 s, `program`, limit 8 | 4 757 ms | `channels` **4 719 ms** (normal p50 1.7 ms) | `loadChannelMap` is a trivial read: the loop was stalled for 4.1 s |
+
+**This revises the pre-deploy hypothesis H4.** When the phases are visible, TMDB discover and provider hydration are fast and the multi-second catalogue spikes are *victims of event-loop stalls*: the cold miss and the stall **share a cause in this process**. The earlier 5.5 s cold miss at process age 45 min (sections 5 and 7) was measured before the instrumentation and cannot be attributed: it may have been the same kind of unattributed stall, or genuine TMDB latency. Single-flight for the catalogue miss (M13-B2) is therefore **not justified by the evidence now and should wait** until stalls are explained.
+
+### 14.3 Updated classification
+
+| Hypothesis | Status |
+|---|---|
+| Start-up event-loop stall | **Confirmed to exist** (3.7 s at 9.5 s of uptime, CPU-bound); attributed **probably** to the whole-collection read of `warm()` (unconfirmed, n = 1) |
+| Second stall (4.1 s at 98 s) | **Confirmed to exist; cause unresolved** (no step in flight) |
+| Cold catalogue miss = TMDB/providers (H4) | **Not supported** by phase data (2 of 2 slow misses are stall victims); the pre-instrumentation 5.5 s sample is unattributed |
+| Host contention (H5) | **Rejected** for this process (quiet host, ratio about 1, few involuntary switches); other lifetimes untested |
+| MongoDB server time (H3) | **Not the cause of these stalls** (CPU-bound in Node); server-side execution times remain unmeasured (still BLOCKED) |
+| Graph-build CPU (H2) | **Rejected as the main cause** (273 ms); `read_media_rows` decode is the leading candidate |
+
+### 14.4 Recommended next milestone
+
+**M13-B3 — stall remediation, first step a small observability increment**, then the fix:
+
+1. *(B1b, observability, no behaviour change)* attach the in-flight request routes (templated, bounded) to each stall event, so the 98 s stall can be attributed without journal access; optionally `DIAG_CPU_PROFILE=startup` for one restart (owner config change) to confirm the decode hypothesis and capture the first 60 s.
+2. *(fix)* once attributed: make the `RelatedWorkIndex.warm()` / `indexableWorks` read cheaper on the main thread (project only the fields used, bounded batches with yields, or materialise the set so sitemap and related-works share one read), and defer it after the first requests. No such change is made here.
+3. M13-B2 (single-flight) only if catalogue misses still show multi-second `tmdb_discover` / `providers` *without* a coinciding stall.
+
+Not measured here: release id, journal, Mongo `serverStatus` / slow log (BLOCKED); a second process lifetime; request-level in-flight data.
+
 ## 13. Artifacts
 
-`artifacts/m13b1/`: `prod-steady-sample.mjs/.json` (sampler and 72+6 samples, with the two public metrics snapshots), `overhead-bench.mjs/.json`, `tick-cost.json`, `synthetic-demo.mjs/.json`. All sanitized: timings, sizes, public headers, no credentials or user data.
+`artifacts/m13b1/`: `prod-steady-sample.mjs/.json` (sampler and 72+6 samples, with the two public metrics snapshots), `overhead-bench.mjs/.json`, `tick-cost.json`, `synthetic-demo.mjs/.json`, `post-deploy-metrics.json` (public metrics snapshot after the deploy). All sanitized: timings, sizes, public headers, no credentials or user data.
