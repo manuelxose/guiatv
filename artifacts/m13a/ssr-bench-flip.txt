@@ -1,0 +1,18 @@
+
+== before
+/                        n=40 status=200 total p50=132.23 p95=225.7 max=327.77 html=1300958 state=967194 gzip=160290 br=70857 stateParse p50=27.07ms
+/canales                 n=40 status=200 total p50=512.32 p95=705.95 max=1109.2 html=5513806 state=4739809 gzip=429690 br=187801 stateParse p50=88.51ms
+/canales/la-1            n=40 status=200 total p50=75.84 p95=126.28 max=257.31 html=443090 state=216462 gzip=51990 br=35212 stateParse p50=9.38ms
+/peliculas/gladiator     n=40 status=404 total p50=40.49 p95=58.74 max=68.72 html=100567 state=1870 gzip=17790 br=16973 stateParse p50=3.16ms
+/series/modern-family    n=40 status=404 total p50=43.82 p95=64.2 max=76.6 html=100567 state=1870 gzip=17790 br=16973 stateParse p50=3.09ms
+/deportes/futbol         n=40 status=200 total p50=46.54 p95=54.16 max=57.95 html=262442 state=74398 gzip=34792 br=28545 stateParse p50=6.43ms
+/guias                   n=40 status=200 total p50=70.71 p95=82.96 max=83.41 html=489995 state=112445 gzip=50093 br=39365 stateParse p50=9.55ms
+
+== after
+/                        n=40 status=200 total p50=112.33 p95=203.47 max=255.24 html=1161569 state=827805 gzip=152288 br=70376 stateParse p50=24.7ms
+/canales                 n=40 status=200 total p50=450.9 p95=836.63 max=1147.99 html=3145359 state=2371354 gzip=238025 br=187602 stateParse p50=57.67ms
+/canales/la-1            n=40 status=200 total p50=76.07 p95=153.5 max=189.91 html=338099 state=111471 gzip=42532 br=35111 stateParse p50=7.97ms
+/peliculas/gladiator     n=40 status=404 total p50=50.17 p95=96.8 max=114.21 html=100567 state=1870 gzip=17795 br=16969 stateParse p50=3.05ms
+/series/modern-family    n=40 status=404 total p50=44.15 p95=81.49 max=87.97 html=100567 state=1870 gzip=17795 br=16969 stateParse p50=3.01ms
+/deportes/futbol         n=40 status=200 total p50=48.58 p95=99.16 max=149.28 html=227284 state=39240 gzip=31582 br=28415 stateParse p50=5.67ms
+/guias                   n=40 status=200 total p50=65.76 p95=109.76 max=131.55 html=489995 state=112445 gzip=50094 br=39367 stateParse p50=9.61ms
