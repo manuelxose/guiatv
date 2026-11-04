@@ -1,7 +1,7 @@
 # M13-B3 — Event-loop stall attribution and related-works remediation
 
 Date: 2026-11-04 · Base `origin/main` = `cf19518` (#165) · Branches `m13b3a-request-stall-observability` (M13-B3a) and `m13b3b-related-works-bounded-read` (M13-B3b, stacked on B3a) · **Verdict: PARTIAL.**
-**Update (the owner authorised B3a only):** [#166](https://github.com/manuelxose/guiatv/pull/166) (B3a) was squash-merged as `dd3822b` and deployed with `deploy-artifact.yml` run 41843530126 (build + deploy success), then verified with two sequential public GETs of `/v2/health/metrics` (section 13). [#167](https://github.com/manuelxose/guiatv/pull/167) (B3b) is **not merged and not deployed** (draft, awaiting the owner). No restart, environment change, database write, index creation, cache purge or profiler activation was performed.
+**Update (the owner authorised B3a only):** [#166](https://github.com/manuelxose/guiatv/pull/166) (B3a) was squash-merged as `dd3822b` and deployed with `deploy-artifact.yml` run 41843530126 (build + deploy success), then verified with two sequential public GETs of `/v2/health/metrics` (section 13). B3b ([#167](https://github.com/manuelxose/guiatv/pull/167), replaced by [#170](https://github.com/manuelxose/guiatv/pull/170) rebased on `main`) was later merged as `997f61f` and deployed together with B4a on the owner's instruction (section 7 of M13B4-DELIVERY.md records the production check). No restart, environment change, database write, index creation, cache purge or profiler activation was performed.
 
 | Axis | Status |
 |---|---|
@@ -9,7 +9,7 @@ Date: 2026-11-04 · Base `origin/main` = `cf19518` (#165) · Branches `m13b3a-re
 | Root-cause attribution, stall A (3 711 ms at 9.5 s) | **Recurs in a second production process (4 350 ms at 16 s), still unconfirmed**: it overlaps the catalogue reads and a concurrent `tvread.query`, with heavy GC in the window (section 13). Not reproduced locally (section 4.3). |
 | Root-cause attribution, stall B (4 138 ms at 98.3 s) | **Unresolved.** Not seen again in the second process (to 178 s); a smaller class of unattributed stalls (0.4–0.7 s, `correlation: none`, no request open, CPU ratio ≈ 2) recurs at 94–129 s and is **not** request-caused (section 13). |
 | Performance remediation (B3b) | **Local engineering PASS, bounded improvement only**: removes the synchronous refresh block that was reproduced locally. Does **not** claim to fix A or B. |
-| Merge / deployment / production verification | **B3a: merged, deployed, verified** (fields live, 0 x 5xx). **B3b: not merged, not deployed.** |
+| Merge / deployment / production verification | **B3a: merged, deployed, verified** (fields live, 0 x 5xx). **B3b: merged `997f61f` and deployed (2026-11-04), effect on production not yet isolated.** |
 
 ## 1. Baseline
 
