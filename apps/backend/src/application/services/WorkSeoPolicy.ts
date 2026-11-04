@@ -26,7 +26,8 @@ import { TVReadAiringModel } from '@/infrastructure/database/models/TVReadAiring
 import { buildDetailPath, slugify, slugifyTitle } from '@/domain/services/detailPath';
 import { cohortApplies } from './ProgrammeSeoPolicy';
 import { QUALITY_THRESHOLDS } from './PublicationQuality';
-import { timeStep, timeStepSync } from '@/shared/utils/stepTimeline';
+import { timeStep } from '@/shared/utils/stepTimeline';
+import { TimeSlice } from '@/shared/utils/timeSlice';
 import { slugLookupKey } from './VerifiedWorkLinks';
 
 export type WorkDisposition = 'indexable' | 'airing' | 'thin' | 'ambiguous' | 'variant';
@@ -142,42 +143,100 @@ export async function indexableWorkPaths(env: NodeJS.ProcessEnv = process.env): 
   return (await indexableWorks(env)).map((w) => w.path);
 }
 
+/**
+ * M13-B3b: the catalogue read is bounded. The read used to return one array through the driver's `toArray()`, whose
+ * microtask-only loop decodes (BSON) every buffered batch in a single event-loop block, and the selection and the graph
+ * build ran as one synchronous pass each. Now the rows come through a cursor with a small `batchSize` (each server reply
+ * is small) and every loop yields to the event loop when its time slice is spent. The rows, the selection rule and the
+ * output are unchanged; only when the work runs differs (see artifacts/m13b3 for the measurements).
+ */
+export const READ_BATCH_SIZE = 500;
+type MediaRow = WorkRow & { rating?: number };
+
 /** The works behind `indexableWorkPaths`, one per path, sorted by path. Throws on a database failure. */
-export async function indexableWorks(env: NodeJS.ProcessEnv = process.env): Promise<IndexableWork[]> {
+export async function indexableWorks(env: NodeJS.ProcessEnv = process.env, slice: TimeSlice = new TimeSlice()): Promise<IndexableWork[]> {
   if (!['on', 'canary'].includes(env.WORK_SEO_POLICY ?? '')) return [];
-  // M13-B1: the two reads run in parallel and are timed apart; the selection below is synchronous CPU.
-  const [rows, aired] = await Promise.all([
-    timeStep('related_works.read_media_rows', () => MediaCatalogModel.find({ tmdbId: { $type: 'number' } }).select({ ...ROW_FIELDS, rating: 1 }).lean<Array<WorkRow & { rating?: number }>>().exec()),
-    timeStep('related_works.read_airings', () => TVReadAiringModel.aggregate<{ _id: { id: number; c: string } }>([
-      { $match: { 'program.tmdbId': { $type: 'number' }, 'program.editorialCategory': { $in: Object.values(CATEGORY) } } },
-      { $group: { _id: { id: '$program.tmdbId', c: '$program.editorialCategory' } } },
-    ]).allowDiskUse(true).exec()),
+  // M13-B1: the two reads run in parallel and are timed apart; M13-B3b: both are cursor reads that yield.
+  const [rows, airedKeys] = await Promise.all([
+    timeStep('related_works.read_media_rows', () => readMediaRows(slice)),
+    timeStep('related_works.read_airings', () => readAiredKeys(slice)),
   ]);
-  return timeStepSync('related_works.select_works', () => selectIndexableWorks(rows, aired, env));
+  return timeStep('related_works.select_works', () => selectIndexableWorksSliced(rows, airedKeys, env, slice));
 }
 
-function selectIndexableWorks(
-  rows: Array<WorkRow & { rating?: number }>,
-  aired: Array<{ _id: { id: number; c: string } }>,
-  env: NodeJS.ProcessEnv
-): IndexableWork[] {
-  const airedKeys = new Set(aired.map((a) => `${a._id.c === 'Cine' ? 'movie' : 'tv'}:${a._id.id}`));
+async function readMediaRows(slice: TimeSlice): Promise<MediaRow[]> {
+  const rows: MediaRow[] = [];
+  const cursor = MediaCatalogModel.find({ tmdbId: { $type: 'number' } }).select({ ...ROW_FIELDS, rating: 1 }).lean().batchSize(READ_BATCH_SIZE).cursor();
+  for await (const row of cursor) {
+    rows.push(row as unknown as MediaRow);
+    await slice.tick();
+  }
+  return rows;
+}
+
+const airedKey = (category: string, id: number) => `${category === 'Cine' ? 'movie' : 'tv'}:${id}`;
+
+async function readAiredKeys(slice: TimeSlice): Promise<Set<string>> {
+  const keys = new Set<string>();
+  const cursor = TVReadAiringModel.aggregate<{ _id: { id: number; c: string } }>([
+    { $match: { 'program.tmdbId': { $type: 'number' }, 'program.editorialCategory': { $in: Object.values(CATEGORY) } } },
+    { $group: { _id: { id: '$program.tmdbId', c: '$program.editorialCategory' } } },
+  ]).allowDiskUse(true).cursor({ batchSize: READ_BATCH_SIZE * 2 });
+  for await (const a of cursor) {
+    keys.add(airedKey(a._id.c, a._id.id));
+    await slice.tick();
+  }
+  return keys;
+}
+
+/** Rows grouped by their slug key: the namesakes a work is checked against. */
+function groupByKey(rows: readonly MediaRow[]): Map<string, WorkRow[]> {
   const byKey = new Map<string, WorkRow[]>();
   for (const r of rows) (byKey.get(r.normalizedTitle ?? '') ?? byKey.set(r.normalizedTitle ?? '', []).get(r.normalizedTitle ?? '')!).push(r);
+  return byKey;
+}
+
+/** The decision for one row (unchanged from M10-B): the work it is, or undefined. */
+function workOfRow(r: MediaRow, airedKeys: ReadonlySet<string>, byKey: ReadonlyMap<string, WorkRow[]>, env: NodeJS.ProcessEnv): IndexableWork | undefined {
+  const kind = r.tmdbType;
+  if ((kind !== 'movie' && kind !== 'tv') || !airedKeys.has(`${kind}:${r.tmdbId}`)) return undefined;
+  const slug = slugifyTitle(r.title ?? '');
+  if (slug === 'sin-titulo' || !workPolicyApplies(slug, env)) return undefined;
+  if (workDisposition(slug, r.tmdbId as number, kind, byKey.get(slugLookupKey(slug)) ?? [], false, true) !== 'indexable') return undefined;
+  const path = buildDetailPath(kind === 'movie' ? 'movie' : 'series', slug);
+  return {
+    kind, tmdbId: r.tmdbId as number, path, title: r.title ?? '',
+    genreIds: (r.tmdbGenres ?? []).map((g) => (g as { id?: unknown }).id).filter((id): id is number => typeof id === 'number'),
+    posterPath: r.posterPath ?? undefined, year: r.year ?? undefined, rating: typeof r.rating === 'number' ? r.rating : undefined,
+  };
+}
+
+const byPath = (a: IndexableWork, b: IndexableWork) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+
+/** Synchronous selection (kept for callers with a small set and as the reference the sliced one is tested against). */
+export function selectIndexableWorks(rows: readonly MediaRow[], aired: ReadonlyArray<{ _id: { id: number; c: string } }>, env: NodeJS.ProcessEnv): IndexableWork[] {
+  const airedKeys = new Set(aired.map((a) => airedKey(a._id.c, a._id.id)));
+  const byKey = groupByKey(rows);
   const works = new Map<string, IndexableWork>();
   for (const r of rows) {
-    const kind = r.tmdbType;
-    if ((kind !== 'movie' && kind !== 'tv') || !airedKeys.has(`${kind}:${r.tmdbId}`)) continue;
-    const slug = slugifyTitle(r.title ?? '');
-    if (slug === 'sin-titulo' || !workPolicyApplies(slug, env)) continue;
-    if (workDisposition(slug, r.tmdbId as number, kind, byKey.get(slugLookupKey(slug)) ?? [], false, true) !== 'indexable') continue;
-    const path = buildDetailPath(kind === 'movie' ? 'movie' : 'series', slug);
-    if (works.has(path)) continue;
-    works.set(path, {
-      kind, tmdbId: r.tmdbId as number, path, title: r.title ?? '',
-      genreIds: (r.tmdbGenres ?? []).map((g) => (g as { id?: unknown }).id).filter((id): id is number => typeof id === 'number'),
-      posterPath: r.posterPath ?? undefined, year: r.year ?? undefined, rating: typeof r.rating === 'number' ? r.rating : undefined,
-    });
+    const w = workOfRow(r, airedKeys, byKey, env);
+    if (w && !works.has(w.path)) works.set(w.path, w);
   }
-  return [...works.values()].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  return [...works.values()].sort(byPath);
+}
+
+/** Same result as `selectIndexableWorks`, yielding to the event loop between slices. */
+export async function selectIndexableWorksSliced(rows: readonly MediaRow[], airedKeys: ReadonlySet<string>, env: NodeJS.ProcessEnv, slice: TimeSlice): Promise<IndexableWork[]> {
+  const byKey = new Map<string, WorkRow[]>();
+  for (const r of rows) {
+    (byKey.get(r.normalizedTitle ?? '') ?? byKey.set(r.normalizedTitle ?? '', []).get(r.normalizedTitle ?? '')!).push(r);
+    await slice.tick();
+  }
+  const works = new Map<string, IndexableWork>();
+  for (const r of rows) {
+    const w = workOfRow(r, airedKeys, byKey, env);
+    if (w && !works.has(w.path)) works.set(w.path, w);
+    await slice.tick();
+  }
+  return [...works.values()].sort(byPath);
 }
