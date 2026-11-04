@@ -142,13 +142,31 @@ Not run: backend suite (no backend change), Playwright entity specs (CI), load t
 
 ## 11. PR, CI and deployment
 
-PR [#162](https://github.com/manuelxose/guiatv/pull/162), focused commits, base `main`, not merged. CI on the final head is recorded in the PR. **Not deployed; production authorisation boundaries respected** (public sequential GETs only; no SSH, no database access, no service, timer or configuration change). No production performance PASS is claimed.
+PR [#162](https://github.com/manuelxose/guiatv/pull/162), squash-merged by the owner's instruction as `b4978a9` (CI green on the final head). Deployed the same day through the artifact workflow (`deploy-artifact.yml`, run 41822615710, `build` + `deploy` success, deployed commit `b4978a9`). Production authorisation boundaries respected: public sequential GETs, then the owner-authorised merge and deploy; no SSH, database access or manual configuration change by this milestone.
 
-If the owner authorises deployment: use the existing artifact workflow (`gh workflow run deploy-artifact.yml --ref main`), verify the release SHA, API and SSR health, parity of the seven routes (canonical, robots, status, state size), compare `/canales` HTML/state size and `/v2/health/metrics` before/after, and watch 5xx. This is a frontend-only change, so the API process is unaffected.
+### Production verification after the deploy (`artifacts/m13a/prod-sample-post-deploy.json`, `ts-urls-after.txt`, `post-deploy-metrics.json`)
+
+| Check | Before (deploy of `571a8fc`) | After (`b4978a9`) |
+|---|---|---|
+| `/canales` transfer state | 4.52–4.74 MB (two copies) | **2.41 MB** (one copy, `tv-api-v2:` only) |
+| `/canales` decoded HTML | 5.26–5.52 MB | **3.18 MB** |
+| `/` decoded HTML / state | 1.16–1.21 MB / 0.85 MB | 1.08 MB / 0.74 MB |
+| `/deportes/futbol` decoded HTML / state | 0.26 MB / 74 KB | 0.23 MB / 39 KB |
+| Status / canonical / robots (meta + `X-Robots-Tag`) of the 7 pages | 200, self, `index, follow` | 200, self, `index, follow` (4 rounds, 0 errors) |
+| `/v2/health` | healthy | healthy, `5xx` 0 (142 s uptime, 229 requests) |
+| API payload sizes (`tv/read`, `channels`, `catalog`, football) | unchanged by design | unchanged apart from live data drift |
+
+No HTTP transfer-cache copy remains for the TV and football reads; the blog list and `discovery/home` copies are still there (M13-B5). Wire bytes are still **not** measured in production (Cloudflare brotli; the sample has no `content-length`), so no production wire-byte or Core Web Vitals gain is claimed.
+
+Timing right after the restart (n=4, rounds 8 s apart) is **not** a valid comparison: the fresh process and an empty SSR page cache made even byte-identical pages slower (`/peliculas/gladiator` 73 → 102 ms, `/canales/la-1` 67 → 111 ms), while `/canales` 179 → 165 ms and `/` 151 → 138 ms. A steady-state re-sample is required before saying anything about production latency.
+
+New evidence for M13-B: the freshly started process already reports an event-loop maximum of **3676 ms within its first 142 s**. That is the third process lifetime with a multi-second stall shortly after start (4255 ms on 22 Oct, 5419 ms earlier today, 3676 ms now), which supports a start-up cause and makes the `journalctl` correlation in M13-B1 the first thing to do.
+
+If the owner authorises deployment of further changes: same workflow; compare against these artifacts.
 
 ## 12. Rollback
 
-`sudo /var/www/guiatv/scripts/guiatv-ops.sh rollback` repoints `current` at the previous release and restarts API then SSR (see `docs/ops/VPS-RELIABILITY-RUNBOOK.md`). The release to return to is the one **before** this change, i.e. `20261104112726` if this PR becomes the next release; the exact id of any newer release must be read from `guiatv-ops.sh status` at deploy time. Code-level rollback: revert the PR (3 source files, no data or schema involved).
+`sudo /var/www/guiatv/scripts/guiatv-ops.sh rollback` repoints `current` at the previous release and restarts API then SSR (see `docs/ops/VPS-RELIABILITY-RUNBOOK.md`). The release to return to is the one **before** this change, i.e. `20261104112726` if this PR becomes the next release; the exact id of any newer release must be read from `guiatv-ops.sh status` at deploy time. Code-level rollback: revert `b4978a9` (3 source files, no data or schema involved). The release deployed before this change is the one built from `571a8fc` (`20261104112726`, as reported by the owner); the id of the release created by this deploy must be read from `guiatv-ops.sh status` and was not observed here.
 
 ## 13. Remaining M13 work, ordered
 
@@ -163,4 +181,4 @@ M13 stays open; M14 stays NO-GO until M13 is closed or accepted by the owner.
 
 ## 14. Verdict
 
-**PARTIAL.** Met: a reproducible production baseline (AC-01 for API and SSR), an evidenced ranking (AC-02, AC-10), one bounded fix (AC-03) with equivalent behaviour (AC-04), passing relevant tests (AC-05), a controlled before/after for bytes and median render time (AC-06), no regression found (AC-07), three reviews with blockers fixed (AC-08), authorisation boundaries respected (AC-09). Not met: direct MongoDB diagnostics were not obtainable, the largest tail latencies (#1, #2) are diagnosed but not fixed, the fix has no demonstrated tail or wire-byte benefit, and nothing was measured in production after a deployment.
+**PARTIAL** (merged and deployed; production latency and wire-byte benefit unmeasured). Met: a reproducible production baseline (AC-01 for API and SSR), an evidenced ranking (AC-02, AC-10), one bounded fix (AC-03) with equivalent behaviour (AC-04), passing relevant tests (AC-05), a controlled before/after for bytes and median render time (AC-06), no regression found (AC-07), three reviews with blockers fixed (AC-08), authorisation boundaries respected (AC-09). Not met: direct MongoDB diagnostics were not obtainable, the largest tail latencies (#1, #2) are diagnosed but not fixed, the fix has no demonstrated tail or wire-byte benefit, and production was only checked structurally after the deploy (state size, parity, health); steady-state latency and wire bytes in production remain unmeasured.
