@@ -42,7 +42,9 @@ export const createApp = (dependencies: RoutesDependencies): Application => {
   // Middlewares globales
   app.use(corsMiddleware);
   app.use(compressionMiddleware);
-  app.use(express.json({ limit: '1mb' }));
+  // Analytics batches are parsed by their route with a 64 kB limit (a public endpoint must not accept 1 MB bodies).
+  const jsonParser = express.json({ limit: '1mb' });
+  app.use((req, res, next) => (/^\/v2\/(?:telemetry|analytics)\/collect$/.test(req.path) ? next() : jsonParser(req, res, next)));
   app.use(express.urlencoded({ extended: true }));
   app.use(requestLogger);
 

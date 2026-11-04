@@ -1,4 +1,6 @@
+import * as mongoose from 'mongoose';
 import { AnalyticsEventModel } from '../database/models/AnalyticsEvent.model';
+import { analyticsPiiMode, anonymizeIp } from '../analytics/ipPrivacy';
 import { AnalyticsSessionModel } from '../database/models/AnalyticsSession.model';
 import { analyticsExclusions } from './analyticsExclusions';
 import { LIVE_IDLE_LIMIT_SECONDS } from './analyticsActivity';
@@ -7,11 +9,25 @@ import {
   AnalyticsEventRecord,
   AnalyticsOverview,
   AnalyticsRealtimePages,
+  AnalyticsSessionActivity,
   AnalyticsSessionRecord,
   IAnalyticsRepository,
 } from '../../domain/repositories/IAnalyticsRepository';
 
+/** Same privacy policy as the Valkey store: only a truncated prefix (or nothing) is ever written. */
+function storedIp(ip?: string): string | undefined {
+  return analyticsPiiMode() === 'none' ? undefined : anonymizeIp(ip);
+}
+
+function storedUserAgent(userAgent?: string): string | undefined {
+  return analyticsPiiMode() === 'none' || !userAgent ? undefined : String(userAgent).slice(0, 180);
+}
+
 export class MongoAnalyticsRepository implements IAnalyticsRepository {
+  isAvailable(): boolean {
+    return mongoose.connection.readyState === 1;
+  }
+
   async markExcludedSession(sessionId: string): Promise<void> {
     await AnalyticsSessionModel.updateOne({ sessionId }, { $set: { excluded: true } }).exec();
   }
@@ -55,14 +71,17 @@ export class MongoAnalyticsRepository implements IAnalyticsRepository {
       startedAt,
       initialPath: payload.initialPath,
       referrer: payload.referrer,
-      userAgent: payload.userAgent,
-      ip: payload.ip,
+      userAgent: storedUserAgent(payload.userAgent),
+      ip: storedIp(payload.ip),
       excluded: payload.excluded || false,
-      country: payload.country,
-      region: payload.region,
-      city: payload.city,
-      latitude: payload.latitude,
-      longitude: payload.longitude,
+      ...(analyticsPiiMode() === 'none' ? {} : {
+        country: payload.country,
+        region: payload.region,
+        city: payload.city,
+        latitude: payload.latitude,
+        longitude: payload.longitude,
+        geo: payload.geo,
+      }),
       language: payload.language,
       timezone: payload.timezone,
       screen: payload.screen,
@@ -97,6 +116,8 @@ export class MongoAnalyticsRepository implements IAnalyticsRepository {
     lastSeenAt: Date;
     lastPath?: string;
     metadata?: Record<string, any>;
+    activity?: AnalyticsSessionActivity;
+    resume?: boolean;
   }): Promise<AnalyticsSessionRecord | null> {
     const session = await AnalyticsSessionModel.findOne({
       sessionId: payload.sessionId,
@@ -119,11 +140,16 @@ export class MongoAnalyticsRepository implements IAnalyticsRepository {
     }
     if (payload.metadata) {
       update.metadata = payload.metadata;
+    } else if (payload.activity) {
+      update['metadata.activity'] = payload.activity;
+    }
+    if (payload.resume) {
+      update.endedAt = null;
     }
 
     const updated = await AnalyticsSessionModel.findOneAndUpdate(
       { sessionId: payload.sessionId },
-      { $set: update },
+      payload.resume ? { $set: update, $unset: { endReason: '' } } : { $set: update },
       { new: true }
     )
       .lean()
@@ -173,10 +199,31 @@ export class MongoAnalyticsRepository implements IAnalyticsRepository {
   }
 
   async createEvent(payload: AnalyticsEventRecord): Promise<void> {
-    await AnalyticsEventModel.create({
+    await this.createEvents([payload]);
+  }
+
+  async createEvents(payloads: AnalyticsEventRecord[]): Promise<void> {
+    if (!payloads.length) return;
+    // lean insert (no Mongoose document hydration): undefined fields are stripped so they are not stored as null.
+    const docs = payloads.map((payload) => Object.fromEntries(Object.entries({
       ...payload,
+      ip: storedIp(payload.ip),
+      userAgent: storedUserAgent(payload.userAgent),
       occurredAt: payload.occurredAt || new Date(),
-    });
+      createdAt: new Date(),
+    }).filter(([, value]) => value !== undefined)));
+    try {
+      await AnalyticsEventModel.insertMany(docs, { ordered: false, lean: true });
+    } catch (error) {
+      // Idempotency: a retried batch re-sends the same eventIds; duplicates (E11000) are expected and ignored.
+      // Decided on every write error: a mixed batch (one duplicate + a real failure) must still fail and be retried.
+      const raw = (error as { writeErrors?: unknown }).writeErrors;
+      const writeErrors = (Array.isArray(raw) ? raw : raw ? [raw] : []) as Array<{ code?: number; err?: { code?: number } }>;
+      const onlyDuplicates = writeErrors.length > 0
+        ? writeErrors.every((e) => (e.code ?? e.err?.code) === 11000)
+        : (error as { code?: number }).code === 11000;
+      if (!onlyDuplicates) throw error;
+    }
   }
 
   async getLiveSessions(
@@ -368,6 +415,7 @@ export class MongoAnalyticsRepository implements IAnalyticsRepository {
       city: doc.city,
       latitude: doc.latitude,
       longitude: doc.longitude,
+      geo: doc.geo,
       language: doc.language,
       timezone: doc.timezone,
       screen: doc.screen,

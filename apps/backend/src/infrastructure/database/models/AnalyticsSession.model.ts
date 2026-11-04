@@ -30,6 +30,7 @@ export interface IAnalyticsSessionDocument {
   city?: string;
   latitude?: number;
   longitude?: number;
+  geo?: Record<string, any>;
   language?: string;
   timezone?: string;
   screen?: Record<string, any>;
@@ -104,6 +105,8 @@ const AnalyticsSessionSchema = new Schema<IAnalyticsSessionDocument>(
     city: { type: String },
     latitude: { type: Number },
     longitude: { type: Number },
+    // Location provenance/uncertainty: status, source, accuracy radius, ASN, database build.
+    geo: { type: Schema.Types.Mixed },
     language: {
       type: String,
       trim: true,

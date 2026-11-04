@@ -205,6 +205,7 @@ export class Container {
     }
 
     this.dependencies.set('analyticsRepository', analyticsRepository);
+    this.dependencies.set('analyticsStoreKind', analyticsRepository instanceof MongoAnalyticsRepository ? 'mongo' : 'valkey');
 
     // Cache Repository (already stored by initializeCache, ensure consistent key)
     this.dependencies.set('cacheRepository', cache);
@@ -667,7 +668,27 @@ export class Container {
     const { EditorialOpsController } = await import('../presentation/controllers/EditorialOpsController');
     this.dependencies.set('editorialOpsController', new EditorialOpsController(this.get('storageRepository')));
 
-    const analyticsController = new AnalyticsController(this.get('analyticsService'));
+    // Analytics ingestion: bounded in-process queue + off-path enrichment (GeoIP opens its files asynchronously and
+    // only when ANALYTICS_GEOIP_ENABLED=true; a missing database leaves sessions unlocated, never fails start-up).
+    const { GeoIpService } = await import('../infrastructure/analytics/GeoIpService');
+    const { TelemetryIngestService } = await import('../application/services/analytics/TelemetryIngestService');
+    const { PathLabelResolver } = await import('../application/services/analytics/pathLabels');
+    const { telemetryFlags } = await import('../application/services/analytics/telemetryFlags');
+    const { TVReadAiringModel } = await import('../infrastructure/database/models/TVReadAiring.model');
+    const geoIpService = new GeoIpService();
+    void geoIpService.init().catch((error) => logger.warn('[Analytics] GeoIP init failed', { error: (error as Error).message }));
+    this.dependencies.set('geoIpService', geoIpService);
+    const { DEFAULT_INGEST_OPTIONS } = await import('../application/services/analytics/TelemetryIngestQueue');
+    const ingestAuthService = this.get<{ getSession(token: string): Promise<{ role?: string }> }>('authService');
+    // Role of a bearer token, resolved by the drain loop (cached 5 min), never awaited by the /collect request.
+    const telemetryIngestService = new TelemetryIngestService(this.get('analyticsRepository'), geoIpService, DEFAULT_INGEST_OPTIONS, async (token) => (await ingestAuthService.getSession(token))?.role);
+    this.dependencies.set('telemetryIngestService', telemetryIngestService);
+    const pathLabels = new PathLabelResolver(async (ids) => {
+      const rows = (await TVReadAiringModel.find({ id: { $in: ids } }, { _id: 0, id: 1, 'program.title': 1, 'channel.name': 1, 'airing.start': 1 }).limit(ids.length).lean().exec()) as unknown as Array<{ id: string; program?: { title?: string }; channel?: { name?: string }; airing?: { start?: string } }>;
+      return rows.map((row) => ({ id: row.id, title: row.program?.title, channelName: row.channel?.name, start: row.airing?.start }));
+    });
+    const { Ga4ReportingService } = await import('../infrastructure/analytics/Ga4ReportingService');
+    const analyticsController = new AnalyticsController(this.get('analyticsService'), telemetryIngestService, telemetryFlags, pathLabels, this.get('analyticsStoreKind'), new Ga4ReportingService());
     this.dependencies.set('analyticsController', analyticsController);
 
     const monetizationController = new MonetizationController(this.get('monetizationService'));

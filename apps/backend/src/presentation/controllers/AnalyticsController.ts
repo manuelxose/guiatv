@@ -6,156 +6,165 @@ import { ValidationError } from '../../shared/errors';
 import { analyticsExclusions } from '../../infrastructure/repositories/analyticsExclusions';
 import { AuthenticatedRequest } from '../middlewares/authGuard';
 import { analyticsClientIp, isTrustedAnalyticsProxy } from './analyticsClientIp';
+import { anonymizeIp } from '../../infrastructure/analytics/ipPrivacy';
 import { LIVE_IDLE_LIMIT_SECONDS } from '../../infrastructure/repositories/analyticsActivity';
+import { TelemetryIngestService } from '../../application/services/analytics/TelemetryIngestService';
+import { TelemetryFlagSource, telemetryFlags } from '../../application/services/analytics/telemetryFlags';
+import { NormalizedBatch, TELEMETRY_LIMITS, normalizeEvent, normalizeSession, validateCollectBatch } from '../../application/services/analytics/telemetryValidation';
+import { PathLabelResolver } from '../../application/services/analytics/pathLabels';
+import { Ga4ReportingService } from '../../infrastructure/analytics/Ga4ReportingService';
+
+/** Legacy per-event endpoints (pre-consent collector still cached in open tabs). Off unless explicitly accepted. */
+const legacyAccepted = () => process.env.ANALYTICS_LEGACY_ENDPOINTS === 'accept';
+const ID = /^[A-Za-z0-9-]{8,64}$/;
 
 export class AnalyticsController {
-  constructor(private readonly analyticsService: AnalyticsService) {}
+  constructor(
+    private readonly analyticsService: AnalyticsService,
+    private readonly ingest?: TelemetryIngestService,
+    private readonly flags: TelemetryFlagSource = telemetryFlags,
+    private readonly labels?: PathLabelResolver,
+    private readonly storeKind: 'mongo' | 'valkey' = 'mongo',
+    private readonly ga4Reporting?: Ga4ReportingService
+  ) {}
+
+  /** `GET /ga4/demographics` (admin): aggregate GA4 age/gender/interests exactly as GA4 reports them, or why not. */
+  async getGa4Demographics(req: Request, res: Response): Promise<void> {
+    const days = this.clamp(this.parseNumber(req.query.days, 28), 1, 90);
+    const result = this.ga4Reporting ? await this.ga4Reporting.demographics(days) : { available: false as const, reason: 'not_configured' as const, message: 'GA4 Data API no configurada.' };
+    res.status(200).json(successResponse({ ga4: result }));
+  }
+
+  /** `POST /collect`: validate, enqueue, answer 202. No storage I/O on the request path. */
+  async collect(req: Request, res: Response): Promise<void> {
+    if (!this.flags.get().ingestEnabled || !this.ingest) {
+      this.ingest?.countDisabled();
+      res.set('X-Telemetry-Disabled', '1').status(204).end();
+      return;
+    }
+    const length = Number(req.get('content-length') || 0);
+    if (length > TELEMETRY_LIMITS.maxBodyBytes) {
+      res.status(413).json({ success: false, message: 'Payload too large' });
+      return;
+    }
+    const result = validateCollectBatch(req.body);
+    if (!result.ok) {
+      this.ingest.countInvalid();
+      res.status(400).json({ success: false, message: `Invalid telemetry batch (${result.reason})` });
+      return;
+    }
+    if (!this.enqueue(req, result.batch)) {
+      res.set('Retry-After', '30').status(503).json({ success: false, message: 'Telemetry queue full' });
+      return;
+    }
+    res.status(202).json(successResponse({ accepted: result.batch.events.length }));
+  }
+
+  /** `GET /config`: emergency switch and GA4 rollout flag for browsers (cached 60 s, see publicCachePolicy). */
+  getConfig(_req: Request, res: Response): void {
+    const flags = this.flags.get();
+    res.status(200).json(successResponse({ enabled: flags.ingestEnabled, ga4: { enabled: flags.ga4Enabled, measurementId: flags.ga4MeasurementId } }));
+  }
+
+  /** `GET /diagnostics` (admin): queue, drops, storage and GeoIP state — measured values only. */
+  getDiagnostics(_req: Request, res: Response): void {
+    const flags = this.flags.get();
+    res.status(200).json(successResponse({
+      store: this.storeKind,
+      flags: { ingestEnabled: flags.ingestEnabled, killed: flags.killed, ga4Enabled: flags.ga4Enabled, geoipEnabled: flags.geoipEnabled, legacyEndpoints: legacyAccepted() ? 'accept' : 'drop' },
+      ingest: this.ingest?.diagnostics() ?? null,
+      generatedAt: new Date().toISOString(),
+    }));
+  }
+
+  private enqueue(req: Request, batch: NormalizedBatch): boolean {
+    if (!this.ingest) return false;
+    const client = this.getClientInfo(req);
+    const geo = this.getGeography(req);
+    return this.ingest.accept(batch, {
+      ip: client.ip,
+      userAgent: client.userAgent || undefined,
+      language: client.language && /^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})?$/.test(client.language) ? client.language : undefined,
+      admin: (req as AuthenticatedRequest).user?.role === 'admin',
+      authToken: this.bearer(req),
+      proxyGeo: geo.country ? geo : undefined,
+      receivedAt: Date.now(),
+    });
+  }
+
+  /**
+   * Legacy endpoints keep their response contract. Their data was produced without a consent check, so by default
+   * it is not persisted (`X-Telemetry-Disabled: 1` tells current clients to stop); ANALYTICS_LEGACY_ENDPOINTS=accept
+   * routes it through the same validated queue as `/collect`.
+   */
+  private legacyIngest(req: Request, res: Response, build: () => NormalizedBatch | null): void {
+    if (!this.flags.get().ingestEnabled || !legacyAccepted() || !this.ingest) {
+      res.set('X-Telemetry-Disabled', '1');
+      return;
+    }
+    const batch = build();
+    // Same id rules as /collect; an invalid legacy payload is dropped (the old response contract is kept).
+    if (!batch || !ID.test(String(batch.sessionId)) || !ID.test(String(batch.anonId))) {
+      this.ingest.countInvalid();
+      return;
+    }
+    if (!this.enqueue(req, batch)) res.set('X-Telemetry-Queue', 'full');
+  }
+
+  private bearer(req: Request): string | undefined {
+    const header = req.get('authorization') || '';
+    return /^bearer /i.test(header) && header.length <= 4096 ? header.slice(7).trim() || undefined : undefined;
+  }
+
+  private requireStorage(res: Response): boolean {
+    if (this.analyticsService.isAvailable()) return true;
+    res.status(503).json({ success: false, code: 'storage_unavailable', message: `El almacenamiento de Analytics (${this.storeKind}) no está disponible en este momento.` });
+    return false;
+  }
 
   async markExcludedSession(sessionId: string): Promise<void> {
     await this.analyticsService.markExcludedSession(sessionId);
   }
 
   async startSession(req: Request, res: Response): Promise<void> {
-    const {
-      sessionId,
-      anonId,
-      userId,
-      initialPath,
-      lastPath,
-      referrer,
-      metadata,
-      screen,
-      viewport,
-      timezone,
-      startedAt,
-    } = req.body || {};
-
+    const { sessionId, anonId, initialPath, referrer, metadata, screen, viewport, timezone, startedAt } = req.body || {};
     if (!sessionId || !anonId) {
       throw new ValidationError('Missing required session fields', [
         { field: 'sessionId', message: 'sessionId is required', value: sessionId },
         { field: 'anonId', message: 'anonId is required', value: anonId },
       ]);
     }
-
-    const now = this.parseDate(startedAt, new Date()) as Date;
-    const client = this.getClientInfo(req);
-
-    await this.analyticsService.startSession({
-      sessionId,
-      anonId,
-      userId,
-      startedAt: now,
-      lastSeenAt: now,
-      initialPath,
-      lastPath,
-      referrer: referrer || client.referrer,
-      userAgent: client.userAgent,
-      ip: client.ip,
-      excluded: (req as AuthenticatedRequest).user?.role === 'admin',
-      ...this.getGeography(req),
-      language: client.language,
-      timezone,
-      screen,
-      viewport,
-      metadata,
-    });
-
-    await this.analyticsService.trackEvent({
-      sessionId,
-      anonId,
-      userId,
-      type: 'session_start',
-      name: 'session_start',
-      path: initialPath || lastPath,
-      referrer: referrer || client.referrer,
-      occurredAt: now,
-      data: { screen, viewport },
-      userAgent: client.userAgent,
-      ip: client.ip,
-      language: client.language,
-      timezone,
-    });
-
+    this.legacyIngest(req, res, () => ({
+      sessionId, anonId, events: [], rejected: 0,
+      session: normalizeSession({ startedAt, initialPath, referrer, screen, viewport, timezone, device: metadata?.device }, Date.now()),
+    }));
     res.status(201).json(successResponse({ sessionId }));
   }
 
   async heartbeatSession(req: Request, res: Response): Promise<void> {
-    const { sessionId, lastPath, metadata, lastSeenAt } = req.body || {};
-
+    const { sessionId, metadata } = req.body || {};
     if (!sessionId) {
-      throw new ValidationError('Missing sessionId', [
-        { field: 'sessionId', message: 'sessionId is required', value: sessionId },
-      ]);
+      throw new ValidationError('Missing sessionId', [{ field: 'sessionId', message: 'sessionId is required', value: sessionId }]);
     }
-
-    const now = this.parseDate(lastSeenAt, new Date()) as Date;
-
-    const updated = await this.analyticsService.heartbeatSession({
-      sessionId,
-      lastSeenAt: now,
-      lastPath,
-      metadata,
-    });
-
-    res.status(200).json(successResponse({ session: updated }));
+    const idle = metadata?.activity?.idleSec;
+    this.legacyIngest(req, res, () => ({
+      sessionId, anonId: 'legacy-heartbeat', events: [], rejected: 0,
+      heartbeat: { idleSec: typeof idle === 'number' && idle >= 0 ? Math.min(Math.floor(idle), 86_400) : 0, visible: true },
+    }));
+    res.status(200).json(successResponse({ session: null }));
   }
 
   async endSession(req: Request, res: Response): Promise<void> {
-    const { sessionId, lastPath, endReason, endedAt } = req.body || {};
-
+    const { sessionId } = req.body || {};
     if (!sessionId) {
-      throw new ValidationError('Missing sessionId', [
-        { field: 'sessionId', message: 'sessionId is required', value: sessionId },
-      ]);
+      throw new ValidationError('Missing sessionId', [{ field: 'sessionId', message: 'sessionId is required', value: sessionId }]);
     }
-
-    const now = this.parseDate(endedAt, new Date()) as Date;
-
-    const updated = await this.analyticsService.endSession({
-      sessionId,
-      endedAt: now,
-      lastSeenAt: now,
-      lastPath,
-      endReason,
-    });
-
-    if (updated?.anonId) {
-      const client = this.getClientInfo(req);
-      await this.analyticsService.trackEvent({
-        sessionId,
-        anonId: updated.anonId,
-        userId: updated.userId,
-        type: 'session_end',
-        name: 'session_end',
-        path: lastPath || updated.lastPath,
-        occurredAt: now,
-        data: { endReason, durationSec: updated.durationSec },
-        userAgent: client.userAgent,
-        ip: client.ip,
-        language: client.language,
-        timezone: updated.timezone,
-      });
-    }
-
-    res.status(200).json(successResponse({ session: updated }));
+    this.legacyIngest(req, res, () => ({ sessionId, anonId: 'legacy-end', events: [], rejected: 0, end: { reason: 'pagehide' } }));
+    res.status(200).json(successResponse({ session: null }));
   }
 
   async trackEvent(req: Request, res: Response): Promise<void> {
-    const {
-      eventId,
-      sessionId,
-      anonId,
-      userId,
-      type,
-      name,
-      path,
-      title,
-      referrer,
-      occurredAt,
-      data,
-      timezone,
-    } = req.body || {};
-
+    const { eventId, sessionId, anonId, type, name, path, title, referrer, occurredAt, data } = req.body || {};
     if (!sessionId || !anonId || !type) {
       throw new ValidationError('Missing required event fields', [
         { field: 'sessionId', message: 'sessionId is required', value: sessionId },
@@ -163,95 +172,84 @@ export class AnalyticsController {
         { field: 'type', message: 'type is required', value: type },
       ]);
     }
-
-    const client = this.getClientInfo(req);
-    const occurred = this.parseDate(occurredAt, new Date()) as Date;
-
-    await this.analyticsService.trackEvent({
-      eventId,
-      sessionId,
-      anonId,
-      userId,
-      type,
-      name,
-      path,
-      title,
-      referrer: referrer || client.referrer,
-      occurredAt: occurred,
-      data,
-      userAgent: client.userAgent,
-      ip: client.ip,
-      language: client.language,
-      timezone,
+    this.legacyIngest(req, res, () => {
+      const event = normalizeEvent({ eventId, type, name, path, title, referrer, occurredAt, data }, Date.now());
+      return event ? { sessionId, anonId, events: [event], rejected: 0 } : null;
     });
-
     res.status(201).json(successResponse({ ok: true }));
   }
 
   async getLive(req: Request, res: Response): Promise<void> {
-    const windowSec = this.parseNumber(req.query.windowSec, 90);
-    const limit = this.parseNumber(req.query.limit, 50);
+    if (!this.requireStorage(res)) return;
+    const windowSec = this.clamp(this.parseNumber(req.query.windowSec, 90), 10, 3600);
+    const limit = this.clamp(this.parseNumber(req.query.limit, 50), 1, 200);
 
-    const snapshot = await this.analyticsService.getLiveSnapshot(
-      windowSec,
-      limit
-    );
+    const snapshot = await this.analyticsService.getLiveSnapshot(windowSec, limit);
+    const labels = await this.labelsFor(snapshot.sessions.flatMap((session) => [session.initialPath, session.lastPath]));
 
     res.status(200).json(
       successResponse({
         activeCount: snapshot.activeCount,
-        sessions: snapshot.sessions,
+        sessions: snapshot.sessions.map((session) => ({
+          ...session,
+          ip: anonymizeIp(session.ip),
+          initialPathLabel: labels.get(session.initialPath || ''),
+          lastPathLabel: labels.get(session.lastPath || ''),
+        })),
         idleTimeoutSec: LIVE_IDLE_LIMIT_SECONDS,
       })
     );
   }
 
   async getRealtimePages(_req: Request, res: Response): Promise<void> {
+    if (!this.requireStorage(res)) return;
     const report = await this.analyticsService.getRealtimePages();
     if (!report) {
-      res.status(503).json({ success: false, message: 'El almacenamiento activo no permite calcular este informe de forma fiable.' });
+      res.status(503).json({ success: false, code: 'storage_unavailable', message: 'El almacenamiento activo no permite calcular este informe de forma fiable.' });
       return;
     }
-    res.status(200).json(successResponse({ report }));
+    const labels = await this.labelsFor(report.pages.map((page) => page.path));
+    res.status(200).json(successResponse({ report: { ...report, pages: report.pages.map((page) => ({ ...page, label: labels.get(page.path) })) } }));
   }
 
   async getOverview(req: Request, res: Response): Promise<void> {
-    const from =
-      this.parseDate(
-        req.query.from,
-        new Date(Date.now() - 24 * 60 * 60 * 1000)
-      ) || new Date(Date.now() - 24 * 60 * 60 * 1000);
+    if (!this.requireStorage(res)) return;
+    const defaultFrom = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const to = this.parseDate(req.query.to, new Date()) || new Date();
-    const liveWindowSec = this.parseNumber(req.query.windowSec, 90);
+    let from = this.parseDate(req.query.from, defaultFrom) || defaultFrom;
+    // Bounded range: at most the retention window (older data has expired anyway).
+    const maxRangeMs = 31 * 24 * 60 * 60 * 1000;
+    if (to.getTime() - from.getTime() > maxRangeMs) from = new Date(to.getTime() - maxRangeMs);
+    const liveWindowSec = this.clamp(this.parseNumber(req.query.windowSec, 90), 10, 3600);
 
     const overview = await this.analyticsService.getOverview(from, to, liveWindowSec);
+    const labels = await this.labelsFor(overview.topPages.map((page) => page.path));
 
     res.status(200).json(successResponse({ range: { from, to }, overview: {
       ...overview,
-      geographyConfigured: Boolean((process.env.ANALYTICS_GEO_TRUSTED_PROXIES || '').split(',').some((ip) => ip.trim())),
-      geographyDetailConfigured: Boolean((process.env.ANALYTICS_GEO_DETAIL_TRUSTED_PROXIES || '').split(',').some((ip) => ip.trim())),
+      topPages: overview.topPages.slice(0, 200).map((page) => ({ ...page, label: labels.get(page.path) })),
+      store: this.storeKind,
+      geoipEnabled: this.flags.get().geoipEnabled,
+      geographyConfigured: Boolean((process.env.ANALYTICS_GEO_TRUSTED_PROXIES || '').split(',').some((ip) => ip.trim())) || this.flags.get().geoipEnabled,
+      geographyDetailConfigured: Boolean((process.env.ANALYTICS_GEO_DETAIL_TRUSTED_PROXIES || '').split(',').some((ip) => ip.trim())) || this.flags.get().geoipEnabled,
     } }));
   }
 
   async getEvents(req: Request, res: Response): Promise<void> {
+    if (!this.requireStorage(res)) return;
     const from = this.parseDate(req.query.from, undefined);
     const to = this.parseDate(req.query.to, undefined);
-    const limit = this.parseNumber(req.query.limit, 50);
-    const type = typeof req.query.type === 'string' ? req.query.type : undefined;
+    const limit = this.clamp(this.parseNumber(req.query.limit, 50), 1, 500);
+    const type = typeof req.query.type === 'string' && /^[a-z][a-z0-9_]{0,39}$/.test(req.query.type) ? req.query.type : undefined;
     const sessionId =
-      typeof req.query.sessionId === 'string'
+      typeof req.query.sessionId === 'string' && /^[A-Za-z0-9-]{1,64}$/.test(req.query.sessionId)
         ? req.query.sessionId
         : undefined;
 
-    const events = await this.analyticsService.getRecentEvents({
-      from,
-      to,
-      type,
-      sessionId,
-      limit,
-    });
+    const events = await this.analyticsService.getRecentEvents({ from, to, type, sessionId, limit });
+    const labels = await this.labelsFor(events.map((event) => event.path));
 
-    res.status(200).json(successResponse({ events }));
+    res.status(200).json(successResponse({ events: events.map((event) => ({ ...event, ip: anonymizeIp(event.ip), pathLabel: labels.get(event.path || '') })) }));
   }
 
   /**
@@ -259,6 +257,11 @@ export class AnalyticsController {
    * over the last N days, built from page_view events. No fabricated funnels.
    */
   async getJourneys(req: Request, res: Response): Promise<void> {
+    if (this.storeKind !== 'mongo') {
+      res.status(501).json({ success: false, code: 'unsupported_store', message: 'Los recorridos solo se calculan con el almacenamiento Mongo (ANALYTICS_STORE=valkey activo).' });
+      return;
+    }
+    if (!this.requireStorage(res)) return;
     const days = Math.min(Math.max(this.parseNumber(req.query.days, 7), 1), 30);
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
@@ -285,11 +288,26 @@ export class AnalyticsController {
       sequences.set(key, entry);
     }
 
-    const journeys = Array.from(sequences.values())
+    const top = Array.from(sequences.values())
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
+    const labels = await this.labelsFor(top.flatMap((journey) => journey.steps));
+    const journeys = top.map((journey) => ({ ...journey, labels: journey.steps.map((step) => labels.get(step) || step) }));
 
     res.status(200).json(successResponse({ days, sessionsAnalyzed: sessions.length, journeys }));
+  }
+
+  private async labelsFor(paths: Array<string | undefined>): Promise<Map<string, string>> {
+    if (!this.labels) return new Map();
+    try {
+      return await this.labels.resolve(paths.filter((path): path is string => Boolean(path)));
+    } catch {
+      return new Map(); // labels are cosmetic: a lookup failure never fails the report
+    }
+  }
+
+  private clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, Math.floor(value)));
   }
 
   private parseNumber(
@@ -315,7 +333,11 @@ export class AnalyticsController {
     language: string | undefined;
     referrer: string | undefined;
   } {
-    const ip = analyticsClientIp(req.socket.remoteAddress, req.get('X-Forwarded-For'), process.env.ANALYTICS_TRUSTED_PROXIES || '');
+    // Default trusted proxy = the local nginx (loopback): ports 3000/4000 are closed to the outside, so a loopback
+    // peer is nginx, which appends the real peer to X-Forwarded-For. Without this default every visitor resolved to
+    // 127.0.0.1 — an always-excluded address — and analytics silently counted nothing.
+    const trusted = process.env.ANALYTICS_TRUSTED_PROXIES?.trim() || '127.0.0.1,::1';
+    const ip = analyticsClientIp(req.socket.remoteAddress, req.get('X-Forwarded-For'), trusted);
 
     return {
       ip,
