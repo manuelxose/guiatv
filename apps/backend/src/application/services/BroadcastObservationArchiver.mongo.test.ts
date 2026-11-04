@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
-import { archiveDay } from './BroadcastObservationArchiver';
+import { archiveDay, isDayArchived } from './BroadcastObservationArchiver';
 import { reconcileDay } from '@/domain/services/BroadcastObservationReconcile';
 import { TVReadAiringModel } from '@/infrastructure/database/models/TVReadAiring.model';
 import { TVBroadcastObservationModel } from '@/infrastructure/database/models/TVBroadcastObservation.model';
@@ -84,6 +84,13 @@ test('archiver', { skip: !process.env.TEST_MONGO_URI }, async (t) => {
       await archiveDay('20261102', { env: { ...ON, HISTORY_CAPTURE_MAX_PER_RUN: '1' }, now: NOW });
       const r = await archiveDay('20261102', { env: ON, now: NOW });
       assert.deepEqual([r.inserted, r.unchanged], [2, 1]);
+    });
+    await t.test('isDayArchived: true only for a day that has observations', async () => {
+      await reset();
+      await TVReadAiringModel.insertMany([row(1)]);
+      assert.equal(await isDayArchived('20261102'), false);
+      await archiveDay('20261102', { env: ON, now: NOW });
+      assert.deepEqual([await isDayArchived('20261102'), await isDayArchived('20261101')], [true, false]);
     });
     await t.test('a write that dies half way leaves a consistent subset; the next run completes it with no duplicates', async () => {
       await reset();

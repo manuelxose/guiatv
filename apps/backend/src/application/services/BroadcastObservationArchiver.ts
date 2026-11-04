@@ -34,6 +34,16 @@ export interface ArchiveOptions {
   now?: () => Date;
 }
 
+/**
+ * True when the day already has observations. The default catch-up skips such days: the 06:00 EPG sync re-syncs the previous day, so re-reading it
+ * later would add rows the sources published after close, on top of the snapshot taken at 03:30.
+ * shortcut: madridDate has no index (collection scan with early exit); add one only if the collection passes ~1M documents.
+ */
+export async function isDayArchived(date: string): Promise<boolean> {
+  const iso = `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6)}`;
+  return (await TVBroadcastObservationModel.exists({ madridDate: iso })) !== null;
+}
+
 /** `date` is the read-model key YYYYMMDD (Madrid day). */
 export async function archiveDay(date: string, opts: ArchiveOptions = {}): Promise<ArchiveResult> {
   const env = opts.env ?? process.env;

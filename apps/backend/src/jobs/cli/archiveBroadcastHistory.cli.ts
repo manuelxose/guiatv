@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import '../../config/bootstrap';
 
-import { archiveDay } from '../../application/services/BroadcastObservationArchiver';
+import { archiveDay, isDayArchived } from '../../application/services/BroadcastObservationArchiver';
 
 /**
  * M12-G3B: archives closed Madrid days into tv_broadcast_observations.
  *   node dist/jobs/cli/archiveBroadcastHistory.cli.js [YYYYMMDD ...]   (default: the last HISTORY_CAPTURE_CATCHUP_DAYS closed days, 3)
+ * Default catch-up skips days that already have observations (the first snapshot is kept; HISTORY_CAPTURE_RECAPTURE=true or naming the day re-reads it).
  * Exits 0 without touching the database unless HISTORY_CAPTURE_ENABLED=true. Safe to re-run (idempotent).
  */
 const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -31,7 +32,11 @@ async function main() {
   const { connectMongoDB, disconnectMongoDB } = await import('../../config/mongodb');
   await connectMongoDB();
   try {
-    for (const day of days) console.log(day, JSON.stringify(await archiveDay(day)));
+    const frozen = !args.length && process.env.HISTORY_CAPTURE_RECAPTURE !== 'true';
+    for (const day of days) {
+      if (frozen && (await isDayArchived(day))) { console.log(day, JSON.stringify({ status: 'skipped-already-archived' })); continue; }
+      console.log(day, JSON.stringify(await archiveDay(day)));
+    }
   } finally {
     await disconnectMongoDB();
   }
