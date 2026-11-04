@@ -25,6 +25,7 @@ const mongoose = require(require.resolve('mongoose', { paths: [root] }));
 const { installReadOnlyGuard } = dist('scripts/readOnlyGuard.js');
 const { connectMongoDB, disconnectMongoDB } = dist('config/mongodb.js');
 const { reconcileDay } = dist('domain/services/BroadcastObservationReconcile.js');
+const { toObservation } = dist('domain/services/BroadcastObservation.js');
 
 const arg = (n, d) => (process.argv.includes(n) ? process.argv[process.argv.indexOf(n) + 1] : d);
 const SAMPLE = 5;
@@ -33,6 +34,26 @@ const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 
 /** The last n closed Madrid days (YYYY-MM-DD), stepped by calendar date so a 23h/25h day is neither skipped nor repeated. */
 const closedDays = (n) => Array.from({ length: n }, (_, i) => { const d = new Date(`${fmt.format(new Date())}T12:00:00Z`); d.setUTCDate(d.getUTCDate() - (n - i)); return d.toISOString().slice(0, 10); });
 const opt = (p) => p.catch(() => null); // monitor commands need clusterMonitor; a plain readWrite URI must not lose the whole report
+
+/** For a non-PASS day: are `missing`/`extra` the same broadcasts moved in time (small delta on the same channel) or genuine adds/drops? No titles. */
+function drift(readRows, archived, r) {
+  const rm = new Map();
+  for (const row of readRows) { const o = toObservation(row, new Date()); if (o.ok) rm.set(o.obs._id, o.obs); }
+  const am = new Map(archived.map((a) => [a._id, a]));
+  const extra = r.extra.map((id) => am.get(id)).filter(Boolean), miss = r.missing.map((id) => rm.get(id)).filter(Boolean);
+  const startsByChannel = new Map();
+  for (const e of extra) { const k = e.channelId; if (!startsByChannel.has(k)) startsByChannel.set(k, []); startsByChannel.get(k).push(new Date(e.startUtc).getTime()); }
+  const nearestExtraDeltaMin = {}; let missingOnChannelWithNoExtra = 0;
+  for (const m of miss) {
+    const c = startsByChannel.get(m.channelId);
+    if (!c) { missingOnChannelWithNoExtra++; continue; }
+    const mins = Math.round(Math.min(...c.map((t) => Math.abs(t - m.startUtc.getTime()))) / 60000);
+    const b = mins === 0 ? '0' : mins <= 5 ? '<=5' : mins <= 30 ? '<=30' : mins <= 120 ? '<=120' : '>120';
+    nearestExtraDeltaMin[b] = (nearestExtraDeltaMin[b] || 0) + 1;
+  }
+  const mc = new Set(miss.map((m) => m.channelId)), ec = new Set(extra.map((e) => e.channelId));
+  return { missingChannels: mc.size, extraChannels: ec.size, channelsInBoth: [...mc].filter((c) => ec.has(c)).length, missingOnChannelWithNoExtra, nearestExtraDeltaMin };
+}
 
 async function main() {
   const guard = installReadOnlyGuard();
@@ -64,7 +85,7 @@ async function main() {
       const outOfDayUnarchived = owned.filter((o) => !have.has(o.id)).length;
       const { outOfDayRows, ...rest } = r;
       const clean = r.missing.length + r.extra.length + r.archiveIdentityDefects + outOfDayUnarchived === 0;
-      perDay.push({ ...rest, outOfDayUnarchived, verdict: r.status === 'not-reconcilable' ? 'NOT-RECONCILABLE' : clean ? 'PASS' : 'FAIL', missingCount: r.missing.length, extraCount: r.extra.length, missing: r.missing.slice(0, SAMPLE), extra: r.extra.slice(0, SAMPLE) });
+      perDay.push({ ...rest, ...(clean || r.status === 'not-reconcilable' ? {} : { drift: drift(readRows, archived, r) }), outOfDayUnarchived, verdict: r.status === 'not-reconcilable' ? 'NOT-RECONCILABLE' : clean ? 'PASS' : 'FAIL', missingCount: r.missing.length, extraCount: r.extra.length, missing: r.missing.slice(0, SAMPLE), extra: r.extra.slice(0, SAMPLE) });
     }
     console.log(JSON.stringify({
       generatedAt: new Date().toISOString(),
