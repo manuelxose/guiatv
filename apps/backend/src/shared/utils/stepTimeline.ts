@@ -74,7 +74,8 @@ function finish(
     active.delete(started.id);
     const durationMs = performance.now() - started.startMs;
     const isBoot = !options.background && started.startMs < BOOT_WINDOW_MS;
-    if (!isBoot && !failed && durationMs < (options.minMs ?? 0)) return;
+    // A quick failure of a recurring (`background`) step, e.g. a request for an invalid date, must not push out evidence.
+    if (!isBoot && (!failed || options.background) && durationMs < (options.minMs ?? 0)) return;
     const record: StepRecord = {
       step,
       startMs: round1(started.startMs),

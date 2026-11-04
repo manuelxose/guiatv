@@ -12,8 +12,10 @@ import { pushBounded, round1 } from './diagnosticsCommon';
  * route template (`req.baseUrl + req.route.path`, string paths only, character-whitelisted and length-capped) or one of
  * the fixed classifications below. It never keeps the URL, query string, headers, cookies, IP, body or user id.
  *
- * Bounds: at most `maxActive` tracked entries (the oldest is evicted, and counted), `maxRecent` completed ones, at most
- * `maxReported` entries per snapshot, and at most `MAX_LABELS` distinct labels for the whole process life.
+ * Bounds: at most `maxActive` tracked entries (when full the OLDEST are kept and newcomers are only counted in `evicted`),
+ * `maxRecent` completed ones, at most `maxReported` entries per snapshot, and at most `MAX_LABELS` distinct labels for the
+ * whole process life. `req.baseUrl` is the RESOLVED mount path, so every `app.use`/`router.use` mount must be static (no
+ * `:param`); a test scans the route files for that.
  */
 export const UNRESOLVED_ROUTE = '(unresolved)'; // no Express route matched yet (the request is still in earlier middleware)
 export const UNMATCHED_ROUTE = '(unmatched)'; // finished without ever matching a route (static files, 404)
@@ -21,7 +23,8 @@ export const OTHER_ROUTE = '(other)'; // label rejected by the whitelist or beyo
 
 const METHODS = new Set(['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']);
 const SAFE_LABEL = /^[A-Za-z0-9/_\-.:*()?+]{1,120}$/;
-const MAX_LABELS = 256;
+// Express route definitions (the v2 router is mounted at '/' and '/v2'): ~230 templates today, so 1 024 leaves ample room.
+export const MAX_LABELS = 1024;
 
 /** The only parts of an Express request the registry reads. */
 export interface RouteSource {
@@ -108,12 +111,10 @@ export class InflightRequestRegistry {
       this.started += 1;
       this.activeTotal += 1;
       if (this.activeTotal > this.peakActive) this.peakActive = this.activeTotal;
-      if (this.active.size >= this.maxActive) {
-        const oldest = this.active.keys().next().value;
-        if (oldest !== undefined) this.active.delete(oldest);
-        this.evicted += 1;
-      }
-      this.active.set(id, entry);
+      // Full: keep the OLDEST entries (the likeliest stall suspects) and leave the newcomer untracked; it is still counted
+      // in activeCount and still reaches the completed ring when it ends.
+      if (this.active.size >= this.maxActive) this.evicted += 1;
+      else this.active.set(id, entry);
     } catch {
       entry = undefined;
     }

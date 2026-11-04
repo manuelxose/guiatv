@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { join } from 'node:path';
 import test from 'node:test';
 import express from 'express';
 import { inflightRequestTracker } from '../../presentation/middlewares/inflightRequestTracker';
@@ -8,6 +10,7 @@ import { EventLoopDiagnostics } from './eventLoopDiagnostics';
 import {
   InflightRequestRegistry,
   inflightRequests,
+  MAX_LABELS,
   OTHER_ROUTE,
   UNMATCHED_ROUTE,
   UNRESOLVED_ROUTE,
@@ -89,9 +92,10 @@ test('cardinality: tracked entries, completed entries, reported entries and dist
   let s = reg.stats();
   assert.equal(s.active, 10, 'the true count is exact even beyond the tracked bound');
   assert.equal(s.tracked, 4);
-  assert.equal(s.evicted, 6);
+  assert.equal(s.evicted, 6, 'newcomers beyond the bound are only counted');
   const o = reg.overlap(0, 20);
   assert.equal(o.inFlight.length, 2);
+  assert.deepEqual(o.inFlight.map((e) => e.route), ['/r0', '/r1'], 'the OLDEST requests are the ones kept (likeliest suspects)');
   assert.equal(o.omitted, 2);
   assert.ok(o.byRoute.length <= 2);
   dones.forEach((d) => d());
@@ -102,7 +106,9 @@ test('cardinality: tracked entries, completed entries, reported entries and dist
 
   const wide = new InflightRequestRegistry({ now });
   for (let i = 0; i < 400; i += 1) wide.begin({ method: 'GET', route: { path: `/dyn${i}` } })();
-  assert.equal(wide.stats().labels, 256, 'the distinct-label set is capped');
+  assert.equal(wide.stats().labels, 400, 'labels below the cap are all kept');
+  for (let i = 400; i < MAX_LABELS + 50; i += 1) wide.begin({ method: 'GET', route: { path: `/dyn${i}` } })();
+  assert.equal(wide.stats().labels, MAX_LABELS, 'the distinct-label set is capped');
   const next = wide.begin({ method: 'GET', route: { path: '/another' } });
   assert.equal(wide.overlap(0, 100).inFlight[0].route, OTHER_ROUTE);
   next();
@@ -288,4 +294,14 @@ test('real stall: a handler that blocks the loop is named by route in the stall 
   } finally {
     diag.stop();
   }
+});
+
+test('guard: no router mount path in the app carries a :param (req.baseUrl is the resolved path, labels must stay templates)', () => {
+  const dir = join(__dirname, '..', '..', 'presentation', 'routes'); // dist/shared/utils -> dist/presentation/routes
+  const offenders: string[] = [];
+  for (const file of readdirSync(dir).filter((f) => /\.js$/.test(f) && !/\.test\./.test(f))) {
+    const source = readFileSync(join(dir, file), 'utf8');
+    for (const m of source.matchAll(/\b(?:app|router|\w*Router)\.use\(\s*(['"`])([^'"`]*)\1/g)) if (m[2].includes(':')) offenders.push(`${file}: ${m[2]}`);
+  }
+  assert.deepEqual(offenders, []);
 });
