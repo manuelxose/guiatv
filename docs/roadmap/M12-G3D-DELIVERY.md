@@ -299,7 +299,7 @@ Verificaciones de solo lectura adicionales recomendadas por seguridad (para la a
 
 ## 16. Cierre por aceptación del propietario
 
-El 2026-11-04 el propietario decidió **no esperar** a las ejecuciones del 05 y 06/11 para continuar, y aceptó cerrar G3D con este veredicto **PARTIAL** (1/3 ejecuciones programadas). No se convierte en PASS: AC-01 queda en 1/3, AC-04 en PARCIAL y AC-06 sin línea base. Pasan a **seguimiento no bloqueante**: las lecturas de §3 los días 05 y 06 entre las 03:35 y las 23:59, y la predicción de §4 (≈ 161 inserciones en 20261103 el 05/11) como comprobación.
+El 2026-11-04 el propietario decidió **no esperar** a las ejecuciones del 05 y 06/11 para continuar, y aceptó cerrar G3D con este veredicto **PARTIAL** (1/3 ejecuciones programadas). No se convierte en PASS: AC-01 queda en 1/3, AC-04 en PARCIAL y AC-06 sin línea base. Pasan a **seguimiento no bloqueante**: las lecturas de §3 los días 05 y 06 entre las 03:35 y las 23:59. La lógica de esos timers se ha **simulado** (§17) con el código real y el patrón de reescritura medido; la predicción de §4 solo se cumpliría si el 05/11 corre aún el código antiguo.
 
 Cambios de código de esta fase (PR #161): reconciliación por claves, tests, `readOnlyGuard` con lista blanca, unidad del repo con contabilidad, y (§17) catch-up que no reescribe días archivados y sufijo DST. **Sin tocar:** producción, `contentHash`, G1/G2, `INDEX_BATCH_ENABLED`, sitemap, rutas públicas. Ningún id existente cambia.
 
@@ -315,3 +315,20 @@ Van en commits separados, por si se quiere descartar alguno.
 | Sufijo DST (`buildTvReadAiringId`) | `_dst2` solo en la segunda pasada de la hora repetida | Un consumidor que parseara el sufijo horario como 14 dígitos exactos (no se encontró ninguno en backend ni frontend); efecto nulo hasta 2027-10-31 | Revertir el commit |
 
 Ambos requieren desplegar la PR para tener efecto; el despliegue lo hace el propietario.
+
+### Simulación de los timers del 05/11 y 06/11 (sin esperar)
+
+Por indicación del propietario («con lo que tenemos se puede simular»), `archiveBroadcastHistory.simulation.mongo.test.ts` ejecuta el **catch-up y el archivador reales** (`runCatchup`, ahora extraído del CLI con reloj inyectable) sobre un Mongo 8.0 desechable, con los relojes de 04/11 03:30:42, 05/11 03:31:29, 06/11 03:30:50 y 08/11, y entre ellos la reescritura de las 06:00 con las proporciones medidas en producción (20261103: −328 / +161 sobre 11 585 ⇒ aquí −9 / +4 sobre 300 filas por día). Resultado, 8/8 en verde:
+
+| Paso | Resultado |
+|---|---|
+| 04/11 03:30 | archiva 20261101–03 (3 × 300 = 900) |
+| Reescritura 06:00 de 20261103 | reproduce el patrón FAIL de producción: `missing 4`, `extra 9`; archivo intacto (300) |
+| 05/11 03:30 | `skipped-already-archived` para 20261102 y 20261103; archiva solo 20261104 (total 1 200); 20261103 sigue con 300 |
+| Mismo run sin la congelación (`RECAPTURE=true`) | **contamina** 20261103 con 4 filas posteriores al cierre (lo que habría pasado sin el cambio) |
+| 06/11 03:30 | archiva solo 20261105 (total 1 500); 0 revisiones |
+| Re-ejecución del mismo timer | no-op, total sin cambios |
+| Ejecución perdida (sin timer el 07/11) | el 08/11 recupera 20261106 y 20261107 y salta 20261105 (total 2 100) |
+| Día nombrado explícitamente | fuerza la relectura (recuperación manual de un día a medias) |
+
+**Qué demuestra y qué no.** Demuestra la lógica de catch-up, idempotencia, recuperación y ausencia de revisiones espurias para un patrón de reescritura como el observado. **No** sustituye a las ejecuciones programadas reales (AC-01 sigue en 1/3: el tiempo de CPU, el solape con el resto de servicios y la lectura del journal solo salen del timer), ni usa datos reales de producción: el volumen es ≈ 1/30 del real y la reescritura es sintética con las proporciones medidas.

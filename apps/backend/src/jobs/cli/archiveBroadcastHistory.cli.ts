@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import '../../config/bootstrap';
 
-import { archiveDay, isDayArchived } from '../../application/services/BroadcastObservationArchiver';
+import { archiveDay, isDayArchived, type ArchiveResult } from '../../application/services/BroadcastObservationArchiver';
 
 /**
  * M12-G3B: archives closed Madrid days into tv_broadcast_observations.
@@ -21,22 +21,29 @@ export function closedDays(now: Date, count: number): string[] {
   }).reverse();
 }
 
+/** One scheduled run: the catch-up days (or the named ones), skipping days already archived unless forced. `now` is injectable so a timer run can be simulated. */
+export async function runCatchup(args: string[], env: NodeJS.ProcessEnv, now: Date, log: (day: string, line: string) => void = (d, l) => console.log(d, l)): Promise<Record<string, ArchiveResult | { status: 'skipped-already-archived' }>> {
+  const days = args.length ? args : closedDays(now, Number(env.HISTORY_CAPTURE_CATCHUP_DAYS) || 3);
+  const frozen = !args.length && env.HISTORY_CAPTURE_RECAPTURE !== 'true';
+  const out: Record<string, ArchiveResult | { status: 'skipped-already-archived' }> = {};
+  for (const day of days) {
+    out[day] = frozen && (await isDayArchived(day)) ? { status: 'skipped-already-archived' } : await archiveDay(day, { env, now: () => now });
+    log(day, JSON.stringify(out[day]));
+  }
+  return out;
+}
+
 async function main() {
   if (process.env.HISTORY_CAPTURE_ENABLED !== 'true') {
     console.log('HISTORY_CAPTURE_ENABLED is not true: nothing archived');
     return;
   }
   const args = process.argv.slice(2);
-  const days = args.length ? args : closedDays(new Date(), Number(process.env.HISTORY_CAPTURE_CATCHUP_DAYS) || 3);
   // Only the Mongo connection: the full container also seeds unrelated collections and connects Redis (logging its URL).
   const { connectMongoDB, disconnectMongoDB } = await import('../../config/mongodb');
   await connectMongoDB();
   try {
-    const frozen = !args.length && process.env.HISTORY_CAPTURE_RECAPTURE !== 'true';
-    for (const day of days) {
-      if (frozen && (await isDayArchived(day))) { console.log(day, JSON.stringify({ status: 'skipped-already-archived' })); continue; }
-      console.log(day, JSON.stringify(await archiveDay(day)));
-    }
+    await runCatchup(args, process.env, new Date());
   } finally {
     await disconnectMongoDB();
   }
