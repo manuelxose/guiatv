@@ -95,6 +95,7 @@ export class EventLoopDiagnostics {
   private windowElu = performance.eventLoopUtilization();
   private windowGc = { count: 0, totalMs: 0, maxMs: 0 };
   private readonly recentGc: Array<{ startMs: number; endMs: number; major: boolean }> = [];
+  private readonly stallIntervals = new WeakMap<StallEvent, { fromMs: number; toMs: number }>();
   private windowStalls = 0;
   private readonly windows: WindowSummary[] = [];
   private readonly stalls: StallEvent[] = [];
@@ -236,7 +237,18 @@ export class EventLoopDiagnostics {
     this.windowGc.totalMs += entry.duration;
     if (entry.duration > this.windowGc.maxMs) this.windowGc.maxMs = entry.duration;
     const kind = entry.kind ?? (entry.detail as { kind?: number } | undefined)?.kind;
-    pushBounded(this.recentGc, { startMs: entry.startTime, endMs: entry.startTime + entry.duration, major: kind === gcConstants.NODE_PERFORMANCE_GC_MAJOR }, MAX_RECENT_GC);
+    const g = { startMs: entry.startTime, endMs: entry.startTime + entry.duration, major: kind === gcConstants.NODE_PERFORMANCE_GC_MAJOR };
+    pushBounded(this.recentGc, g, MAX_RECENT_GC);
+    // Node delivers GC entries AFTER the late timer that records the stall (seen on Linux CI), so a collection that
+    // happened inside an already recorded stall is added to that event when it arrives.
+    for (const event of this.recordedStalls()) {
+      const interval = this.stallIntervals.get(event);
+      if (interval) addGc(event.gc, g, interval.fromMs, interval.toMs);
+    }
+  }
+
+  private recordedStalls(): StallEvent[] {
+    return this.worst && !this.stalls.includes(this.worst) ? [...this.stalls, this.worst] : this.stalls;
   }
 
   /** GC time inside [fromMs, toMs] (entries clipped to it). A stall's GC share is a correlation: GC helper threads also raise cpuRatio. */
@@ -248,15 +260,8 @@ export class EventLoopDiagnostics {
       // Unavailable: the window totals still exist.
     }
     const out = { count: 0, overlapMs: 0, maxPauseMs: 0, major: 0 };
-    for (const g of this.recentGc) {
-      const overlap = Math.min(g.endMs, toMs) - Math.max(g.startMs, fromMs);
-      if (overlap <= 0) continue;
-      out.count += 1;
-      out.overlapMs += overlap;
-      if (g.endMs - g.startMs > out.maxPauseMs) out.maxPauseMs = g.endMs - g.startMs;
-      if (g.major) out.major += 1;
-    }
-    return { ...out, overlapMs: round1(out.overlapMs), maxPauseMs: round1(out.maxPauseMs) };
+    for (const g of this.recentGc) addGc(out, g, fromMs, toMs);
+    return out;
   }
 
   private safeRequestOverlap(fromMs: number, toMs: number): RequestOverlap {
@@ -291,10 +296,21 @@ export class EventLoopDiagnostics {
     this.stallCount += 1;
     this.stallTotalMs += lateness;
     this.windowStalls += 1;
+    this.stallIntervals.set(event, { fromMs: this.lastTickAt, toMs: now });
     if (!this.worst || event.durationMs > this.worst.durationMs) this.worst = event;
     pushBounded(this.stalls, event, this.maxStalls);
     if (this.logBudget.take()) log.warn('Event loop stall', { ...event });
   }
+}
+
+/** Adds one collection to a stall's GC summary if it overlaps [fromMs, toMs] (clipped to it). */
+function addGc(target: StallEvent['gc'], g: { startMs: number; endMs: number; major: boolean }, fromMs: number, toMs: number): void {
+  const overlap = Math.min(g.endMs, toMs) - Math.max(g.startMs, fromMs);
+  if (overlap <= 0) return;
+  target.count += 1;
+  target.overlapMs = round1(target.overlapMs + overlap);
+  target.maxPauseMs = round1(Math.max(target.maxPauseMs, g.endMs - g.startMs));
+  if (g.major) target.major += 1;
 }
 
 function ms(nanoseconds: number): number {

@@ -10,7 +10,7 @@ M13-B3 section 13: in a second production process a 4 350 ms CPU-bound stall at 
 
 Each stall event now carries `gc` = `{ count, overlapMs, maxPauseMs, major }` (collections inside the stall interval, their summed duration **clipped** to it, the longest pause, how many were major mark-compact) and `heapUsedMb`. `overlapMs` close to `durationMs` ⇒ the stall was mostly GC; a small value ⇒ the time went to JavaScript between collections (decode/materialisation). Details:
 
-* The `gc` PerformanceObserver delivers entries after the late timer fires, so the stall flushes the observer with `takeRecords()` before reading; a bounded ring (256) keeps recent collections; window totals are unchanged.
+* Node delivers `gc` PerformanceObserver entries **after** the late timer that records the stall (the first version, which flushed with `takeRecords()`, reported zero GC on Linux CI). A collection is therefore added to every already-recorded stall (including the worst, even after eviction) it overlaps **when it arrives**; the snapshot is authoritative, the one-line log written at record time may show an undercount. A bounded ring (256) keeps recent collections; window totals are unchanged.
 * No new timers, no environment variable, no extra database call; `process.memoryUsage()` is read only when a stall is recorded. Failure of any part leaves the stall event intact.
 * Tests: injected-clock partial overlaps (before / straddling the start / inside and major / straddling the end), the bounded ring and zero case, and a real allocation-heavy stall reporting real collections (3 consecutive runs). The existing 29 related tests pass. Full backend suite: see section 5.
 

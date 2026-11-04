@@ -133,7 +133,7 @@ test('M13-B4a: with real timers, an allocation-heavy stall is reported with real
     const keep: unknown[] = [];
     const end = performance.now() + 500;
     while (performance.now() < end) { keep.push({ a: new Array(64).fill(keep.length), b: String(keep.length) }); if (keep.length > 200_000) keep.length = 0; }
-    await sleep(80);
+    await sleep(300); // Node delivers GC entries after the late timer: the event is completed when they arrive
     const worst = (diag.snapshot() as any).stalls.worst;
     assert.ok(worst && worst.durationMs >= 300, JSON.stringify(worst));
     assert.ok(worst.gc.count >= 1 && worst.gc.overlapMs > 0, `GC during the stall: ${JSON.stringify(worst.gc)}`);
@@ -141,4 +141,21 @@ test('M13-B4a: with real timers, an allocation-heavy stall is reported with real
   } finally {
     diag.stop();
   }
+});
+
+test('M13-B4a: a collection delivered AFTER the stall was recorded is added to that event (Node delivers GC entries late)', () => {
+  let t = 0;
+  const diag = new EventLoopDiagnostics({ now: () => t, wallClock: () => 1_700_000_000_000, intervalMs: 100, stallThresholdMs: 250, windowMs: 1e9, maxStalls: 2 });
+  t = 100; diag.tick();
+  t = 1_000; diag.tick();
+  const snap = () => (diag.snapshot() as any).stalls;
+  assert.deepEqual(snap().recent[0].gc, { count: 0, overlapMs: 0, maxPauseMs: 0, major: 0 });
+  diag.ingestGc({ startTime: 200, duration: 150, kind: 4 });   // arrives late, inside the interval
+  diag.ingestGc({ startTime: 5_000, duration: 50, kind: 1 });  // later than the stall: not attributed
+  assert.deepEqual(snap().recent[0].gc, { count: 1, overlapMs: 150, maxPauseMs: 150, major: 1 });
+  assert.equal(snap().worst.gc.count, 1, 'the worst stall is updated too');
+  // The worst stall survives eviction from the bounded list and still receives late collections.
+  t = 1_400; diag.tick(); t = 1_800; diag.tick(); t = 2_200; diag.tick(); // three smaller stalls evict the first from the list of 2
+  diag.ingestGc({ startTime: 300, duration: 20, kind: 1 });
+  assert.equal(snap().worst.gc.count, 2);
 });
