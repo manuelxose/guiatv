@@ -36,14 +36,20 @@ if (process.argv.includes('--child')) {
   const { MediaCatalogModel } = require(join(backend, 'dist/infrastructure/database/models/MediaCatalogEntry.model.js'));
   const { indexableWorks } = require(join(backend, 'dist/application/services/WorkSeoPolicy.js'));
   const { RelatedWorkIndex } = require(join(backend, 'dist/application/services/RelatedWorks.js'));
-  const { stepTimelineSnapshot } = require(join(backend, 'dist/shared/utils/stepTimeline.js'));
+  const { stepTimelineSnapshot, stepsOverlapping } = require(join(backend, 'dist/shared/utils/stepTimeline.js'));
+  const mode = arg('mode', 'default');
+  // Ablations on the candidate build only (never change the code under test on disk):
+  //   cursorOnly: cursor + batchSize, but TimeSlice never yields (isolates the effect of slicing);
+  //   batch1000:  same as the candidate with batchSize 1000 instead of 500.
+  if (mode === 'cursorOnly') require(join(backend, 'dist/shared/utils/timeSlice.js')).TimeSlice.prototype.tick = async function tick() {};
+  if (mode === 'batch1000') require(join(backend, 'dist/application/services/WorkSeoPolicy.js')).READ_BATCH_SIZE = 1000;
   await MediaCatalogModel.findOne().lean().exec(); // connection + pool warm, not part of the measurement
   const warmupDocs = cmd.docs; Object.assign(cmd, { find: 0, getMore: 0, aggregate: 0, docs: 0 });
 
   // Drift timer: max lateness of a 5 ms timer is the stall a request would see. Histogram for p95/p99.
   const hist = monitorEventLoopDelay({ resolution: 5 }); hist.enable();
-  let last = performance.now(); let maxLate = 0; const lates = [];
-  const drift = setInterval(() => { const now = performance.now(); const late = now - last - 5; last = now; if (late > maxLate) maxLate = late; if (late >= 100) lates.push(Math.round(late)); }, 5);
+  let last = performance.now(); let maxLate = 0; const lates = []; const stallSteps = [];
+  const drift = setInterval(() => { const now = performance.now(); const late = now - last - 5; last = now; if (late > maxLate) maxLate = late; if (late >= 100) { lates.push(Math.round(late)); stallSteps.push({ lateMs: Math.round(late), steps: stepsOverlapping(now - late - 5, now).map((x) => x.step.replace('related_works.', '') + (x.running ? '*' : '')) }); } }, 5);
   let peakRss = 0; let peakHeap = 0;
   const mem = setInterval(() => { const m = process.memoryUsage(); peakRss = Math.max(peakRss, m.rss); peakHeap = Math.max(peakHeap, m.heapUsed); }, 25);
 
@@ -66,7 +72,7 @@ if (process.argv.includes('--child')) {
   console.log(JSON.stringify({
     wallMs: Math.round(wallMs), cpuMs: Math.round((cpu.user + cpu.system) / 1000), elu: +elu.utilization.toFixed(2),
     maxStallMs: Math.round(maxLate), stallsOver100: lates.length, stallsOver250: lates.filter((l) => l >= 250).length,
-    topStalls: lates.sort((a, b) => b - a).slice(0, 5),
+    topStalls: lates.sort((a, b) => b - a).slice(0, 5), stallSteps: stallSteps.sort((a, b) => b.lateMs - a.lateMs).slice(0, 5),
     histMs: { p50: +(hist.percentile(50) / 1e6).toFixed(1), p95: +(hist.percentile(95) / 1e6).toFixed(1), p99: +(hist.percentile(99) / 1e6).toFixed(1), max: +(hist.max / 1e6).toFixed(1) },
     peakRssMb: Math.round(peakRss / 1048576), peakHeapMb: Math.round(peakHeap / 1048576),
     commands: { find: cmd.find, getMore: cmd.getMore, aggregate: cmd.aggregate, docsReturned: cmd.docs }, warmupDocs,
@@ -135,9 +141,9 @@ async function seed(n) {
   return { rows: media.length, airings: airings.length, mediaAvgObjBytes: Math.round(stats.avgObjSize), mediaBytes: stats.size };
 }
 
-function runChild(backend, n) {
+function runChild(backend, n, mode = 'default') {
   return new Promise((res, rej) => {
-    const p = spawn(process.execPath, [fileURLToPath(import.meta.url), '--child', backend, '--uri', uri, '--db', `m13b3_bench_${n}`], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const p = spawn(process.execPath, [fileURLToPath(import.meta.url), '--child', backend, '--uri', uri, '--db', `m13b3_bench_${n}`, '--mode', mode], { stdio: ['ignore', 'pipe', 'pipe'] });
     let out = ''; let err = '';
     p.stdout.on('data', (d) => (out += d)); p.stderr.on('data', (d) => (err += d));
     p.on('exit', (code) => { try { res(JSON.parse(out.trim().split('\n').pop())); } catch { rej(new Error(`child failed (${code}): ${err.slice(-400)} ${out.slice(-200)}`)); } });
@@ -148,12 +154,17 @@ const result = { label, node: process.version, mongo: sh('exec', CONTAINER, 'mon
 try {
   for (const n of sizes) {
     const data = await seed(n);
-    const arms = { baseline: [], candidate: [] };
-    await runChild(baseBackend, n); // warm file cache, discarded
-    for (let i = 0; i < runs; i += 1) for (const arm of i % 2 === 0 ? ['baseline', 'candidate'] : ['candidate', 'baseline']) arms[arm].push(await runChild(arm === 'baseline' ? baseBackend : candBackend, n));
+    // baseline = unmodified build; candidate = the change; cursorOnly / batch1000 = ablations of the candidate (--ablate);
+    // control = a second run of the baseline (A/A, to show the noise floor).
+    const names = ['baseline', 'candidate', ...(process.argv.includes('--ablate') ? ['cursorOnly', 'batch1000'] : []), ...(process.argv.includes('--aa') ? ['control'] : [])];
+    const spec = { baseline: [baseBackend, 'default'], control: [baseBackend, 'default'], candidate: [candBackend, 'default'], cursorOnly: [candBackend, 'cursorOnly'], batch1000: [candBackend, 'batch1000'] };
+    const arms = Object.fromEntries(names.map((k) => [k, []]));
+    for (const k of names) await runChild(spec[k][0], n, 'default').catch(() => undefined); // warm file cache and JIT-independent state, discarded
+    for (let i = 0; i < runs; i += 1) for (const arm of (i % 2 === 0 ? names : [...names].reverse())) arms[arm].push(await runChild(spec[arm][0], n, spec[arm][1]));
     const pick = (list, f) => median(list.map(f));
     const sum = Object.fromEntries(Object.entries(arms).map(([arm, list]) => [arm, {
       wallMs: pick(list, (r) => r.wallMs), cpuMs: pick(list, (r) => r.cpuMs), maxStallMs: pick(list, (r) => r.maxStallMs),
+      worstStallSteps: list.map((r) => r.stallSteps[0]).filter(Boolean).slice(0, 3),
       maxStallRange: [Math.min(...list.map((r) => r.maxStallMs)), Math.max(...list.map((r) => r.maxStallMs))],
       stallsOver250: pick(list, (r) => r.stallsOver250), stallsOver100: pick(list, (r) => r.stallsOver100),
       histP99Ms: pick(list, (r) => r.histMs.p99), histMaxMs: pick(list, (r) => r.histMs.max),
@@ -161,8 +172,8 @@ try {
       commands: list[0].commands, works: list[0].works, graphSize: list[0].graphSize,
       digestsStable: new Set(list.map((r) => r.worksDigest + r.relatedDigest)).size === 1,
     }]));
-    const equal = arms.baseline[0].worksDigest === arms.candidate[0].worksDigest && arms.baseline[0].relatedDigest === arms.candidate[0].relatedDigest;
-    result.sizes[n] = { data, summary: sum, outputIdentical: equal, rawBaseline: arms.baseline, rawCandidate: arms.candidate };
+    const equal = names.every((k) => arms[k].every((r) => r.worksDigest === arms.baseline[0].worksDigest && r.relatedDigest === arms.baseline[0].relatedDigest));
+    result.sizes[n] = { data, summary: sum, outputIdentical: equal, raw: arms };
     console.log(`n=${n} rows, ${data.airings} airings, avg media doc ${data.mediaAvgObjBytes} B; outputIdentical=${equal}`);
     console.table(Object.fromEntries(Object.entries(sum).map(([k, v]) => [k, { wallMs: v.wallMs, cpuMs: v.cpuMs, maxStallMs: v.maxStallMs, '>250': v.stallsOver250, p99: v.histP99Ms, rssMb: v.peakRssMb, heapMb: v.peakHeapMb, finds: v.commands.find, getMores: v.commands.getMore, works: v.works }])));
   }
