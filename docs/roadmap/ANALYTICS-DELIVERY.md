@@ -267,7 +267,13 @@ Backend 874/914 pass with 0 failures and 40 skipped; frontend 439/439; ops 40/40
    * Old full IPs in Mongo expire within 14 days; there is no migration.
    * The banner, while visible on phones, covers the bottom tab bar until a choice is made (a common, non-modal pattern; needs a UX decision if unwanted).
    * Event-loop max under synthetic saturation (§6).
-7. **Not verified:** whether the affiliate impression endpoint (existing code outside this change) sends data before consent.
+7. **Affiliate impressions (verified 2026-11-04, no change needed):** `AffiliateImpressionDirective` calls `trackImpressions` without an identity. `AffiliateAnalyticsService.emit` stores each impression with a fresh random `affiliate:<uuid>` id and no IP or user agent. Nothing is read from or written to the browser's storage, so ePrivacy consent is not triggered and the data is not linkable to a visitor.
+
+## 10. Merge and deploy status (2026-11-04)
+
+* #175 was merged by the owner as `ee35cb7`.
+* **Deploy: BLOCKED.** The owner asked for the deploy. The required route is `deploy.yml` ("Deploy a producción (Contabo)", `workflow_dispatch`): the artifact route refuses this lockfile change. Dispatching it from this session returned `403 Resource not accessible by integration`, because the GitHub App has no Actions write permission. There is also no SSH access or network route to the host.
+* **Next action (owner):** Actions → "Deploy a producción (Contabo)" → Run workflow on `main`. Alternatively, grant the app Actions write permission and the session dispatches it. Then run the post-deploy checks in §6.
 
 ## 8. Test evidence (final runs on the branch)
 
