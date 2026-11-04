@@ -1,15 +1,15 @@
 # M13-B3 — Event-loop stall attribution and related-works remediation
 
 Date: 2026-11-04 · Base `origin/main` = `cf19518` (#165) · Branches `m13b3a-request-stall-observability` (M13-B3a) and `m13b3b-related-works-bounded-read` (M13-B3b, stacked on B3a) · **Verdict: PARTIAL.**
-No merge, deployment, restart, environment change, database write, index creation, cache purge or profiler activation was performed. Both PRs are drafts awaiting the owner.
+**Update (the owner authorised B3a only):** [#166](https://github.com/manuelxose/guiatv/pull/166) (B3a) was squash-merged as `dd3822b` and deployed with `deploy-artifact.yml` run 41843530126 (build + deploy success), then verified with two sequential public GETs of `/v2/health/metrics` (section 13). [#167](https://github.com/manuelxose/guiatv/pull/167) (B3b) is **not merged and not deployed** (draft, awaiting the owner). No restart, environment change, database write, index creation, cache purge or profiler activation was performed.
 
 | Axis | Status |
 |---|---|
-| Observability engineering (B3a) | **ENGINEERING PASS** (tests, three independent reviews, review findings fixed). Not deployed. |
-| Root-cause attribution, stall A (3 711 ms at 9.5 s) | **Unconfirmed.** Not reproduced locally (section 4.3). |
-| Root-cause attribution, stall B (4 138 ms at 98.3 s) | **Unresolved**, no new evidence possible before B3a is deployed (section 2.3). |
+| Observability engineering (B3a) | **ENGINEERING PASS, merged `dd3822b`, deployed, verified in production** (section 13). |
+| Root-cause attribution, stall A (3 711 ms at 9.5 s) | **Recurs in a second production process (4 350 ms at 16 s), still unconfirmed**: it overlaps the catalogue reads and a concurrent `tvread.query`, with heavy GC in the window (section 13). Not reproduced locally (section 4.3). |
+| Root-cause attribution, stall B (4 138 ms at 98.3 s) | **Unresolved.** Not seen again in the second process (to 178 s); a smaller class of unattributed stalls (0.4–0.7 s, `correlation: none`, no request open, CPU ratio ≈ 2) recurs at 94–129 s and is **not** request-caused (section 13). |
 | Performance remediation (B3b) | **Local engineering PASS, bounded improvement only**: removes the synchronous refresh block that was reproduced locally. Does **not** claim to fix A or B. |
-| Merge / deployment / production verification | **Not merged · not deployed · not verified in production.** |
+| Merge / deployment / production verification | **B3a: merged, deployed, verified** (fields live, 0 x 5xx). **B3b: not merged, not deployed.** |
 
 ## 1. Baseline
 
@@ -124,3 +124,31 @@ The standing blocking SEO/URL remediation (no consumer URL may carry internal id
 ## 12. Artifacts
 
 `artifacts/m13b3/`: `inflight-overhead.mjs/.json`; `related-works-bench.mjs` (harness), `bench-final.json` (baseline / A/A control / candidate, 7 runs × 3 sizes, raw runs and digests), `bench-ablation-cursor-variant.json` (the removed cursor variant, run at commit `02fe98a`), `bench-aa-control.json` (first A/A smoke run). Reproduce: build `cf19518` and the branch, then `node artifacts/m13b3/related-works-bench.mjs --base <cf19518>/apps/backend --candidate apps/backend --runs 7 --aa` (needs Docker).
+
+## 13. Production verification of B3a (2026-11-04, after the deploy of `dd3822b`)
+
+Deploy: `deploy-artifact.yml` run 41843530126, build and deploy jobs success, on the owner's explicit instruction. Verification: two sequential public GETs of `https://guiaprogramaciontv.com/v2/health/metrics` 45 s apart (honest user agent, no other request, no cache purge, no restart): snapshots `artifacts/m13b3/post-deploy-metrics.json` (uptime 109 s) and `post-deploy-metrics-2.json` (uptime 178 s). One process lifetime (n = 2 together with the M13-B1 process): these say what happened in these processes, not how often.
+
+**B3a works in production.** `diagnostics.requests` is present (counters only: active 1, peak 10, 394 started, 0 evicted, 30 labels); every stall event carries `requests` and `correlation`; route templates are real (`/v2/discovery/home`, `/v2/tv/read`, `/v2/catalog/slug/:contentType/:slug`…); no URL, query or identifier appears; 0 x 5xx. The label count (30) is far below the cap.
+
+Stall events of this process (13 recorded; time = process uptime, `*` = step still running):
+
+| Uptime | Duration | CPU ratio | Correlation | Steps | Requests (in flight, oldest age) |
+|--:|--:|--:|---|---|---|
+| 4.0 s | 793 ms | 0.79 | steps | `boot.container_initialize`, `boot.container.cache*` | none |
+| 6.0 s | 1 932 ms | 0.94 | steps | `boot.channel_alias_load*`, `tvread.channels*`, `related_works.load/read_media_rows/read_airings*`, football refresh | none yet |
+| 7.6–10.9 s | 285–765 ms (6 events) | 0.94–2.2 | steps+requests | same reads * + `tvread.query*` | `/v2/discovery/home` ×2 (to 2.5 s), `/v2/tv/read` ×2, `/v2/tv/read/channels` ×2, `/v2/discovery/browse` |
+| **16.0 s** | **4 350 ms** | **1.12** | steps+requests | `related_works.load/read_media_rows/read_airings*` **and** `tvread.query*` | `/v2/discovery/browse` ×1 (4 668 ms), `/v2/catalog/slug/:contentType/:slug` ×1 (4 665 ms); `/v2/discovery/browse` completed (655 ms) |
+| 28.1 s | 508 ms | 1.69 | steps | `related_works.select_works`, `build_graph` (the synchronous pass B3b slices) | none |
+| 34.8 s | 344 ms | 1.29 | steps+requests | `tvread.query` ×2 | `/v2/catalog/:catalogId/enrichment`, `/v2/catalog/`, telemetry heartbeat |
+| **125.7 s** | **689 ms** | **1.94** | **none** | none | **none open, none completed in the interval** |
+
+What this adds (correlations, not proofs):
+
+* **Stall A recurs (n = 2 processes) and is not an artefact of one start-up.** A 4.35 s CPU-bound stall at 16 s again overlaps the in-flight `related_works` catalogue reads, not the synchronous select/build (that one is the separate 508 ms event at 28 s, the block B3b removes locally). New: `tvread.query` is **also** running during it, and two requests that started ≈ 4.7 s earlier (`/v2/discovery/browse`, `/v2/catalog/slug/…`) were open; several large reads decode at the same time. The registry cannot say which is the CPU consumer. **B3b does not address this stall.**
+* **GC is heavy and is a strong new lead.** The first 60 s window recorded 406 GCs totalling 3 242 ms (max pause 297 ms) against 227 ms in the next window; the M13-B1 process had a 48–90 ms max. Stalls with CPU ratio > 1 are consistent with GC helper threads. A start-up that materialises a very large number of BSON-decoded objects on the main thread and the young-generation churn that follows is the most plausible mechanism, but this is **correlation from window totals, not an attribution**.
+* **The 125.7 s stall (689 ms, ratio 1.94) has no request and no step.** It is in a window whose GC max is 300 ms (previous quiet window: 57 ms). The M13-B1 process had the same signature at 94 s (435 ms, 1.85) and 129 s (447 ms, 2.01). So the recurring small "unattributed" class is **not caused by a request**; a major GC is the leading candidate and is again unproven.
+* **Stall B (4 138 ms at 98 s, no step) did not recur** in this process (observed to 178 s). It remains unresolved; if it was this same non-request class at a larger scale, it would point at GC or a timer, not at a request.
+* **Host:** load 0.67–0.77, 8.2 GB free, 10 involuntary context switches in the 689 ms event: host contention is again not supported.
+
+Revised next steps, in this order: (1) a GC-focused observation (windowed GC figures already exist; `--trace-gc` or the start-up CPU profile would confirm it and need the owner's separate authorisation for a configuration change; a profile must cover ≥ 150 s); (2) reduce what start-up materialises at once (the two catalogue reads and `tvread.query` decode large results concurrently; options to evaluate with measurement and exact output parity: stagger `warm()` after the first `tvread.query`, keep the airings read out of the same window, project fewer fields only where eligibility allows); (3) B3b can be deployed independently for its 508 ms event. M13-B2 stays deferred.
