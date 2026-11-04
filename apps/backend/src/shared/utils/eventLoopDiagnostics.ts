@@ -1,4 +1,4 @@
-import { monitorEventLoopDelay, performance, PerformanceObserver, type IntervalHistogram } from 'node:perf_hooks';
+import { constants as gcConstants, monitorEventLoopDelay, performance, PerformanceObserver, type IntervalHistogram } from 'node:perf_hooks';
 import { envNumber, LogBudget, pushBounded, round1, round2 } from './diagnosticsCommon';
 import { logger } from './logger';
 import { inflightRequests, type RequestOverlap } from './inflightRequests';
@@ -29,6 +29,13 @@ export interface StallEvent {
   majorPageFaults: number;
   rssMb: number;
   steps: StepOverlap[];
+  heapUsedMb: number;
+  /**
+   * M13-B4a: garbage collections inside the stall interval: how many, their summed duration clipped to it, the longest
+   * pause, and how many were major (mark-compact). overlapMs close to durationMs means the stall was mostly GC; a small
+   * value means the time went to JavaScript between collections. Correlation, like the other overlaps.
+   */
+  gc: { count: number; overlapMs: number; maxPauseMs: number; major: number };
   /** M13-B3a: requests in flight / completed during the stall. Correlation only: an open request is not proven to be the cause. */
   requests: RequestOverlap;
   /**
@@ -64,6 +71,7 @@ export interface EventLoopDiagnosticsOptions {
 }
 
 const log = logger.child('EventLoop');
+const MAX_RECENT_GC = 256;
 
 export class EventLoopDiagnostics {
   readonly intervalMs: number;
@@ -86,6 +94,7 @@ export class EventLoopDiagnostics {
   private windowCpu = process.cpuUsage();
   private windowElu = performance.eventLoopUtilization();
   private windowGc = { count: 0, totalMs: 0, maxMs: 0 };
+  private readonly recentGc: Array<{ startMs: number; endMs: number; major: boolean }> = [];
   private windowStalls = 0;
   private readonly windows: WindowSummary[] = [];
   private readonly stalls: StallEvent[] = [];
@@ -122,11 +131,7 @@ export class EventLoopDiagnostics {
     }
     try {
       this.gcObserver = new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
-          this.windowGc.count += 1;
-          this.windowGc.totalMs += entry.duration;
-          if (entry.duration > this.windowGc.maxMs) this.windowGc.maxMs = entry.duration;
-        }
+        for (const entry of list.getEntries()) this.ingestGc(entry);
       });
       this.gcObserver.observe({ entryTypes: ['gc'] });
     } catch (error) {
@@ -222,6 +227,38 @@ export class EventLoopDiagnostics {
     };
   }
 
+  /**
+   * One garbage collection: counted in the window and kept (bounded) so a stall can say how much of its interval was GC.
+   * Public so tests can feed it; the observer calls it.
+   */
+  ingestGc(entry: { startTime: number; duration: number; detail?: unknown; kind?: number }): void {
+    this.windowGc.count += 1;
+    this.windowGc.totalMs += entry.duration;
+    if (entry.duration > this.windowGc.maxMs) this.windowGc.maxMs = entry.duration;
+    const kind = entry.kind ?? (entry.detail as { kind?: number } | undefined)?.kind;
+    pushBounded(this.recentGc, { startMs: entry.startTime, endMs: entry.startTime + entry.duration, major: kind === gcConstants.NODE_PERFORMANCE_GC_MAJOR }, MAX_RECENT_GC);
+  }
+
+  /** GC time inside [fromMs, toMs] (entries clipped to it). A stall's GC share is a correlation: GC helper threads also raise cpuRatio. */
+  private gcOverlap(fromMs: number, toMs: number): StallEvent['gc'] {
+    // The observer delivers asynchronously, after the late timer: flush what the stall itself produced.
+    try {
+      for (const entry of this.gcObserver?.takeRecords() ?? []) this.ingestGc(entry);
+    } catch {
+      // Unavailable: the window totals still exist.
+    }
+    const out = { count: 0, overlapMs: 0, maxPauseMs: 0, major: 0 };
+    for (const g of this.recentGc) {
+      const overlap = Math.min(g.endMs, toMs) - Math.max(g.startMs, fromMs);
+      if (overlap <= 0) continue;
+      out.count += 1;
+      out.overlapMs += overlap;
+      if (g.endMs - g.startMs > out.maxPauseMs) out.maxPauseMs = g.endMs - g.startMs;
+      if (g.major) out.major += 1;
+    }
+    return { ...out, overlapMs: round1(out.overlapMs), maxPauseMs: round1(out.maxPauseMs) };
+  }
+
   private safeRequestOverlap(fromMs: number, toMs: number): RequestOverlap {
     try {
       return this.requestOverlap(fromMs, toMs);
@@ -244,6 +281,8 @@ export class EventLoopDiagnostics {
       majorPageFaults: usage.majorPageFault - this.lastUsage.majorPageFault,
       rssMb: Math.round(process.memoryUsage().rss / 1_048_576),
       steps: stepsOverlapping(this.lastTickAt + this.intervalMs, now),
+      heapUsedMb: Math.round(process.memoryUsage().heapUsed / 1_048_576),
+      gc: this.gcOverlap(this.lastTickAt, now),
       requests: this.safeRequestOverlap(this.lastTickAt, now),
       correlation: 'none',
     };

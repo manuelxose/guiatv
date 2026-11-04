@@ -1,0 +1,1182 @@
+{
+  "label": "gc-plain",
+  "node": "v24.18.0",
+  "mongo": "db version v8.3.13",
+  "runs": 3,
+  "sizes": {
+    "20000": {
+      "data": {
+        "rows": 20000,
+        "airings": 45048,
+        "mediaAvgObjBytes": 1843,
+        "mediaBytes": 36879562
+      },
+      "summary": {
+        "baseline": {
+          "wallMs": 1075,
+          "cpuMs": 1374,
+          "maxStallMs": 363,
+          "worstStallSteps": [
+            {
+              "lateMs": 322,
+              "steps": [
+                "build_graph",
+                "select_works",
+                "load",
+                "read_media_rows"
+              ]
+            },
+            {
+              "lateMs": 366,
+              "steps": [
+                "build_graph",
+                "select_works",
+                "load",
+                "read_media_rows"
+              ]
+            },
+            {
+              "lateMs": 363,
+              "steps": [
+                "build_graph",
+                "select_works",
+                "load",
+                "read_media_rows"
+              ]
+            }
+          ],
+          "maxStallRange": [
+            322,
+            366
+          ],
+          "stallsOver250": 1,
+          "stallsOver100": 1,
+          "gcTotalMs": 90,
+          "gcMaxMs": 23,
+          "gcMajor": 2,
+          "gcCount": 24,
+          "histP99Ms": 30.6,
+          "histMaxMs": 368.3,
+          "peakRssMb": 323,
+          "peakHeapMb": 142,
+          "commands": {
+            "find": 1,
+            "getMore": 35,
+            "aggregate": 1,
+            "docsReturned": 35016
+          },
+          "works": 11173,
+          "graphSize": 11173,
+          "digestsStable": true
+        },
+        "candidate": {
+          "wallMs": 1061,
+          "cpuMs": 1234,
+          "maxStallMs": 348,
+          "worstStallSteps": [
+            {
+              "lateMs": 335,
+              "steps": [
+                "build_graph",
+                "select_works",
+                "load",
+                "read_media_rows"
+              ]
+            },
+            {
+              "lateMs": 407,
+              "steps": [
+                "build_graph",
+                "select_works",
+                "load",
+                "read_media_rows"
+              ]
+            },
+            {
+              "lateMs": 348,
+              "steps": [
+                "build_graph",
+                "select_works",
+                "load",
+                "read_media_rows"
+              ]
+            }
+          ],
+          "maxStallRange": [
+            335,
+            407
+          ],
+          "stallsOver250": 1,
+          "stallsOver100": 1,
+          "gcTotalMs": 94,
+          "gcMaxMs": 22,
+          "gcMajor": 2,
+          "gcCount": 24,
+          "histP99Ms": 31.9,
+          "histMaxMs": 353.4,
+          "peakRssMb": 347,
+          "peakHeapMb": 157,
+          "commands": {
+            "find": 1,
+            "getMore": 35,
+            "aggregate": 1,
+            "docsReturned": 35016
+          },
+          "works": 11173,
+          "graphSize": 11173,
+          "digestsStable": true
+        }
+      },
+      "outputIdentical": true,
+      "raw": {
+        "baseline": [
+          {
+            "wallMs": 1035,
+            "cpuMs": 1172,
+            "elu": 0.81,
+            "maxStallMs": 322,
+            "stallsOver100": 1,
+            "stallsOver250": 1,
+            "topStalls": [
+              322
+            ],
+            "stallSteps": [
+              {
+                "lateMs": 322,
+                "steps": [
+                  "build_graph",
+                  "select_works",
+                  "load",
+                  "read_media_rows"
+                ]
+              }
+            ],
+            "gc": {
+              "count": 24,
+              "totalMs": 82,
+              "maxMs": 23,
+              "major": 3,
+              "majorMs": 29
+            },
+            "concurrentDocs": 0,
+            "histMs": {
+              "p50": 6.3,
+              "p95": 26.5,
+              "p99": 28.7,
+              "max": 327.4
+            },
+            "peakRssMb": 352,
+            "peakHeapMb": 173,
+            "commands": {
+              "find": 1,
+              "getMore": 35,
+              "aggregate": 1,
+              "docsReturned": 35016
+            },
+            "warmupDocs": 1,
+            "works": 11173,
+            "graphSize": 11173,
+            "steps": [
+              {
+                "step": "related_works.read_airings",
+                "durationMs": 232.1,
+                "cpuMs": 454
+              },
+              {
+                "step": "related_works.read_media_rows",
+                "durationMs": 726.5,
+                "cpuMs": 798
+              },
+              {
+                "step": "related_works.select_works",
+                "durationMs": 115.2,
+                "cpuMs": 171
+              },
+              {
+                "step": "related_works.load",
+                "durationMs": 842,
+                "cpuMs": 969
+              },
+              {
+                "step": "related_works.build_graph",
+                "durationMs": 192.3,
+                "cpuMs": 203
+              }
+            ],
+            "worksDigest": "4985913a45688e075f08e54803f29ff95cbc23f99b27fbfa2ba308153abb07da",
+            "relatedDigest": "2333eab866155e13618a4ab8aae17f16e805a23c117b9285bbcdcdc76d43a6f2"
+          },
+          {
+            "wallMs": 1178,
+            "cpuMs": 1500,
+            "elu": 0.84,
+            "maxStallMs": 366,
+            "stallsOver100": 1,
+            "stallsOver250": 1,
+            "topStalls": [
+              366
+            ],
+            "stallSteps": [
+              {
+                "lateMs": 366,
+                "steps": [
+                  "build_graph",
+                  "select_works",
+                  "load",
+                  "read_media_rows"
+                ]
+              }
+            ],
+            "gc": {
+              "count": 22,
+              "totalMs": 90,
+              "maxMs": 22,
+              "major": 2,
+              "majorMs": 9
+            },
+            "concurrentDocs": 0,
+            "histMs": {
+              "p50": 7.2,
+              "p95": 34.3,
+              "p99": 36.7,
+              "max": 371.5
+            },
+            "peakRssMb": 323,
+            "peakHeapMb": 142,
+            "commands": {
+              "find": 1,
+              "getMore": 35,
+              "aggregate": 1,
+              "docsReturned": 35016
+            },
+            "warmupDocs": 1,
+            "works": 11173,
+            "graphSize": 11173,
+            "steps": [
+              {
+                "step": "related_works.read_airings",
+                "durationMs": 274.8,
+                "cpuMs": 500
+              },
+              {
+                "step": "related_works.read_media_rows",
+                "durationMs": 831.3,
+                "cpuMs": 1079
+              },
+              {
+                "step": "related_works.select_works",
+                "durationMs": 129,
+                "cpuMs": 202
+              },
+              {
+                "step": "related_works.load",
+                "durationMs": 960.6,
+                "cpuMs": 1281
+              },
+              {
+                "step": "related_works.build_graph",
+                "durationMs": 216.8,
+                "cpuMs": 219
+              }
+            ],
+            "worksDigest": "4985913a45688e075f08e54803f29ff95cbc23f99b27fbfa2ba308153abb07da",
+            "relatedDigest": "2333eab866155e13618a4ab8aae17f16e805a23c117b9285bbcdcdc76d43a6f2"
+          },
+          {
+            "wallMs": 1075,
+            "cpuMs": 1374,
+            "elu": 0.83,
+            "maxStallMs": 363,
+            "stallsOver100": 1,
+            "stallsOver250": 1,
+            "topStalls": [
+              363
+            ],
+            "stallSteps": [
+              {
+                "lateMs": 363,
+                "steps": [
+                  "build_graph",
+                  "select_works",
+                  "load",
+                  "read_media_rows"
+                ]
+              }
+            ],
+            "gc": {
+              "count": 24,
+              "totalMs": 93,
+              "maxMs": 27,
+              "major": 2,
+              "majorMs": 5
+            },
+            "concurrentDocs": 0,
+            "histMs": {
+              "p50": 6.5,
+              "p95": 26.1,
+              "p99": 30.6,
+              "max": 368.3
+            },
+            "peakRssMb": 321,
+            "peakHeapMb": 122,
+            "commands": {
+              "find": 1,
+              "getMore": 35,
+              "aggregate": 1,
+              "docsReturned": 35016
+            },
+            "warmupDocs": 1,
+            "works": 11173,
+            "graphSize": 11173,
+            "steps": [
+              {
+                "step": "related_works.read_airings",
+                "durationMs": 238.4,
+                "cpuMs": 405
+              },
+              {
+                "step": "related_works.read_media_rows",
+                "durationMs": 725,
+                "cpuMs": 906
+              },
+              {
+                "step": "related_works.select_works",
+                "durationMs": 120.7,
+                "cpuMs": 187
+              },
+              {
+                "step": "related_works.load",
+                "durationMs": 845.9,
+                "cpuMs": 1093
+              },
+              {
+                "step": "related_works.build_graph",
+                "durationMs": 228.7,
+                "cpuMs": 266
+              }
+            ],
+            "worksDigest": "4985913a45688e075f08e54803f29ff95cbc23f99b27fbfa2ba308153abb07da",
+            "relatedDigest": "2333eab866155e13618a4ab8aae17f16e805a23c117b9285bbcdcdc76d43a6f2"
+          }
+        ],
+        "candidate": [
+          {
+            "wallMs": 1033,
+            "cpuMs": 1203,
+            "elu": 0.83,
+            "maxStallMs": 335,
+            "stallsOver100": 1,
+            "stallsOver250": 1,
+            "topStalls": [
+              335
+            ],
+            "stallSteps": [
+              {
+                "lateMs": 335,
+                "steps": [
+                  "build_graph",
+                  "select_works",
+                  "load",
+                  "read_media_rows"
+                ]
+              }
+            ],
+            "gc": {
+              "count": 24,
+              "totalMs": 87,
+              "maxMs": 21,
+              "major": 2,
+              "majorMs": 5
+            },
+            "concurrentDocs": 0,
+            "histMs": {
+              "p50": 6.3,
+              "p95": 27.5,
+              "p99": 29.4,
+              "max": 340.3
+            },
+            "peakRssMb": 348,
+            "peakHeapMb": 157,
+            "commands": {
+              "find": 1,
+              "getMore": 35,
+              "aggregate": 1,
+              "docsReturned": 35016
+            },
+            "warmupDocs": 1,
+            "works": 11173,
+            "graphSize": 11173,
+            "steps": [
+              {
+                "step": "related_works.read_airings",
+                "durationMs": 216.6,
+                "cpuMs": 406
+              },
+              {
+                "step": "related_works.read_media_rows",
+                "durationMs": 713.1,
+                "cpuMs": 781
+              },
+              {
+                "step": "related_works.select_works",
+                "durationMs": 117.8,
+                "cpuMs": 203
+              },
+              {
+                "step": "related_works.load",
+                "durationMs": 831.1,
+                "cpuMs": 984
+              },
+              {
+                "step": "related_works.build_graph",
+                "durationMs": 202,
+                "cpuMs": 219
+              }
+            ],
+            "worksDigest": "4985913a45688e075f08e54803f29ff95cbc23f99b27fbfa2ba308153abb07da",
+            "relatedDigest": "2333eab866155e13618a4ab8aae17f16e805a23c117b9285bbcdcdc76d43a6f2"
+          },
+          {
+            "wallMs": 1061,
+            "cpuMs": 1234,
+            "elu": 0.83,
+            "maxStallMs": 407,
+            "stallsOver100": 1,
+            "stallsOver250": 1,
+            "topStalls": [
+              407
+            ],
+            "stallSteps": [
+              {
+                "lateMs": 407,
+                "steps": [
+                  "build_graph",
+                  "select_works",
+                  "load",
+                  "read_media_rows"
+                ]
+              }
+            ],
+            "gc": {
+              "count": 24,
+              "totalMs": 102,
+              "maxMs": 34,
+              "major": 2,
+              "majorMs": 6
+            },
+            "concurrentDocs": 0,
+            "histMs": {
+              "p50": 6,
+              "p95": 25,
+              "p99": 34.3,
+              "max": 412.1
+            },
+            "peakRssMb": 347,
+            "peakHeapMb": 157,
+            "commands": {
+              "find": 1,
+              "getMore": 35,
+              "aggregate": 1,
+              "docsReturned": 35016
+            },
+            "warmupDocs": 1,
+            "works": 11173,
+            "graphSize": 11173,
+            "steps": [
+              {
+                "step": "related_works.read_airings",
+                "durationMs": 216.3,
+                "cpuMs": 391
+              },
+              {
+                "step": "related_works.read_media_rows",
+                "durationMs": 668.1,
+                "cpuMs": 734
+              },
+              {
+                "step": "related_works.select_works",
+                "durationMs": 132.7,
+                "cpuMs": 203
+              },
+              {
+                "step": "related_works.load",
+                "durationMs": 801,
+                "cpuMs": 937
+              },
+              {
+                "step": "related_works.build_graph",
+                "durationMs": 259.3,
+                "cpuMs": 297
+              }
+            ],
+            "worksDigest": "4985913a45688e075f08e54803f29ff95cbc23f99b27fbfa2ba308153abb07da",
+            "relatedDigest": "2333eab866155e13618a4ab8aae17f16e805a23c117b9285bbcdcdc76d43a6f2"
+          },
+          {
+            "wallMs": 1128,
+            "cpuMs": 1437,
+            "elu": 0.82,
+            "maxStallMs": 348,
+            "stallsOver100": 1,
+            "stallsOver250": 1,
+            "topStalls": [
+              348
+            ],
+            "stallSteps": [
+              {
+                "lateMs": 348,
+                "steps": [
+                  "build_graph",
+                  "select_works",
+                  "load",
+                  "read_media_rows"
+                ]
+              }
+            ],
+            "gc": {
+              "count": 24,
+              "totalMs": 94,
+              "maxMs": 22,
+              "major": 2,
+              "majorMs": 7
+            },
+            "concurrentDocs": 0,
+            "histMs": {
+              "p50": 6.6,
+              "p95": 29.2,
+              "p99": 31.9,
+              "max": 353.4
+            },
+            "peakRssMb": 329,
+            "peakHeapMb": 152,
+            "commands": {
+              "find": 1,
+              "getMore": 35,
+              "aggregate": 1,
+              "docsReturned": 35016
+            },
+            "warmupDocs": 1,
+            "works": 11173,
+            "graphSize": 11173,
+            "steps": [
+              {
+                "step": "related_works.read_airings",
+                "durationMs": 248.4,
+                "cpuMs": 593
+              },
+              {
+                "step": "related_works.read_media_rows",
+                "durationMs": 794.6,
+                "cpuMs": 968
+              },
+              {
+                "step": "related_works.select_works",
+                "durationMs": 126.2,
+                "cpuMs": 204
+              },
+              {
+                "step": "related_works.load",
+                "durationMs": 921.1,
+                "cpuMs": 1172
+              },
+              {
+                "step": "related_works.build_graph",
+                "durationMs": 207,
+                "cpuMs": 265
+              }
+            ],
+            "worksDigest": "4985913a45688e075f08e54803f29ff95cbc23f99b27fbfa2ba308153abb07da",
+            "relatedDigest": "2333eab866155e13618a4ab8aae17f16e805a23c117b9285bbcdcdc76d43a6f2"
+          }
+        ]
+      }
+    },
+    "60000": {
+      "data": {
+        "rows": 60000,
+        "airings": 135267,
+        "mediaAvgObjBytes": 1848,
+        "mediaBytes": 110896252
+      },
+      "summary": {
+        "baseline": {
+          "wallMs": 3442,
+          "cpuMs": 4000,
+          "maxStallMs": 1101,
+          "worstStallSteps": [
+            {
+              "lateMs": 1259,
+              "steps": [
+                "build_graph",
+                "select_works",
+                "load",
+                "read_media_rows"
+              ]
+            },
+            {
+              "lateMs": 1101,
+              "steps": [
+                "build_graph",
+                "select_works",
+                "load",
+                "read_media_rows"
+              ]
+            },
+            {
+              "lateMs": 1053,
+              "steps": [
+                "build_graph",
+                "select_works",
+                "load",
+                "read_media_rows"
+              ]
+            }
+          ],
+          "maxStallRange": [
+            1053,
+            1259
+          ],
+          "stallsOver250": 1,
+          "stallsOver100": 1,
+          "gcTotalMs": 262,
+          "gcMaxMs": 28,
+          "gcMajor": 3,
+          "gcCount": 49,
+          "histP99Ms": 41,
+          "histMaxMs": 1106.2,
+          "peakRssMb": 532,
+          "peakHeapMb": 308,
+          "commands": {
+            "find": 1,
+            "getMore": 105,
+            "aggregate": 1,
+            "docsReturned": 105089
+          },
+          "works": 33949,
+          "graphSize": 33949,
+          "digestsStable": true
+        },
+        "candidate": {
+          "wallMs": 3376,
+          "cpuMs": 3422,
+          "maxStallMs": 1084,
+          "worstStallSteps": [
+            {
+              "lateMs": 1084,
+              "steps": [
+                "build_graph",
+                "select_works",
+                "load",
+                "read_media_rows"
+              ]
+            },
+            {
+              "lateMs": 1034,
+              "steps": [
+                "build_graph",
+                "select_works",
+                "load",
+                "read_media_rows"
+              ]
+            },
+            {
+              "lateMs": 1219,
+              "steps": [
+                "build_graph",
+                "select_works",
+                "load",
+                "read_media_rows"
+              ]
+            }
+          ],
+          "maxStallRange": [
+            1034,
+            1219
+          ],
+          "stallsOver250": 1,
+          "stallsOver100": 1,
+          "gcTotalMs": 266,
+          "gcMaxMs": 32,
+          "gcMajor": 3,
+          "gcCount": 49,
+          "histP99Ms": 35.6,
+          "histMaxMs": 1089.5,
+          "peakRssMb": 552,
+          "peakHeapMb": 332,
+          "commands": {
+            "find": 1,
+            "getMore": 105,
+            "aggregate": 1,
+            "docsReturned": 105089
+          },
+          "works": 33949,
+          "graphSize": 33949,
+          "digestsStable": true
+        }
+      },
+      "outputIdentical": true,
+      "raw": {
+        "baseline": [
+          {
+            "wallMs": 5112,
+            "cpuMs": 4953,
+            "elu": 0.81,
+            "maxStallMs": 1259,
+            "stallsOver100": 1,
+            "stallsOver250": 1,
+            "topStalls": [
+              1259
+            ],
+            "stallSteps": [
+              {
+                "lateMs": 1259,
+                "steps": [
+                  "build_graph",
+                  "select_works",
+                  "load",
+                  "read_media_rows"
+                ]
+              }
+            ],
+            "gc": {
+              "count": 48,
+              "totalMs": 343,
+              "maxMs": 28,
+              "major": 3,
+              "majorMs": 21
+            },
+            "concurrentDocs": 0,
+            "histMs": {
+              "p50": 6.6,
+              "p95": 50.1,
+              "p99": 61.3,
+              "max": 1264.6
+            },
+            "peakRssMb": 505,
+            "peakHeapMb": 308,
+            "commands": {
+              "find": 1,
+              "getMore": 105,
+              "aggregate": 1,
+              "docsReturned": 105089
+            },
+            "warmupDocs": 1,
+            "works": 33949,
+            "graphSize": 33949,
+            "steps": [
+              {
+                "step": "related_works.read_airings",
+                "durationMs": 953.1,
+                "cpuMs": 1234
+              },
+              {
+                "step": "related_works.read_media_rows",
+                "durationMs": 3873.7,
+                "cpuMs": 3563
+              },
+              {
+                "step": "related_works.select_works",
+                "durationMs": 543.5,
+                "cpuMs": 686
+              },
+              {
+                "step": "related_works.load",
+                "durationMs": 4417.5,
+                "cpuMs": 4249
+              },
+              {
+                "step": "related_works.build_graph",
+                "durationMs": 693.7,
+                "cpuMs": 704
+              }
+            ],
+            "worksDigest": "c448cb964c68cae37e283aecbc504a65ea3db2f659f80bbe726ea6e2a26d6f6e",
+            "relatedDigest": "f83da1e86863f28a15a675b99930a3feada2496b4e568a4ca48ce2925a0101dd"
+          },
+          {
+            "wallMs": 3442,
+            "cpuMs": 4000,
+            "elu": 0.83,
+            "maxStallMs": 1101,
+            "stallsOver100": 1,
+            "stallsOver250": 1,
+            "topStalls": [
+              1101
+            ],
+            "stallSteps": [
+              {
+                "lateMs": 1101,
+                "steps": [
+                  "build_graph",
+                  "select_works",
+                  "load",
+                  "read_media_rows"
+                ]
+              }
+            ],
+            "gc": {
+              "count": 50,
+              "totalMs": 262,
+              "maxMs": 27,
+              "major": 3,
+              "majorMs": 11
+            },
+            "concurrentDocs": 0,
+            "histMs": {
+              "p50": 6.8,
+              "p95": 29.2,
+              "p99": 41,
+              "max": 1106.2
+            },
+            "peakRssMb": 532,
+            "peakHeapMb": 299,
+            "commands": {
+              "find": 1,
+              "getMore": 105,
+              "aggregate": 1,
+              "docsReturned": 105089
+            },
+            "warmupDocs": 1,
+            "works": 33949,
+            "graphSize": 33949,
+            "steps": [
+              {
+                "step": "related_works.read_airings",
+                "durationMs": 743.1,
+                "cpuMs": 1172
+              },
+              {
+                "step": "related_works.read_media_rows",
+                "durationMs": 2356.2,
+                "cpuMs": 2843
+              },
+              {
+                "step": "related_works.select_works",
+                "durationMs": 396.8,
+                "cpuMs": 438
+              },
+              {
+                "step": "related_works.load",
+                "durationMs": 2753.3,
+                "cpuMs": 3281
+              },
+              {
+                "step": "related_works.build_graph",
+                "durationMs": 688.2,
+                "cpuMs": 719
+              }
+            ],
+            "worksDigest": "c448cb964c68cae37e283aecbc504a65ea3db2f659f80bbe726ea6e2a26d6f6e",
+            "relatedDigest": "f83da1e86863f28a15a675b99930a3feada2496b4e568a4ca48ce2925a0101dd"
+          },
+          {
+            "wallMs": 3160,
+            "cpuMs": 3344,
+            "elu": 0.82,
+            "maxStallMs": 1053,
+            "stallsOver100": 1,
+            "stallsOver250": 1,
+            "topStalls": [
+              1053
+            ],
+            "stallSteps": [
+              {
+                "lateMs": 1053,
+                "steps": [
+                  "build_graph",
+                  "select_works",
+                  "load",
+                  "read_media_rows"
+                ]
+              }
+            ],
+            "gc": {
+              "count": 49,
+              "totalMs": 258,
+              "maxMs": 28,
+              "major": 3,
+              "majorMs": 9
+            },
+            "concurrentDocs": 0,
+            "histMs": {
+              "p50": 6.4,
+              "p95": 25.4,
+              "p99": 36,
+              "max": 1058.5
+            },
+            "peakRssMb": 562,
+            "peakHeapMb": 343,
+            "commands": {
+              "find": 1,
+              "getMore": 105,
+              "aggregate": 1,
+              "docsReturned": 105089
+            },
+            "warmupDocs": 1,
+            "works": 33949,
+            "graphSize": 33949,
+            "steps": [
+              {
+                "step": "related_works.read_airings",
+                "durationMs": 673.5,
+                "cpuMs": 890
+              },
+              {
+                "step": "related_works.read_media_rows",
+                "durationMs": 2116.9,
+                "cpuMs": 2202
+              },
+              {
+                "step": "related_works.select_works",
+                "durationMs": 389.2,
+                "cpuMs": 438
+              },
+              {
+                "step": "related_works.load",
+                "durationMs": 2506.4,
+                "cpuMs": 2640
+              },
+              {
+                "step": "related_works.build_graph",
+                "durationMs": 652.7,
+                "cpuMs": 704
+              }
+            ],
+            "worksDigest": "c448cb964c68cae37e283aecbc504a65ea3db2f659f80bbe726ea6e2a26d6f6e",
+            "relatedDigest": "f83da1e86863f28a15a675b99930a3feada2496b4e568a4ca48ce2925a0101dd"
+          }
+        ],
+        "candidate": [
+          {
+            "wallMs": 3376,
+            "cpuMs": 3422,
+            "elu": 0.81,
+            "maxStallMs": 1084,
+            "stallsOver100": 1,
+            "stallsOver250": 1,
+            "topStalls": [
+              1084
+            ],
+            "stallSteps": [
+              {
+                "lateMs": 1084,
+                "steps": [
+                  "build_graph",
+                  "select_works",
+                  "load",
+                  "read_media_rows"
+                ]
+              }
+            ],
+            "gc": {
+              "count": 50,
+              "totalMs": 266,
+              "maxMs": 32,
+              "major": 3,
+              "majorMs": 11
+            },
+            "concurrentDocs": 0,
+            "histMs": {
+              "p50": 6.7,
+              "p95": 27.7,
+              "p99": 35.6,
+              "max": 1089.5
+            },
+            "peakRssMb": 553,
+            "peakHeapMb": 334,
+            "commands": {
+              "find": 1,
+              "getMore": 105,
+              "aggregate": 1,
+              "docsReturned": 105089
+            },
+            "warmupDocs": 1,
+            "works": 33949,
+            "graphSize": 33949,
+            "steps": [
+              {
+                "step": "related_works.read_airings",
+                "durationMs": 706.2,
+                "cpuMs": 890
+              },
+              {
+                "step": "related_works.read_media_rows",
+                "durationMs": 2305.4,
+                "cpuMs": 2281
+              },
+              {
+                "step": "related_works.select_works",
+                "durationMs": 378.3,
+                "cpuMs": 422
+              },
+              {
+                "step": "related_works.load",
+                "durationMs": 2683.9,
+                "cpuMs": 2703
+              },
+              {
+                "step": "related_works.build_graph",
+                "durationMs": 691.7,
+                "cpuMs": 719
+              }
+            ],
+            "worksDigest": "c448cb964c68cae37e283aecbc504a65ea3db2f659f80bbe726ea6e2a26d6f6e",
+            "relatedDigest": "f83da1e86863f28a15a675b99930a3feada2496b4e568a4ca48ce2925a0101dd"
+          },
+          {
+            "wallMs": 3078,
+            "cpuMs": 3234,
+            "elu": 0.81,
+            "maxStallMs": 1034,
+            "stallsOver100": 1,
+            "stallsOver250": 1,
+            "topStalls": [
+              1034
+            ],
+            "stallSteps": [
+              {
+                "lateMs": 1034,
+                "steps": [
+                  "build_graph",
+                  "select_works",
+                  "load",
+                  "read_media_rows"
+                ]
+              }
+            ],
+            "gc": {
+              "count": 49,
+              "totalMs": 251,
+              "maxMs": 27,
+              "major": 3,
+              "majorMs": 13
+            },
+            "concurrentDocs": 0,
+            "histMs": {
+              "p50": 6.3,
+              "p95": 24.1,
+              "p99": 27.9,
+              "max": 1039.1
+            },
+            "peakRssMb": 552,
+            "peakHeapMb": 332,
+            "commands": {
+              "find": 1,
+              "getMore": 105,
+              "aggregate": 1,
+              "docsReturned": 105089
+            },
+            "warmupDocs": 1,
+            "works": 33949,
+            "graphSize": 33949,
+            "steps": [
+              {
+                "step": "related_works.read_airings",
+                "durationMs": 590.2,
+                "cpuMs": 718
+              },
+              {
+                "step": "related_works.read_media_rows",
+                "durationMs": 2057.2,
+                "cpuMs": 2094
+              },
+              {
+                "step": "related_works.select_works",
+                "durationMs": 386.2,
+                "cpuMs": 515
+              },
+              {
+                "step": "related_works.load",
+                "durationMs": 2443.6,
+                "cpuMs": 2609
+              },
+              {
+                "step": "related_works.build_graph",
+                "durationMs": 634.4,
+                "cpuMs": 625
+              }
+            ],
+            "worksDigest": "c448cb964c68cae37e283aecbc504a65ea3db2f659f80bbe726ea6e2a26d6f6e",
+            "relatedDigest": "f83da1e86863f28a15a675b99930a3feada2496b4e568a4ca48ce2925a0101dd"
+          },
+          {
+            "wallMs": 3685,
+            "cpuMs": 4140,
+            "elu": 0.82,
+            "maxStallMs": 1219,
+            "stallsOver100": 1,
+            "stallsOver250": 1,
+            "topStalls": [
+              1219
+            ],
+            "stallSteps": [
+              {
+                "lateMs": 1219,
+                "steps": [
+                  "build_graph",
+                  "select_works",
+                  "load",
+                  "read_media_rows"
+                ]
+              }
+            ],
+            "gc": {
+              "count": 49,
+              "totalMs": 296,
+              "maxMs": 32,
+              "major": 3,
+              "majorMs": 14
+            },
+            "concurrentDocs": 0,
+            "histMs": {
+              "p50": 6.8,
+              "p95": 30.6,
+              "p99": 46.6,
+              "max": 1224.7
+            },
+            "peakRssMb": 546,
+            "peakHeapMb": 327,
+            "commands": {
+              "find": 1,
+              "getMore": 105,
+              "aggregate": 1,
+              "docsReturned": 105089
+            },
+            "warmupDocs": 1,
+            "works": 33949,
+            "graphSize": 33949,
+            "steps": [
+              {
+                "step": "related_works.read_airings",
+                "durationMs": 866,
+                "cpuMs": 1202
+              },
+              {
+                "step": "related_works.read_media_rows",
+                "durationMs": 2476.3,
+                "cpuMs": 2718
+              },
+              {
+                "step": "related_works.select_works",
+                "durationMs": 483.5,
+                "cpuMs": 642
+              },
+              {
+                "step": "related_works.load",
+                "durationMs": 2960.1,
+                "cpuMs": 3360
+              },
+              {
+                "step": "related_works.build_graph",
+                "durationMs": 724.4,
+                "cpuMs": 780
+              }
+            ],
+            "worksDigest": "c448cb964c68cae37e283aecbc504a65ea3db2f659f80bbe726ea6e2a26d6f6e",
+            "relatedDigest": "f83da1e86863f28a15a675b99930a3feada2496b4e568a4ca48ce2925a0101dd"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -96,3 +96,49 @@ test('stop() is safe to call twice and an unstarted monitor reports itself disab
   assert.equal((diag.snapshot() as any).enabled, false);
   assert.equal(typeof (eventLoopDiagnosticsSnapshot() as any).enabled, 'boolean');
 });
+
+test('M13-B4a: a stall reports the GC inside its interval (clipped), major collections and the longest pause', () => {
+  let t = 0;
+  const diag = new EventLoopDiagnostics({ now: () => t, wallClock: () => 1_700_000_000_000, intervalMs: 100, stallThresholdMs: 250, windowMs: 1e9 });
+  t = 100; diag.tick();
+  diag.ingestGc({ startTime: 50, duration: 40, kind: 1 });       // before the interval: ignored
+  diag.ingestGc({ startTime: 80, duration: 60, kind: 1 });       // straddles its start (100): 40 ms inside
+  diag.ingestGc({ startTime: 300, duration: 120, kind: 4 });     // major, fully inside
+  diag.ingestGc({ startTime: 900, duration: 300, kind: 1 });     // straddles its end (1 000): 100 ms inside
+  t = 1_000; diag.tick();
+  const event = (diag.snapshot() as any).stalls.recent[0];
+  assert.equal(event.durationMs, 800);
+  assert.deepEqual(event.gc, { count: 3, overlapMs: 260, maxPauseMs: 300, major: 1 });
+  assert.equal(typeof event.heapUsedMb, 'number');
+  // The window totals keep counting every collection, inside or not.
+  diag.rotateWindow();
+  assert.equal((diag.snapshot() as any).windows[0].gc.count, 4);
+});
+
+test('M13-B4a: stalls without GC report zeros, and the GC ring is bounded', () => {
+  let t = 0;
+  const diag = new EventLoopDiagnostics({ now: () => t, wallClock: () => 1_700_000_000_000, intervalMs: 100, stallThresholdMs: 250, windowMs: 1e9 });
+  for (let i = 0; i < 1_000; i += 1) diag.ingestGc({ startTime: i - 5_000, duration: 0.5, kind: 1 }); // all before the interval
+  assert.ok((diag as any).recentGc.length <= 256);
+  t = 100; diag.tick();
+  t = 2_000; diag.tick();
+  assert.deepEqual((diag.snapshot() as any).stalls.recent[0].gc, { count: 0, overlapMs: 0, maxPauseMs: 0, major: 0 });
+});
+
+test('M13-B4a: with real timers, an allocation-heavy stall is reported with real garbage collections', async () => {
+  const diag = new EventLoopDiagnostics({ intervalMs: 20, stallThresholdMs: 100, windowMs: 60_000, maxLogsPerMinute: 1 });
+  diag.start();
+  try {
+    await sleep(60);
+    const keep: unknown[] = [];
+    const end = performance.now() + 500;
+    while (performance.now() < end) { keep.push({ a: new Array(64).fill(keep.length), b: String(keep.length) }); if (keep.length > 200_000) keep.length = 0; }
+    await sleep(80);
+    const worst = (diag.snapshot() as any).stalls.worst;
+    assert.ok(worst && worst.durationMs >= 300, JSON.stringify(worst));
+    assert.ok(worst.gc.count >= 1 && worst.gc.overlapMs > 0, `GC during the stall: ${JSON.stringify(worst.gc)}`);
+    assert.ok(worst.gc.overlapMs <= worst.durationMs + 50);
+  } finally {
+    diag.stop();
+  }
+});
