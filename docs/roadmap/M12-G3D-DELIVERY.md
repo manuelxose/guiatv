@@ -83,8 +83,8 @@ Fecha local: la comparación usa `madridDate(startUtc)` (`Intl`, zona Europe/Mad
 | 2026-11-02 | **PASS** | 8 649 | 8 649 | 0 | 0 | 0 / 0 | 3 (0) | 0 | 8 649 | 0 |
 | 2026-11-03 | **FAIL** | 11 418 | 11 585 | **161** | **328** | 0 / 0 | 1 (0) | 0 | 11 585 | 0 |
 
-**Lectura del FAIL de 2026-11-03 (hechos y límite).** El archivo no ha perdido nada: 28 378 documentos, igual que la medición de G3B, y 8 144 / 8 649 / 11 585 por día. Lo que cambió es el read model: a las 03:30 la ejecución programada leyó 11 799 filas de 20261103 y encontró las 11 585 en día ya archivadas (`unchanged`); a las ~10:30 el día tiene 11 418 claves propias + 1 de otro día. Es decir, **el read model de un día ya cerrado cambió después del archivado** (161 claves nuevas que el archivo no tiene; 328 claves archivadas que el read model ya no tiene). Ese día es además el del vaciado de 00:15 y los rebuilds de la noche (G3C). **Causa no determinada**: el script no imprime títulos ni deltas de hora, así que no distingue desplazamientos de horario de altas y bajas reales. Hipótesis a verificar, no afirmada: correcciones de la fuente tras el sync.
-Consecuencias: (1) confirma la limitación 1 de arriba: el read model no es registro histórico y la paridad solo vale en el instante de la comparación. (2) **Predicción comprobable el 05/11**: la ejecución de las 03:30 cubre 20261102–20261104; si el read model de 20261103 no cambia más, `inserted` de 20261103 ≈ 161, y las 328 claves antiguas permanecen como `extra` (emisiones anunciadas y luego sustituidas: comportamiento del contrato «anunciado», no un defecto). (3) Hay que cuantificar este tipo de deriva antes de usar el archivo como señal de «cambios de horario»: es un insumo de G3E, no un bloqueo.
+**Lectura del FAIL de 2026-11-03 (hechos y límite).** El archivo no ha perdido nada: 28 378 documentos, igual que la medición de G3B, y 8 144 / 8 649 / 11 585 por día. Lo que cambió es el read model: a las 03:30 la ejecución programada leyó 11 799 filas de 20261103 y encontró las 11 585 en día ya archivadas (`unchanged`); a las ~10:30 el día tiene 11 418 claves propias + 1 de otro día. Es decir, **el read model de un día ya cerrado cambió después del archivado** (161 claves nuevas que el archivo no tiene; 328 claves archivadas que el read model ya no tiene). Ese día es además el del vaciado de 00:15 y los rebuilds de la noche (G3C). **Causa identificada (misma tarde, solo lectura).** Segunda pasada del reconciliador con clasificación de deriva (sin títulos): las 161 claves nuevas están en **22 canales** y las 328 sobrantes en **167 canales** (solo 15 en común); de las 131 nuevas emparejables con una sobrante del mismo canal, 26 están a ≤ 5 min, 12 a ≤ 30, 8 a ≤ 120 y **85 a > 120 min**; 30 nuevas están en canales sin ninguna sobrante. No son, en general, desplazamientos de horario: son altas y bajas reales. El journal de la API lo explica: a las **06:00** el sync de EPG programado ejecuta «Syncing source/date slice … date 20261103 … forceRefresh: true», es decir, **vuelve a sincronizar el día anterior ya cerrado**, con lo que las fuentes publican hoy para ayer (5 627 programas en `epg-es`), y reemplaza el read model de ese día. El archivo de las 03:30 es anterior a esa reescritura y conserva el día tal como se anunció.
+Consecuencias: (1) confirma la limitación 1 de arriba: el read model no es registro histórico y la paridad solo vale en el instante de la comparación. (2) **Predicción comprobable el 05/11**: la ejecución de las 03:30 cubre 20261102–20261104; si el read model de 20261103 no cambia más, `inserted` de 20261103 ≈ 161, y las 328 claves antiguas permanecen como `extra` (emisiones anunciadas y luego sustituidas: comportamiento del contrato «anunciado», no un defecto). (3) **Defecto de diseño del catch-up, demostrado:** con `HISTORY_CAPTURE_CATCHUP_DAYS=3`, la ejecución de las 03:30 del día D+2 vuelve a leer el día D **después** de la reescritura de las 06:00 de D+1 y le añadiría ~161 observaciones posteriores al cierre (1,4 % del día), mezcladas con las anunciadas a las 03:30, incluidos «duplicados» de horario desplazado. **Corrección incluida (commit aparte, ver §17):** el catch-up por defecto salta los días que ya tienen observaciones, salvo `HISTORY_CAPTURE_RECAPTURE=true` o pasar el día explícitamente. Un día sin ninguna observación (timer perdido) sí se recupera. Con esto la predicción de «≈ 161 inserciones el 05/11» **ya no se cumpliría** una vez desplegado; si el 05/11 se ejecuta aún el código antiguo, sí.
 
 ## 5. Tamaño y crecimiento (AC-05)
 
@@ -186,11 +186,11 @@ Rollback: restaurar la copia y `systemctl daemon-reload`. Ventana: nunca entre 0
 
 **Consumidores del id** (grep): `tv.routes`/`TvController` (detalle de emisión), `EpgFootballDataProvider` (`findOne({ id })`), `FootballBroadcastMapping`, `EntityBroadcastService`, `ContentIdentityIngestion`, frontend (`tv-api.service`, `entity-broadcast-list`). Cambiar el id de **todas** las filas rompería esas referencias persistidas.
 
-**Identidad futura compatible: viable.** Solo la segunda pasada de la hora repetida necesita un sufijo (`_cet`); regla candidata en test: `d.getTimezoneOffset() > new Date(d.getTime() - 3600000).getTimezoneOffset()`. Las demás emisiones del año mantienen su id actual (test con 4 instantes ordinarios). No se aplica en G3D.
+**Identidad futura compatible: implementada** (commit de seguimiento, §17): `buildTvReadAiringId` añade `_dst2` solo cuando el desplazamiento horario una hora antes era mayor (segunda pasada de la hora repetida). Las demás emisiones del año mantienen su id exacto (tests con CEST, CET, día de primavera). No se reescribe ningún id existente; nada cambia hasta el 2027-10-31.
 
 | Impacto real | Evidencia | Severidad | Recomendación | ¿Milestone propio? |
 |---|---|---|---|---|
-| Una emisión del 02:xx CET se pierde (read model y archivo) una vez al año; afecta a canales con emisiones distintas en esa hora | Test de regresión; regla del id; sin datos de producción (la fecha 2025-10-26 ya no está en el read model) | MEDIA, **baja urgencia**: próxima ocurrencia **2027-10-31** | Sufijo condicional solo en la segunda pasada; migración innecesaria (los ids existentes no cambian) | **Sí, pequeño**, antes de octubre de 2027 |
+| Una emisión del 02:xx CET se pierde (read model y archivo) una vez al año; afecta a canales con emisiones distintas en esa hora | Test de regresión; regla del id; sin datos de producción (la fecha 2025-10-26 ya no está en el read model) | MEDIA, **baja urgencia**: próxima ocurrencia **2027-10-31** | Sufijo condicional solo en la segunda pasada; migración innecesaria (los ids existentes no cambian) | **Hecho** en el commit de seguimiento; solo falta desplegar antes de octubre de 2027 |
 
 ## 9. Hallazgo B — `contentHash` incluye `sources` (AC-09)
 
@@ -232,7 +232,7 @@ Quedan **fuera** y exigen autorización aparte: copiar la unidad, `daemon-reload
 
 ## 13. Tests y revisión independiente (AC-12)
 
-**Tests nuevos** (Mongo 8.0.34 en Docker desechable; `TEST_MONGO_URI`): 25/25 en los ficheros tocados, sin fallos.
+**Tests nuevos** (Mongo 8.0.34 en Docker desechable; `TEST_MONGO_URI`): 52/52 en los ficheros tocados. **Suite completa del backend** (PowerShell, Windows): 887 tests, 885 OK, 1 omitido, 1 fallo ajeno: `content-certify.cli.test` espera permisos POSIX `0600` en una clave privada y Windows devuelve otros. Desde Git Bash fallan además 4 tests que extraen un `.tar.gz` porque el `tar` GNU interpreta `C:\…` como host remoto (se repiten en verde desde PowerShell).
 
 | Requisito | Test |
 |---|---|
@@ -270,7 +270,7 @@ Verificaciones de solo lectura adicionales recomendadas por seguridad (para la a
 
 1. **Bloqueante para cerrar C:** las ejecuciones del 05 y 06/11 (la tabla de §3 debe rellenarse cada día, no al final), y la PR #161 desplegada para ejecutar el reconciliador en producción.
 2. Usuario Mongo de solo lectura para los scripts de auditoría (el guard ya es lista blanca, pero sigue siendo una defensa en el cliente).
-2b. Cuantificar la deriva del read model en días cerrados (hallazgo de 20261103) con una versión del reconciliador que empareje `missing`/`extra` por canal y delta de hora, sin títulos.
+2b. El sync de las 06:00 reescribe el día anterior ya archivado (causa del FAIL de 20261103): `SyncScheduled` con `forceRefresh` sobre D-1. Decidir si eso es deseable para el read model; el archivo ya queda protegido (§17).
 3. Rol Mongo dedicado para el archivador y alertas de frescura del archivo y de disco en el watchdog (G3C #13, #14).
 4. Hallazgo A: sufijo condicional del id de la segunda pasada de la hora repetida, antes del 2027-10-31.
 5. G1/G2: las seis preocupaciones y el desacoplamiento gate-sitemap/página, antes de conectar cualquier familia.
@@ -301,6 +301,17 @@ Verificaciones de solo lectura adicionales recomendadas por seguridad (para la a
 
 El 2026-11-04 el propietario decidió **no esperar** a las ejecuciones del 05 y 06/11 para continuar, y aceptó cerrar G3D con este veredicto **PARTIAL** (1/3 ejecuciones programadas). No se convierte en PASS: AC-01 queda en 1/3, AC-04 en PARCIAL y AC-06 sin línea base. Pasan a **seguimiento no bloqueante**: las lecturas de §3 los días 05 y 06 entre las 03:35 y las 23:59, y la predicción de §4 (≈ 161 inserciones en 20261103 el 05/11) como comprobación.
 
-Cambios de código de esta fase (PR #161): reconciliación por claves, tests, `readOnlyGuard` con lista blanca, unidad del repo con contabilidad. **Sin tocar:** producción, ids, `contentHash`, G1/G2, `INDEX_BATCH_ENABLED`, sitemap, rutas públicas.
+Cambios de código de esta fase (PR #161): reconciliación por claves, tests, `readOnlyGuard` con lista blanca, unidad del repo con contabilidad, y (§17) catch-up que no reescribe días archivados y sufijo DST. **Sin tocar:** producción, `contentHash`, G1/G2, `INDEX_BATCH_ENABLED`, sitemap, rutas públicas. Ningún id existente cambia.
 
 M12 sigue **NO-GO**. No se ha activado nada indexable.
+
+## 17. Cambios de seguimiento incluidos en la misma PR (decisión del propietario: «todo se hace ahora»)
+
+Van en commits separados, por si se quiere descartar alguno.
+
+| Cambio | Qué hace | Riesgo | Cómo se revierte |
+|---|---|---|---|
+| Catch-up sin reescritura (`isDayArchived`, CLI) | El catch-up por defecto salta los días que ya tienen observaciones; pasar el día o `HISTORY_CAPTURE_RECAPTURE=true` lo fuerza | Un día archivado a medias (job caído a mitad) no se completa solo; hay que relanzarlo con el día explícito. Se registra `skipped-already-archived` en el journal | Revertir el commit o poner `HISTORY_CAPTURE_RECAPTURE=true` en `history.env` |
+| Sufijo DST (`buildTvReadAiringId`) | `_dst2` solo en la segunda pasada de la hora repetida | Un consumidor que parseara el sufijo horario como 14 dígitos exactos (no se encontró ninguno en backend ni frontend); efecto nulo hasta 2027-10-31 | Revertir el commit |
+
+Ambos requieren desplegar la PR para tener efecto; el despliegue lo hace el propietario.
