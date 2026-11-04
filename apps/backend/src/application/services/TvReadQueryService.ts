@@ -490,13 +490,14 @@ export function compactTvReadItem(item: TvReadItemDTO): TvReadItemDTO {
   };
 }
 
+// Same ordering as `a.localeCompare(b, 'es', { sensitivity: 'base' })` (ECMA-402), without building a collator per comparison.
+const CHANNEL_NAME_COLLATOR = new Intl.Collator('es', { sensitivity: 'base' });
+
 function sortTvItems(left: TvReadItemDTO, right: TvReadItemDTO): number {
   return (
     getGuideGroupSortOrder(left.channel.group) - getGuideGroupSortOrder(right.channel.group) ||
     left.channel.sortOrder - right.channel.sortOrder ||
-    String(left.channel.name || '').localeCompare(String(right.channel.name || ''), 'es', {
-      sensitivity: 'base',
-    }) ||
+    CHANNEL_NAME_COLLATOR.compare(String(left.channel.name || ''), String(right.channel.name || '')) ||
     new Date(left.airing.start).getTime() - new Date(right.airing.start).getTime()
   );
 }
@@ -852,16 +853,15 @@ export class TvReadQueryService {
       .filter((item) => isConsumerVisibleTvReadItem(item));
     const filteredMatching = this.applySportFilter(allMatching, sport);
     const items = this.applyViewTransform(view, filteredMatching, reference, date);
-    const allChannelSummaries = this.buildChannelSummaries(
-      filteredMatching,
-      group,
-      params.channelId,
-      reference,
-      date
-    );
     const paged = databasePaged ? items : items.slice(offset, offset + limit);
+    // M13-B5b: the summaries (a second full sort plus per-channel scans) were built and then discarded for every
+    // `includeChannels: false` caller; they are pure, so skipping them cannot change `items`.
     const channelSummaries = includeChannels
-      ? scopeChannelSummariesToPage(view, allChannelSummaries, paged)
+      ? scopeChannelSummariesToPage(
+          view,
+          this.buildChannelSummaries(filteredMatching, group, params.channelId, reference, date),
+          paged
+        )
       : [];
     const publicItems = paged.map(compactTvReadItem);
     const response: TvReadResponseDTO = {

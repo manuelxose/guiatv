@@ -2128,6 +2128,7 @@ export class CatalogService {
       date: query.date,
       q: query.q || undefined,
       limit,
+      includeChannels: false, // M13-B5b: only `items` is read; the channel summaries were pure overhead (and most of the cached payload)
     });
     return response.items;
   }
@@ -2144,6 +2145,7 @@ export class CatalogService {
         date,
         q: query,
         limit: 24,
+        includeChannels: false,
       });
 
       const matches = response.items.filter((item) => {
@@ -2241,6 +2243,7 @@ export class CatalogService {
       date: item.airing.date,
       category: item.program.editorialCategory,
       limit: 18,
+      includeChannels: false,
     });
 
     return response.items
