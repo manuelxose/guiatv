@@ -40,7 +40,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci --legacy-peer-deps
       - run: node --test apps/frontend/scripts/ssr-cache.test.mjs apps/frontend/scripts/ssr-canonical.test.mjs apps/frontend/scripts/entity-canary-verify.test.mjs
@@ -60,7 +60,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
       - run: node scripts/seo-crawl.mjs --out seo-crawl.json
       - run: node scripts/editorial-audit.mjs --json editorial-audit.json
         continue-on-error: true # findings are review prompts; the crawl above is the hard gate
@@ -86,7 +86,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
       # M10-D: with `^/contenido/` unexpanded the ephemeral airing pages stop eating the budget, so the crawl
       # exhausts the evergreen graph and every sitemap URL gets a measured class instead of UNMEASURED.
       # The inputs go through `env`, never `${{ }}` inside the script: a dispatch input expanded into the command
