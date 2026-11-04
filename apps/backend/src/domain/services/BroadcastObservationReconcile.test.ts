@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { observationId, toObservation } from './BroadcastObservation';
 import { reconcileDay } from './BroadcastObservationReconcile';
 import { buildTvReadAiringId } from '@/shared/utils/tvMetadata';
-import { isWriteCommand } from '@/scripts/readOnlyGuard';
+import { isAllowedCommand } from '@/scripts/readOnlyGuard';
 
 const NOW = new Date('2026-11-05T10:00:00Z');
 const row = (start: string, over: any = {}) => ({
@@ -86,7 +86,8 @@ test('a backward-compatible future airing id is feasible: only the second 02:xx 
 });
 
 test('read-only guard classifies the reconciliation commands as reads and any write as a violation', () => {
-  for (const c of ['find', 'aggregate', 'count', 'collStats', 'listIndexes', 'serverStatus', 'buildInfo', 'hello']) assert.equal(isWriteCommand(c, { pipeline: [{ $match: {} }] }), false, c);
-  for (const c of ['insert', 'update', 'delete', 'createIndexes', 'drop']) assert.equal(isWriteCommand(c, {}), true, c);
-  assert.equal(isWriteCommand('aggregate', { pipeline: [{ $merge: { into: 'x' } }] }), true);
+  for (const c of ['find', 'aggregate', 'getMore', 'count', 'collStats', 'dbStats', 'listIndexes', 'serverStatus', 'buildInfo', 'hello']) assert.equal(isAllowedCommand(c, { pipeline: [{ $match: {} }] }), true, c);
+  for (const c of ['insert', 'update', 'delete', 'createIndexes', 'drop', 'mapReduce', 'setParameter', 'createUser', 'grantRolesToUser', 'shutdown', 'fsync', 'killOp', 'createSearchIndexes']) assert.equal(isAllowedCommand(c, {}), false, c); // the last ones were invisible to the old denylist
+  assert.equal(isAllowedCommand('aggregate', { pipeline: [{ $merge: { into: 'x' } }] }), false);
+  assert.equal(isAllowedCommand('aggregate', { pipeline: [{ $out: 'x' }] }), false);
 });

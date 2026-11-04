@@ -2,7 +2,7 @@
 
 Fecha de redacción: 2026-11-04. Primera redacción 01:27 (antes del timer); actualizada a las ~10:00 tras la autorización de lectura del propietario (§12).
 Base verificada: `origin/main` = `81d82329ffa66d23ee52e476adbb12fe52a826ac` (PR #159 `f703577`, PR #160 `81d8232`).
-Veredicto: **PARTIAL**. Hecho: reconciliación por claves, tests, análisis de A/B/C, plan de despliegue de la unidad. Observada **1 de 3** ejecuciones programadas (04/11, éxito). **No hecho:** las ejecuciones del 05 y 06/11 (calendario), la paridad por claves en producción (el reconciliador necesita la PR #161 desplegada) y la comparación de latencia (no hay línea base).
+Veredicto: **PARTIAL**. Hecho: reconciliación por claves, tests, análisis de A/B/C, plan de despliegue de la unidad. Observada **1 de 3** ejecuciones programadas (04/11, éxito). Paridad por claves medida en producción: **20261101 y 20261102 PASS; 20261103 FAIL** (el read model cambió después del archivado; el archivo está intacto, §4). **No hecho:** las ejecuciones del 05 y 06/11 (calendario) y la comparación de latencia (no hay línea base). **El propietario aceptó cerrar G3D con este PARTIAL el 2026-11-04** (§16); no es un PASS.
 
 ## 1. Qué es G3D y qué no es
 
@@ -75,11 +75,32 @@ Fecha local: la comparación usa `madridDate(startUtc)` (`Intl`, zona Europe/Mad
 
 **Validado en local (Mongo 8.0.34 en Docker, base desechable):** el script corre de punta a punta bajo el guard (10 comandos, todos lectura) y devuelve `reconciled`, `missing 0`, `extra 0`.
 
-**Estado en producción: BLOQUEADO por despliegue.** Se ejecutó con la receta autorizada y falló al arrancar: `Cannot find module …/releases/20261104010920/apps/backend/dist/domain/services/BroadcastObservationReconcile.js`. El módulo solo existe en la PR #161. El fallo ocurre en el `require` inicial, antes de instalar el guard y de conectar: **no se emitió ningún comando a la base de datos**. Desplegar no estaba autorizado y no se ha intentado otra vía. Se desbloquea con la PR #161 mergeada y desplegada por el flujo normal (o con autorización explícita para otra ruta).
+**Ejecución en producción (04/11 ~10:30, solo lectura).** El primer intento con la receta autorizada falló al cargar `…/dist/domain/services/BroadcastObservationReconcile.js` (solo existe en la PR #161, no desplegada): falló en el `require` inicial, antes del guard y de conectar, sin ningún comando a la BD. Con la elección expresa del propietario («reconciliar ya»), se ejecutó **una copia autónoma**: el mismo script con el módulo compilado embebido y usando el `BroadcastObservation.js` ya desplegado (como la release no exporta `observationId`, se usa la misma fórmula `sha256(canal|startMs)[0..24]`, comprobada idéntica en local). Mismo guard, pool 2, `Nice=19`, `--days 3`; 77 comandos, todos lecturas (`find`, `aggregate`, `getMore`, `collStats`, `dbStats`, `buildInfo`, `hello`, `serverStatus`). Nada se desplegó ni se escribió en el servidor. No es el código desplegado, sino una copia de la lógica probada.
+
+| Día | Veredicto | Esperadas (read model) | Archivadas | missing | extra | Duplicados / defectos de identidad | outOfDay (sin archivar) | rechazadas | sin `workRef` | `rev>1` |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 2026-11-01 | **PASS** | 8 144 | 8 144 | 0 | 0 | 0 / 0 | 0 | 0 | 8 144 | 1 |
+| 2026-11-02 | **PASS** | 8 649 | 8 649 | 0 | 0 | 0 / 0 | 3 (0) | 0 | 8 649 | 0 |
+| 2026-11-03 | **FAIL** | 11 418 | 11 585 | **161** | **328** | 0 / 0 | 1 (0) | 0 | 11 585 | 0 |
+
+**Lectura del FAIL de 2026-11-03 (hechos y límite).** El archivo no ha perdido nada: 28 378 documentos, igual que la medición de G3B, y 8 144 / 8 649 / 11 585 por día. Lo que cambió es el read model: a las 03:30 la ejecución programada leyó 11 799 filas de 20261103 y encontró las 11 585 en día ya archivadas (`unchanged`); a las ~10:30 el día tiene 11 418 claves propias + 1 de otro día. Es decir, **el read model de un día ya cerrado cambió después del archivado** (161 claves nuevas que el archivo no tiene; 328 claves archivadas que el read model ya no tiene). Ese día es además el del vaciado de 00:15 y los rebuilds de la noche (G3C). **Causa no determinada**: el script no imprime títulos ni deltas de hora, así que no distingue desplazamientos de horario de altas y bajas reales. Hipótesis a verificar, no afirmada: correcciones de la fuente tras el sync.
+Consecuencias: (1) confirma la limitación 1 de arriba: el read model no es registro histórico y la paridad solo vale en el instante de la comparación. (2) **Predicción comprobable el 05/11**: la ejecución de las 03:30 cubre 20261102–20261104; si el read model de 20261103 no cambia más, `inserted` de 20261103 ≈ 161, y las 328 claves antiguas permanecen como `extra` (emisiones anunciadas y luego sustituidas: comportamiento del contrato «anunciado», no un defecto). (3) Hay que cuantificar este tipo de deriva antes de usar el archivo como señal de «cambios de horario»: es un insumo de G3E, no un bloqueo.
 
 ## 5. Tamaño y crecimiento (AC-05)
 
-No medido hoy (el reconciliador no pudo ejecutarse, §4). Última medición registrada (G3B §activación, 2026-11-03): 28 378 documentos, 379 B de media, 3,8 MB de almacenamiento + 1,4 MB de índices, ≈ 1,8 MB/día ⇒ ≈ 650 MB a 365 días; 1 documento con `rev > 1` (corrección cross-midnight ya impedida por PR #158). Es una extrapolación lineal de tres días, no una tendencia. El script nuevo emite `count`, `avgObjSize`, `storageSize`, `totalIndexSize`, distribución de `rev`, observaciones por día y `fsUsedSize/fsTotalSize`.
+Medido en producción el 04/11 (§4):
+
+| Magnitud | Valor |
+|---|---|
+| MongoDB | 8.0.19, **standalone** (sin replica set); 10 conexiones al medir |
+| Documentos | 28 378 (8 144 / 8 649 / 11 585 por día) |
+| Tamaño medio | 379 B |
+| Almacenamiento / índices | 3,87 MB / 1,39 MB (`_id_` 1,00 MB; `idx_obs_channel_start` 0,39 MB) |
+| Distribución de `rev` | `rev 1`: 28 377; **`rev 7`: 1** |
+| Día cerrado más reciente archivado | 2026-11-03 |
+| Disco | 69,2 GB usados de 154,9 GB (44,7 %; ≈ 85,7 GB libres) |
+
+Mismo recuento y tamaño que en G3B: el archivo no ha crecido desde entonces (aún no ha cerrado ningún día nuevo). La proyección lineal de G3B (≈ 1,8 MB/día ⇒ ≈ 650 MB a un año) sigue siendo una extrapolación de tres días, no una tendencia; el margen de disco es holgado. `lastSeenAt` máximo (2026-11-03 23:37 UTC) no mide frescura: solo cambia al revisar, no al confirmar «sin cambios».
 
 ## 6. Rendimiento API, SSR y Mongo (AC-06)
 
@@ -177,13 +198,13 @@ El hash es `sha256([title, endMs, sources, entityId])`. Una fuente que aparezca 
 
 | Impacto real | Evidencia | Severidad | Recomendación | ¿Milestone propio? |
 |---|---|---|---|---|
-| Sin impacto medido | 1 documento con `rev > 1` de 28 378 (G3B), causado por flip-flop cross-midnight ya corregido (PR #158). En G3C los tres días dieron `revised 0`. **Sin estadística de producción de hoy** | BAJA hoy | No cambiar el hash. Vigilar `revisionDistribution` y `archivedRevised` de cada día. Disparador: `rev > 1` > 1 % de los documentos de un día **y** revisiones cuyo único cambio sea `sources`. Cambiar el hash exige migración (revisaría de golpe todos los documentos) | No ahora |
+| Sin impacto medido | Producción 04/11: 1 documento con `rev > 1` de 28 378 (`rev 7`, en 20261101), causado por el flip-flop cross-midnight ya corregido (PR #158; se revisó en cada ejecución manual hasta las 00:28). Desde las 00:37 y en la ejecución programada: `revised 0`. Ninguna revisión atribuible a `sources` | BAJA hoy | No cambiar el hash. Vigilar `revisionDistribution` y `archivedRevised` de cada día. Disparador: `rev > 1` > 1 % de los documentos de un día **y** revisiones cuyo único cambio sea `sources`. Cambiar el hash exige migración (revisaría de golpe todos los documentos) | No ahora |
 
 ## 10. Hallazgo C — `prev` de un solo nivel (AC-10)
 
 | Impacto real | Evidencia | Severidad | Recomendación | ¿Milestone propio? |
 |---|---|---|---|---|
-| A→B→A→B pierde el primer título; el contrato conserva solo el valor anterior | 1 revisión observada en total; ningún patrón repetido | BAJA | **Aceptable bajo el contrato actual** (`seenCount`, `rev` y `prev` bastan para detectar inestabilidad). No introducir historial ilimitado. Si el disparador de B se cumple, evaluar un `revs[]` acotado (p. ej. últimos 3 cambios reales) | No ahora |
+| A→B→A→B pierde el primer título; el contrato conserva solo el valor anterior | El único documento revisado llegó a `rev 7` por el bug de medianoche (corregido): ilustra que `prev` solo guarda un nivel, pero no es un patrón editorial real | BAJA | **Aceptable bajo el contrato actual** (`seenCount`, `rev` y `prev` bastan para detectar inestabilidad). No introducir historial ilimitado. Si el disparador de B se cumple, evaluar un `revs[]` acotado (p. ej. últimos 3 cambios reales) | No ahora |
 
 ## 11. Quality gate e indexabilidad (AC-13)
 
@@ -234,7 +255,7 @@ Quedan **fuera** y exigen autorización aparte: copiar la unidad, `daemon-reload
 | Ingeniería | MEDIA: `outOfDay` suponía que otro día lo archivaba | Corregido (`outOfDayUnarchived`) |
 | Ingeniería | MEDIA: solo claves, sin veredicto | Documentado + `verdict` |
 | Ingeniería | BAJA: test parcial sin `reconcileDay`; propiedad residual en el modelo | Corregido |
-| Seguridad | ALTA: `readOnlyGuard` es lista negra (`mapReduce`, `setParameter`, gestión de usuarios…, no listados) | **No corregido**: el script solo emite lecturas; migrar a lista blanca o a usuario Mongo de solo lectura, ver §14 |
+| Seguridad | ALTA: `readOnlyGuard` es lista negra (`mapReduce`, `setParameter`, gestión de usuarios…, no listados) | **Corregido en G3D**: el guard aplica una lista blanca de lecturas (`isAllowedCommand`); `isWriteCommand` se conserva para los tests observadores. Verificado con los tests del guard y 44/44 en los ficheros afectados. Sigue siendo recomendable un usuario Mongo de solo lectura |
 | Seguridad | MEDIA: receta sin `MONGODB_MIN_POOL_SIZE=0`; sin `maxTimeMS`; `serverStatus`/`dbStats` hunden el informe sin `clusterMonitor` | Corregido (receta, 30 s, `catch`) |
 | Seguridad | BAJA: `console.error(e)` | Corregido (`e.message`) |
 | Seguridad | MEDIA: sin `CPUAccounting/MemoryAccounting/IOAccounting` (`MemoryPeak` vacío) | Añadido a la unidad **del repo**; no instalado |
@@ -248,7 +269,8 @@ Verificaciones de solo lectura adicionales recomendadas por seguridad (para la a
 ## 14. Deuda residual y siguiente paso
 
 1. **Bloqueante para cerrar C:** las ejecuciones del 05 y 06/11 (la tabla de §3 debe rellenarse cada día, no al final), y la PR #161 desplegada para ejecutar el reconciliador en producción.
-2. `readOnlyGuard` como lista blanca (o usuario Mongo de solo lectura): el archivador y los scripts de auditoría dependen de ella.
+2. Usuario Mongo de solo lectura para los scripts de auditoría (el guard ya es lista blanca, pero sigue siendo una defensa en el cliente).
+2b. Cuantificar la deriva del read model en días cerrados (hallazgo de 20261103) con una versión del reconciliador que empareje `missing`/`extra` por canal y delta de hora, sin títulos.
 3. Rol Mongo dedicado para el archivador y alertas de frescura del archivo y de disco en el watchdog (G3C #13, #14).
 4. Hallazgo A: sufijo condicional del id de la segunda pasada de la hora repetida, antes del 2027-10-31.
 5. G1/G2: las seis preocupaciones y el desacoplamiento gate-sitemap/página, antes de conectar cualquier familia.
@@ -262,17 +284,23 @@ Verificaciones de solo lectura adicionales recomendadas por seguridad (para la a
 | AC | Estado | Nota |
 |---|---|---|
 | AC-01 tres ejecuciones del timer | **PARCIAL 1/3** | 04/11 OK; 05 y 06 pendientes |
-| AC-02 frescura | **PARCIAL** | el job del 04/11 leyó/confirmó 20261101–03 sin cambios; frescura de la colección (`lastSeenAt`, día más reciente) sin medir |
-| AC-03 sin pérdida inesperada | **PARCIAL** | contadores idénticos a la manual (0 inserted/0 revised); sin comparación por claves |
-| AC-04 paridad por día | **BLOQUEADO** | método clave a clave listo; `not-reconcilable` definido |
-| AC-05 tamaño y revisiones | **PARCIAL** | solo datos de G3B (3 días) |
+| AC-02 frescura | **HECHO** | día cerrado más reciente archivado: 2026-11-03 (ayer); la ejecución programada del 04/11 lo confirmó |
+| AC-03 sin pérdida inesperada | **HECHO** | 28 378 documentos = G3B; por día sin cambios; 0 defectos de identidad, 0 duplicados |
+| AC-04 paridad por día | **PARCIAL** | 20261101 y 20261102 PASS; 20261103 FAIL por deriva del read model posterior al archivado (161 nuevas / 328 ausentes); causa sin determinar |
+| AC-05 tamaño y revisiones | **HECHO** | medido en producción (§5) |
 | AC-06 impacto API/Mongo | **PARCIAL** | muestra posterior (0 errores, p95 ≤ 343 ms); sin línea base ni carga de Mongo: no se concluye ausencia de impacto |
 | AC-07 hardening efectivo | **HECHO (evaluado)** | instalada ≠ repo: sin CPUQuota/CPUWeight/IO idle/NoNewPrivileges/PrivateTmp; plan y rollback listos, sin aplicar |
 | AC-08 DST | **HECHO** | análisis + regresión; sin cambio de ids |
-| AC-09 hash | **HECHO** (sin estadística de hoy) | |
-| AC-10 `prev` | **HECHO** (sin estadística de hoy) | |
+| AC-09 hash | **HECHO** | estadística real de producción (§9) |
+| AC-10 `prev` | **HECHO** | estadística real de producción (§10) |
 | AC-11 permisos | **HECHO** | dos lecturas denegadas, no eludidas; el resto, solo con autorización |
 | AC-12 revisiones | **HECHO** | tres revisiones; las correcciones demostradas, aplicadas (§13) |
 | AC-13 G1/G2 inactivos | **HECHO** | |
+
+## 16. Cierre por aceptación del propietario
+
+El 2026-11-04 el propietario decidió **no esperar** a las ejecuciones del 05 y 06/11 para continuar, y aceptó cerrar G3D con este veredicto **PARTIAL** (1/3 ejecuciones programadas). No se convierte en PASS: AC-01 queda en 1/3, AC-04 en PARCIAL y AC-06 sin línea base. Pasan a **seguimiento no bloqueante**: las lecturas de §3 los días 05 y 06 entre las 03:35 y las 23:59, y la predicción de §4 (≈ 161 inserciones en 20261103 el 05/11) como comprobación.
+
+Cambios de código de esta fase (PR #161): reconciliación por claves, tests, `readOnlyGuard` con lista blanca, unidad del repo con contabilidad. **Sin tocar:** producción, ids, `contentHash`, G1/G2, `INDEX_BATCH_ENABLED`, sitemap, rutas públicas.
 
 M12 sigue **NO-GO**. No se ha activado nada indexable.
