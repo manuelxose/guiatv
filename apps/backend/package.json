@@ -27,7 +27,7 @@
     "seo:gsc-monitor": "node dist/scripts/gsc-monitor.js"
   },
   "engines": {
-    "node": "22"
+    "node": "24"
   },
   "main": "dist/server/index.js",
   "dependencies": {
