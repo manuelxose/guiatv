@@ -8,6 +8,7 @@ import { createSitemapRoutes } from './sitemap.routes';
 import { corsMiddleware } from '../middlewares/cors';
 import { compressionMiddleware } from '../middlewares/compression';
 import { requestLogger } from '../middlewares/requestLogger';
+import { inflightRequestTracker } from '../middlewares/inflightRequestTracker';
 import { publicCachePolicy } from '../middlewares/publicCachePolicy';
 import { errorHandler } from '../middlewares/errorHandler';
 import { notFoundHandler } from '../middlewares/notFoundHandler';
@@ -23,6 +24,9 @@ export const createApp = (dependencies: RoutesDependencies): Application => {
   // Weak ETags let browsers/edges revalidate bounded public representations.
   app.set('etag', 'weak');
   app.set('trust proxy', 1);
+
+  // M13-B3a: first, so every request (sitemap included) is visible to the stall detector from its first byte.
+  app.use(inflightRequestTracker);
 
   // Sitemap — mounted before the no-store middleware so it can send its own Cache-Control headers
   app.use('/', createSitemapRoutes(dependencies.sitemapController));

@@ -32,6 +32,11 @@ export interface StepOptions {
   sync?: boolean;
   /** Background steps shorter than this are not stored (they would only evict useful entries). Boot steps always are. */
   minMs?: number;
+  /**
+   * M13-B3a: a recurring request-time or scheduled step. It never enters the start-up list (a hot path would fill its
+   * 64 slots and its log lines within the boot window); it is stored in the recent ring when it lasts at least `minMs`.
+   */
+  background?: boolean;
 }
 
 let BOOT_WINDOW_MS = 10 * 60_000;
@@ -68,8 +73,9 @@ function finish(
   try {
     active.delete(started.id);
     const durationMs = performance.now() - started.startMs;
-    const isBoot = started.startMs < BOOT_WINDOW_MS;
-    if (!isBoot && !failed && durationMs < (options.minMs ?? 0)) return;
+    const isBoot = !options.background && started.startMs < BOOT_WINDOW_MS;
+    // A quick failure of a recurring (`background`) step, e.g. a request for an invalid date, must not push out evidence.
+    if (!isBoot && (!failed || options.background) && durationMs < (options.minMs ?? 0)) return;
     const record: StepRecord = {
       step,
       startMs: round1(started.startMs),

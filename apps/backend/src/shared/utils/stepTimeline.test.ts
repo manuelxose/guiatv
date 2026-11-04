@@ -72,3 +72,14 @@ test('outside the boot window, short background steps are skipped and slow or fa
   for (let i = 0; i < 100; i += 1) timeStepSync('bg.many', () => undefined);
   assert.equal(stepTimelineSnapshot().recent.length, 64);
 });
+
+test('M13-B3a: a `background` step inside the boot window never fills the start-up list and keeps only slow runs', async () => {
+  for (let i = 0; i < 100; i += 1) await timeStep('req.fast', async () => undefined, { background: true, minMs: 50 });
+  await timeStep('req.slow', () => new Promise<void>((resolve) => setTimeout(resolve, 70)), { background: true, minMs: 50 });
+  const snap = stepTimelineSnapshot();
+  assert.equal(snap.startup.length, 0, 'a hot request path must not consume the start-up slots');
+  assert.equal(snap.droppedStartup, 0);
+  assert.deepEqual(snap.recent.map((s) => s.step), ['req.slow']);
+  for (let i = 0; i < 100; i += 1) await assert.rejects(timeStep('req.badinput', async () => { throw new Error('invalid date'); }, { background: true, minMs: 50 }));
+  assert.deepEqual(stepTimelineSnapshot().recent.map((s) => s.step), ['req.slow'], 'quick failures of a recurring step do not push out evidence');
+});

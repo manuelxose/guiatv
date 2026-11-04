@@ -13,6 +13,7 @@ import { ProgrammeEligibility, clearProgrammeEligibilityLastGood, invalidateProg
 import { TvReadQueryService } from '../../application/services/TvReadQueryService';
 import { PUBLIC_EDITORIAL_FILTER } from '../../application/services/EditorialReviewPolicy';
 import { logger } from '../../shared/utils/logger';
+import { timeStep } from '../../shared/utils/stepTimeline';
 import { indexBatchGate } from '../../application/services/IndexBatchGate';
 import { entityPublicReadPolicy, normalizeEntityPath } from '../../application/services/EntityPublicReadPolicy';
 
@@ -188,6 +189,7 @@ export class SitemapController {
   /* ------------------------------------------------------------------ */
 
   private async getCached(key: string, builder: () => Promise<string | { xml: string; validUntil: number; fallback?: true }>): Promise<string> {
+    const stepName = `sitemap.build.${key}`; // `key` is always one of the fixed literals of the callers below
     key = `${entityPublicReadPolicy().partition()}:${indexBatchGate().partition()}:${key}`;
     const now = Date.now();
     const cached = cache.get(key);
@@ -197,7 +199,7 @@ export class SitemapController {
     if (existing) return existing;
 
     const started = generation;
-    const promise = builder()
+    const promise = timeStep(stepName, builder, { background: true, minMs: 100 })
       .then((built) => {
         // M10-E: a build from a shared snapshot expires with it (TTL, Madrid midnight), never later.
         const xml = typeof built === 'string' ? built : built.xml;
