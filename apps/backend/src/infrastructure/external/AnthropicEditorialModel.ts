@@ -174,8 +174,9 @@ export class AnthropicEditorialModel implements EditorialModel {
 export function parseJson(text: string, fenced: boolean): unknown {
   const candidates = fenced
     ? [
-      ...[...text.matchAll(/```(?:json)?\s*([\s\S]*?)```/g)].map((match) => match[1]).reverse(),
-      ...(/^\s*[{[]/.test(text) ? [text] : []),
+      ...[...text.matchAll(/```[a-zA-Z0-9_-]*\s*([\s\S]*?)```/g)].map((match) => match[1]).reverse(),
+      // Prompt-mode models often introduce the object with prose ("Aquí tienes el artículo:").
+      text,
     ]
     : [text];
   for (const candidate of candidates) {

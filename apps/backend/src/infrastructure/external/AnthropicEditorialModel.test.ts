@@ -80,4 +80,6 @@ test('prompt-mode JSON tolerates prose after the object and picks the last valid
   assert.deepEqual(parseJson('{"claims":[]}\n\nNota adicional', true), { claims: [] });
   assert.deepEqual(parseJson('```json\n{"a":1}\n```\ntexto\n```json\n{"b":2}\n```\nfin', true), { b: 2 });
   assert.deepEqual(parseJson('{"a":1} y {"b":2}', false), { a: 1 });
+  assert.deepEqual(parseJson('Aquí tienes el artículo:\n{"a":1}\nFin.', true), { a: 1 });
+  assert.deepEqual(parseJson('```JSON\n{"a":1}\n```', true), { a: 1 });
 });
