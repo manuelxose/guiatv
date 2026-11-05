@@ -620,9 +620,20 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
     let shapeError = '';
     for (let loop = 0; loop <= limits.maxReviewLoops; loop++) {
       ledger.count('draftAttempts');
-      let draft = await stage('article-drafting', () => ask<Draft>('editorial', writerSystem,
-        `Tema: ${topic.topic}\nIntención: ${topic.intent}\n\nSolo puedes usar estas afirmaciones verificadas (no hace falta usarlas todas: elige las que responden a la intención):\n${claimDigest(usable)}\n\n${writerRules()}${feedback ? `\n\nBorrador anterior:\n${previous}\n\nCorrige estos problemas de la revisión anterior con el menor cambio posible y conserva el resto tal cual. Un dato que no esté entre las afirmaciones verificadas se elimina o se sustituye por uno verificado:\n${feedback}` : ''}`,
-        DRAFT_SCHEMA));
+      let draft: Draft;
+      try {
+        draft = await stage('article-drafting', () => ask<Draft>('editorial', writerSystem,
+          `Tema: ${topic.topic}\nIntención: ${topic.intent}\n\nSolo puedes usar estas afirmaciones verificadas (no hace falta usarlas todas: elige las que responden a la intención):\n${claimDigest(usable)}\n\n${writerRules()}${feedback ? `\n\nBorrador anterior:\n${previous}\n\nCorrige estos problemas de la revisión anterior con el menor cambio posible y conserva el resto tal cual. Un dato que no esté entre las afirmaciones verificadas se elimina o se sustituye por uno verificado:\n${feedback}` : ''}`,
+          DRAFT_SCHEMA));
+      } catch (error) {
+        // A prompt-mode writer can answer with prose and no JSON at all; retry with the defect instead of losing the job.
+        const message = error instanceof Error ? error.message : String(error);
+        if (chosen.editorial.model.structuredOutput !== 'prompt' || !/json|esquema|schema|no es un objeto/i.test(message)) throw error;
+        shapeError = `respuesta del redactor no válida: ${message}`;
+        feedback = 'Tu respuesta anterior no contenía un objeto JSON válido. Devuelve un único objeto JSON con las claves y tipos exigidos, sin texto fuera del objeto.';
+        previous = '';
+        continue;
+      }
 
       const shape = chosen.editorial.model.structuredOutput === 'prompt' ? draftShapeProblems(draft) : [];
       if (shape.length) {
