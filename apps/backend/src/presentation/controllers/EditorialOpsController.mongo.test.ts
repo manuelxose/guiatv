@@ -80,6 +80,23 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     assert.equal((await call(blog.rollbackPost, { params: { id }, body: { version: 1 } })).body.data.post.status, 'draft', 'a paused policy does not restore a policy approval');
     await call(ops.resume);
 
+    // Editing through the Admin while policy gates run must invalidate the approval's version.
+    const concurrentId = await create(await pipelineRun('el-padrino-edicion-concurrente'));
+    const qualityFindings = (blog as any).qualityFindings.bind(blog);
+    (blog as any).qualityFindings = async (post: unknown) => {
+      const findings = await qualityFindings(post);
+      assert.equal((await call(ops.updatePost, { params: { id: concurrentId }, body: { title: 'Un título modificado durante la aprobación' } })).code, 200);
+      return findings;
+    };
+    try {
+      assert.match(String((await call(blog.approveByPolicy, { params: { id: concurrentId } })).error), /changed while this request ran/);
+    } finally {
+      delete (blog as any).qualityFindings;
+    }
+    assert.equal((await BlogPostModel.findById(concurrentId).lean())!.status, 'draft');
+    assert.equal(await mongoose.connection.collection('editorial_policy_approvals').countDocuments({ postId: new mongoose.Types.ObjectId(concurrentId) }), 0);
+    await BlogPostModel.deleteOne({ _id: concurrentId });
+
     // Mock cover: stored with derivatives, previewable in the Admin, never publishable.
     const withCover = await pipelineRun('el-padrino-portada', true);
     const [asset] = withCover.provenance!.images!;

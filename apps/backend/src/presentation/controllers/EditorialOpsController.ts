@@ -216,7 +216,9 @@ export class EditorialOpsController {
     if (body.metaTitle !== undefined) updates['seo.metaTitle'] = String(body.metaTitle).trim().slice(0, 120);
     if (body.metaDescription !== undefined) updates['seo.metaDescription'] = String(body.metaDescription).trim().slice(0, 220);
     if (updates.title !== undefined && String(updates.title).length < 20) throw new ValidationError('Title must contain at least 20 characters', []);
-    await BlogPostModel.updateOne({ _id: post._id, status: 'draft' }, { $set: updates, $unset: { reviewedBy: 1, reviewNotes: 1 } });
+    const version = post.__v === undefined ? { $exists: false } : post.__v;
+    const result = await BlogPostModel.updateOne({ _id: post._id, status: 'draft', __v: version }, { $set: updates, $unset: { reviewedBy: 1, reviewNotes: 1 }, $inc: { __v: 1 } });
+    if (!result.matchedCount) throw new ConflictError('The post changed while this request ran; read it again');
     await audit().insertOne({ at: new Date(), action: 'editorial-post-edit', by: actor(req), postId: String(post._id), slug: post.slug });
     res.json(successResponse({ updated: true, id: String(post._id) }));
   };
