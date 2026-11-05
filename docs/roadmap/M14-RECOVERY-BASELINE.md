@@ -18,8 +18,10 @@ Status: **incomplete; do not deploy as a recovery release**. Observation on 2026
 ## Outstanding blockers
 
 - Manual requests have no durable owner lease or publication fencing. Do not automatically requeue running requests until stale workers are prevented from completing or publishing and successful publication can be reconciled.
+- Production MongoDB is standalone: `hello` reports no replica set, and a read inside a transaction failed with `IllegalOperation` (20). A transaction-based recovery design requires a separately validated topology migration. A lease check before publication alone cannot fence a worker whose lease expires before the post is saved.
 - The local runner lock is not distributed and its age-based recovery may steal a live process's lock. PID existence is insufficient proof of ownership or health.
-- No end-to-end provider execution, publication, crash recovery, concurrent cap proof, deploy handover or sustained operating window has been verified. The production gateway/credential choice requires the owner. No production queues were purged or modified.
+- The owner requires subscription OAuth, not API billing. An isolated Claude Code subscription login and a minimal text response succeeded without gateway credentials; this does not establish an equivalent editorial adapter, web-research controls, provenance, or unattended reliability. The existing pipeline uses the Messages SDK. No production provider configuration was changed.
+- No end-to-end editorial publication, crash recovery, concurrent cap proof, deploy handover or sustained operating window has been verified. No production queues were purged or modified.
 - Deploy only through the established artifact workflow after reviewing and validating a complete recovery design. Roll back using the existing release procedure in `RUNBOOK.md`; do not delete queue records as a rollback.
 
 ## Validation
