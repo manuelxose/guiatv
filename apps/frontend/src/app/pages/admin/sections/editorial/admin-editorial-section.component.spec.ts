@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { AdminEditorialService, EditorialOverview, EditorialPolicyStatus } from '../../../../services/admin-editorial.service';
-import { postStage, queueStage } from './editorial-status';
+import { diffLines, gateDetails, postStage, queueStage } from './editorial-status';
 import { AdminEditorialSectionComponent, policyStateText } from './admin-editorial-section.component';
 
 const BASE: EditorialPolicyStatus = {
@@ -103,5 +103,38 @@ describe('topic control', () => {
     expect(c.topics.map((t) => t.id)).toEqual(['b']);
     c.topicAction('b', 'reject', { reason: 'duplicado' });
     expect(calls[0]).toEqual(['b', 'reject', { reason: 'duplicado' }]);
+  });
+});
+
+describe('review helpers', () => {
+  it('diffs HTML by element and marks additions and removals', () => {
+    const d = diffLines('<p>uno</p><p>dos</p><p>tres</p>', '<p>uno</p><p>dos cambiado</p><p>tres</p><p>cuatro</p>');
+    expect(d.filter((l) => l.kind === 'del').map((l) => l.text)).toEqual(['<p>dos</p>']);
+    expect(d.filter((l) => l.kind === 'add').map((l) => l.text)).toEqual(['<p>dos cambiado</p>', '<p>cuatro</p>']);
+    expect(d.filter((l) => l.kind === 'same').length).toBe(2);
+    expect(diffLines('<p>a</p>', '<p>a</p>').every((l) => l.kind === 'same')).toBe(true);
+  });
+
+  it('lists the failed checks of a rejected quality gate', () => {
+    expect(gateDetails({ error: { error: { details: [{ message: 'acknowledge:x' }, { message: 'sin fuentes' }] } } })).toEqual(['acknowledge:x', 'sin fuentes']);
+    expect(gateDetails({})).toEqual([]);
+  });
+
+  it('approves with the review key and the acknowledged codes, then clears the key', () => {
+    const calls: unknown[][] = [];
+    const detail = { post: { id: 'p1', status: 'draft', title: 't', slug: 's', content: '', excerpt: '', metaTitle: '', metaDescription: '' }, provenance: { bundle: { sources: [], claims: [] } }, findings: [{ severity: 'human', code: 'H1', message: 'm' }], policyBlockers: [], revisions: [], previous: null } as any;
+    TestBed.configureTestingModule({ imports: [AdminEditorialSectionComponent], providers: [{ provide: AdminEditorialService, useValue: {
+      getOverview: () => of(overview), getPost: () => of(detail), approvePost: (...a: unknown[]) => { calls.push(a); return of({}); },
+    } }] });
+    const fixture = TestBed.createComponent(AdminEditorialSectionComponent);
+    fixture.detectChanges();
+    const c = fixture.componentInstance;
+    c.openPost('p1');
+    c.reviewer = 'Ana';
+    c.reviewKey = 'secreta';
+    c.toggleAck('H1');
+    c.approve();
+    expect(calls[0]).toEqual(['p1', 'secreta', 'Ana', ['H1']]);
+    expect(c.reviewKey).toBe('');
   });
 });

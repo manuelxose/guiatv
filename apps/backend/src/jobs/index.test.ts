@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import test from 'node:test';
-import { createIsolatedJobRunner, type SpawnProcess } from './index';
+import { createIsolatedJobRunner, listScheduledJobs, runScheduledJob, type SpawnProcess } from './index';
 
 test('isolated job runner spawns the heavy job outside the API process', async () => {
   const child = new EventEmitter();
@@ -49,4 +49,9 @@ test('isolated job runner reports child failures and permits the next run', asyn
   const nextRun = run();
   secondChild.emit('exit', 0, null);
   assert.equal(await nextRun, true);
+});
+
+test('an unregistered scheduled job cannot be run on demand and is not listed', async () => {
+  assert.deepEqual(listScheduledJobs().filter((job) => job.name === 'nope'), []);
+  await assert.rejects(runScheduledJob('nope'), /Unknown or non-runnable/);
 });

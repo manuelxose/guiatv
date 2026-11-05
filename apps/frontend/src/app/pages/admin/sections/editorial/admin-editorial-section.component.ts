@@ -10,7 +10,7 @@ import {
 } from '../../../../services/admin-editorial.service';
 import { AdminConfirmDialogComponent } from '../../components/admin-confirm-dialog/admin-confirm-dialog.component';
 import { AdminStatusBadgeComponent } from '../../components/admin-status-badge/admin-status-badge.component';
-import { PIPELINE_STAGES, PipelineStage, STATE_BADGE, STATE_LABELS, postStage, queueStage } from './editorial-status';
+import { DiffLine, PIPELINE_STAGES, PipelineStage, RUN_STEPS, STATE_BADGE, STATE_LABELS, diffLines, gateDetails, postStage, queueStage } from './editorial-status';
 import { EditorialPostSummary, EditorialQueueActionName, EditorialQueueItem } from '../../../../services/admin-editorial.service';
 import { interval } from 'rxjs';
 
@@ -64,6 +64,19 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
   readonly stages = PIPELINE_STAGES;
   activeTab: typeof this.tabs[number] = 'pipeline';
   emergencyOpen = false;
+  readonly runSteps = RUN_STEPS;
+  expandedJob = '';
+  // Publication review (key and reviewer are typed per action and never kept).
+  reviewer = '';
+  reviewKey = '';
+  ackCodes: string[] = [];
+  reviewBusy = '';
+  reviewError = '';
+  reviewDetails: string[] = [];
+  postRejectReason = '';
+  unpublishReason = '';
+  diffOpen = false;
+  private diffCache: DiffLine[] | null = null;
   readonly topicFilters = [
     { id: 'all', label: 'Todos' }, { id: 'queued', label: 'En cola' }, { id: 'held', label: 'Retenidos' },
     { id: 'rejected', label: 'Rechazados' }, { id: 'manual', label: 'Manuales' },
@@ -166,6 +179,47 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
       posts: (ov?.posts ?? []).filter((p) => postStage(p) === st.id),
     }));
   }
+  toggleJob(id: string): void { this.expandedJob = this.expandedJob === id ? '' : id; }
+  stepCost(j: { costEntries: Array<{ role: string; model: string; inputTokens: number; outputTokens: number; usd: number }> }, role: string) {
+    const rows = j.costEntries.filter((e) => e.role === role);
+    return rows.length ? { models: [...new Set(rows.map((r) => r.model))].join(', '), tokens: rows.reduce((n, r) => n + r.inputTokens + r.outputTokens, 0), usd: rows.reduce((n, r) => n + r.usd, 0), calls: rows.length } : null;
+  }
+  get diff(): DiffLine[] {
+    const d = this.detail;
+    if (!d?.previous) return [];
+    return this.diffCache ??= diffLines(d.previous.content, d.post.content);
+  }
+  get diffChanged(): number { return this.diff.filter((l) => l.kind !== 'same').length; }
+  humanFindings(): EditorialFinding[] { return (this.detail?.findings ?? []).filter((f) => f.severity === 'human'); }
+  toggleAck(code: string): void { this.ackCodes = this.ackCodes.includes(code) ? this.ackCodes.filter((c) => c !== code) : [...this.ackCodes, code]; }
+  get canAct(): boolean { return !!this.reviewKey && !!this.reviewer.trim() && this.reviewBusy === ''; }
+  private reviewAction(name: string, call: () => import('rxjs').Observable<unknown>, done: string): void {
+    if (!this.detail || !this.canAct) return;
+    this.reviewBusy = name;
+    this.reviewError = '';
+    this.reviewDetails = [];
+    const id = this.detail.post.id;
+    // Build the request first (it captures the key), then drop the key from memory.
+    const request = call();
+    this.reviewKey = '';
+    request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => { this.reviewBusy = ''; this.ackCodes = []; this.notice = done; this.openPost(id); this.refresh(true); },
+      error: (e) => { this.reviewBusy = ''; this.reviewError = errorMessage(e, 'La acción no se pudo completar'); this.reviewDetails = gateDetails(e); },
+    });
+  }
+  approve(): void { const id = this.detail?.post.id; if (id) this.reviewAction('approve', () => this.service.approvePost(id, this.reviewKey, this.reviewer.trim(), this.ackCodes), 'Artículo aprobado; todos los controles se han vuelto a comprobar'); }
+  unpublish(): void { const id = this.detail?.post.id; if (id) this.reviewAction('unpublish', () => this.service.unpublishPost(id, this.reviewKey, this.reviewer.trim(), this.unpublishReason), 'Artículo despublicado; queda como borrador y se puede restaurar'); }
+  restore(version: number): void { const id = this.detail?.post.id; if (id) this.reviewAction(`restore-${version}`, () => this.service.rollbackPost(id, version, this.reviewKey, this.reviewer.trim()), `Versión ${version} restaurada`); }
+  reject(): void {
+    const id = this.detail?.post.id;
+    if (!id || this.reviewBusy) return;
+    this.reviewBusy = 'reject';
+    this.reviewError = '';
+    this.service.rejectPost(id, this.postRejectReason).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => { this.reviewBusy = ''; this.postRejectReason = ''; this.notice = 'Borrador rechazado; sigue sin publicarse'; this.openPost(id); this.refresh(true); },
+      error: (e) => { this.reviewBusy = ''; this.reviewError = errorMessage(e, 'No se pudo rechazar el borrador'); },
+    });
+  }
   topicMatches(q: EditorialQueueItem, f: string): boolean {
     const state = q.status ?? q.state;
     return f === 'all' || (f === 'manual' ? q.source === 'manual' : f === 'held' ? state === 'held' || state === 'failed' : f === 'rejected' ? state === 'rejected' || state === 'expired' || state === 'cancelled' : state === f);
@@ -219,7 +273,7 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
     this.detailOpen = true;
     document.body.style.overflow = 'hidden';
     this.service.getPost(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (data) => { this.detail = data; this.sourceIndex = new Map(data.provenance.bundle.sources.map((s) => [s.id, s])); this.editDraft = { title: data.post.title, excerpt: data.post.excerpt, content: data.post.content, metaTitle: data.post.metaTitle, metaDescription: data.post.metaDescription }; this.editError = ''; this.detailLoading = false; },
+      next: (data) => { this.diffCache = null; this.ackCodes = []; this.reviewError = ''; this.reviewDetails = []; this.detail = data; this.sourceIndex = new Map(data.provenance.bundle.sources.map((s) => [s.id, s])); this.editDraft = { title: data.post.title, excerpt: data.post.excerpt, content: data.post.content, metaTitle: data.post.metaTitle, metaDescription: data.post.metaDescription }; this.editError = ''; this.detailLoading = false; },
       error: (e) => { this.detailLoading = false; this.detailError = errorMessage(e, 'No se pudo cargar el artículo'); },
     });
   }

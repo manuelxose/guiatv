@@ -33,6 +33,42 @@
   </ng-container>
 
   <ng-container *ngIf="activeItem === 'jobs'">
+    <section class="mb-6" aria-labelledby="sched-title">
+      <h3 id="sched-title" class="text-base font-semibold text-[var(--portal-text)] mb-2">Scheduled system jobs</h3>
+      <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl overflow-x-auto"><table class="w-full text-sm"><thead class="text-left text-[var(--portal-text-muted)]"><tr><th class="p-4">Job</th><th>Schedule</th><th>Last run</th><th>Status</th><th>Control</th></tr></thead><tbody>
+        <tr *ngFor="let job of scheduled" class="border-t border-[var(--portal-border)]"><td class="p-4">{{ job.label }}<small class="block text-[var(--portal-text-muted)] font-mono">{{ job.name }}</small></td><td class="font-mono text-xs">{{ job.schedule }}</td><td>{{ job.lastRun?.queuedAt ? (job.lastRun.queuedAt | date:'short') : 'No recorded run' }}<small *ngIf="job.lastRun?.triggeredBy" class="block text-[var(--portal-text-muted)]">{{ job.lastRun.triggeredBy }}</small></td><td><app-admin-status-badge *ngIf="job.lastRun" [status]="job.lastRun.status"></app-admin-status-badge><span *ngIf="!job.lastRun">—</span><small *ngIf="job.lastRun?.errorSummary" class="block text-[var(--portal-text-muted)]">{{ job.lastRun.errorSummary }}</small></td><td><button *ngIf="job.runnable" type="button" class="min-h-[44px] px-4 rounded-full border border-[var(--portal-border-strong)] text-[var(--portal-text)]" [disabled]="jobBusy !== ''" (click)="runScheduled(job.name)">{{ jobBusy === job.name ? 'Queuing…' : 'Run now' }}</button><span *ngIf="!job.runnable" class="text-[var(--portal-text-muted)]">Automatic only</span></td></tr>
+        <tr *ngIf="!scheduled.length"><td colspan="5" class="p-4 text-[var(--portal-text-muted)]">Scheduled jobs are disabled on this server (DISABLE_SCHEDULED_JOBS) or have not registered yet.</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="mb-6" aria-labelledby="edit-title">
+      <div class="flex items-center justify-between gap-3 mb-2"><h3 id="edit-title" class="text-base font-semibold text-[var(--portal-text)]">Editorial AI pipeline</h3><span class="text-xs text-[var(--portal-text-muted)]">Cost figures are indicative only; they never stop work.</span></div>
+      <div *ngIf="editorial as ed; else noEditorial" class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-4 space-y-4">
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm">
+          <div><small class="text-[var(--portal-text-muted)]">Runner</small><p class="font-semibold">{{ ed.runner.online ? 'Online' : ed.runner.lastSeenAt ? 'No recent signal' : 'Never connected' }}</p><small class="text-[var(--portal-text-muted)]">{{ ed.runner.process?.running ? 'Process running' + (ed.runner.process?.pid ? ' · PID ' + ed.runner.process?.pid : '') : 'Process stopped' }}</small></div>
+          <div><small class="text-[var(--portal-text-muted)]">Last cycle</small><p class="font-semibold">{{ ed.lastCycle ? ed.lastCycle.result : '—' }}</p><small class="text-[var(--portal-text-muted)]">{{ ed.lastCycle ? (ed.lastCycle.at | date:'short') : 'No cycle recorded' }}</small></div>
+          <div><small class="text-[var(--portal-text-muted)]">Next scheduled cycle</small><p class="font-semibold">{{ ed.nextRunAt ? (ed.nextRunAt | date:'short') : '—' }}</p><small class="text-[var(--portal-text-muted)]">Every {{ ed.generation.scheduleHours }} h · {{ ed.generation.enabled ? 'enabled' : 'paused' }}</small></div>
+          <div><small class="text-[var(--portal-text-muted)]">Work</small><p class="font-semibold">{{ ed.queueSummary.running }} running · {{ ed.queueSummary.manualPending + ed.queueSummary.discovered }} pending</p><small class="text-[var(--portal-text-muted)]">Today ${{ ed.spend.todayUsd | number:'1.2-2' }} (indicative)</small></div>
+        </div>
+        <p *ngIf="ed.lastCycle?.result === 'discovery-error'" class="text-sm text-[var(--portal-text)] border border-[var(--portal-border-strong)] rounded-xl p-3">The last cycle failed: {{ ed.lastCycle?.reason }}</p>
+        <div class="flex flex-wrap gap-2">
+          <button *ngIf="!ed.runner.process?.running" type="button" class="min-h-[44px] px-4 rounded-full bg-[var(--spotify-green)] text-black font-semibold" [disabled]="jobBusy !== '' || !ed.runner.process?.configured" (click)="editorialRunner('start')">Start runner now</button>
+          <button *ngIf="ed.runner.process?.running" type="button" class="min-h-[44px] px-4 rounded-full border border-[var(--portal-border-strong)] text-[var(--portal-text)]" [disabled]="jobBusy !== ''" (click)="editorialRunner('stop')">Stop runner</button>
+          <button type="button" class="min-h-[44px] px-4 rounded-full border border-[var(--portal-border-strong)] text-[var(--portal-text)]" [disabled]="jobBusy !== '' || !ed.runner.process?.configured" (click)="editorialRunner('restart')">Restart runner</button>
+          <button type="button" class="min-h-[44px] px-4 rounded-full border border-[var(--portal-border-strong)] text-[var(--portal-text)]" [disabled]="jobBusy !== ''" (click)="editorialDiscover()">Queue topic discovery</button>
+        </div>
+        <div class="overflow-x-auto"><table class="w-full text-sm"><thead class="text-left text-[var(--portal-text-muted)]"><tr><th class="py-2">Request</th><th>Status</th><th>Updated</th><th>Detail</th><th>Control</th></tr></thead><tbody>
+          <tr *ngFor="let item of ed.queue" class="border-t border-[var(--portal-border)]"><td class="py-2">{{ item.title || item.topic?.title || (item.kind === 'discover' ? 'Topic discovery' : item.id) }}<small class="block text-[var(--portal-text-muted)]">{{ item.source === 'manual' ? 'Manual request' : 'Discovered topic' }}</small></td><td><app-admin-status-badge [status]="item.status || item.state || 'queued'"></app-admin-status-badge></td><td>{{ (item.updatedAt || item.createdAt) ? ((item.updatedAt || item.createdAt) | date:'short') : '—' }}</td><td class="max-w-xs break-words">{{ item.reason || '—' }}</td><td>
+            <button *ngIf="item.source === 'manual' && item.status === 'queued'" type="button" class="min-h-[44px] px-3 rounded-full border border-[var(--portal-border-strong)]" [disabled]="jobBusy !== ''" (click)="editorialRequest(item.id, 'cancel')">Cancel</button>
+            <button *ngIf="item.source === 'manual' && (item.status === 'failed' || item.status === 'cancelled')" type="button" class="min-h-[44px] px-3 rounded-full border border-[var(--portal-border-strong)]" [disabled]="jobBusy !== ''" (click)="editorialRequest(item.id, 'retry')">Retry</button></td></tr>
+          <tr *ngIf="!ed.queue.length"><td colspan="5" class="py-3 text-[var(--portal-text-muted)]">No editorial work queued.</td></tr>
+        </tbody></table></div>
+        <p class="text-sm text-[var(--portal-text-muted)]">Topic decisions, article review and run timelines live in AI Assistant → Operaciones IA.</p>
+      </div>
+      <ng-template #noEditorial><p class="text-sm text-[var(--portal-text-muted)]">Editorial pipeline data is unavailable.</p></ng-template>
+    </section>
+
+    <h3 class="text-base font-semibold text-[var(--portal-text)] mb-2">Persisted operations</h3>
     <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl overflow-x-auto"><table class="w-full text-sm"><thead class="text-left text-[var(--portal-text-muted)]"><tr><th class="p-4">Type</th><th>Status</th><th>Queued</th><th>Step / error</th></tr></thead><tbody><tr *ngFor="let job of jobs" class="border-t border-[var(--portal-border)]"><td class="p-4">{{ job.type }}</td><td><app-admin-status-badge [status]="job.status"></app-admin-status-badge></td><td>{{ job.queuedAt | date:'short' }}</td><td>{{ job.errorSummary || job.currentStep || '—' }}</td></tr><tr *ngIf="!jobs.length"><td colspan="4" class="p-4 text-[var(--portal-text-muted)]">No persisted background jobs yet.</td></tr></tbody></table></div>
   </ng-container>
 
