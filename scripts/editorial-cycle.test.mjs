@@ -10,9 +10,21 @@ import { join } from 'node:path';
 
 const policy = { dailyLimit: 10, approvalsLast24h: 0, active: true };
 const seen = [];
+const heartbeats = [];
+let work = null;
 const server = http.createServer((req, res) => {
   seen.push(`${req.method} ${req.url}`);
   const json = (code, body) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
+  if (req.url === '/v2/admin/editorial/generation/runner/heartbeat') {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => { heartbeats.push(JSON.parse(body)); json(200, {}); });
+    return;
+  }
+  if (req.url === '/v2/admin/editorial/generation/runner/work' && work) return json(200, { data: work });
+  if (req.url === '/v2/admin/editorial/generation/runner/requests/other/claim') return json(409, {});
+  if (req.url === '/v2/admin/editorial/generation/runner/requests/mine/claim') return json(200, { data: {} });
+  if (req.url.includes('/generation/runner/requests/') && req.url.endsWith('/finish')) return json(200, {});
   if (req.url.startsWith('/v2/admin/editorial/overview')) return policy.unreadable ? json(500, {}) : json(200, { data: { policy } });
   if (req.url.startsWith('/v2/admin/editorial/jobs')) return json(201, {});
   if (req.url.startsWith('/v2/blog')) return json(200, []);
@@ -85,11 +97,33 @@ test('a live lock refuses a second runner; a dead one is recovered', async () =>
   writeFileSync(join(dir, 'run.lock'), `${process.pid} ${new Date().toISOString()}\n`);
   assert.equal((await cycle(dir)).code, 3, 'concurrent/duplicate job refused');
   writeFileSync(join(dir, 'run.lock'), `999999 ${new Date(Date.now() - 7 * 3600e3).toISOString()}\n`);
+  writeFileSync(join(dir, 'topic-queue.json'), JSON.stringify({ version: 1, lastDiscoveryAt: new Date().toISOString(), topics: [] }));
   const r = await cycle(dir);
   assert.equal(r.code, 0, r.output);
   assert.match(r.output, /lock huérfano recuperado/);
   assert.ok(!existsSync(join(dir, 'run.lock')), 'released at exit');
   rmSync(dir, { recursive: true });
+});
+
+test('discovery finishes only requests claimed by this runner', async () => {
+  const dir = fresh();
+  work = { policy, settings: { enabled: true }, requests: [{ id: 'other', kind: 'discover' }, { id: 'mine', kind: 'discover' }] };
+  const before = seen.length;
+  const beforeHeartbeats = heartbeats.length;
+  try {
+    const result = await cycle(dir);
+    assert.equal(result.code, 1, result.output);
+    const calls = seen.slice(before);
+    assert.ok(calls.includes('POST /v2/admin/editorial/generation/runner/requests/mine/finish'));
+    assert.ok(!calls.includes('POST /v2/admin/editorial/generation/runner/requests/other/finish'));
+    assert.equal((result.output.match(/descubrimiento fallido/g) ?? []).length, 1, 'no second discovery after failure');
+    assert.equal(heartbeats.slice(beforeHeartbeats).at(-1).status, 'error');
+    assert.deepEqual(heartbeats.slice(beforeHeartbeats).at(-1).providers, heartbeats[beforeHeartbeats].providers);
+    assert.equal(heartbeats.slice(beforeHeartbeats).at(-1).webSearch, true);
+  } finally {
+    work = null;
+    rmSync(dir, { recursive: true });
+  }
 });
 
 test('daily limit reached: nothing is started', async () => {
@@ -103,13 +137,21 @@ test('daily limit reached: nothing is started', async () => {
   rmSync(dir, { recursive: true });
 });
 
-test('provider outage: discovery fails quietly and an empty queue ends the cycle with nothing published', async () => {
+test('provider outage: discovery failure is reported when the queue is empty', async () => {
   const dir = fresh();
   const r = await cycle(dir);
-  assert.equal(r.code, 0, r.output);
+  assert.equal(r.code, 1, r.output);
   const log = lastCycle(dir);
   assert.match(log.discovery.error, /gateway down|500/);
-  assert.equal(log.result, 'no-eligible-topics');
+  assert.equal(log.result, 'discovery-error');
+  rmSync(dir, { recursive: true });
+});
+
+test('provider outage: a discovery-only run reports failure', async () => {
+  const dir = fresh();
+  const r = await cycle(dir, {}, 'discover');
+  assert.equal(r.code, 1, r.output);
+  assert.equal(lastCycle(dir).result, 'discovery-error');
   rmSync(dir, { recursive: true });
 });
 

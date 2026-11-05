@@ -235,9 +235,10 @@ export class EditorialGenerationService {
   }
 
   async operationalState() {
-    const [generation, runnerDoc, lastCycle, queueDoc, manual] = await Promise.all([
+    const [generation, runnerDoc, lastCycle, queueDoc, manual, manualPending, manualRunning] = await Promise.all([
       this.getSettings(), runner().findOne({ _id: 'current' }), cycles().findOne({}, { sort: { at: -1 } }),
       queue().findOne({ _id: 'current' }), requests().find({ status: { $in: ['queued', 'running', 'failed', 'cancelled'] } }).sort({ createdAt: -1 }).limit(50).toArray(),
+      requests().countDocuments({ status: 'queued' }), requests().countDocuments({ status: 'running' }),
     ]);
     const lastSeenAt = runnerDoc?.lastSeenAt ?? null;
     const staleMs = Math.max(15 * 60e3, generation.scheduleHours * 3600e3 + 15 * 60e3);
@@ -254,9 +255,9 @@ export class EditorialGenerationService {
       nextRunAt: generation.enabled && lastSeenAt ? new Date(new Date(lastSeenAt).getTime() + generation.scheduleHours * 3600e3).toISOString() : null,
       queue: [...manual.map((item) => ({ ...this.publicRequest(item), source: 'manual' })), ...(queueDoc?.items ?? []).map((item: any) => ({ ...item, source: 'discovered' }))].slice(0, 100),
       queueSummary: {
-        manualPending: manual.filter((item) => item.status === 'queued').length,
+        manualPending,
         discovered: queueDoc?.items?.filter((item: any) => item.state === 'queued').length ?? 0,
-        running: manual.filter((item) => item.status === 'running').length + (queueDoc?.items?.filter((item: any) => item.state === 'running').length ?? 0),
+        running: manualRunning + (queueDoc?.items?.filter((item: any) => item.state === 'running').length ?? 0),
       },
     };
   }

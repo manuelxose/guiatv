@@ -177,6 +177,11 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     const operational = await ops['generation'].operationalState();
     const capabilities = operational.runner.capabilities as { providers: string[] };
     assert.deepEqual([operational.runner.status, operational.runner.lastError, capabilities.providers], ['error', 'OPENAI_API_KEY missing', ['openai']]);
+    const requests = mongoose.connection.collection('editorial_generation_requests');
+    await requests.insertMany(Array.from({ length: 55 }, (_, i) => ({ id: `backlog-${i}`, kind: 'discover', status: i < 4 ? 'running' : 'queued', createdAt: new Date(), updatedAt: new Date(), createdBy: 'test' })));
+    const backlog = await ops['generation'].operationalState();
+    assert.equal(backlog.queueSummary.manualPending, operational.queueSummary.manualPending + 51);
+    assert.equal(backlog.queueSummary.running, operational.queueSummary.running + 4);
 
     // Router authorization over HTTP: no session, a non-admin session, and resume without the review key.
     process.env.ANALYTICS_ADMIN_KEY = 'admin-key-test';
