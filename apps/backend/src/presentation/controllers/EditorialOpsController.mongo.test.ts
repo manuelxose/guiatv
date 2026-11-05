@@ -182,6 +182,22 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     const backlog = await ops['generation'].operationalState();
     assert.equal(backlog.queueSummary.manualPending, operational.queueSummary.manualPending + 51);
     assert.equal(backlog.queueSummary.running, operational.queueSummary.running + 4);
+    const generation = ops['generation'];
+    const request = await generation.createRequest('discover', null, 'test');
+    assert.equal(request.claimsObserved, 0);
+    const claims = await Promise.allSettled([generation.claimRequest(request.id), generation.claimRequest(request.id)]);
+    assert.equal(claims.filter((claim) => claim.status === 'fulfilled').length, 1, 'only one concurrent claim succeeds');
+    const claimed = claims.find((claim) => claim.status === 'fulfilled');
+    assert.ok(claimed && claimed.status === 'fulfilled');
+    assert.equal(claimed.value.claimsObserved, 1);
+    assert.ok(claimed.value.claimedAt);
+    const failed = await generation.finishRequest(request.id, 'failed', 'provider unavailable');
+    assert.ok(failed.finishedAt);
+    const retried = await generation.retryRequest(request.id);
+    assert.equal(retried.claimedAt, null);
+    assert.equal(retried.finishedAt, null);
+    assert.equal((await generation.claimRequest(request.id)).claimsObserved, 2);
+    assert.ok((await generation.finishRequest(request.id, 'completed')).finishedAt);
 
     // Router authorization over HTTP: no session, a non-admin session, and resume without the review key.
     process.env.ANALYTICS_ADMIN_KEY = 'admin-key-test';

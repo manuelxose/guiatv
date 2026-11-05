@@ -50,6 +50,9 @@ type GenerationRequest = {
   createdAt: Date;
   updatedAt: Date;
   createdBy: string;
+  claimsObserved?: number;
+  claimedAt?: Date;
+  finishedAt?: Date;
 };
 
 const db = () => BlogPostModel.db;
@@ -173,19 +176,20 @@ export class EditorialGenerationService {
       if (topic.seedUrls.some((url) => !domains.has(new URL(url).hostname.replace(/^www\./, '')))) fail('Every source domain must be enabled in generation settings');
     }
     const now = new Date();
-    const request: GenerationRequest = { id: randomUUID(), kind, status: 'queued', topic, createdAt: now, updatedAt: now, createdBy: actor };
+    const request: GenerationRequest = { id: randomUUID(), kind, status: 'queued', topic, createdAt: now, updatedAt: now, createdBy: actor, claimsObserved: 0 };
     await requests().insertOne(request);
     return this.publicRequest(request);
   }
 
   async cancelRequest(id: string) {
-    const result = await requests().findOneAndUpdate({ id, status: 'queued' }, { $set: { status: 'cancelled', updatedAt: new Date() } }, { returnDocument: 'after' });
+    const now = new Date();
+    const result = await requests().findOneAndUpdate({ id, status: 'queued' }, { $set: { status: 'cancelled', updatedAt: now, finishedAt: now } }, { returnDocument: 'after' });
     if (!result) throw new ConflictError('Only queued requests can be cancelled');
     return this.publicRequest(result);
   }
 
   async retryRequest(id: string) {
-    const result = await requests().findOneAndUpdate({ id, status: { $in: ['failed', 'cancelled'] } }, { $set: { status: 'queued', reason: '', updatedAt: new Date() } }, { returnDocument: 'after' });
+    const result = await requests().findOneAndUpdate({ id, status: { $in: ['failed', 'cancelled'] } }, { $set: { status: 'queued', reason: '', updatedAt: new Date() }, $unset: { claimedAt: '', finishedAt: '' } }, { returnDocument: 'after' });
     if (!result) throw new NotFoundError('No failed or cancelled generation request found');
     return this.publicRequest(result);
   }
@@ -196,13 +200,15 @@ export class EditorialGenerationService {
   }
 
   async claimRequest(id: string) {
-    const result = await requests().findOneAndUpdate({ id, status: 'queued' }, { $set: { status: 'running', updatedAt: new Date() } }, { returnDocument: 'after' });
+    const now = new Date();
+    const result = await requests().findOneAndUpdate({ id, status: 'queued' }, { $set: { status: 'running', updatedAt: now, claimedAt: now }, $inc: { claimsObserved: 1 } }, { returnDocument: 'after' });
     if (!result) throw new ConflictError('Request is no longer queued');
     return this.publicRequest(result);
   }
 
   async finishRequest(id: string, status: 'completed' | 'failed', reason = '') {
-    const result = await requests().findOneAndUpdate({ id, status: 'running' }, { $set: { status, reason: text(reason, 1000), updatedAt: new Date() } }, { returnDocument: 'after' });
+    const now = new Date();
+    const result = await requests().findOneAndUpdate({ id, status: 'running' }, { $set: { status, reason: text(reason, 1000), updatedAt: now, finishedAt: now } }, { returnDocument: 'after' });
     if (!result) throw new NotFoundError('Running generation request not found');
     return this.publicRequest(result);
   }
@@ -263,6 +269,6 @@ export class EditorialGenerationService {
   }
 
   private publicRequest(item: GenerationRequest) {
-    return { id: item.id, kind: item.kind, status: item.status, topic: item.topic, reason: item.reason ?? null, createdAt: item.createdAt, updatedAt: item.updatedAt, createdBy: item.createdBy };
+    return { id: item.id, kind: item.kind, status: item.status, topic: item.topic, reason: item.reason ?? null, createdAt: item.createdAt, updatedAt: item.updatedAt, createdBy: item.createdBy, claimsObserved: item.claimsObserved ?? null, claimedAt: item.claimedAt ?? null, finishedAt: item.finishedAt ?? null };
   }
 }
