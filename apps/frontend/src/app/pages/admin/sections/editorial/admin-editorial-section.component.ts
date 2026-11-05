@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { A11yModule } from '@angular/cdk/a11y';
-import { Component, DestroyRef, ElementRef, EventEmitter, HostListener, OnDestroy, OnInit, Output, ViewChild, inject } from '@angular/core';
+import { Component, DestroyRef, ElementRef, EventEmitter, HostListener, Input, OnDestroy, OnInit, Output, ViewChild, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import {
@@ -50,6 +50,8 @@ const emptyTopic = (): EditorialGenerationTopic => ({
 })
 export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
   @Output() lastUpdatedChange = new EventEmitter<Date>();
+  /** Sub-tab to open on first load (deep link from a KPI or a shared URL). */
+  @Input() initialTab = '';
   @ViewChild('detailDrawer') detailDrawer?: ElementRef<HTMLElement>;
   readonly roles: EditorialRole[] = ['research', 'evidence', 'editorial', 'seo', 'critic'];
   readonly roleLabels: Record<EditorialRole, string> = { research: 'Investigación', evidence: 'Evidencias', editorial: 'Redacción', seo: 'SEO', critic: 'Crítico' };
@@ -138,6 +140,10 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
   private readonly service = inject(AdminEditorialService);
 
   ngOnInit(): void {
+    const requested = this.initialTab;
+    if (requested && (this.tabs as readonly string[]).includes(requested)) {
+      this.activeTab = requested as typeof this.tabs[number];
+    }
     this.refresh();
     this.loadProviders();
     // Live view: poll while the tab is visible; silent so the page does not flash a loading state.
@@ -374,7 +380,18 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
     this.runnerBusy = action;
     this.error = '';
     this.service.runnerProcess(action).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.runnerBusy = ''; this.notice = action === 'start' ? 'Runner iniciado' : action === 'stop' ? 'Runner detenido' : 'Runner reiniciado'; this.refresh(); },
+      next: (result) => {
+        this.runnerBusy = '';
+        if ((action === 'start' || action === 'restart') && result.started === false) {
+          this.notice = '';
+          this.error = `No se ha arrancado: la generación programada está desactivada (${result.reason || 'generation-disabled'}). El interruptor sigue en pausa.`;
+          return;
+        }
+        this.notice = action === 'start'
+          ? 'Runner arrancado (acción manual registrada en auditoría)'
+          : action === 'stop' ? 'Runner detenido' : 'Runner reiniciado (acción manual registrada en auditoría)';
+        this.refresh();
+      },
       error: (e) => { this.runnerBusy = ''; this.error = errorMessage(e, `No se pudo ${action === 'start' ? 'iniciar' : action === 'stop' ? 'detener' : 'reiniciar'} el runner`); },
     });
   }

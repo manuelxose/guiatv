@@ -1,10 +1,11 @@
 import { CommonModule, isPlatformBrowser } from '@angular/common';
-import { Component, Inject, OnInit, PLATFORM_ID } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Component, Inject, OnDestroy, OnInit, PLATFORM_ID } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Observable, Subscription } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { UserProfile } from '../../interfaces/user.interface';
 import { UserService } from '../../services/user.service';
-import { AdminGroupId, AdminNavGroup } from './admin.types';
+import { AdminGroupId, AdminNavGroup, AdminNavTarget } from './admin.types';
 import { AdminHeaderComponent } from './components/admin-header/admin-header.component';
 import { AdminSidebarComponent } from './components/admin-sidebar/admin-sidebar.component';
 import { AdminAnalyticsSectionComponent } from './sections/analytics/admin-analytics-section.component';
@@ -19,6 +20,7 @@ import { AdminOverviewSectionComponent } from './sections/overview/admin-overvie
 import { AdminAISectionComponent } from './sections/ai/admin-ai-section.component';
 import { AdminAffiliateSectionComponent } from './sections/affiliate/admin-affiliate-section.component';
 import { AdminEditorialSectionComponent } from './sections/editorial/admin-editorial-section.component';
+import { AdminRejectedInboxComponent } from './sections/editorial/rejected-inbox/admin-rejected-inbox.component';
 
 @Component({
   selector: 'app-admin-panel',
@@ -39,17 +41,21 @@ import { AdminEditorialSectionComponent } from './sections/editorial/admin-edito
     AdminAISectionComponent,
     AdminAffiliateSectionComponent,
     AdminEditorialSectionComponent,
+    AdminRejectedInboxComponent,
   ],
   templateUrl: './admin.component.html',
   styleUrls: ['./admin.component.scss'],
 })
-export class AdminComponent implements OnInit {
+export class AdminComponent implements OnInit, OnDestroy {
   private readonly isBrowser: boolean;
   private static readonly DESKTOP_COLLAPSE_STORAGE_KEY = 'gtv_admin_sidebar_collapsed';
+  private readonly routeSub: Subscription;
 
   constructor(
     @Inject(PLATFORM_ID) platformId: object,
-    private readonly userService: UserService
+    private readonly userService: UserService,
+    private readonly route: ActivatedRoute,
+    private readonly router: Router
   ) {
     this.isBrowser = isPlatformBrowser(platformId);
     if (this.isBrowser) {
@@ -57,6 +63,7 @@ export class AdminComponent implements OnInit {
         window.localStorage.getItem(AdminComponent.DESKTOP_COLLAPSE_STORAGE_KEY) === '1';
     }
     this.adminProfile = this.userService.getProfile();
+    this.routeSub = new Subscription();
   }
 
   public readonly navGroups: AdminNavGroup[] = [
@@ -91,6 +98,15 @@ export class AdminComponent implements OnInit {
       items: [
         { id: 'dashboard', label: 'Usage & quality', description: 'Conversations, feedback and activity' },
         { id: 'editorial', label: 'Operaciones IA', description: 'Pipeline editorial, evidencia y parada de emergencia' },
+        { id: 'rejected', label: 'Bandeja de rechazados', description: 'Borradores rechazados, motivos y recuperación' },
+      ],
+    },
+    {
+      id: 'seo',
+      label: 'SEO',
+      icon: 'M4 12a8 8 0 0 1 16 0 M4 12v4a8 8 0 0 0 16 0v-4 M12 4v16',
+      items: [
+        { id: 'seo', label: 'Centro de control SEO', description: 'Indexación, Search Console y remediación' },
       ],
     },
     {
@@ -170,6 +186,11 @@ export class AdminComponent implements OnInit {
   public mobileSidebarOpen = false;
   public lastUpdated: Date | null = null;
   public adminProfile!: Observable<UserProfile>;
+  /** Deep-link inputs forwarded to the editorial section. */
+  public editorialInitialTab = '';
+  public ledgerInitialState = '';
+  public ledgerInitialQ = '';
+  public ledgerInitialSkip = 0;
 
   public readonly environmentLabel = environment.production
     ? 'Production'
@@ -177,6 +198,35 @@ export class AdminComponent implements OnInit {
 
   ngOnInit(): void {
     this.userService.fetchProfile().subscribe();
+    this.applyQueryParams(this.route.snapshot.queryParamMap.get.bind(this.route.snapshot.queryParamMap));
+    // Back/forward navigation and programmatic deep links land here as well.
+    this.routeSub.add(
+      this.route.queryParamMap.subscribe((params) => {
+        if (this.isBrowser) this.applyQueryParams((key: string) => params.get(key));
+      })
+    );
+  }
+
+  ngOnDestroy(): void {
+    this.routeSub.unsubscribe();
+  }
+
+  private applyQueryParams(get: (key: string) => string | null): void {
+    const group = get('group') as AdminGroupId | null;
+    if (group && this.navGroups.some((g) => g.id === group)) {
+      const navGroup = this.navGroups.find((g) => g.id === group)!;
+      this.activeGroup = group;
+      const item = get('item');
+      this.activeItem =
+        item && navGroup.items.some((i) => i.id === item)
+          ? item
+          : navGroup.items[0]?.id ?? 'overview';
+      this.editorialInitialTab = get('tab') ?? '';
+      this.ledgerInitialState = get('state') ?? '';
+      this.ledgerInitialQ = get('q') ?? '';
+      const skip = Number(get('skip'));
+      this.ledgerInitialSkip = Number.isFinite(skip) && skip > 0 ? skip : 0;
+    }
   }
 
   toggleMobileSidebar(): void {
@@ -198,9 +248,38 @@ export class AdminComponent implements OnInit {
   }
 
   selectSection(group: AdminGroupId, item: string): void {
+    this.applyNavigation(group, item);
+  }
+
+  /** KPI drill-down: navigate and apply the target's filters in one step. */
+  navigateTo(target: AdminNavTarget): void {
+    this.applyNavigation(target.group, target.item, target);
+  }
+
+  private applyNavigation(group: AdminGroupId, item: string, target?: AdminNavTarget): void {
     this.activeGroup = group;
     this.activeItem = item;
     this.mobileSidebarOpen = false;
+    this.editorialInitialTab = target?.tab ?? '';
+    this.ledgerInitialState = target?.state ?? '';
+    this.ledgerInitialQ = target?.q ?? '';
+    this.ledgerInitialSkip = target?.skip ?? 0;
+
+    if (this.isBrowser) {
+      const queryParams: Record<string, string | null> = {
+        group,
+        item,
+        tab: target?.tab ?? null,
+        state: target?.state ?? null,
+        q: target?.q ?? null,
+        skip: target?.skip ? String(target.skip) : null,
+        archived: null,
+        stale: null,
+      };
+      this.router
+        .navigate([], { queryParams, queryParamsHandling: 'merge', replaceUrl: true })
+        .catch(() => undefined);
+    }
 
     const keepsUpdated =
       group === 'overview' || group === 'analytics' || group === 'users' || group === 'content'
