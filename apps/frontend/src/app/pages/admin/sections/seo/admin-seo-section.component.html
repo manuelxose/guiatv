@@ -1,0 +1,122 @@
+<section class="seo" aria-label="Centro de control SEO">
+  <div class="seo__cards" *ngIf="summary">
+    <div class="card"><span class="card__label">URLs</span><strong>{{ summary.total }}</strong></div>
+    <div class="card"><span class="card__label">Indexables</span><strong>{{ summary.indexable }}</strong></div>
+    <div class="card"><span class="card__label">Indexadas por Google</span><strong>{{ summary.indexed }}</strong></div>
+    <div class="card card--warn"><span class="card__label">Incidencias abiertas</span><strong>{{ summary.openIssues }}</strong></div>
+  </div>
+
+  <p class="seo__truth" *ngIf="summary">
+    «Indexadas» refleja solo el veredicto de inspección de Google; enviar un sitemap nunca se
+    presenta aquí como indexación y no se promete indexación.
+  </p>
+
+  <nav class="tabs" role="tablist" aria-label="Vistas SEO">
+    <button role="tab" [attr.aria-selected]="tab === 'indexation'" (click)="tab = 'indexation'">Cuadrícula</button>
+    <button role="tab" [attr.aria-selected]="tab === 'issues'" (click)="tab = 'issues'">Incidencias ({{ issues.length }})</button>
+  </nav>
+
+  <p class="seo__notice" *ngIf="notice" role="status">{{ notice }}</p>
+  <p class="seo__error" *ngIf="error" role="alert">{{ error }}</p>
+
+  <ng-container *ngIf="tab === 'indexation'">
+    <div class="toolbar">
+      <input type="search" [(ngModel)]="q" (keyup.enter)="applyFilters()" placeholder="Buscar URL o slug…" aria-label="Buscar" />
+      <select [(ngModel)]="state" (change)="applyFilters()" aria-label="Estado">
+        <option value="">Todos los estados</option>
+        <option *ngFor="let s of stateOptions" [value]="s.value">{{ s.label }}</option>
+      </select>
+      <select [(ngModel)]="indexable" (change)="applyFilters()" aria-label="Indexabilidad pretendida">
+        <option value="">Cualquier indexabilidad</option>
+        <option value="true">Indexable</option>
+        <option value="false">No indexable</option>
+      </select>
+      <select [(ngModel)]="hasIssues" (change)="applyFilters()" aria-label="Con incidencias">
+        <option value="">Con o sin incidencias</option>
+        <option value="true">Con incidencias</option>
+        <option value="false">Sin incidencias</option>
+      </select>
+      <button (click)="resetFilters()">Limpiar</button>
+      <button (click)="runAudit()" [disabled]="busy !== ''">Auditoría técnica</button>
+      <button (click)="exportCsv()">Exportar CSV</button>
+    </div>
+
+    <div class="bulk" *ngIf="selected.size">
+      <span>{{ selected.size }} seleccionada(s)</span>
+      <button (click)="inspectSelected()" [disabled]="busy !== ''">Inspeccionar lote</button>
+      <button (click)="scheduleSelected()" [disabled]="busy !== ''">Programar reinspección</button>
+    </div>
+
+    <div class="grid-wrap" [class.grid-wrap--loading]="loading">
+      <table>
+        <caption class="sr-only">Cuadrícula de indexación de URLs públicas</caption>
+        <thead>
+          <tr>
+            <th><input type="checkbox" [checked]="allSelected" (change)="toggleSelectAll()" aria-label="Seleccionar todo" /></th>
+            <th><button (click)="sortBy('url')">URL</button></th>
+            <th><button (click)="sortBy('publishedAt')">Publicación</button></th>
+            <th><button (click)="sortBy('state')">Estado Google</button></th>
+            <th>Sitemap</th>
+            <th>Canonical</th>
+            <th>Incidencias</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of page.rows; trackBy: trackUrl">
+            <td><input type="checkbox" [checked]="selected.has(row.url)" (change)="toggleSelect(row.url)" [attr.aria-label]="'Seleccionar ' + row.url" /></td>
+            <td class="cell-url">
+              <span class="url">{{ row.url }}</span>
+              <span class="type">{{ row.contentType }}</span>
+            </td>
+            <td class="cell-date">{{ row.publishedAt ? (row.publishedAt | date: 'dd/MM/yyyy') : '—' }}</td>
+            <td><span class="badge" [ngClass]="stateClass(row.state)">{{ stateLabels[row.state] || row.state }}</span></td>
+            <td>{{ row.inSitemap ? 'Sí' : 'No' }}</td>
+            <td class="cell-canonical">
+              <span *ngIf="row.declaredCanonical && row.declaredCanonical !== row.url" title="Declarado">D: {{ row.declaredCanonical }}</span>
+              <span *ngIf="row.googleCanonical && row.googleCanonical !== row.url" title="Elegido por Google">G: {{ row.googleCanonical }}</span>
+            </td>
+            <td>
+              <span *ngIf="row.issueCodes.length" class="issues">{{ row.issueCodes.length }}</span>
+              <span *ngIf="!row.issueCodes.length" class="muted">—</span>
+            </td>
+          </tr>
+          <tr *ngIf="!page.rows.length">
+            <td colspan="7" class="muted">Sin resultados. Ejecuta la auditoría técnica si aún no hay datos.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pager" *ngIf="page.pages > 1">
+      <button (click)="setPage(page.page - 1)" [disabled]="page.page <= 1">Anterior</button>
+      <span>Página {{ page.page }} de {{ page.pages }} ({{ page.total }} URLs)</span>
+      <button (click)="setPage(page.page + 1)" [disabled]="page.page >= page.pages">Siguiente</button>
+    </div>
+  </ng-container>
+
+  <ng-container *ngIf="tab === 'issues'">
+    <ul class="issues" *ngIf="issues.length; else empty">
+      <li class="issue" *ngFor="let issue of issues; trackBy: trackIssue">
+        <div class="issue__head">
+          <span class="badge" [ngClass]="'sev-' + issue.severity">{{ severityLabels[issue.severity] }}</span>
+          <code>{{ issue.code }}</code>
+          <span class="muted">{{ issue.state }}</span>
+          <span class="spacer"></span>
+          <button *ngIf="issue.state === 'open'" (click)="dismissIssue(issue.id)" [disabled]="busy !== ''">Descartar</button>
+        </div>
+        <p class="issue__evidence">{{ issue.evidence }}</p>
+        <p class="issue__urls">
+          <span class="muted">URLs afectadas:</span>
+          <span *ngFor="let u of issue.urls" class="url">{{ u }}</span>
+        </p>
+        <p class="issue__action"><span class="muted">Acción propuesta:</span> {{ issue.proposedAction }}</p>
+        <p class="muted issue__auto">{{ issue.automationEligible ? 'Corrección automática segura disponible' : 'Requiere acción editorial (no automatizable)' }}</p>
+        <div class="issue__apply" *ngIf="issue.state === 'open'">
+          <input *ngIf="!issue.automationEligible" [(ngModel)]="applyNote[issue.id]" placeholder="Describe la acción editorial aplicada" aria-label="Nota de corrección" />
+          <button (click)="applyIssue(issue.id)" [disabled]="busy !== ''">Aplicar corrección</button>
+        </div>
+      </li>
+    </ul>
+    <ng-template #empty><p class="muted">Sin incidencias. La auditoría técnica volverá a detectarlas si aparecen.</p></ng-template>
+  </ng-container>
+</section>
