@@ -10,6 +10,9 @@ import {
 } from '../../../../services/admin-editorial.service';
 import { AdminConfirmDialogComponent } from '../../components/admin-confirm-dialog/admin-confirm-dialog.component';
 import { AdminStatusBadgeComponent } from '../../components/admin-status-badge/admin-status-badge.component';
+import { PIPELINE_STAGES, PipelineStage, STATE_BADGE, STATE_LABELS, postStage, queueStage } from './editorial-status';
+import { EditorialPostSummary, EditorialQueueItem } from '../../../../services/admin-editorial.service';
+import { interval } from 'rxjs';
 
 function formatDate(iso: string): string {
   const date = new Date(iso);
@@ -26,13 +29,6 @@ export function policyStateText(policy: EditorialPolicyStatus): string {
 export function topReasons(reasons: Record<string, number>, n = 5): Array<[string, number]> {
   return Object.entries(reasons).sort((a, b) => b[1] - a[1]).slice(0, n);
 }
-
-const STATE_BADGE: Record<string, string> = {
-  published: 'healthy', completed: 'healthy', 'approved-by-policy': 'active', pass: 'healthy', queued: 'queued',
-  verified: 'current', running: 'current', 'requires-update': 'warning', revise: 'warning', failed: 'failed',
-  blocked: 'failed', block: 'failed', held: 'warning', rejected: 'failed', cancelled: 'unconfigured', ok: 'healthy',
-  partial: 'warning', 'quota-exceeded': 'warning', 'missing-credentials': 'unconfigured', forbidden: 'failed', error: 'failed',
-};
 
 function errorMessage(e: any, fallback: string): string {
   const body = e?.error;
@@ -62,12 +58,12 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
   readonly models: Record<string, string[]> = { anthropic: ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'], openai: ['gpt-6.1-terra', 'gpt-6-luna'] };
   readonly severities: EditorialSeverity[] = ['block', 'warn', 'human'];
   readonly severityLabels: Record<EditorialSeverity, string> = { block: 'Bloqueante', warn: 'Aviso', human: 'Revisión humana' };
-  readonly stateLabels: Record<string, string> = { queued: 'En cola', running: 'En ejecución', completed: 'Completada', failed: 'Fallida', cancelled: 'Cancelada', published: 'Publicado', held: 'Retenido', rejected: 'Rechazado', 'approved-by-policy': 'Aprobado por política', verified: 'Revisión humana', blocked: 'Bloqueado' };
-  readonly tabs = ['activity', 'queue', 'generate', 'settings'] as const;
-  readonly activityTabs = ['articles', 'jobs', 'search'] as const;
-  readonly activityLabels: Record<typeof this.activityTabs[number], string> = { articles: 'Artículos', jobs: 'Ejecuciones', search: 'Search Console' };
-  activeTab: typeof this.tabs[number] = 'activity';
-  activityTab: typeof this.activityTabs[number] = 'articles';
+  readonly stateLabels = STATE_LABELS;
+  readonly tabs = ['pipeline', 'topics', 'review', 'runs', 'generate', 'settings', 'search'] as const;
+  readonly tabLabels: Record<typeof this.tabs[number], string> = { pipeline: 'Pipeline', topics: 'Temas', review: 'Revisión', runs: 'Ejecuciones', generate: 'Generar', settings: 'Configuración', search: 'Search Console' };
+  readonly stages = PIPELINE_STAGES;
+  activeTab: typeof this.tabs[number] = 'pipeline';
+  emergencyOpen = false;
   overview: EditorialOverview | null = null;
   loading = false;
   error = '';
@@ -109,11 +105,15 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(AdminEditorialService);
 
-  ngOnInit(): void { this.refresh(); }
+  ngOnInit(): void {
+    this.refresh();
+    // Live view: poll while the tab is visible; silent so the page does not flash a loading state.
+    interval(15000).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => { if (!document.hidden && !this.loading) this.refresh(true); });
+  }
   ngOnDestroy(): void { document.body.style.overflow = ''; }
 
-  refresh(): void {
-    this.loading = true;
+  refresh(silent = false): void {
+    if (!silent) this.loading = true;
     this.error = '';
     this.service.getOverview().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (data) => {
@@ -122,7 +122,7 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
         this.loading = false;
         this.lastUpdatedChange.emit(new Date());
       },
-      error: (e) => { this.loading = false; this.error = errorMessage(e, 'No se pudo cargar Operaciones IA'); },
+      error: (e) => { this.loading = false; if (!silent) this.error = errorMessage(e, 'No se pudo cargar Operaciones IA'); },
     });
   }
 
@@ -137,6 +137,24 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
     const runner = this.overview?.runner;
     if (!runner?.lastSeenAt) return 'Comprueba que el runner está iniciado, actualizado y que puede autenticarse contra esta API.';
     return runner.online ? `Versión ${runner.version || 'sin informar'} · última señal ${formatDate(runner.lastSeenAt)}` : `Última señal ${formatDate(runner.lastSeenAt)}${runner.lastError ? ` · ${runner.lastError}` : ''}`;
+  }
+  /** Plain-language reason nothing is being produced, so the operator never has to read logs to learn it. */
+  get diagnosis(): string | null {
+    const ov = this.overview;
+    if (!ov) return null;
+    if (ov.lastCycle?.result === 'discovery-error') return `El último ciclo falló: ${ov.lastCycle.reason || 'error de descubrimiento'}. Suele ser el acceso del runner a los modelos (gateway o credenciales); no se genera nada hasta que se resuelva.`;
+    if (!ov.runner.lastSeenAt) return 'El runner nunca ha contactado con el servidor.';
+    if (!ov.runner.online) return `El runner no da señal desde ${formatDate(ov.runner.lastSeenAt)}; las solicitudes quedan pendientes.`;
+    if (ov.runner.status === 'error') return `El runner informa de un error: ${ov.runner.lastError || 'sin detalle'}.`;
+    return null;
+  }
+  get board(): Array<{ id: PipelineStage; label: string; hint: string; topics: EditorialQueueItem[]; posts: EditorialPostSummary[] }> {
+    const ov = this.overview;
+    return this.stages.map((st) => ({
+      ...st,
+      topics: (ov?.queue ?? []).filter((q) => queueStage(q) === st.id),
+      posts: (ov?.posts ?? []).filter((p) => postStage(p) === st.id),
+    }));
   }
   readonly topReasons = topReasons;
   badgeStatus(state: string | null | undefined): string { return STATE_BADGE[state || ''] || 'queued'; }
@@ -184,7 +202,6 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
   source(id: string) { return this.sourceIndex.get(id); }
   bySeverity(list: EditorialFinding[], severity: EditorialSeverity): EditorialFinding[] { return list.filter((f) => f.severity === severity); }
 
-  selectActivityTab(tab: typeof this.activityTabs[number]): void { this.activityTab = tab; }
   canManagePost(post: { status: string; pipelineState: string }): boolean { return post.status === 'draft' && ['blocked', 'verified', 'requires-update', 'rejected'].includes(post.pipelineState); }
 
   savePostEdit(): void {
@@ -212,7 +229,7 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
     if (this.postActionBusy) return;
     this.postActionBusy = id;
     this.service.requeuePost(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.postActionBusy = ''; this.notice = 'Artículo recuperado: nueva solicitud en cola y borrador bloqueado retirado'; if (this.detailOpen) this.closeDetail(); this.activeTab = 'queue'; this.refresh(); },
+      next: () => { this.postActionBusy = ''; this.notice = 'Artículo recuperado: nueva solicitud en cola y borrador bloqueado retirado'; if (this.detailOpen) this.closeDetail(); this.activeTab = 'topics'; this.refresh(); },
       error: (e) => { this.postActionBusy = ''; this.error = errorMessage(e, 'No se pudo recuperar el artículo'); this.detailError = this.error; },
     });
   }
@@ -302,7 +319,7 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
     this.requestBusy = true;
     this.error = '';
     this.service.generate(this.request).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.requestBusy = false; this.notice = 'Solicitud en cola; se ejecutará cuando el runner despierte'; this.request = emptyTopic(); this.seedUrlsText = ''; this.internalUrlsText = ''; this.activeTab = 'queue'; this.refresh(); },
+      next: () => { this.requestBusy = false; this.notice = 'Solicitud en cola; se ejecutará cuando el runner despierte'; this.request = emptyTopic(); this.seedUrlsText = ''; this.internalUrlsText = ''; this.activeTab = 'topics'; this.refresh(); },
       error: (e) => { this.requestBusy = false; this.error = errorMessage(e, 'No se pudo crear la solicitud'); },
     });
   }
