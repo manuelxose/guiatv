@@ -45,7 +45,7 @@ export class AnthropicEditorialModel implements EditorialModel {
   /** Gateway model namespace (e.g. `cc/` for the owner's subscription gateway); routes, prices and provenance keep the canonical id. */
   private readonly modelPrefix: string;
   private readonly webFetch: boolean;
-  private readonly structuredOutput: 'json_schema' | 'prompt';
+  readonly structuredOutput: 'json_schema' | 'prompt';
 
   constructor(options: AnthropicEditorialModelOptions = {}) {
     this.provider = options.provider ?? 'anthropic';

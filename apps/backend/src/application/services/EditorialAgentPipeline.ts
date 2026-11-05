@@ -136,6 +136,8 @@ export interface EditorialModel {
   readonly provider: string;
   /** Can retrieve web pages itself (server tools); research routes require it. */
   readonly webSearch?: boolean;
+  /** `prompt` means output_config.format is unavailable, so the answer needs a local shape check. */
+  readonly structuredOutput?: 'json_schema' | 'prompt';
   /** Output cap of one request: the ledger needs this much headroom before it lets a call start. */
   readonly maxOutputTokens?: number;
   call(request: ModelCall): Promise<ModelResult>;
@@ -560,7 +562,7 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
         `Tema: ${topic.topic}\nIntención: ${topic.intent}\n\nSolo puedes usar estas afirmaciones verificadas (no hace falta usarlas todas: elige las que responden a la intención):\n${claimDigest(usable)}\n\n${writerRules()}${feedback ? `\n\nBorrador anterior:\n${previous}\n\nCorrige estos problemas de la revisión anterior con el menor cambio posible y conserva el resto tal cual. Un dato que no esté entre las afirmaciones verificadas se elimina o se sustituye por uno verificado:\n${feedback}` : ''}`,
         DRAFT_SCHEMA);
 
-      const shape = draftShapeProblems(draft);
+      const shape = chosen.editorial.model.structuredOutput === 'prompt' ? draftShapeProblems(draft) : [];
       if (shape.length) {
         // Prompt-mode providers can answer with valid JSON that does not match the schema; retry with the defect.
         shapeError = `respuesta del redactor no válida: ${shape.join(', ')}`;
