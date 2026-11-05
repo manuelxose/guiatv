@@ -11,7 +11,7 @@
 >
   <div class="admin-sidebar__header px-4 py-6 border-b border-[var(--portal-border)]">
     <div class="flex items-center justify-between gap-2">
-      <span class="admin-sidebar__brand-mark hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 text-xs font-bold text-[var(--spotify-negative)]" aria-hidden="true">TV</span>
+      <span class="admin-sidebar__brand-mark hidden h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 text-xs font-bold text-[var(--spotify-negative)]" aria-hidden="true">TV</span>
       <div class="admin-sidebar__brand min-w-0">
         <p class="text-[10px] text-[var(--portal-text-muted)] uppercase tracking-[0.3em]">Control Center</p>
         <h1 class="text-xl font-semibold text-[var(--portal-text)] truncate">GuíaTV Admin</h1>
@@ -19,7 +19,7 @@
       </div>
       <button
         type="button"
-        class="admin-sidebar__mobile-close lg:hidden h-9 w-9 shrink-0 rounded-lg border border-[var(--portal-border)] text-[var(--portal-text)] flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+        class="admin-sidebar__mobile-close lg:hidden h-9 w-9 shrink-0 rounded-[var(--radius-sm)] border border-[var(--portal-border)] text-[var(--portal-text)] flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
         aria-label="Close navigation"
         (click)="onBackdropOrCloseClick()"
       >
@@ -30,7 +30,7 @@
     </div>
     <div class="admin-sidebar__env mt-3">
       <span
-        class="text-[10px] px-2 py-1 rounded-full border"
+        class="text-[10px] px-2 py-1 rounded-[var(--radius-sm)] border"
         [ngClass]="environmentLabel === 'Production' ? 'border-[var(--spotify-negative)]/40 text-[var(--spotify-negative)] bg-[var(--spotify-negative)]/10' : 'border-[var(--spotify-green)]/40 text-[var(--spotify-green)] bg-[var(--spotify-green)]/10'"
       >
         {{ environmentLabel }}
@@ -50,7 +50,7 @@
           [ngClass]="group.id === activeGroup ? 'text-[var(--portal-text)] font-bold' : 'text-[var(--portal-text-muted)]'"
           [attr.title]="desktopCollapsed ? group.label : null"
         >
-          <span class="h-7 w-7 shrink-0 rounded-lg flex items-center justify-center border border-[var(--portal-border)] bg-[var(--portal-surface)] text-[var(--portal-text-soft)]">
+          <span class="h-7 w-7 shrink-0 rounded-[var(--radius-sm)] flex items-center justify-center border border-[var(--portal-border)] bg-[var(--portal-surface)] text-[var(--portal-text-soft)]">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="h-4 w-4" aria-hidden="true">
               <path [attr.d]="group.icon" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" />
             </svg>
@@ -61,8 +61,8 @@
           <button
             *ngFor="let item of group.items"
             type="button"
-            class="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-            [ngClass]="isActive(group.id, item.id) ? 'bg-[var(--portal-surface-strong)] text-[var(--portal-text)] font-bold' : 'text-[var(--portal-text-soft)] font-medium hover:text-[var(--portal-text)] hover:bg-[var(--portal-surface-strong)]'"
+            class="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-[var(--radius-sm)] border-l-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+            [ngClass]="isActive(group.id, item.id) ? 'border-[var(--accent-streaming)] bg-[var(--portal-surface-strong)] text-[var(--portal-text)] font-semibold' : 'border-transparent text-[var(--portal-text-soft)] font-medium hover:text-[var(--portal-text)] hover:bg-[var(--portal-surface-strong)]'"
             (click)="selectSection(group.id, item.id)"
             [attr.title]="item.description || item.label"
             [attr.aria-current]="isActive(group.id, item.id) ? 'page' : null"
@@ -85,7 +85,7 @@
     <div class="pt-4 border-t border-[var(--portal-border)] space-y-2">
       <a
         [routerLink]="['/']"
-        class="admin-sidebar__back w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text-soft)] hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+        class="admin-sidebar__back w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-[var(--radius-sm)] border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text-soft)] hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-3.5 w-3.5 shrink-0" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15 6 9 12l6 6" />
@@ -94,7 +94,7 @@
       </a>
       <button
         type="button"
-        class="admin-sidebar__collapse-toggle hidden lg:inline-flex w-full items-center justify-center gap-2 px-3 py-2 rounded-xl border border-[var(--portal-border)] text-xs text-[var(--portal-text-soft)] hover:text-[var(--portal-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+        class="admin-sidebar__collapse-toggle hidden lg:inline-flex w-full items-center justify-center gap-2 px-3 py-2 rounded-[var(--radius-sm)] border border-[var(--portal-border)] text-xs text-[var(--portal-text-soft)] hover:text-[var(--portal-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
         [attr.aria-pressed]="desktopCollapsed"
         [attr.title]="desktopCollapsed ? 'Expand navigation' : 'Collapse navigation'"
         (click)="onToggleDesktopCollapsed()"

@@ -172,8 +172,8 @@ export class AdminAnalyticsService {
       .pipe(map((response) => response.data.report));
   }
 
-  getOverview(hours = 24): Observable<AdminAnalyticsOverview> {
-    const to = new Date();
+  getOverview(hours = 24, endedHoursAgo = 0): Observable<AdminAnalyticsOverview> {
+    const to = new Date(Date.now() - endedHoursAgo * 60 * 60 * 1000);
     const from = new Date(Date.now() - hours * 60 * 60 * 1000);
     const url = `${this.baseUrl}/analytics/overview?from=${from.toISOString()}&to=${to.toISOString()}`;
     return this.http

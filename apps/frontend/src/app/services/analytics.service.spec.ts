@@ -21,29 +21,26 @@ describe('AnalyticsService (eager facade)', () => {
     localStorage.clear();
   });
 
-  it('does not load the collector chunk, store or send anything before consent', async () => {
+  it('measures every visit: loads the collector without consent and stores nothing', async () => {
     const service = TestBed.inject(AnalyticsService);
     localStorage.setItem('gtv_anon_id', 'legacy');
     service.init();
     service.trackPageView('/');
-    await new Promise((r) => setTimeout(r, 50));
-    expect((service as any).collector).toBeNull();
-    expect((service as any).loading).toBeNull();
+    await service.whenLoaded();
+    expect((service as any).collector).not.toBeNull();
     expect(localStorage.getItem('gtv_anon_id')).toBeNull();
-    expect(window.fetch).not.toHaveBeenCalled();
   });
 
-  it('loads the collector after consent and replays buffered calls in order', async () => {
+  it('loads the collector and replays buffered calls in order', async () => {
     const service = TestBed.inject(AnalyticsService);
-    service.init();
-    service.trackPageView('/a');
-    service.trackEvent('assistant_opened', { surface: 'x' });
     const collector = TestBed.inject(AnalyticsCollector);
     const calls: string[] = [];
     spyOn(collector, 'init');
     spyOn(collector, 'trackPageView').and.callFake((url: string) => { calls.push(`page:${url}`); });
     spyOn(collector, 'trackEvent').and.callFake((type: string) => { calls.push(`event:${type}`); });
-    TestBed.inject(ConsentService).grant();
+    service.init();
+    service.trackPageView('/a');
+    service.trackEvent('assistant_opened', { surface: 'x' });
     await service.whenLoaded();
     expect(collector.init).toHaveBeenCalled();
     expect(calls).toEqual(['page:/a', 'event:assistant_opened']);
@@ -51,14 +48,12 @@ describe('AnalyticsService (eager facade)', () => {
     expect(calls[2]).toBe('page:/b');
   });
 
-  it('drops the buffer when consent is denied', async () => {
+  it('keeps measuring after consent is denied', () => {
     const service = TestBed.inject(AnalyticsService);
     service.init();
-    service.trackPageView('/a');
     TestBed.inject(ConsentService).deny();
-    expect((service as any).buffer.length).toBe(0);
     service.trackPageView('/b');
-    expect((service as any).buffer.length).toBe(0);
+    expect((service as any).buffer.length).toBe(1);
   });
 
   it('bounds the pre-consent buffer', () => {

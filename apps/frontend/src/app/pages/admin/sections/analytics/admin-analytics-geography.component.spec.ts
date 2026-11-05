@@ -125,6 +125,17 @@ describe('Analytics geography', () => {
     fixture.destroy();
   });
 
+  it('asks for yesterday as a closed day ending before the midnight of today', () => {
+    const fixture = TestBed.createComponent(AdminAnalyticsSectionComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.selectRange(-1);
+    const [hours, endedHoursAgo] = service.getOverview.calls.mostRecent().args as number[];
+    expect(endedHoursAgo).toBeGreaterThan(0);
+    expect(endedHoursAgo).toBeLessThan(24.001);
+    expect(hours - endedHoursAgo).toBeCloseTo(24, 2);
+    fixture.destroy();
+  });
+
   it('distinguishes an unsupported store and an empty result', () => {
     const fixture = TestBed.createComponent(AdminAnalyticsSectionComponent);
     fixture.componentInstance.activeItem = 'geography';
@@ -302,7 +313,7 @@ describe('Analytics geography', () => {
     expect(element.textContent).toContain('Sin interacción desde hace 3m 0s');
     const navigate = spyOn(fixture.componentInstance.activeItemChange, 'emit');
     Array.from(element.querySelectorAll('button')).find((button) => button.textContent?.includes('Ver eventos de esta sesión'))!.click();
-    expect(service.getRecentEvents).toHaveBeenCalledWith(40, undefined, 'apple-session', 24);
+    expect(service.getRecentEvents).toHaveBeenCalledWith(40, undefined, 'apple-session', 168);
     expect(navigate).toHaveBeenCalledWith('events');
     fixture.destroy();
   });

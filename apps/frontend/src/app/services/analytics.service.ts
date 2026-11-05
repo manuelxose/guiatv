@@ -1,7 +1,5 @@
 import { Injectable, Injector, NgZone, PLATFORM_ID, inject } from '@angular/core';
 import { DOCUMENT, isPlatformBrowser } from '@angular/common';
-import { ConsentService } from './analytics/consent.service';
-import { removeAnalyticsIdentifiers } from './analytics/analytics-identifiers';
 import type { AnalyticsCollector } from './analytics/analytics-collector';
 
 type Call = ({ kind: 'page'; url: string } | { kind: 'event'; type: string; data?: Record<string, unknown>; name?: string }) & { at: number };
@@ -12,17 +10,15 @@ const DEBUG_KEY = 'gtv_analytics_debug';
 
 /**
  * Eager analytics facade (the API every component uses). It is deliberately tiny: the collector, the GA4 bridge and
- * the payload sanitisers live in a lazy chunk that is imported only after the visitor grants the analytics purpose,
- * on an idle callback. Until then calls are kept in a bounded in-memory buffer (never stored, never sent) and are
- * replayed in order once the collector loads; a "denied" choice drops them and removes any analytics identifier.
- * Nothing runs during SSR.
+ * the payload sanitisers live in a lazy chunk imported on an idle callback. Until it loads, calls are kept in a
+ * bounded in-memory buffer and replayed in order. Every visit is measured; the collector itself stores nothing on the
+ * device (and loads no GA4) unless the visitor granted consent. Nothing runs during SSR.
  */
 @Injectable({ providedIn: 'root' })
 export class AnalyticsService {
   private readonly document = inject(DOCUMENT);
   private readonly injector = inject(Injector);
   private readonly zone = inject(NgZone);
-  private readonly consent = inject(ConsentService);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   private initialized = false;
@@ -39,12 +35,7 @@ export class AnalyticsService {
       this.disabled = true;
       return;
     }
-    this.consent.onChange((state) => {
-      if (state === 'granted') this.scheduleLoad();
-      else if (!this.collector) this.dropAll(); // a loaded collector handles revocation itself
-    });
-    if (this.consent.state === 'granted') this.scheduleLoad();
-    else removeAnalyticsIdentifiers(this.document); // includes identifiers an older, pre-consent collector created
+    this.scheduleLoad();
   }
 
   trackPageView(url: string): void {
@@ -63,7 +54,7 @@ export class AnalyticsService {
   private dispatch(call: Call): void {
     if (!this.isBrowser) return;
     this.init();
-    if (this.disabled || this.consent.state === 'denied') return;
+    if (this.disabled) return;
     if (this.collector) {
       this.apply(this.collector, call);
       return;
@@ -84,10 +75,6 @@ export class AnalyticsService {
       const run = () => {
         import('./analytics/analytics-collector')
           .then(({ AnalyticsCollector }) => {
-            if (this.consent.state !== 'granted') {
-              this.loading = null; // revoked while loading: a later grant loads again
-              return;
-            }
             const collector = this.injector.get(AnalyticsCollector);
             collector.init();
             const cutoff = Date.now() - MAX_BUFFERED_AGE_MS;
@@ -107,11 +94,6 @@ export class AnalyticsService {
         else setTimeout(run, 1);
       });
     });
-  }
-
-  private dropAll(): void {
-    this.buffer = [];
-    removeAnalyticsIdentifiers(this.document);
   }
 
   private debugEnabled(): boolean {

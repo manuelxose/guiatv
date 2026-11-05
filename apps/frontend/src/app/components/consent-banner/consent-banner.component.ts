@@ -34,7 +34,7 @@ import { ConsentService } from '../../services/analytics/consent.service';
         <div class="consent__actions">
           <button type="button" class="consent__btn" data-consent="deny" (click)="consent.deny()">Rechazar análisis</button>
           <button type="button" class="consent__btn" data-consent="grant" (click)="consent.grant()">Aceptar análisis</button>
-          @if (hydrated() && consent.preferencesOpen() && consent.analytics() !== 'unset') {
+          @if (hydrated() && consent.preferencesOpen()) {
             <button type="button" class="consent__btn consent__btn--ghost" (click)="consent.closePreferences()">Cerrar</button>
           }
         </div>
@@ -62,8 +62,8 @@ import { ConsentService } from '../../services/analytics/consent.service';
 export class ConsentBannerComponent {
   readonly consent = inject(ConsentService);
   readonly hydrated = signal(false);
-  /** SSR and the hydrating render always include the banner (same DOM); the real state applies after hydration. */
-  readonly visible = computed(() => !this.hydrated() || this.consent.analytics() === 'unset' || this.consent.preferencesOpen());
+  /** Never shown on its own: first-party counting needs no consent. Only opened from "Configurar cookies" (optional GA4). */
+  readonly visible = computed(() => this.hydrated() && this.consent.preferencesOpen());
 
   constructor() {
     afterNextRender(() => this.hydrated.set(true));

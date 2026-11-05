@@ -332,10 +332,14 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
     pipeline.expire(this.sessionKey(payload.sessionId), this.ttlSeconds);
     pipeline.zRem(this.liveKey, payload.sessionId);
 
-    if (durationSec !== undefined) {
+    // A session can end several times (reload, bfcache restore, then end again) and each end reports the whole
+    // elapsed time: add only the growth since the last one, and count the session once, or averages inflate.
+    const alreadyCounted = Number(await this.client.hGet(this.sessionKey(payload.sessionId), 'durationSec')) || 0;
+    const growth = durationSec === undefined ? 0 : durationSec - alreadyCounted;
+    if (durationSec !== undefined && growth > 0) {
       const day = this.toDay(payload.endedAt);
-      pipeline.incrBy(this.durationSumKey(day), durationSec);
-      pipeline.incr(this.durationCountKey(day));
+      pipeline.incrBy(this.durationSumKey(day), growth);
+      if (!alreadyCounted) pipeline.incr(this.durationCountKey(day));
       pipeline.expire(this.durationSumKey(day), this.ttlSeconds);
       pipeline.expire(this.durationCountKey(day), this.ttlSeconds);
     }
