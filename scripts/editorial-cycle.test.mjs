@@ -92,6 +92,26 @@ test('an unreadable Admin stops the cycle (fail closed)', async () => {
   rmSync(dir, { recursive: true });
 });
 
+test('corrupt or unsupported queues are preserved and reported as runner errors', async () => {
+  for (const content of ['{"version":1,', JSON.stringify({ version: 2, topics: [] }), JSON.stringify({ version: 1, topics: {} })]) {
+    const dir = fresh();
+    const path = join(dir, 'topic-queue.json');
+    writeFileSync(path, content);
+    const beforeCalls = seen.length;
+    const beforeHeartbeats = heartbeats.length;
+    try {
+      const result = await cycle(dir);
+      assert.notEqual(result.code, 0, result.output);
+      assert.equal(readFileSync(path, 'utf8'), content);
+      assert.match(heartbeats[beforeHeartbeats].error, /editorial topic queue/);
+      assert.equal(heartbeats[beforeHeartbeats].status, 'error');
+      assert.ok(!seen.slice(beforeCalls).includes('POST /v2/admin/editorial/generation/runner/cycles'));
+    } finally {
+      rmSync(dir, { recursive: true });
+    }
+  }
+});
+
 test('a live lock refuses a second runner; a dead one is recovered', async () => {
   const dir = fresh();
   writeFileSync(join(dir, 'run.lock'), `${process.pid} ${new Date().toISOString()}\n`);

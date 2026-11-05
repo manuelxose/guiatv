@@ -188,7 +188,9 @@ if (command === 'run') {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await generationPost(report, 'runner/heartbeat', { version: 'm11g-2', status: 'error', error: message, providers: ['anthropic', ...(process.env.OPENAI_API_KEY ? ['openai'] : [])], webSearch: true }).catch(() => null);
-    await reportCycle(report, 'failed', message, loadQueue()).catch(() => null);
+    let queue;
+    try { queue = loadQueue(); } catch { /* Preserve the last server snapshot when the local queue is unreadable. */ }
+    if (queue) await reportCycle(report, 'failed', message, queue).catch(() => null);
     throw error;
   }
 } else if (command === 'verify') {
@@ -442,7 +444,14 @@ async function reverify(provenance) {
 // M11-F autonomous operations: topic queue, unattended cycle, verified internal links, maintenance.
 
 function queuePath() { return join(spendDir, 'topic-queue.json'); }
-function loadQueue() { return existsSync(queuePath()) ? JSON.parse(readFileSync(queuePath(), 'utf8')) : { version: 1, topics: [] }; }
+function loadQueue() {
+  if (!existsSync(queuePath())) return { version: 1, topics: [] };
+  let queue;
+  try { queue = JSON.parse(readFileSync(queuePath(), 'utf8')); }
+  catch (error) { throw new Error('Cannot read editorial topic queue; preserve the file and inspect it', { cause: error }); }
+  if (!queue || queue.version !== 1 || !Array.isArray(queue.topics)) throw new Error('Unsupported editorial topic queue format; preserve the file and inspect it');
+  return queue;
+}
 // Write-then-rename: a crash mid-write leaves the previous queue, never half a file.
 function saveQueue(q) { writeFileSync(`${queuePath()}.tmp`, JSON.stringify(q, null, 1)); renameSync(`${queuePath()}.tmp`, queuePath()); }
 function cycleLog(row) { writeFileSync(join(spendDir, 'cycles.jsonl'), `${JSON.stringify({ at: new Date().toISOString(), ...row })}\n`, { flag: 'a' }); }
