@@ -18,6 +18,7 @@ export const createAdminEditorialRoutes = (controller: EditorialOpsController, a
   router.get('/posts/:id', asyncHandler(controller.post));
   router.patch('/posts/:id', strictRateLimit, asyncHandler(controller.updatePost));
   router.delete('/posts/:id', strictRateLimit, asyncHandler(controller.deletePost));
+  router.post('/posts/:id/reject', strictRateLimit, asyncHandler(controller.rejectPost));
   router.post('/posts/:id/requeue', strictRateLimit, asyncHandler(controller.requeuePost));
   router.post('/policy/pause', strictRateLimit, asyncHandler(controller.pause));
   router.post('/policy/resume', strictRateLimit, humanEditorialReviewGuard, asyncHandler(controller.resume));

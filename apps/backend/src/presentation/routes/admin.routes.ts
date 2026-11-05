@@ -29,6 +29,8 @@ export const createAdminRoutes = (
   router.get('/football/teams', asyncHandler(controller.listFootballTeams.bind(controller)));
   router.get('/football/fixtures', asyncHandler(controller.listFootballFixtures.bind(controller)));
   router.get('/jobs', asyncHandler(controller.listJobs.bind(controller)));
+  router.get('/jobs/scheduled', asyncHandler(controller.listScheduledJobs.bind(controller)));
+  router.post('/jobs/scheduled/:name/run', asyncHandler(controller.runScheduledJob.bind(controller)));
   router.get('/cache/diagnostics', asyncHandler(controller.getCacheDiagnostics.bind(controller)));
   router.get('/events', asyncHandler(controller.listOperationalEvents.bind(controller)));
   router.get('/alerts', asyncHandler(controller.listAlerts.bind(controller)));

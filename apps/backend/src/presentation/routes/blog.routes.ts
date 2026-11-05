@@ -17,6 +17,7 @@ export const createBlogRoutes = (blogController: BlogController, authService: Au
   router.post('/:id/approve-by-policy', adminAccess, policyApprovalGuard, blogController.approveByPolicy);
   router.post('/:id/revise-by-policy', adminAccess, policyApprovalGuard, blogController.reviseByPolicy);
   router.post('/:id/rollback', adminAccess, editorialReviewGuard, blogController.rollbackPost);
+  router.post('/:id/unpublish', adminAccess, editorialReviewGuard, blogController.unpublishPost);
   router.put('/:id', adminAccess, blogController.updatePost);
   router.delete('/:id', adminAccess, blogController.deletePost);
 

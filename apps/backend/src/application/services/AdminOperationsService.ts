@@ -7,6 +7,7 @@ import { FootballBroadcastMappingModel } from '../../infrastructure/sports/model
 import { AdminOperationModel } from '../../infrastructure/database/models/AdminOperation.model';
 import { AdminOperationalEventModel } from '../../infrastructure/database/models/AdminOperationalEvent.model';
 import { runtimeMetricsSnapshot } from '../../shared/utils/runtimeMetrics';
+import { listScheduledJobs, runScheduledJob } from '../../jobs';
 
 const STALE_MS = 6 * 60 * 60 * 1000;
 const SAFE_CACHE_NAMESPACES: Record<string, string> = {
@@ -61,6 +62,16 @@ export class AdminOperationsService {
   async listJobs(input: { page?: number; limit?: number; status?: string; type?: string }) {
     const filter: any = {}; if (input.status) filter.status = input.status; if (input.type) filter.type = input.type;
     return this.paginate(AdminOperationModel, filter, input, { errorSummary: 1, errorCode: 1, correlationId: 1, currentStep: 1, progress: 1, type: 1, status: 1, queuedAt: 1, startedAt: 1, completedAt: 1, attempts: 1, triggeredBy: 1, target: 1 });
+  }
+  /** Every scheduled job with its schedule and the last recorded run, so nothing runs without being visible. */
+  async scheduledJobs() {
+    const jobs = listScheduledJobs();
+    const last = await Promise.all(jobs.map((job) => AdminOperationModel.findOne({ type: job.name }).sort({ queuedAt: -1 }).select({ status: 1, queuedAt: 1, startedAt: 1, completedAt: 1, errorSummary: 1, triggeredBy: 1 }).lean()));
+    return jobs.map((job, i) => ({ ...job, lastRun: last[i] ?? null }));
+  }
+  async runScheduled(name: string, actor: string) {
+    if (!listScheduledJobs().some((job) => job.name === name && job.runnable)) throw new Error('Unknown or non-runnable scheduled job');
+    return this.enqueue(name, actor, () => runScheduledJob(name), name);
   }
   async listEvents(input: { page?: number; limit?: number; severity?: string; subsystem?: string; correlationId?: string }) {
     const filter: any = {}; if (input.severity) filter.severity = input.severity; if (input.subsystem) filter.subsystem = input.subsystem; if (input.correlationId) filter.correlationId = input.correlationId;

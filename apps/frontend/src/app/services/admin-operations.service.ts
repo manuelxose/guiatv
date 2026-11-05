@@ -29,6 +29,8 @@ export class AdminOperationsService {
   getFootballTeams(params: Record<string, string | number> = {}): Observable<any> { return this.get('/admin/football/teams', params); }
   getFootballFixtures(params: Record<string, string | number> = {}): Observable<any> { return this.get('/admin/football/fixtures', params); }
   getJobs(params: Record<string, string | number> = {}): Observable<any> { return this.get('/admin/jobs', params); }
+  getScheduledJobs(): Observable<any> { return this.get('/admin/jobs/scheduled'); }
+  runScheduledJob(name: string): Observable<any> { return this.http.post(`${this.baseUrl}/admin/jobs/scheduled/${encodeURIComponent(name)}/run`, {}, { headers: this.buildHeaders() }); }
   getEvents(params: Record<string, string | number> = {}): Observable<any> { return this.get('/admin/events', params); }
   getAlerts(): Observable<any> { return this.get('/admin/alerts'); }
   refreshFootball(): Observable<any> { return this.http.post(`${this.baseUrl}/admin/football/refresh`, {}, { headers: this.buildHeaders() }); }

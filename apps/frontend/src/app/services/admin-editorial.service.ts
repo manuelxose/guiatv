@@ -224,6 +224,8 @@ export interface EditorialPostDetail {
   findings: EditorialFinding[];
   policyBlockers: EditorialFinding[];
   revisions: Array<{ version: number; savedAt: string; reason: string; status: string }>;
+  /** The latest stored version, for a diff against what is shown now. */
+  previous: { version: number; savedAt: string; reason: string; title: string; content: string } | null;
 }
 
 interface ApiResponse<T> {
@@ -234,6 +236,7 @@ interface ApiResponse<T> {
 @Injectable({ providedIn: 'root' })
 export class AdminEditorialService {
   private readonly baseUrl = `${environment.API_BASE_URL}/admin/editorial`;
+  private readonly blogUrl = `${environment.API_BASE_URL}/blog`;
 
   constructor(private readonly http: HttpClient) {}
 
@@ -306,6 +309,27 @@ export class AdminEditorialService {
   /** Human decision on a queued topic; the runner applies it at its next cycle. */
   queueAction(topicId: string, action: EditorialQueueActionName, extra: { reason?: string; edit?: { title?: string; intent?: string; seedUrls?: string[] } } = {}): Observable<EditorialQueueItem> {
     return this.http.post<ApiResponse<EditorialQueueItem>>(`${this.baseUrl}/generation/queue-actions`, { topicId, action, ...extra }).pipe(map((resp) => resp.data));
+  }
+
+  /** Publication state changes use the existing review-key endpoints: every gate is re-run server-side and the key is never stored. */
+  private reviewHeaders(reviewKey: string, reviewer: string): HttpHeaders {
+    return new HttpHeaders({ 'x-editorial-review-key': reviewKey, 'x-editorial-reviewer': reviewer });
+  }
+
+  approvePost(id: string, reviewKey: string, reviewer: string, acknowledge: string[]): Observable<unknown> {
+    return this.http.post(`${this.blogUrl}/${encodeURIComponent(id)}/approve`, { acknowledge }, { headers: this.reviewHeaders(reviewKey, reviewer) });
+  }
+
+  unpublishPost(id: string, reviewKey: string, reviewer: string, reason: string): Observable<unknown> {
+    return this.http.post(`${this.blogUrl}/${encodeURIComponent(id)}/unpublish`, { reason }, { headers: this.reviewHeaders(reviewKey, reviewer) });
+  }
+
+  rollbackPost(id: string, version: number, reviewKey: string, reviewer: string): Observable<unknown> {
+    return this.http.post(`${this.blogUrl}/${encodeURIComponent(id)}/rollback`, { version }, { headers: this.reviewHeaders(reviewKey, reviewer) });
+  }
+
+  rejectPost(id: string, reason: string): Observable<{ rejected: boolean; id: string }> {
+    return this.http.post<ApiResponse<{ rejected: boolean; id: string }>>(`${this.baseUrl}/posts/${encodeURIComponent(id)}/reject`, { reason }).pipe(map((resp) => resp.data));
   }
 
   runnerProcess(action: 'start' | 'stop' | 'restart'): Observable<EditorialRunnerProcess> {

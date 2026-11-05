@@ -67,7 +67,9 @@ async function startServer() {
 
     if (process.env.DISABLE_SCHEDULED_JOBS !== 'true') {
       const { initializeJobs } = await timeStep('boot.import_jobs', () => import('../jobs'));
+      const operations = container.get<any>('adminOperationsService');
       timeStepSync('boot.initialize_jobs', () => initializeJobs({
+        track: (type, by, task) => operations.enqueue(type, by, task),
         // minMs: the per-minute refresh is only stored when it is slow; the first run (set at boot) always is.
         refreshFootballHome: () => timeStep('background.football_home_refresh', () => container.get<any>('footballQueryService').getHome(), { minMs: 50 }),
       }));

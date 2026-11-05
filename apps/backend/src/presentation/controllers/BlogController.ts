@@ -622,6 +622,24 @@ export class BlogController {
     }
   };
 
+  /** Takes a published editorial post back to draft (kept as a revision, so it can be restored); public caches are purged. */
+  public unpublishPost = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const post = await BlogPostModel.findById(String(req.params.id || '').trim()).exec();
+      if (!post) throw new NotFoundError('Editorial post not found');
+      if (post.status !== 'publish') throw new ConflictError('Only published posts can be unpublished');
+      const reviewer = String(req.header('x-editorial-reviewer') || 'unnamed operator').trim();
+      const reason = String(req.body?.reason ?? '').trim().slice(0, 300);
+      this.pushRevision(post, `unpublished by ${reviewer}`);
+      post.set({ status: 'draft', reviewState: 'unreviewed', reviewedBy: undefined, reviewedAt: undefined, reviewNotes: `Unpublished by ${reviewer}${reason ? `: ${reason}` : ''}` });
+      await this.saveUnchanged(post);
+      await this.invalidatePublicReads();
+      res.status(200).json(successResponse({ post: this.mapPost(post.toObject()) }));
+    } catch (error) {
+      next(error);
+    }
+  };
+
   /** Saves only if nobody wrote the post since it was read (optimisticConcurrency on the schema). */
   private async saveUnchanged(post: InstanceType<typeof BlogPostModel>): Promise<void> {
     try {

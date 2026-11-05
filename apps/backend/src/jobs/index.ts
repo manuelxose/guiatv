@@ -45,21 +45,43 @@ export function createIsolatedJobRunner(
   };
 }
 
+export interface ScheduledJobInfo { name: string; label: string; schedule: string; runnable: boolean }
+interface ScheduledJobEntry extends ScheduledJobInfo { run: () => Promise<unknown> }
+const registry = new Map<string, ScheduledJobEntry>();
+export const listScheduledJobs = (): ScheduledJobInfo[] => [...registry.values()].map(({ run: _run, ...info }) => info);
+/** Runs a registered job now through the same runner as the cron trigger (so an overlapping run is refused, not stacked). */
+export async function runScheduledJob(name: string): Promise<boolean> {
+  const job = registry.get(name);
+  if (!job || !job.runnable) throw new Error(`Unknown or non-runnable scheduled job: ${name}`);
+  return (await job.run()) !== false;
+}
+
 /**
  * Inicializar todos los jobs programados usando node-cron
+ * `track` records each run (cron or manual) as an admin operation so it shows in Background jobs.
  */
-export function initializeJobs(options: { refreshFootballHome?: () => Promise<unknown> } = {}): void {
+export function initializeJobs(options: {
+  refreshFootballHome?: () => Promise<unknown>;
+  track?: (type: string, triggeredBy: string, task: () => Promise<unknown>) => Promise<unknown>;
+} = {}): void {
+  const tracked = (name: string, run: () => Promise<unknown>) => (triggeredBy: string) => (options.track ? options.track(name, triggeredBy, run) : run());
+  const register = (name: string, label: string, schedule: string, run: () => Promise<unknown>, runnable = true) => {
+    const runTracked = tracked(name, run);
+    registry.set(name, { name, label, schedule, runnable, run: () => runTracked('admin') });
+    return () => runTracked('cron');
+  };
   console.log('[Jobs] Configurando jobs programados...');
   const runSyncEpg = createIsolatedJobRunner(join(__dirname, 'cli/syncEPG.cli.js'));
   const runPrecompute = createIsolatedJobRunner(join(__dirname, 'cli/precomputeSchedules.cli.js'));
   const runCleanup = createIsolatedJobRunner(join(__dirname, 'cli/cleanOldPrograms.cli.js'));
 
   // Sincronizar EPG cada 6 horas (00:00, 06:00, 12:00, 18:00)
+  const cronSyncEpg = register('syncEPG', 'Sincronización de EPG', '0 */6 * * *', runSyncEpg);
   cron.schedule(
     '0 */6 * * *',
     async () => {
       try {
-        await runSyncEpg();
+        await cronSyncEpg();
       } catch (error) {
         console.error('Error ejecutando syncEPGJob:', error);
       }
@@ -71,11 +93,12 @@ export function initializeJobs(options: { refreshFootballHome?: () => Promise<un
   console.log('  - syncEPG: cada 6 horas (0 */6 * * *)');
 
   // Precomputar horarios cada 6 horas (00:00, 06:00, 12:00, 18:00)
+  const cronPrecompute = register('precomputeSchedules', 'Precálculo de horarios', '15 */6 * * *', runPrecompute);
   cron.schedule(
     '15 */6 * * *',
     async () => {
       try {
-        await runPrecompute();
+        await cronPrecompute();
       } catch (error) {
         console.error('Error ejecutando precomputeSchedulesJob:', error);
       }
@@ -87,11 +110,12 @@ export function initializeJobs(options: { refreshFootballHome?: () => Promise<un
   console.log('  - precomputeSchedules: cada 6 horas (15 */6 * * *)');
 
   // Limpiar programas antiguos cada 24 horas a las 3:00 AM
+  const cronCleanup = register('cleanOldPrograms', 'Limpieza de programas antiguos', '0 3 * * *', runCleanup);
   cron.schedule(
     '0 3 * * *',
     async () => {
       try {
-        await runCleanup();
+        await cronCleanup();
       } catch (error) {
         console.error('Error ejecutando cleanOldProgramsJob:', error);
       }
@@ -103,6 +127,7 @@ export function initializeJobs(options: { refreshFootballHome?: () => Promise<un
   console.log('  - cleanOldPrograms: cada dia a las 3:00 AM (0 3 * * *)');
 
   if (options.refreshFootballHome) {
+    register('footballHomeReadModel', 'Modelo de portada de fútbol', '* * * * *', async () => options.refreshFootballHome?.(), false);
     const refresh = async () => {
       try {
         await options.refreshFootballHome?.();

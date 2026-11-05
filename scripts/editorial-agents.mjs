@@ -102,8 +102,8 @@ const integer = (name, fallback, max) => {
   if (!Number.isInteger(v) || v > max) { console.error(`${name} must be an integer from 1 to ${max}`); process.exit(2); }
   return v;
 };
-// M11-E2 testing profile: EDITORIAL_BUDGET=unlimited lifts both USD caps; spend is still estimated, journaled and reported.
-const BUDGET = process.env.EDITORIAL_BUDGET ?? 'capped';
+// Cost is indicative, never limiting: unlimited by default (spend is still estimated, journaled and reported). EDITORIAL_BUDGET=capped re-enables the USD caps.
+const BUDGET = process.env.EDITORIAL_BUDGET ?? 'unlimited';
 if (!['capped', 'unlimited'].includes(BUDGET)) { console.error('EDITORIAL_BUDGET must be capped or unlimited'); process.exit(2); }
 // M11-D: articles per day are set in the Admin; with --report the runner obeys that value (minus today's publications).
 let serverCapacity = null;

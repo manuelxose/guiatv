@@ -201,6 +201,11 @@ export class EditorialOpsController {
       findings,
       policyBlockers: policyGateFailures(findings),
       revisions: (post.revisions ?? []).map((r) => ({ version: r.version, savedAt: r.savedAt, reason: r.reason, status: r.snapshot?.status })),
+      // The most recent stored version, for a diff against what is shown now.
+      previous: (() => {
+        const last = (post.revisions ?? []).at(-1);
+        return last ? { version: last.version, savedAt: last.savedAt, reason: last.reason, title: last.snapshot?.title ?? '', content: last.snapshot?.content ?? '' } : null;
+      })(),
     }));
   };
 
@@ -221,6 +226,19 @@ export class EditorialOpsController {
     if (!result.matchedCount) throw new ConflictError('The post changed while this request ran; read it again');
     await audit().insertOne({ at: new Date(), action: 'editorial-post-edit', by: actor(req), postId: String(post._id), slug: post.slug });
     res.json(successResponse({ updated: true, id: String(post._id) }));
+  };
+
+  /** A person declines an unfinished draft: it stays unpublished and the reason is kept. Nothing public changes. */
+  rejectPost = async (req: Request, res: Response): Promise<void> => {
+    const post = await BlogPostModel.findById(String(req.params.id)).exec().catch(() => null);
+    if (!post?.editorial) throw new NotFoundError('AI editorial post not found');
+    if (post.status !== 'draft') throw new ConflictError('Only unpublished drafts can be rejected');
+    const reason = String(req.body?.reason ?? '').trim().slice(0, 300);
+    const version = post.__v === undefined ? { $exists: false } : post.__v;
+    const result = await BlogPostModel.updateOne({ _id: post._id, status: 'draft', __v: version }, { $set: { reviewState: 'rejected', reviewedBy: actor(req), reviewedAt: new Date(), reviewNotes: reason || 'Rechazado por un administrador' }, $inc: { __v: 1 } });
+    if (!result.matchedCount) throw new ConflictError('The post changed while this request ran; read it again');
+    await audit().insertOne({ at: new Date(), action: 'editorial-post-reject', by: actor(req), postId: String(post._id), slug: post.slug, reason });
+    res.json(successResponse({ rejected: true, id: String(post._id) }));
   };
 
   deletePost = async (req: Request, res: Response): Promise<void> => {

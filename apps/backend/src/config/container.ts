@@ -615,6 +615,8 @@ export class Container {
     const { AIController } = await import('../presentation/controllers/AIController');
     const { AssistantOperationalTelemetryService } = await import('../application/services/AssistantOperationalTelemetryService');
 
+    const adminOperations = new AdminOperationsService(this.get('cacheRepository'), this.has('footballProvider') ? this.get('footballProvider') : undefined, this.has('footballQueryService') ? () => this.get<any>('footballQueryService').getHome() : undefined);
+    this.dependencies.set('adminOperationsService', adminOperations);
     const adminController = new AdminController(
       this.get('syncEPGData'),
       this.get('precomputeSchedule'),
@@ -623,7 +625,7 @@ export class Container {
       this.get('resetSystem'),
       new AdminEpgDiagnosticsService(),
       new AdminProviderRegistryService(),
-      new AdminOperationsService(this.get('cacheRepository'), this.has('footballProvider') ? this.get('footballProvider') : undefined, this.has('footballQueryService') ? () => this.get<any>('footballQueryService').getHome() : undefined)
+      adminOperations
     );
     this.dependencies.set('adminController', adminController);
 
