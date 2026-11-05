@@ -49,7 +49,7 @@ describe('stage mapping', () => {
 });
 
 describe('Operaciones IA', () => {
-  beforeEach(() => TestBed.configureTestingModule({ imports: [AdminEditorialSectionComponent], providers: [{ provide: AdminEditorialService, useValue: { getOverview: () => of(overview) } }] }));
+  beforeEach(() => TestBed.configureTestingModule({ imports: [AdminEditorialSectionComponent], providers: [{ provide: AdminEditorialService, useValue: { getOverview: () => of(overview), getProviders: () => of({ checkedAt: new Date().toISOString(), providers: [] }) } }] }));
 
   it('keeps generation, publication and runner states separate', () => {
     const fixture = TestBed.createComponent(AdminEditorialSectionComponent);
@@ -124,7 +124,7 @@ describe('review helpers', () => {
     const calls: unknown[][] = [];
     const detail = { post: { id: 'p1', status: 'draft', title: 't', slug: 's', content: '', excerpt: '', metaTitle: '', metaDescription: '' }, provenance: { bundle: { sources: [], claims: [] } }, findings: [{ severity: 'human', code: 'H1', message: 'm' }], policyBlockers: [], revisions: [], previous: null } as any;
     TestBed.configureTestingModule({ imports: [AdminEditorialSectionComponent], providers: [{ provide: AdminEditorialService, useValue: {
-      getOverview: () => of(overview), getPost: () => of(detail), approvePost: (...a: unknown[]) => { calls.push(a); return of({}); },
+      getOverview: () => of(overview), getProviders: () => of({ checkedAt: new Date().toISOString(), providers: [] }), getPost: () => of(detail), approvePost: (...a: unknown[]) => { calls.push(a); return of({}); },
     } }] });
     const fixture = TestBed.createComponent(AdminEditorialSectionComponent);
     fixture.detectChanges();

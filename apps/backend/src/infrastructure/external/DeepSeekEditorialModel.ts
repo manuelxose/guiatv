@@ -25,11 +25,14 @@ export class DeepSeekEditorialModel extends AnthropicEditorialModel {
     super({
       provider: 'deepseek',
       apiKey,
+      // The inherited gateway token would otherwise be sent as a second Authorization header and rejected.
+      authToken: null,
       baseURL: options.baseURL ?? process.env.DEEPSEEK_BASE_URL ?? DEEPSEEK_ANTHROPIC_BASE_URL,
       maxRetries: options.maxRetries,
       client: options.client,
       modelPrefix: options.modelPrefix ?? '',
       webFetch: false,
+      structuredOutput: 'prompt',
     });
   }
 }

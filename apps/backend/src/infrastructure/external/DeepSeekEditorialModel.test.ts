@@ -11,9 +11,9 @@ const reply = {
   content: [{ type: 'text', text: 'nota\n```json\n{"claims":[]}\n```' }],
   usage: { input_tokens: 100, output_tokens: 50, server_tool_use: { web_search_requests: 2 } },
 };
-function fake() {
+function fake(answer: unknown = reply) {
   const sent: any[] = [];
-  const client = { messages: { stream: (body: any) => { sent.push(structuredClone(body)); return { finalMessage: async () => reply }; } } };
+  const client = { messages: { stream: (body: any) => { sent.push(structuredClone(body)); return { finalMessage: async () => answer }; } } };
   return { client: client as unknown as Pick<Anthropic, 'messages'>, sent };
 }
 const call = (over: Partial<ModelCall> = {}): ModelCall => ({
@@ -31,6 +31,18 @@ test('deepseek model: server-owned provider, search without the unsupported web_
   assert.equal(f.sent[0].model, 'deepseek-flash');
   assert.deepEqual(f.sent[0].tools.map((t: any) => t.type), ['web_search_20260209']);
   assert.equal(f.sent[0].max_tokens, 32000);
+  // DeepSeek ignores output_config.format; the schema must travel in the prompt and be parsed from a fence.
+  assert.deepEqual(f.sent[0].output_config, { effort: 'high' });
+  assert.match(f.sent[0].messages[0].content, /```json/);
+});
+
+test('deepseek model: non-research roles get the schema in the prompt, not in output_config.format', async () => {
+  const f = fake({ ...reply, content: [{ type: 'text', text: '{"verdict":"pass","issues":[]}' }], usage: { input_tokens: 10, output_tokens: 5 } });
+  const model = new DeepSeekEditorialModel({ apiKey: 'test-key', client: f.client });
+  const result = await model.call(call({ role: 'critic', webSearches: undefined }));
+  assert.deepEqual(result.json, { verdict: 'pass', issues: [] });
+  assert.deepEqual(f.sent[0].output_config, { effort: 'high' });
+  assert.match(f.sent[0].messages[0].content, /```json/);
 });
 
 test('deepseek model: refuses a route for another provider and a missing credential', async () => {

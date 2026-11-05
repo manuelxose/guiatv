@@ -5,6 +5,8 @@ const MAX_OUTPUT_TOKENS = 32000;
 
 export interface AnthropicEditorialModelOptions {
   apiKey?: string;
+  /** Explicit null prevents the SDK from reading ANTHROPIC_AUTH_TOKEN (a gateway token must not win over an API key). */
+  authToken?: string | null;
   maxRetries?: number;
   client?: Pick<Anthropic, 'messages'>;
   modelPrefix?: string;
@@ -14,6 +16,8 @@ export interface AnthropicEditorialModelOptions {
   baseURL?: string;
   /** Anthropic server tools include web_fetch; DeepSeek's compatible endpoint only implements web_search. */
   webFetch?: boolean;
+  /** DeepSeek accepts only `effort` in output_config, so the schema is requested in the prompt instead. */
+  structuredOutput?: 'json_schema' | 'prompt';
 }
 
 /**
@@ -30,25 +34,29 @@ export class AnthropicEditorialModel implements EditorialModel {
   /** Gateway model namespace (e.g. `cc/` for the owner's subscription gateway); routes, prices and provenance keep the canonical id. */
   private readonly modelPrefix: string;
   private readonly webFetch: boolean;
+  private readonly structuredOutput: 'json_schema' | 'prompt';
 
   constructor(options: AnthropicEditorialModelOptions = {}) {
     this.provider = options.provider ?? 'anthropic';
     // Zero-arg resolution (ANTHROPIC_API_KEY, auth token, `ant auth login` profile) unless a key is injected.
     this.client = options.client ?? new Anthropic({
       ...(options.apiKey ? { apiKey: options.apiKey } : {}),
+      ...(options.authToken !== undefined ? { authToken: options.authToken } : {}),
       ...(options.baseURL ? { baseURL: options.baseURL } : {}),
       maxRetries: options.maxRetries ?? 1,
     });
     this.modelPrefix = options.modelPrefix ?? process.env.ANTHROPIC_MODEL_PREFIX ?? '';
     this.webFetch = options.webFetch ?? true;
+    this.structuredOutput = options.structuredOutput ?? 'json_schema';
   }
 
   async call(request: ModelCall): Promise<ModelResult> {
     if (request.provider !== this.provider) throw new Error(`${request.role}: routed to ${request.provider}, not ${this.provider}`);
     const research = Boolean(request.webSearches);
+    const promptSchema = research || this.structuredOutput === 'prompt';
     const messages: Anthropic.MessageParam[] = [{
       role: 'user',
-      content: research
+      content: promptSchema
         ? `${request.prompt}\n\nTermina con un único bloque \`\`\`json que cumpla este esquema:\n${JSON.stringify(request.schema)}`
         : request.prompt,
     }];
@@ -64,7 +72,7 @@ export class AnthropicEditorialModel implements EditorialModel {
         max_tokens: MAX_OUTPUT_TOKENS,
         system: request.system,
         messages,
-        output_config: research ? { effort: request.effort } : { effort: request.effort, format: { type: 'json_schema', schema: request.schema } },
+        output_config: promptSchema ? { effort: request.effort } : { effort: request.effort, format: { type: 'json_schema', schema: request.schema } },
         ...(research
           ? { tools: [
             { type: 'web_search_20260209', name: 'web_search', max_uses: request.webSearches },
@@ -79,7 +87,9 @@ export class AnthropicEditorialModel implements EditorialModel {
 
       usage.input_tokens += message.usage.input_tokens + (message.usage.cache_creation_input_tokens ?? 0) + (message.usage.cache_read_input_tokens ?? 0);
       usage.output_tokens += message.usage.output_tokens;
-      searches += message.usage.server_tool_use?.web_search_requests ?? 0;
+      // DeepSeek reports successful searches as tool_search; Anthropic reports every request as web_search_requests.
+      const toolUse = message.usage.server_tool_use as { web_search_requests?: number; tool_search?: number } | undefined;
+      searches += toolUse?.tool_search ?? toolUse?.web_search_requests ?? 0;
       // A gateway must not answer with another model than the routed one: provenance and prices name it.
       if (message.model && !message.model.startsWith(request.model)) throw fail(`answered by ${message.model}, routed to ${request.model}`);
 
@@ -91,7 +101,7 @@ export class AnthropicEditorialModel implements EditorialModel {
       if (message.stop_reason === 'max_tokens') throw fail('answer truncated at max_tokens');
       const text = message.content.filter((b): b is Anthropic.TextBlock => b.type === 'text').map((b) => b.text).join('\n');
       try {
-        return { json: parseJson(text, research), usage, searches };
+        return { json: parseJson(text, promptSchema), usage, searches };
       } catch (error) {
         throw fail(error instanceof Error ? error.message : String(error));
       }
@@ -101,7 +111,10 @@ export class AnthropicEditorialModel implements EditorialModel {
 }
 
 export function parseJson(text: string, fenced: boolean): unknown {
-  const body = fenced ? [...text.matchAll(/```json\s*([\s\S]*?)```/g)].pop()?.[1] : text;
+  // Prompt-mode providers usually wrap the object in a fence but sometimes answer with bare JSON.
+  const body = fenced
+    ? [...text.matchAll(/```json\s*([\s\S]*?)```/g)].pop()?.[1] ?? (/^\s*[{[]/.test(text) ? text : undefined)
+    : text;
   if (!body) throw new Error('no JSON block in the answer');
   return JSON.parse(body);
 }

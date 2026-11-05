@@ -143,11 +143,9 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
   }
 
   loadProviders(refresh = false): void {
-    const request = (this.service as Partial<AdminEditorialService>).getProviders?.(refresh);
-    if (!request) return;
     this.providersLoading = true;
     this.providersError = '';
-    request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.service.getProviders(refresh).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (data) => { this.providers = data; this.providersLoading = false; },
       error: (e) => { this.providersLoading = false; this.providersError = errorMessage(e, 'No se pudo comprobar la conexión con los proveedores'); },
     });

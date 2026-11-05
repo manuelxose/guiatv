@@ -50,12 +50,13 @@ const ROLES: readonly EditorialRole[] = ['research', 'evidence', 'editorial', 's
  * Role routing (docs/adr/0001): strong models where facts are decided, a cheap one for mechanical metadata.
  * A route names its provider; an adapter refuses routes for another provider, so nothing is silently re-routed.
  */
+// DeepSeek is the production fallback when no Anthropic API key exists on the server (M14-A).
 export const DEFAULT_ROUTES: RouteTable = Object.freeze({
-  research: [{ provider: 'anthropic', model: 'claude-opus-5-5', effort: 'high' }],
-  evidence: [{ provider: 'anthropic', model: 'claude-opus-5-5', effort: 'high' }],
-  editorial: [{ provider: 'anthropic', model: 'claude-opus-5-5', effort: 'medium' }],
-  seo: [{ provider: 'anthropic', model: 'claude-haiku-5-5', effort: 'low' }, { provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low' }],
-  critic: [{ provider: 'anthropic', model: 'claude-opus-5-5', effort: 'high' }],
+  research: [{ provider: 'anthropic', model: 'claude-opus-5-5', effort: 'high' }, { provider: 'deepseek', model: 'deepseek-v4-pro', effort: 'high' }],
+  evidence: [{ provider: 'anthropic', model: 'claude-opus-5-5', effort: 'high' }, { provider: 'deepseek', model: 'deepseek-v4-pro', effort: 'high' }],
+  editorial: [{ provider: 'anthropic', model: 'claude-opus-5-5', effort: 'medium' }, { provider: 'deepseek', model: 'deepseek-flash', effort: 'medium' }],
+  seo: [{ provider: 'anthropic', model: 'claude-haiku-5-5', effort: 'low' }, { provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low' }, { provider: 'deepseek', model: 'deepseek-flash', effort: 'low' }],
+  critic: [{ provider: 'anthropic', model: 'claude-opus-5-5', effort: 'high' }, { provider: 'deepseek', model: 'deepseek-v4-pro', effort: 'high' }],
 });
 /** No real image provider is verified yet (prices, terms): covers need an explicit route, e.g. the local mock. */
 export const DEFAULT_IMAGE_ROUTES: readonly ImageRoute[] = Object.freeze([]);
