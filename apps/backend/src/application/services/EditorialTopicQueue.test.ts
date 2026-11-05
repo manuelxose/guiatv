@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  cleanSlug,
   checkSeeds, pickTopics, proposeTopics, QueuedTopic, recoverQueue, screenProposal, scoreProposal, sourceFamily, TopicProposal, TopicQueueFile,
 } from './EditorialTopicQueue';
 import { DEFAULT_ROUTES, EditorialModel } from './EditorialAgentPipeline';
@@ -42,7 +43,7 @@ test('duplicate intent, taken slug and invalid candidates are rejected with thei
   assert.ok(dup.some((r) => r.startsWith('duplicate: misma intención que horario-proteccion-menores')), dup.join(' | '));
   assert.ok(screenProposal(proposal({ slug: coverage[0].slug }), ctx()).includes('duplicate: slug ya usado'));
   const invalid = screenProposal(proposal({ slug: 'Mal Slug', title: 'corto', category: 'Cocina', volatility: 'nope' as never, seedUrls: [] }), ctx());
-  for (const r of ['invalid-candidate: slug', 'invalid-candidate: título', 'invalid-candidate: categoría Cocina', 'invalid-candidate: volatilidad', 'insufficient-evidence: 1-4 fuentes semilla']) {
+  for (const r of ['invalid-candidate: slug', 'invalid-candidate: título', 'invalid-candidate: categoría Cocina', 'invalid-candidate: volatilidad', 'insufficient-evidence: 1-6 fuentes semilla']) {
     assert.ok(invalid.includes(r), r);
   }
   // A recently rejected candidate is remembered, so discovery cannot resubmit it under a new slug.
@@ -122,4 +123,10 @@ test('one publisher cannot pass the value gate: rejected at screening and droppe
   const file: TopicQueueFile = { version: 1, topics: [single, withData] };
   recoverQueue(file, NOW);
   assert.deepEqual(file.topics.map((t) => t.state), ['rejected', 'queued'], 'GuíaTV data also satisfies the value gate');
+});
+
+test('cleanSlug normalises accents, symbols and length so a good topic is not rejected for its slug', () => {
+  assert.equal(cleanSlug('Control parental: Netflix + Disney+ ¿cómo?'), 'control-parental-netflix-disney-como');
+  const long = cleanSlug('a-'.repeat(60));
+  assert.ok(long.length <= 80 && !long.endsWith('-'));
 });
