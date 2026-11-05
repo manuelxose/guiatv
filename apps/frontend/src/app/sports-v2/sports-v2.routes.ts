@@ -1,41 +1,36 @@
 import { Routes } from '@angular/router';
 import { DemoFootballData, FootballData } from './data/football-data';
+import { BrowserFollowStorage, FollowStorage } from './data/follow-storage';
 import { SportsStore } from './state/sports-store';
+import { Sv2Viewport } from './state/viewport';
 
 // Preview surface: must never be indexed or inherit the legacy consumer shell.
 const PREVIEW = { robots: 'noindex, nofollow', layout: 'minimal-shell' } as const;
-const section = (path: string, view: string, title: string) => ({
-  path,
-  loadComponent: () => import('./pages/section-page').then((m) => m.Sv2SectionPageComponent),
-  title: `${title} · Fútbol (vista previa) - Guía TV`,
-  data: { ...PREVIEW, view },
-});
+const TITLE = (name: string) => `${name} · Fútbol (vista previa) - Guía TV`;
 
 /** Lazy route tree mounted at SPORTS_V2_BASE by app.routes.ts. */
 export const SPORTS_V2_ROUTES: Routes = [
   {
     path: '',
     loadComponent: () => import('./shell/app-shell').then((m) => m.Sv2AppShellComponent),
-    // Swap DemoFootballData for the HTTP adapter in M02; nothing else changes.
-    providers: [{ provide: FootballData, useClass: DemoFootballData }, SportsStore],
+    // M03 swaps DemoFootballData for the HTTP adapter here; nothing else changes.
+    providers: [{ provide: FootballData, useClass: DemoFootballData }, { provide: FollowStorage, useClass: BrowserFollowStorage }, Sv2Viewport, SportsStore],
     data: PREVIEW,
     children: [
-      {
-        path: '',
-        pathMatch: 'full',
-        loadComponent: () => import('./pages/home-page').then((m) => m.Sv2HomePageComponent),
-        title: 'Fútbol (vista previa) - Guía TV',
-        data: PREVIEW,
-      },
-      section('en-directo', 'live', 'En directo'),
-      section('partidos', 'fixtures', 'Partidos'),
-      section('resultados', 'results', 'Resultados'),
-      section('competiciones', 'competitions', 'Competiciones'),
-      section('competiciones/:slug', 'competition', 'Competición'),
-      section('equipos/:slug', 'team', 'Equipo'),
-      section('partido/:slug', 'match', 'Partido'),
-      section('noticias', 'news', 'Noticias'),
-      section('siguiendo', 'following', 'Siguiendo'),
+      { path: '', pathMatch: 'full', loadComponent: () => import('./pages/home-page').then((m) => m.Sv2HomePageComponent), title: 'Fútbol (vista previa) - Guía TV' },
+      { path: 'en-directo', loadComponent: () => import('./pages/live-page').then((m) => m.Sv2LivePageComponent), title: TITLE('En directo') },
+      { path: 'partidos', loadComponent: () => import('./pages/fixtures-page').then((m) => m.Sv2FixturesPageComponent), title: TITLE('Partidos'), data: { mode: 'fixtures' } },
+      { path: 'resultados', loadComponent: () => import('./pages/fixtures-page').then((m) => m.Sv2FixturesPageComponent), title: TITLE('Resultados'), data: { mode: 'results' } },
+      { path: 'competiciones', loadComponent: () => import('./pages/competitions-page').then((m) => m.Sv2CompetitionsPageComponent), title: TITLE('Competiciones') },
+      { path: 'competiciones/:slug', loadComponent: () => import('./pages/competition-page').then((m) => m.Sv2CompetitionPageComponent), title: TITLE('Competición') },
+      { path: 'clasificaciones', loadComponent: () => import('./pages/standings-page').then((m) => m.Sv2StandingsPageComponent), title: TITLE('Clasificaciones') },
+      { path: 'clasificaciones/:slug', loadComponent: () => import('./pages/standings-page').then((m) => m.Sv2StandingsPageComponent), title: TITLE('Clasificación') },
+      { path: 'equipos/:slug', loadComponent: () => import('./pages/team-page').then((m) => m.Sv2TeamPageComponent), title: TITLE('Equipo') },
+      { path: 'partido/:slug', loadComponent: () => import('./pages/match-page').then((m) => m.Sv2MatchPageComponent), title: TITLE('Partido') },
+      { path: 'noticias', loadComponent: () => import('./pages/news-page').then((m) => m.Sv2NewsPageComponent), title: TITLE('Noticias') },
+      { path: 'noticias/:slug', loadComponent: () => import('./pages/article-page').then((m) => m.Sv2ArticlePageComponent), title: TITLE('Noticia') },
+      { path: 'buscar', loadComponent: () => import('./pages/search-page').then((m) => m.Sv2SearchPageComponent), title: TITLE('Buscar') },
+      { path: 'siguiendo', loadComponent: () => import('./pages/following-page').then((m) => m.Sv2FollowingPageComponent), title: TITLE('Mi fútbol') },
       { path: '**', redirectTo: '' },
     ],
   },

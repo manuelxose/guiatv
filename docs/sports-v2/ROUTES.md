@@ -7,22 +7,25 @@ All routes sit under the noindex preview prefix `/laboratorio/futbol`. It is not
 | URL | View | Title |
 |---|---|---|
 | `/laboratorio/futbol` | Home (personalised discovery) | Fútbol (vista previa) |
-| `/laboratorio/futbol/en-directo` | Live fixtures | En directo |
-| `/laboratorio/futbol/partidos` | Upcoming fixtures | Partidos |
+| `/laboratorio/futbol/en-directo` | Live fixtures (`?competicion=`, `?seguidos=1`) | En directo |
+| `/laboratorio/futbol/partidos` | Fixtures by day (`?dia=YYYY-MM-DD`, plus the same filters) | Partidos |
 | `/laboratorio/futbol/resultados` | Results | Resultados |
 | `/laboratorio/futbol/competiciones` | Competition catalogue | Competiciones |
-| `/laboratorio/futbol/competiciones/:slug` | One competition | its name |
+| `/laboratorio/futbol/competiciones/:slug` | One competition (`?tab=partidos|resultados|clasificacion|equipos|noticias`) | its name |
 | `/laboratorio/futbol/equipos/:slug` | One team | its name |
-| `/laboratorio/futbol/partido/:slug` | One match (also opens Match Center) | Partido |
-| `/laboratorio/futbol/noticias` | News | Noticias |
-| `/laboratorio/futbol/siguiendo` | Followed teams and favourite competitions | Siguiendo |
+| `/laboratorio/futbol/partido/:slug` | Full-page Match Center (`?tab=estadisticas|alineaciones|donde-verlo`); dedicated full screen on mobile | home - away |
+| `/laboratorio/futbol/noticias` | News home (featured lead + cards; `?competicion=`, `?seguidos=1`) | Noticias |
+| `/laboratorio/futbol/noticias/:slug` | Article detail | article title |
+| `/laboratorio/futbol/clasificaciones[/:slug]` | Standings (bare path redirects to the first competition with a table) | Clasificación |
+| `/laboratorio/futbol/buscar?q=` | Unified search | Buscar |
+| `/laboratorio/futbol/siguiendo` | My Football: followed teams, favourite competitions, saved fixtures | Mi fútbol |
 
 Unknown paths under the prefix redirect to its home. Every link is built with `sv2Link()` from `sports-v2.paths.ts`, so the prefix changes in exactly one place.
 
 ## Identity rules
 
 - Path params are human slugs (`real-costa-racing-sur-...`), never database ids. `SportsStore` tests assert search links match `^[a-z0-9-]+(/[a-z0-9-]+)?$`.
-- Match slugs are `<home>-<away>-<disambiguator>`. For production data the disambiguator will be the kickoff date (`2026-11-05`); M01 uses `demo-NN` because the data is fictional.
+- Match slugs are `<home>-<away>-<YYYY-MM-DD>` (kickoff day in Madrid), already used by the M02 demo data.
 - Visible UI (breadcrumbs, labels, ARIA) only uses names. No identifier is rendered.
 
 ## Cutover plan (not in M01)

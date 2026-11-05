@@ -22,7 +22,7 @@ import { Sv2StatusIndicatorComponent } from '../ui/status-indicator';
           <ul>
             @for (m of store.trackedMatches(); track m.slug) {
               <li>
-                <button type="button" class="item" (click)="store.selectMatch(m.slug, true)" [attr.aria-label]="'Abrir ' + label(m.homeSlug) + ' contra ' + label(m.awaySlug) + ' en Match Center'">
+                <button type="button" class="item" (click)="store.openMatch(m.slug)" [attr.aria-label]="'Abrir ' + label(m.homeSlug) + ' contra ' + label(m.awaySlug) + ' en Match Center'">
                   <span class="t">{{ short(m.homeSlug) }}</span>
                   <app-sv2-score-display [home]="m.homeScore" [away]="m.awayScore" [status]="m.status" />
                   <span class="t">{{ short(m.awaySlug) }}</span>

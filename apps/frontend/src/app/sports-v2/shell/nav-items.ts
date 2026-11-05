@@ -14,5 +14,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Partidos', segments: ['partidos'], icon: 'calendar', mobile: true },
   { label: 'Resultados', segments: ['resultados'], icon: 'results', mobile: false },
   { label: 'Competiciones', segments: ['competiciones'], icon: 'trophy', mobile: true },
+  { label: 'Clasificaciones', segments: ['clasificaciones'], icon: 'shield', mobile: false },
   { label: 'Noticias', segments: ['noticias'], icon: 'news', mobile: true },
+  { label: 'Mi fútbol', segments: ['siguiendo'], icon: 'star', mobile: false },
 ];

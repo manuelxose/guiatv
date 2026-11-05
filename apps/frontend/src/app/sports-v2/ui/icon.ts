@@ -20,6 +20,11 @@ const PATHS = {
   tv: 'M3 6h18v12H3zM8 21h8M12 18v3',
   panel: 'M4 4h16v16H4zM15 4v16',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
+  bookmark: 'M6 3h12v18l-6-4-6 4z',
+  plus: 'M12 5v14M5 12h14',
+  check: 'M5 13l4 4 10-10',
+  expand: 'M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7',
+  clock: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3 2',
 } as const;
 
 export type IconName = keyof typeof PATHS;

@@ -24,7 +24,7 @@ import { Sv2EmptyStateComponent } from '../ui/states';
                   [competitionName]="store.competition(m.competitionSlug)?.name ?? ''"
                   [selected]="store.selectedMatchSlug() === m.slug"
                   [tracked]="store.isTracked(m.slug)"
-                  (matchSelect)="store.selectMatch($event, true)"
+                  (matchSelect)="store.openMatch($event)"
                   (trackToggle)="store.toggleTracked($event)"
                 />
               </li>

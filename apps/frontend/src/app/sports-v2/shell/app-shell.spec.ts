@@ -1,15 +1,11 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
-import { DemoFootballData, FootballData } from '../data/football-data';
 import { SportsStore } from '../state/sports-store';
+import { sv2TestProviders, TEST_TODAY } from '../testing/providers';
 import { Sv2AppShellComponent } from './app-shell';
 
 describe('sports-v2 Sv2AppShellComponent', () => {
   async function render() {
-    TestBed.configureTestingModule({
-      imports: [Sv2AppShellComponent],
-      providers: [provideRouter([]), { provide: FootballData, useClass: DemoFootballData }, SportsStore],
-    });
+    TestBed.configureTestingModule({ imports: [Sv2AppShellComponent], providers: sv2TestProviders() });
     const fixture = TestBed.createComponent(Sv2AppShellComponent);
     fixture.detectChanges();
     await fixture.whenStable();
@@ -22,13 +18,29 @@ describe('sports-v2 Sv2AppShellComponent', () => {
     expect(el.querySelector('header')).toBeTruthy();
     expect(el.querySelector('main#sv2-main')).toBeTruthy();
     expect(el.querySelector('a.skip')).toBeTruthy();
-    expect(el.querySelectorAll('nav[aria-label="Mi fútbol"] ul:first-of-type a').length).toBe(6);
+    expect(el.querySelectorAll('nav[aria-label="Mi fútbol"] ul:first-of-type a').length).toBe(8);
     expect(el.querySelectorAll('nav.tabbar a').length).toBe(5);
   });
 
-  it('shows the selected live match in the Match Center', async () => {
+  it('labels demo data visibly', async () => {
     const el = (await render()).nativeElement as HTMLElement;
-    expect(el.querySelector('app-sv2-context-panel')?.textContent).toContain('Real Costa');
+    expect(el.querySelector('.demo')?.textContent).toContain('ficticios');
+  });
+
+  it('shows the selected live match in the Match Center, with a link to the full page', async () => {
+    const el = (await render()).nativeElement as HTMLElement;
+    const panel = el.querySelector('app-sv2-context-panel') as HTMLElement;
+    expect(panel.textContent).toContain('Real Costa');
+    expect(panel.querySelector('a[aria-label^="Abrir el partido"]')?.getAttribute('href')).toContain(`/partido/real-costa-racing-sur-${TEST_TODAY}`);
+  });
+
+  it('replaces the sidebar with the full page when the match page is open', async () => {
+    const fixture = await render();
+    TestBed.inject(SportsStore).matchPageOpen.set(true);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('app-sv2-context-panel')).toBeNull();
+    expect(el.querySelector('.shell')?.classList.contains('expanded')).toBeTrue();
   });
 
   it('toggles the collapsed sidebar class', async () => {
@@ -42,8 +54,17 @@ describe('sports-v2 Sv2AppShellComponent', () => {
     const fixture = await render();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('.tracker')).toBeNull();
-    TestBed.inject(SportsStore).toggleTracked('real-costa-racing-sur-demo-01');
+    TestBed.inject(SportsStore).toggleTracked(`real-costa-racing-sur-${TEST_TODAY}`);
     fixture.detectChanges();
     expect(el.querySelector('.tracker')).toBeTruthy();
+  });
+
+  it('closes the Match Center drawer on Escape', async () => {
+    const fixture = await render();
+    const store = TestBed.inject(SportsStore);
+    store.contextOpen.set(true);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    fixture.detectChanges();
+    expect(store.contextOpen()).toBeFalse();
   });
 });
