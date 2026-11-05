@@ -21,6 +21,7 @@ import { AdminAISectionComponent } from './sections/ai/admin-ai-section.componen
 import { AdminAffiliateSectionComponent } from './sections/affiliate/admin-affiliate-section.component';
 import { AdminEditorialSectionComponent } from './sections/editorial/admin-editorial-section.component';
 import { AdminRejectedInboxComponent } from './sections/editorial/rejected-inbox/admin-rejected-inbox.component';
+import { AdminSeoSectionComponent } from './sections/seo/admin-seo-section.component';
 
 @Component({
   selector: 'app-admin-panel',
@@ -42,6 +43,7 @@ import { AdminRejectedInboxComponent } from './sections/editorial/rejected-inbox
     AdminAffiliateSectionComponent,
     AdminEditorialSectionComponent,
     AdminRejectedInboxComponent,
+    AdminSeoSectionComponent,
   ],
   templateUrl: './admin.component.html',
   styleUrls: ['./admin.component.scss'],

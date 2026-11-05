@@ -107,21 +107,10 @@
             ></app-admin-rejected-inbox>
           </ng-container>
 
-          <!--
-            Flujo C (m14r-c) entrega sections/seo/** con el componente standalone AdminSeoSectionComponent.
-            En m14r-b ese directorio todavía NO existe, por lo que un import real rompería el build: se mantiene
-            este placeholder. Pasos exactos para el montaje cuando C esté fusionado en esta rama:
-              1) import { AdminSeoSectionComponent } from './sections/seo/admin-seo-section.component';
-              2) añadir AdminSeoSectionComponent a `imports` del @Component de AdminComponent;
-              3) sustituir este <section> por el selector que declare C (previsto app-admin-seo-section):
-                 <app-admin-seo-section *ngIf="activeGroup === 'seo'" (lastUpdatedChange)="onLastUpdated($event)"></app-admin-seo-section>
-            La entrada de navegación 'seo' y el AdminGroupId 'seo' ya están creados y no hay que tocarlos.
-          -->
-          <section *ngIf="activeGroup === 'seo'" aria-labelledby="seo-placeholder-heading" class="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface)] p-6">
-            <p class="text-[10px] uppercase tracking-[0.3em] text-[var(--portal-text-muted)]">SEO</p>
-            <h3 id="seo-placeholder-heading" class="text-2xl font-semibold text-[var(--portal-text)] mt-1">Centro de control SEO</h3>
-            <p class="text-sm text-[var(--portal-text-soft)] mt-2">La sección de indexación y remediación llega desde el flujo C (<code>sections/seo/**</code>) y aún no está montada. Los datos de Search Console se consultan desde AI Assistant → Operaciones IA → Search Console.</p>
-          </section>
+          <app-admin-seo-section
+            *ngIf="activeGroup === 'seo'"
+            (lastUpdatedChange)="onLastUpdated($event)"
+          ></app-admin-seo-section>
 
         </div>
       </main>
