@@ -334,7 +334,7 @@ if [ "${SYNCED}" = "1" ] && [ "${FORCE_DEPLOY:-0}" != "1" ]; then
     fi
     CHANGED_FILES="$(git diff --name-only "${LIVE_SHA}" "${TARGET_SHA}")"
     # A here-string, not a pipe: under pipefail an early-exiting `grep -q` could SIGPIPE the producer and read as "docs only".
-    if ! grep -qvE "${DOCS_ONLY_REGEX}" <<<"${CHANGED_FILES}"; then
+    if ! grep -qxF 'docs/seo/editorial-drafts/publish.json' <<<"${CHANGED_FILES}" && ! grep -qvE "${DOCS_ONLY_REGEX}" <<<"${CHANGED_FILES}"; then
       echo "Only documentation changed between ${LIVE_SHA} and ${TARGET_SHA}; no build, no restart (FORCE_DEPLOY=1 overrides)"
       exit 0
     fi

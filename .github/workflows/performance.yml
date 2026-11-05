@@ -29,7 +29,11 @@ jobs:
           # Unknown base (new branch, force push): treat as code, never skip by accident.
           if ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then echo "code=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           files=$(git diff --name-only "$BASE" "$GITHUB_SHA")
-          code=$(printf '%s\n' "$files" | grep -Ev '^(docs/|artifacts/)|\.md$' | grep -c . || true)
+          if grep -qxF 'docs/seo/editorial-drafts/publish.json' <<<"$files"; then
+            code=1
+          else
+            code=$(printf '%s\n' "$files" | grep -Ev '^(docs/|artifacts/)|\.md$' | grep -c . || true)
+          fi
           echo "code=$([ "$code" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
   backend:

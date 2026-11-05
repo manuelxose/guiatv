@@ -152,6 +152,8 @@ const currentLink = resolve(projectRoot, 'current');
 const backendDistRoot = resolve(projectRoot, 'apps/backend/dist');
 const frontendDistRoot = resolve(projectRoot, 'apps/frontend/dist/guiatv');
 const frontendServerScript = resolve(projectRoot, 'apps/frontend/scripts/ssr-server.mjs');
+const editorialRunnerScript = resolve(projectRoot, 'scripts/editorial-agents.mjs');
+const editorialDrafts = resolve(projectRoot, 'docs/seo/editorial-drafts/publish.json');
 const legacyFrontendReleasesRoot = resolve(projectRoot, 'apps/frontend/releases');
 const cliArgs = process.argv.slice(2);
 const checkOnly = cliArgs.includes('--check');
@@ -202,6 +204,16 @@ if (!existsSync(frontendServerScript)) {
   process.exit(1);
 }
 
+if (!existsSync(editorialRunnerScript)) {
+  console.error(`[publish-release] Editorial runner entrypoint not found at ${editorialRunnerScript}`);
+  process.exit(1);
+}
+
+if (!existsSync(editorialDrafts)) {
+  console.error(`[publish-release] Editorial maintenance data not found at ${editorialDrafts}`);
+  process.exit(1);
+}
+
 if (checkOnly) {
   console.log(JSON.stringify({
     status: 'ready',
@@ -224,10 +236,14 @@ if (existsSync(releaseDir)) {
 
 mkdirSync(releaseBackendRoot, { recursive: true });
 mkdirSync(join(releaseFrontendRoot, 'scripts'), { recursive: true });
+mkdirSync(join(releaseDir, 'scripts'), { recursive: true });
+mkdirSync(join(releaseDir, 'docs/seo/editorial-drafts'), { recursive: true });
 
 cpSync(backendDistRoot, join(releaseBackendRoot, 'dist'), { recursive: true });
 cpSync(frontendDistRoot, join(releaseFrontendRoot, 'dist/guiatv'), { recursive: true });
 cpSync(frontendServerScript, join(releaseFrontendRoot, 'scripts/ssr-server.mjs'));
+cpSync(editorialRunnerScript, join(releaseDir, 'scripts/editorial-agents.mjs'));
+cpSync(editorialDrafts, join(releaseDir, 'docs/seo/editorial-drafts/publish.json'));
 // Imported by ssr-server.mjs.
 for (const helper of ['ssr-canonical.mjs', 'ssr-cache.mjs']) {
   cpSync(resolve(projectRoot, 'apps/frontend/scripts', helper), join(releaseFrontendRoot, 'scripts', helper));
