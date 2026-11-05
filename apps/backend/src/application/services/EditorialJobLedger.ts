@@ -379,6 +379,8 @@ export function archiveJob(job: JobLedgerRecord, actor: string, now: Date): JobL
 export function beginPublication(job: JobLedgerRecord, token: string, generation: number, key: string, url: string | null, now: Date): JobLedgerRecord {
   requireWorker(job, token, generation, now);
   requireRunning(job);
+  // A job that received a cancel request must never start publishing, even if the worker is still live.
+  if (job.cancelRequested || job.state === 'cancelling') throw new ConflictError('Job cancellation requested');
   const publicationKey = text(key, 160);
   if (!publicationKey) throw new ValidationError('A publication idempotency key is required', []);
   return bump(job, { publication: { key: publicationKey, state: 'publishing', url: url ? text(url, 300) : null, at: iso(now) }, publicationKey, currentStage: 'publication' }, now);
@@ -476,8 +478,10 @@ export class EditorialJobLedger {
   async beginPublication(jobId: string, token: string, generation: number, key: string, url: string | null): Promise<JobLedgerRecord> {
     const current = await this.required(jobId);
     const duplicate = await this.repo.getByPublicationKey(key);
-    if (duplicate && duplicate.jobId !== jobId && duplicate.publication?.state === 'published') {
-      throw new ConflictError(`Publication already completed by job ${duplicate.jobId}`);
+    if (duplicate && duplicate.jobId !== jobId) {
+      // The idempotency key is the fence: a key held by another job — completed or in flight — is never reused.
+      if (duplicate.publication?.state === 'published') throw new ConflictError(`Publication already completed by job ${duplicate.jobId}`);
+      if (duplicate.publication?.state === 'publishing') throw new ConflictError(`Publication already in progress by job ${duplicate.jobId}`);
     }
     return this.save(beginPublication(current, token, generation, key, url, this.clock()));
   }

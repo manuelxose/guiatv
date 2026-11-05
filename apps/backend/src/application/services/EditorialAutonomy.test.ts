@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { criticVerdict, EDITORIAL_RUBRIC, EditorialModel, EditorialTopic, runEditorialBatch, runEditorialJob } from './EditorialAgentPipeline';
 import { DEFAULT_EDITORIAL_LIMITS, EvidenceBundle, evaluateEvidence, hashText, provenanceSignatureValid, spelledNumbers, verifyBundle } from './EditorialEvidence';
+import { DEFAULT_GENERATION_SETTINGS, runnerStartAllowed } from './EditorialGenerationService';
 import { deps, draft, GOOD, NOW, pass, research, scripted, topic } from './EditorialAgentPipeline.fixtures';
 
 const BOE_URL = 'https://www.boe.es/buscar/act.php?id=BOE-A-2022-11311';
@@ -341,4 +342,14 @@ test('M11-E2 daily cap: held attempts do not use publishing slots, and concurren
   assert.equal(all.filter((r) => r.state === 'approved-by-policy').length, 10, 'the Admin testing limit of 10');
   assert.equal(all.filter((r) => r.reason === 'límite diario de 10 artículos').length, 2);
   assert.ok(wide.peak() <= 4);
+});
+
+test('M14-R interruptor: el valor por defecto no publica y un arranque automático exige enabled=true', () => {
+  // (d) El valor por defecto en código no puede publicar por omisión.
+  assert.equal(DEFAULT_GENERATION_SETTINGS.enabled, false, 'un despliegue sin ajustes persistidos no arranca la generación');
+  // (a) Un arranque automático (cron) no produce trabajo editorial con enabled=false.
+  assert.deepEqual(runnerStartAllowed({ enabled: false }, 'automatic'), { allowed: false, reason: 'generation-disabled' });
+  assert.deepEqual(runnerStartAllowed({ enabled: true }, 'automatic'), { allowed: true, reason: null });
+  // (b) Un arranque manual es una acción explícita del operador: se permite (y se audita aparte), sin tocar enabled.
+  assert.deepEqual(runnerStartAllowed({ enabled: false }, 'manual'), { allowed: true, reason: null });
 });

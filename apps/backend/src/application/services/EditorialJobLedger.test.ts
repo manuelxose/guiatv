@@ -221,3 +221,93 @@ test('checkpoints are bounded and require an owning lease', async () => {
   assert.equal(job.checkpoints.length, 50);
   await assert.rejects(() => b.service.checkpoint('job-o', 'wrong', 1, { stage: null, ref: 'x', hash: null }), /lease/i);
 });
+
+test('escenario 1 — cancelación durante un stream: estado terminal, sin etapa posterior, sin publicación y coste reconciliado', async () => {
+  const b = bed();
+  await b.service.register({ jobId: 's1', slug: 'guia-stream-cancelado', stageMs: 60_000, articleMs: 600_000 });
+  const claimed = await b.service.claim('s1', worker);
+  await b.service.startStage('s1', claimed.lease!.token, claimed.lease!.generation, 'article-drafting', 'escribiendo');
+  // La cancelación se pide en pleno stream: queda 'cancelling' y el worker la ve en el siguiente heartbeat.
+  const cancelling = await b.service.cancel('s1', 'admin', 'parada de emergencia');
+  assert.deepEqual([cancelling.state, cancelling.cancelRequested], ['cancelling', true]);
+  const beat = await b.service.heartbeat('s1', claimed.lease!.token, claimed.lease!.generation);
+  assert.equal(beat.cancelRequested, true);
+  // Ninguna etapa posterior: una nueva etapa se rechaza una vez pedida la cancelación.
+  await assert.rejects(() => b.service.startStage('s1', claimed.lease!.token, claimed.lease!.generation, 'seo-enrichment'), /cancellation requested/i);
+  // Ninguna publicación: la publicación se rechaza tras la petición de cancelación.
+  await assert.rejects(() => b.service.beginPublication('s1', claimed.lease!.token, claimed.lease!.generation, 'guia-stream-cancelado:hash', null), /cancellation requested/i);
+  // El worker reconoce la cancelación con su coste parcial: estado terminal y coste reconciliado.
+  const done = await b.service.finish('s1', claimed.lease!.token, claimed.lease!.generation, 'cancelled', { classification: 'cancelled', message: 'abortado' }, { modelCalls: 3, usd: 1.25 });
+  assert.deepEqual([done.state, done.lease], ['cancelled', null]);
+  assert.deepEqual([done.usage.modelCalls, done.usage.usd], [3, 1.25]);
+  assert.equal(done.error?.classification, 'cancelled');
+});
+
+test('escenario 2 — muerte de worker con lease vigente: expiración, vallado por generación y recuperación sin publicación duplicada', async () => {
+  const b = bed();
+  await b.service.register({ jobId: 's2', slug: 'guia-worker-caido', maxAttempts: 3, stageMs: 60_000, articleMs: 600_000 });
+  const first = await b.service.claim('s2', worker);
+  await b.service.startStage('s2', first.lease!.token, first.lease!.generation, 'article-drafting');
+  // El worker muere con su lease vigente: nadie puede recuperarlo hasta que expire.
+  await assert.rejects(() => b.service.recover('s2'), /live/i);
+  b.advance(91_000);
+  assert.equal((await b.service.recover('s2')).state, 'queued');
+  // Un segundo worker toma el trabajo: generación 2, intento 2.
+  const second = await b.service.claim('s2', { id: 'worker-2', host: 'vmi', pid: 5678 });
+  assert.deepEqual([second.lease?.generation, second.attempt], [2, 2]);
+  // El worker obsoleto queda vallado por generación: no puede publicar ni terminar.
+  await assert.rejects(() => b.service.beginPublication('s2', first.lease!.token, first.lease!.generation, 'guia-worker-caido:hash', null), /lease/i);
+  await assert.rejects(() => b.service.finish('s2', first.lease!.token, first.lease!.generation, 'completed'), /lease/i);
+  // El worker correcto publica una sola vez y cierra.
+  await b.service.beginPublication('s2', second.lease!.token, second.lease!.generation, 'guia-worker-caido:hash', 'https://guiaprogramaciontv.com/guias/guia-worker-caido');
+  await b.service.finishPublication('s2', second.lease!.token, second.lease!.generation, 'published', 'https://guiaprogramaciontv.com/guias/guia-worker-caido');
+  const done = await b.service.finish('s2', second.lease!.token, second.lease!.generation, 'completed');
+  assert.deepEqual([done.state, done.publication?.state], ['completed', 'published']);
+  assert.equal(done.publicationKey, 'guia-worker-caido:hash');
+});
+
+test('escenario 3 — proveedor que no termina: plazos por etapa y artículo, clasificación y fin terminal (nunca running infinito)', async () => {
+  const b = bed();
+  await b.service.register({ jobId: 's3', slug: 'guia-proveedor-colgado', maxAttempts: 2, stageMs: 60_000, articleMs: 60_000 });
+  const claimed = await b.service.claim('s3', worker);
+  assert.equal(claimed.articleDeadlineAt, '2026-11-05T18:01:00.000Z', 'plazo por artículo');
+  const stage = await b.service.startStage('s3', claimed.lease!.token, claimed.lease!.generation, 'article-drafting');
+  assert.equal(stage.stages.at(-1)?.deadlineAt, '2026-11-05T18:01:00.000Z', 'plazo por etapa');
+  // El proveedor cuelga y el worker deja de emitir heartbeat: el plazo del artículo cierra el trabajo, no lo deja corriendo.
+  b.advance(61_000);
+  const late = await b.service.heartbeat('s3', claimed.lease!.token, claimed.lease!.generation);
+  assert.deepEqual([late.job.state, late.job.error?.classification], ['failed', 'deadline-exceeded']);
+  assert.equal(late.job.lease, null);
+  // Reintento seguro y acotado: un segundo intento y, agotado el tope, dead-letter.
+  assert.equal((await b.service.retry('s3', 'admin')).state, 'queued');
+  const second = await b.service.claim('s3', worker);
+  assert.equal(second.attempt, 2);
+  b.advance(91_000);
+  assert.equal((await b.service.recover('s3')).state, 'dead-letter');
+  // La clasificación de un fallo de proveedor se conserva en el ledger.
+  await b.service.register({ jobId: 's3b', slug: 'guia-timeout-proveedor', stageMs: 60_000, articleMs: 600_000 });
+  const c = await b.service.claim('s3b', worker);
+  const failed = await b.service.finish('s3b', c.lease!.token, c.lease!.generation, 'failed', { classification: 'provider-timeout', message: 'request timed out' });
+  assert.equal(failed.error?.classification, 'provider-timeout');
+});
+
+test('escenario 4 — publicación idempotente: una sola publicación visible ante intentos repetidos y simultáneos', async () => {
+  const b = bed();
+  await b.service.register({ jobId: 's4', slug: 'guia-publicacion-unica', stageMs: 60_000, articleMs: 600_000 });
+  const a = await b.service.claim('s4', worker);
+  await b.service.beginPublication('s4', a.lease!.token, a.lease!.generation, 'guia-publicacion-unica:hash', null);
+  // Un segundo trabajo con la misma clave de idempotencia, aún en vuelo, se rechaza.
+  await b.service.register({ jobId: 's4b', slug: 'guia-publicacion-unica', stageMs: 60_000, articleMs: 600_000 });
+  const other = await b.service.claim('s4b', worker);
+  await assert.rejects(() => b.service.beginPublication('s4b', other.lease!.token, other.lease!.generation, 'guia-publicacion-unica:hash', null), /already in progress/);
+  await b.service.finishPublication('s4', a.lease!.token, a.lease!.generation, 'published', 'https://guiaprogramaciontv.com/guias/guia-publicacion-unica');
+  await b.service.finish('s4', a.lease!.token, a.lease!.generation, 'completed');
+  // Tras completarse, la misma clave sigue rechazada para cualquier otro trabajo.
+  await assert.rejects(() => b.service.beginPublication('s4b', other.lease!.token, other.lease!.generation, 'guia-publicacion-unica:hash', null), /already completed/);
+  // Una sola publicación visible: solo el primer trabajo la registró.
+  const first = await b.service.get('s4');
+  const second = await b.service.get('s4b');
+  assert.deepEqual([first.publication?.state, first.publicationKey], ['published', 'guia-publicacion-unica:hash']);
+  assert.equal(second.publication, null);
+  assert.equal(second.publicationKey, null);
+});

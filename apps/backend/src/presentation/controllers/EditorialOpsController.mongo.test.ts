@@ -329,3 +329,28 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     await mongoose.disconnect();
   }
 });
+
+test('M14-R interruptor: startRunnerProcess automático se niega con enabled=false y el manual queda auditado como acción explícita', { skip: !process.env.TEST_MONGO_URI }, async () => {
+  await mongoose.connect(process.env.TEST_MONGO_URI!, { dbName: `guiatv_test_m14r_${process.pid}` });
+  const env = { ...process.env };
+  const storageDir = mkdtempSync(join(tmpdir(), 'm14r-storage-'));
+  const ops = new EditorialOpsController(new LocalStorageRepository(storageDir));
+  try {
+    // El valor por defecto ya es fail-closed; lo persistimos explícito para que la prueba sea autocontenida.
+    await ops['generation'].updateSettings({ enabled: false }, 'test');
+    // Arranque automático (el cron no envía señal): se niega ANTES de tocar el gestor de procesos (aquí no configurado).
+    const auto = await call(ops.startRunnerProcess, { body: {} });
+    assert.deepEqual([auto.body.data.started, auto.body.data.reason, auto.body.data.mode, auto.body.data.enabled], [false, 'generation-disabled', 'automatic', false]);
+    // Arranque manual: se permite y el gestor de procesos no configurado falla (prueba de que sí se consultó el arranque).
+    const manual = await call(ops.startRunnerProcess, { body: { mode: 'manual' } });
+    assert.match(String(manual.error), /EDITORIAL_RUNNER_COMMAND/);
+    // La única acción auditada es la negativa del arranque automático; el manual nunca llegó a auditarse (falló antes).
+    const auditRows = await mongoose.connection.collection('editorial_audit').find().sort({ at: 1 }).toArray();
+    assert.deepEqual(auditRows.map((a) => [a.action, a.reason, a.mode]), [['runner-process-start-refused', 'generation-disabled', 'automatic']]);
+  } finally {
+    process.env = env;
+    rmSync(storageDir, { recursive: true, force: true });
+    await mongoose.connection.dropDatabase();
+    await mongoose.disconnect();
+  }
+});

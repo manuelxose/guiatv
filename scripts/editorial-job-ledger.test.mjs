@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { createLedgerLifecycle } from './editorial-job-ledger.mjs';
+import { classify, createLedgerLifecycle } from './editorial-job-ledger.mjs';
 
 /** Minimal ledger API double: proves the runner sends a lease on every write and closes after publication. */
 async function fakeLedger() {
@@ -71,6 +71,33 @@ test('a cancel heartbeat aborts the in-flight provider stream', async () => {
     await ledger.close('guia-cancelada', { state: 'blocked', reason: 'cancelado' });
     const finish = fake.calls.find((call) => call.path.endsWith('/finish') && !call.path.includes('/stage/'));
     assert.equal(finish.body.state, 'cancelled');
+  } finally {
+    await fake.close();
+  }
+});
+
+test('escenario 3 (clasificación): un proveedor colgado, un plazo vencido y una cancelación se clasifican sin ambigüedad', () => {
+  assert.equal(classify('request timed out after 20000ms', undefined), 'provider-timeout');
+  assert.equal(classify('fetch failed', undefined), 'provider-unavailable');
+  assert.equal(classify('', 'stage-deadline'), 'deadline-exceeded');
+  assert.equal(classify('', 'deadline'), 'deadline-exceeded');
+  assert.equal(classify('', 'cancelled'), 'cancelled');
+  assert.equal(classify('algo inesperado', undefined), 'unknown');
+});
+
+test('escenario 3 (plazo por etapa): una etapa que nunca termina aborta el stream y cierra como deadline-exceeded', async () => {
+  const fake = await fakeLedger();
+  try {
+    const ledger = createLedgerLifecycle({ api: fake.api, key: 'test-key', stageMs: 40, articleMs: 120_000, heartbeatMs: 60_000 });
+    const session = await ledger.lifecycle.start({ slug: 'guia-etapa-colgada' });
+    await session.stage({ name: 'article-drafting', phase: 'start', detail: 'proveedor colgado' });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    assert.equal(session.signal.aborted, true, 'el plazo de la etapa aborta el stream en curso');
+    assert.equal(session.abortReason, 'stage-deadline');
+    await ledger.close('guia-etapa-colgada');
+    const finish = fake.calls.find((call) => call.path.endsWith('/finish') && !call.path.includes('/stage/'));
+    assert.equal(finish.body.state, 'failed');
+    assert.equal(finish.body.error.classification, 'deadline-exceeded');
   } finally {
     await fake.close();
   }

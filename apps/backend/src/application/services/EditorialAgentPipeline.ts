@@ -40,12 +40,12 @@ import type { ErrorClass, StageName } from './EditorialJobLedger';
  */
 
 export const PIPELINE_VERSION = 'm11g-1';
-export type EditorialRole = 'research' | 'evidence' | 'editorial' | 'seo' | 'critic';
+export type EditorialRole = 'research' | 'evidence' | 'planner' | 'editorial' | 'seo' | 'critic';
 
 export interface ModelRoute { provider: string; model: string; effort: 'low' | 'medium' | 'high' }
 /** Per role, in order of preference: primary first, then fallbacks. */
 export type RouteTable = Readonly<Record<EditorialRole, readonly ModelRoute[]>>;
-const ROLES: readonly EditorialRole[] = ['research', 'evidence', 'editorial', 'seo', 'critic'];
+const ROLES: readonly EditorialRole[] = ['research', 'evidence', 'planner', 'editorial', 'seo', 'critic'];
 
 /**
  * Role routing (docs/adr/0001): strong models where facts are decided, a cheap one for mechanical metadata.
@@ -55,6 +55,7 @@ const ROLES: readonly EditorialRole[] = ['research', 'evidence', 'editorial', 's
 export const DEFAULT_ROUTES: RouteTable = Object.freeze({
   research: [{ provider: 'anthropic', model: 'claude-opus-5-5', effort: 'high' }, { provider: 'deepseek', model: 'deepseek-v4-pro', effort: 'high' }],
   evidence: [{ provider: 'anthropic', model: 'claude-opus-5-5', effort: 'high' }, { provider: 'deepseek', model: 'deepseek-v4-pro', effort: 'high' }],
+  planner: [{ provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'medium' }, { provider: 'deepseek', model: 'deepseek-flash', effort: 'medium' }],
   editorial: [{ provider: 'anthropic', model: 'claude-opus-5-5', effort: 'medium' }, { provider: 'deepseek', model: 'deepseek-flash', effort: 'medium' }],
   seo: [{ provider: 'anthropic', model: 'claude-haiku-5-5', effort: 'low' }, { provider: 'anthropic', model: 'claude-sonnet-5-5', effort: 'low' }, { provider: 'deepseek', model: 'deepseek-flash', effort: 'low' }],
   critic: [{ provider: 'anthropic', model: 'claude-opus-5-5', effort: 'high' }, { provider: 'deepseek', model: 'deepseek-v4-pro', effort: 'high' }],
@@ -305,7 +306,7 @@ export const EDITORIAL_RUBRIC = `Criterios de calidad (los mismos que aplica el 
 const GATE_RULES = `Reglas que comprueba un programa (un fallo impide publicar):
 - Markdown con un único "# título"; sin sección de preguntas frecuentes; nunca primera persona ni experiencias propias.
 - Toda frase, fila de tabla o elemento de lista con una cifra, fecha, hora, día, mes, precio, canal, disponibilidad o una referencia a una norma («artículo 98.1», «Ley 13/2022») termina con su marcador [[cN]] (o [[c1,c2]]) antes del punto, y esa cifra o referencia aparece en las afirmaciones que cita.
-- Escribe cada cifra como en su afirmación (si la afirmación dice «dieciocho», no escribas «18»). No uses cantidades con letras seguidas de unidad («dos euros», «tres horas»).
+- Escribe cada cifra como en su afirmación: si la afirmación dice «dieciocho» puedes escribir «18» o «dieciocho»; si dice «seis millones», «6 millones» y «seis millones» valen igual. Toda cifra, en dígitos o en letras, debe aparecer en las afirmaciones que citas.
 - Título, resumen, metaTitle y metaDescription: solo cifras que el texto da con marcador y escritas igual (nada de «+18» si el texto dice «dieciocho»).
 - Enlaces externos solo a las URL exactas de la lista de fuentes; internos solo a rutas de guiaprogramaciontv.com que aparezcan en los datos propios o en la lista de páginas de GuíaTV para enlazar.
 - Extensión: la que pida la intención, sin inflarla.
@@ -376,6 +377,47 @@ const CRITIC_SCHEMA = {
   },
 };
 
+// ---- M14-R: editorial brief planned before drafting ------------------------------------------------
+
+export interface ArticleSectionPlan {
+  heading: string;
+  wordBudget: number;
+  claims?: string[];
+}
+export interface ArticleBrief {
+  viable: boolean;
+  reason?: string;
+  searchIntent: string;
+  angle: string;
+  title: string;
+  audience: string;
+  centralQuestion: string;
+  supportingQuestions: string[];
+  entities: string[];
+  keyFigures: string[];
+  primarySources: string[];
+  independentSources: string[];
+  sections: ArticleSectionPlan[];
+  distinctValue: { readerBenefit: string; claimIds: string[] };
+  evidenceGaps: string[];
+}
+const BRIEF_SECTION_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['heading', 'wordBudget'],
+  properties: { heading: str, wordBudget: { type: 'integer' }, claims: { type: 'array', items: str } },
+};
+const BRIEF_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  required: ['viable', 'searchIntent', 'angle', 'title', 'audience', 'centralQuestion', 'sections', 'distinctValue'],
+  properties: {
+    viable: { type: 'boolean' }, reason: str, searchIntent: str, angle: str, title: str, audience: str, centralQuestion: str,
+    supportingQuestions: { type: 'array', items: str }, entities: { type: 'array', items: str }, keyFigures: { type: 'array', items: str },
+    primarySources: { type: 'array', items: str }, independentSources: { type: 'array', items: str },
+    sections: { type: 'array', items: BRIEF_SECTION_SCHEMA },
+    distinctValue: { type: 'object', additionalProperties: false, required: ['readerBenefit', 'claimIds'], properties: { readerBenefit: str, claimIds: { type: 'array', items: str } } },
+    evidenceGaps: { type: 'array', items: str },
+  },
+};
+
 const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max)}\n[…recortado]` : text);
 const claimDigest = (claims: EvidenceClaim[]) =>
   claims.map((c) => `- ${c.id} [${c.volatility}] ${c.text}\n${c.quotes.filter((q) => q.verified).map((q) => `    «${q.quote}» (${q.sourceId})`).join('\n')}`).join('\n');
@@ -417,6 +459,30 @@ export function lengthProblems(markdown: string, length: EditorialTopic['length'
   if (!length) return [];
   const words = stripClaimMarkers(markdown).replace(/^# .*$/gm, '').trim().split(/\s+/).filter(Boolean).length;
   return words >= length.min && words <= length.max ? [] : [`extensión de ${words} palabras (${length.min}-${length.max})`];
+}
+
+/** M14-R: deterministic validation of the planner's brief. The per-section budgets must sum inside the range. */
+export function briefProblems(brief: unknown, length: EditorialTopic['length']): string[] {
+  if (!brief || typeof brief !== 'object' || Array.isArray(brief)) return ['no es un objeto'];
+  const b = brief as Record<string, unknown>;
+  const out: string[] = [];
+  if (typeof b.viable !== 'boolean') out.push('falta viable');
+  if (b.viable === false && (typeof b.reason !== 'string' || !String(b.reason).trim())) out.push('un plan no viable necesita motivo');
+  const sections = Array.isArray(b.sections) ? b.sections : [];
+  if (!sections.length) out.push('falta la estructura de secciones');
+  let total = 0;
+  for (const s of sections) {
+    const row = (s ?? {}) as Record<string, unknown>;
+    if (typeof row.heading !== 'string' || !String(row.heading).trim()) out.push('sección sin encabezado');
+    else if (!Number.isInteger(row.wordBudget) || (row.wordBudget as number) < 1) out.push(`presupuesto inválido en «${String(row.heading)}»`);
+    else total += row.wordBudget as number;
+  }
+  if (length && total > 0 && (total < length.min || total > length.max)) {
+    out.push(`presupuesto total de ${total} palabras (${length.min}-${length.max})`);
+  }
+  const dv = b.distinctValue as Record<string, unknown> | undefined;
+  if (!dv || typeof dv.readerBenefit !== 'string' || !Array.isArray(dv.claimIds) || !dv.claimIds.length) out.push('falta un valor diferencial con sus afirmaciones');
+  return out;
 }
 
 export async function runEditorialJob(topic: EditorialTopic, deps: EditorialDeps, limits: EditorialLimits = DEFAULT_EDITORIAL_LIMITS): Promise<EditorialRun> {
@@ -504,7 +570,7 @@ export async function runEditorialJob(topic: EditorialTopic, deps: EditorialDeps
     const doResearch = (gaps = '') => {
       researchCalls++;
       return ask<ResearchAnswer>('research',
-        `${STYLE}\nEres el agente de investigación. Buscas fuentes primarias (webs oficiales de operadores, plataformas, competiciones, organismos) y, solo si no existen, prensa de referencia. No uses agregadores de dudosa procedencia ni copies artículos.`,
+        `${STYLE}\nEres el agente de investigación. Buscas fuentes primarias (webs oficiales de operadores, plataformas, competiciones, organismos) y, solo si no existen, prensa de referencia. Para cada dato importante busca al menos dos entidades editoras independientes que lo confirmen (una fuente oficial y otra independiente, o dos organismos distintos): un tema con una sola entidad no da para un artículo útil. No uses agregadores de dudosa procedencia ni copies artículos.`,
         `Tema: ${topic.topic}\nIntención del lector: ${topic.intent}\nVolatilidad: ${topic.volatility}\n${topic.notes ? `Notas: ${topic.notes}\n` : ''}
 Datos propios de GuíaTV (fuentes internas con su id; cítalos con ese id):\n${internalText || '(ninguno)'}
 ${seedText ? `\nFuentes primarias ya descargadas (cítalas con su id; las citas se comprueban contra este texto):\n${seedText}\n` : ''}
@@ -554,6 +620,21 @@ Si un dato no aparece literal en una fuente consultada, no lo incluyas. Ids de a
     let usable = bundle.claims.filter((c) => c.status === 'supported');
     if (usable.length < 3) return { ...run, state: 'blocked', reason: `solo ${usable.length} afirmaciones verificadas`, provenance: partial(bundle) };
 
+    // 2b. Plan (M14-R): a bounded, schema-validated brief with a per-section word budget, before any draft is spent.
+    // Only when a length is configured, because the budget is the brief's output; a non-viable topic is rejected here
+    // instead of spending whole revision cycles on evidence that cannot support an article.
+    let brief: ArticleBrief | undefined;
+    if (topic.length) {
+      const plan = await stage('editorial-outline', () => ask<ArticleBrief>('planner',
+        `${STYLE}\nEres el planificador editorial. Conviertes las afirmaciones verificadas en un plan breve y concreto para el redactor. No redactas: decides si el tema da para un artículo útil y repartes el presupuesto de palabras por sección.`,
+        `Tema: ${topic.topic}\nIntención: ${topic.intent}\nLongitud pedida: ${topic.length!.min}-${topic.length!.max} palabras.\n\nAfirmaciones verificadas (solo puedes usar estas; elige las que responden a la intención):\n${claimDigest(usable)}\n\nDevuelve un plan viable solo si estas afirmaciones permiten un artículo útil, con una estructura de secciones cuyo presupuesto de palabras sume entre ${topic.length!.min} y ${topic.length!.max}, y un valor diferencial concreto probado por esas afirmaciones. Si no hay material para un artículo útil (p. ej. una sola entidad editora o ninguna comparación posible), devuelve viable=false con el motivo y los huecos de evidencia.`,
+        BRIEF_SCHEMA));
+      const problems = briefProblems(plan, topic.length);
+      if (problems.length) return finish(run, 'blocked', `plan inválido: ${problems.join('; ')}`);
+      if (!plan.viable) return finish(run, 'blocked', `el plan descarta el tema: ${plan.reason ?? 'sin material para un artículo útil'}`);
+      brief = plan;
+    }
+
     /** M11-E2 targeted re-research: new claims and sources join the bundle under fresh ids and go through the same checks. */
     const reResearch = async (gaps: string) => {
       const tag = `r${researchCalls + 1}`;
@@ -588,7 +669,10 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
     const internalLinks = topic.linkTargets?.length
       ? `\n\nPáginas de GuíaTV para enlazar con una ruta relativa (al menos una y como mucho ${MAX_INTERNAL_LINKS}, donde más ayuden al lector; ancla descriptiva y distinta en cada una, nunca «aquí»; enlazar no es un dato, pero una frase con un canal o una cifra sigue necesitando su marcador):\n${topic.linkTargets.map((t) => `- ${t.path}: ${t.label}`).join('\n')}`
       : '';
-    const writerRules = () => `Fuentes que puedes enlazar:\n${sourceList()}${internalLinks}\n\n${GATE_RULES}${topic.length ? `\n- Escribe entre ${topic.length.min} y ${topic.length.max} palabras, sin relleno.` : ''}`;
+    const briefText = () => (brief && topic.length
+      ? `\n\nPlan del artículo (sigue esta estructura y este reparto; el total debe quedar entre ${topic.length.min} y ${topic.length.max} palabras):\n${brief.sections.map((s) => `- ${s.heading}: ${s.wordBudget} palabras`).join('\n')}\nÁngulo: ${brief.angle}\nValor diferencial: «${brief.distinctValue.readerBenefit}» (afirmaciones: ${brief.distinctValue.claimIds.join(', ')}). Declara ese mismo valor en distinctValue, probado por esas afirmaciones.`
+      : '');
+    const writerRules = () => `Fuentes que puedes enlazar:\n${sourceList()}${internalLinks}\n\n${GATE_RULES}${topic.length ? `\n- Escribe entre ${topic.length.min} y ${topic.length.max} palabras, sin relleno.` : ''}${briefText()}`;
     // Everything that does not depend on the critic: the HTML, hashes, the unsigned provenance and the CMS fields.
     const assemble = (d: Draft, verifiedOn: Date, critic?: CriticReview) => {
       const html = `<div class="editorial-body">${deps.render(stripClaimMarkers(d.markdown).replace(/^# .*\n?/m, ''))}${aiDisclosure(verifiedOn)}</div>`;
