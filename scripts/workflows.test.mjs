@@ -25,13 +25,13 @@ test('3E: no workflow turns on the legacy-enrichment flag', () => {
   for (const f of workflows) assert.doesNotMatch(read(`.github/workflows/${f}`), /CONTENT_LEGACY_ENRICHMENT/, f);
 });
 
-test('the uptime probe is off-host, read-only and scheduled; the artifact deploy is manual only', () => {
+test('the uptime probe is off-host, read-only and scheduled; the artifact deploy starts by hand or after green CI on main', () => {
   const uptime = read('.github/workflows/uptime.yml');
   assert.match(uptime, /schedule:\s*\n\s+- cron:/);
   assert.match(uptime, /permissions:\s*\n\s+contents: read/);
   assert.doesNotMatch(uptime, /ssh|scp|secrets\.DEPLOY/i);
   const artifact = read('.github/workflows/deploy-artifact.yml');
-  assert.match(artifact, /on:\s*\n\s+workflow_dispatch:\s*\n/);
+  assert.match(artifact, /^\s+workflow_dispatch:/m);
   assert.doesNotMatch(artifact, /^\s+push:/m);
   assert.match(artifact, /group: deploy-prod/);
 });
@@ -52,13 +52,20 @@ test('actions are pinned to a version', () => {
   for (const f of workflows) for (const m of read(`.github/workflows/${f}`).matchAll(/uses:\s*(\S+)/g)) assert.match(m[1], /@v?\d/, `${f}: ${m[1]}`);
 });
 
-test('M01-B1: only the two manual deploy workflows may use the SSH secrets; neither can start implicitly', () => {
+test('M01-B1 / 2026-11-05: only the two deploy workflows may use the SSH secrets; the on-host build stays manual, the artifact deploy starts only after green CI of a push to main', () => {
   const deploys = ['deploy.yml', 'deploy-artifact.yml'];
   for (const f of workflows) {
     const yml = read(`.github/workflows/${f}`);
     if (!deploys.includes(f)) assert.doesNotMatch(yml, /DEPLOY_SSH|appleboy\/(ssh|scp)-action/, `${f} must not reach production`);
   }
-  for (const f of deploys) assert.doesNotMatch(read(`.github/workflows/${f}`), /^\s+(push|pull_request|pull_request_target|schedule|workflow_run|release|repository_dispatch|issue_comment):/m, `${f} must be dispatch-only`);
+  assert.doesNotMatch(read('.github/workflows/deploy.yml'), /^\s+(push|pull_request|pull_request_target|schedule|workflow_run|release|repository_dispatch|issue_comment):/m, 'deploy.yml must be dispatch-only');
+  const artifact = read('.github/workflows/deploy-artifact.yml');
+  assert.doesNotMatch(artifact, /^\s+(push|pull_request|pull_request_target|schedule|release|repository_dispatch|issue_comment):/m, 'deploy-artifact.yml starts only by hand or from CI');
+  assert.match(artifact, /workflow_run:\s*\n\s+workflows: \["Build, test, and performance budgets"\]\s*\n\s+types: \[completed\]\s*\n\s+branches: \[main\]/);
+  assert.match(artifact, /github\.event\.workflow_run\.conclusion == 'success' && github\.event\.workflow_run\.event == 'push' && github\.event\.workflow_run\.head_branch == 'main'/, 'never for PRs or failed CI');
+  assert.match(artifact, /DEPLOY_SHA: \$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}/, 'builds the commit that passed CI');
+  assert.match(artifact, /scripts\/deploy-ssh\.sh "\$\{\{ needs\.build\.outputs\.sha \}\}"/);
+  assert.match(read('.github/workflows/performance.yml'), /^name: Build, test, and performance budgets$/m, 'the workflow_run name must match the CI workflow');
 });
 
 test('M01-B1: the proposed main ruleset blocks force-push/deletion and requires a PR plus the always-running check', () => {

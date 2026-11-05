@@ -249,16 +249,52 @@ trap rollback_on_failure EXIT
 
 cd "${APP_DIR}"
 
+# npm can rewrite the tracked lockfile during an install (another npm version, `dev`/`devOptional` flags, engine
+# fields). The server never commits, so the committed lockfile is always the right one.
+restore_lockfile() {
+  if git ls-files --error-unmatch package-lock.json >/dev/null 2>&1 && ! git diff --quiet -- package-lock.json; then
+    echo "npm rewrote package-lock.json; restoring the committed lockfile"
+    git checkout -- package-lock.json
+  fi
+}
+
+install_dependencies() {
+  guard_build_memory
+  build_limited npm install --workspaces --include-workspace-root --legacy-peer-deps --no-audit --no-fund
+  restore_lockfile
+  [ -z "${LOCK_SHA}" ] || echo "${LOCK_SHA}" >"${LOCK_STAMP}"
+}
+
 SYNCED=0
+# A dirty checkout used to be deployed as is ("Deploying current checkout without git sync"): runs 69, 70 and 72
+# (2026-11-04/05) reported success while rebuilding the old commit. Now a rewritten lockfile is restored, and any
+# other local change fails the deploy loudly unless DEPLOY_ALLOW_DIRTY=1 (an explicit, manual decision).
+restore_lockfile
 if git diff --quiet && git diff --cached --quiet; then
   git fetch --prune origin
   git checkout "${BRANCH}"
   # The server never commits here, so align with the remote even when its history was rewritten
   # (a plain fast-forward pull fails after a force-push and used to block every deploy).
-  git reset --hard "origin/${BRANCH}"
+  TARGET_REF="origin/${BRANCH}"
+  if [ -n "${DEPLOY_ARTIFACT:-}" ] && [ -f "${DEPLOY_ARTIFACT}" ]; then
+    # An artifact is deployed at the exact commit it was built from (main may already be ahead when deploys queue).
+    ARTIFACT_SHA="$(tar -xzOf "${DEPLOY_ARTIFACT}" ARTIFACT_GIT_SHA 2>/dev/null | tr -d '[:space:]' || true)"
+    if [[ "${ARTIFACT_SHA}" =~ ^[0-9a-f]{40}$ ]] && git merge-base --is-ancestor "${ARTIFACT_SHA}" "origin/${BRANCH}" 2>/dev/null; then
+      TARGET_REF="${ARTIFACT_SHA}"
+    else
+      echo "Artifact commit ${ARTIFACT_SHA:-unknown} is not on origin/${BRANCH}; refusing"
+      exit 1
+    fi
+  fi
+  git reset --hard "${TARGET_REF}"
   SYNCED=1
+elif [ "${DEPLOY_ALLOW_DIRTY:-0}" = "1" ]; then
+  echo "Working tree has local changes; DEPLOY_ALLOW_DIRTY=1, deploying the current checkout without git sync."
 else
-  echo "Working tree has local changes. Deploying current checkout without git sync."
+  echo "Working tree has local changes; refusing to deploy a checkout that is not origin/${BRANCH}:"
+  git status --short
+  echo "Inspect them (git -C ${APP_DIR} diff), then stash or discard them, or rerun with DEPLOY_ALLOW_DIRTY=1."
+  exit 1
 fi
 
 # A deploy of what is already live, or of documentation only, would still build and restart the services.
@@ -285,15 +321,16 @@ LOCK_STAMP="${APP_DIR}/.deploy-lock-sha256"
 LOCK_SHA="$(sha256sum package-lock.json 2>/dev/null | cut -d' ' -f1 || true)"
 
 if [ -n "${DEPLOY_ARTIFACT:-}" ]; then
-  # An artifact carries no node_modules: new code on stale dependencies is refused before anything changes.
-  if [ -n "${LOCK_SHA}" ] && [ -f "${LOCK_STAMP}" ] && [ "$(cat "${LOCK_STAMP}")" != "${LOCK_SHA}" ]; then
-    echo "package-lock.json changed since the last install; an artifact deploy installs nothing. Run a normal deploy first"
-    exit 1
-  fi
-  # Built off-host (CI) from this exact commit: verify, unpack, publish. No dependency install, no compile here.
+  # Built off-host (CI) from this exact commit: verify, unpack, publish. Never compiled here.
   [ -f "${DEPLOY_ARTIFACT}" ] || { echo "Artifact ${DEPLOY_ARTIFACT} not found"; exit 1; }
   [ -n "${DEPLOY_ARTIFACT_SHA256:-}" ] || { echo "DEPLOY_ARTIFACT_SHA256 is required with DEPLOY_ARTIFACT"; exit 1; }
   echo "${DEPLOY_ARTIFACT_SHA256}  ${DEPLOY_ARTIFACT}" | sha256sum -c --quiet - || { echo "Artifact checksum mismatch"; exit 1; }
+  # An artifact carries no node_modules: when the lockfile changed, install the runtime dependencies first (an
+  # install only, under the same memory guard; no compile), so dependency changes deploy automatically too.
+  if [ -n "${LOCK_SHA}" ] && { [ ! -f "${LOCK_STAMP}" ] || [ "$(cat "${LOCK_STAMP}")" != "${LOCK_SHA}" ]; }; then
+    echo "package-lock.json changed since the last install; installing dependencies (no build)"
+    install_dependencies
+  fi
   ARTIFACT_DIR="${APP_DIR}/.artifact-incoming"
   rm -rf "${ARTIFACT_DIR}"
   mkdir -p "${ARTIFACT_DIR}"
@@ -309,15 +346,7 @@ else
   if [ -n "${LOCK_SHA}" ] && [ -d node_modules ] && [ -f "${LOCK_STAMP}" ] && [ "$(cat "${LOCK_STAMP}")" = "${LOCK_SHA}" ]; then
     echo "package-lock.json unchanged since the last install; skipping npm install"
   else
-    build_limited npm install --workspaces --include-workspace-root --legacy-peer-deps --no-audit --no-fund
-    # npm may rewrite the lockfile (another npm version, `dev`/`devOptional` flags, engine fields). The server never
-    # commits, so restore the committed one: a modified tracked file makes every later deploy skip the git sync
-    # ("Working tree has local changes") and silently rebuild the old commit (2026-11-04, runs 69 and 70).
-    if git ls-files --error-unmatch package-lock.json >/dev/null 2>&1 && ! git diff --quiet -- package-lock.json; then
-      echo "npm rewrote package-lock.json; restoring the committed lockfile"
-      git checkout -- package-lock.json
-    fi
-    [ -z "${LOCK_SHA}" ] || echo "${LOCK_SHA}" >"${LOCK_STAMP}"
+    install_dependencies
   fi
   build_limited npm run build
 fi

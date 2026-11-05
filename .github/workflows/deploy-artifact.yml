@@ -1,10 +1,17 @@
-name: Deploy a producción por artefacto (manual, build fuera del VPS)
+name: Deploy a producción por artefacto (automático tras CI verde en main; build fuera del VPS)
 
 # Builds in CI (with the Angular budgets), ships a checksummed tarball and lets the server only verify, unpack,
-# publish and smoke-test: no `npm install` and no compile on the production host. Manual until the owner
-# approves switching deploy.yml to it. Same concurrency group as deploy.yml, so the two never overlap, and the
-# server takes its own lock as well.
+# publish and smoke-test: never a compile on the production host (it installs dependencies only when the
+# lockfile changed). Owner, 2026-11-05: every merge to main deploys automatically once "Build, test, and
+# performance budgets" is green for that push; it can also be run by hand. The host deploys the exact commit
+# that passed CI (deploy-guiatv.sh resets to the artifact's commit), refuses a dirty checkout, and skips
+# documentation-only changes. Same concurrency group as deploy.yml (manual fallback that builds on the VPS),
+# so the two never overlap, and the server takes its own lock as well.
 on:
+  workflow_run:
+    workflows: ["Build, test, and performance budgets"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -13,12 +20,19 @@ concurrency:
 
 jobs:
   build:
+    # Automatic runs: only for a successful CI run of a push to main (never for PRs or failed runs).
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    env:
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     outputs:
       sha256: ${{ steps.pack.outputs.sha256 }}
+      sha: ${{ steps.pack.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -27,9 +41,12 @@ jobs:
       - run: npm run build
       - id: pack
         run: |
-          echo "${GITHUB_SHA}" > ARTIFACT_GIT_SHA
+          sha="$(git rev-parse HEAD)"
+          [ "${sha}" = "${DEPLOY_SHA}" ] || { echo "checked out ${sha}, expected ${DEPLOY_SHA}"; exit 1; }
+          echo "${sha}" > ARTIFACT_GIT_SHA
           tar -czf guiatv-artifact.tgz ARTIFACT_GIT_SHA apps/backend/dist apps/frontend/dist/guiatv
           echo "sha256=$(sha256sum guiatv-artifact.tgz | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
           name: guiatv-artifact
@@ -42,6 +59,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4 # only for scripts/deploy-ssh.sh
+        with:
+          ref: ${{ needs.build.outputs.sha }}
       - uses: actions/download-artifact@v4
         with:
           name: guiatv-artifact
@@ -51,10 +70,10 @@ jobs:
           username: ${{ secrets.DEPLOY_SSH_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           source: guiatv-artifact.tgz
-          target: /var/tmp/guiatv-${{ github.sha }}
+          target: /var/tmp/guiatv-${{ needs.build.outputs.sha }}
       - name: Deploy on the host (exit status = deploy-guiatv.sh status; see scripts/deploy-ssh.sh)
         env:
           DEPLOY_SSH_HOST: ${{ secrets.DEPLOY_SSH_HOST }}
           DEPLOY_SSH_USER: ${{ secrets.DEPLOY_SSH_USER }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-        run: scripts/deploy-ssh.sh "${{ github.sha }}" "${{ needs.build.outputs.sha256 }}"
+        run: scripts/deploy-ssh.sh "${{ needs.build.outputs.sha }}" "${{ needs.build.outputs.sha256 }}"
