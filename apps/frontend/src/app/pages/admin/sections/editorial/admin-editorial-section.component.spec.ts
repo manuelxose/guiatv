@@ -92,7 +92,7 @@ describe('topic control', () => {
       { id: 'b', title: 'Tema en cola de prueba para la cola', state: 'queued', source: 'discovered', score: 60, pinned: false },
     ], pendingActions: [{ id: 'r1', action: 'reject', topicId: 'a' }] } as unknown as EditorialOverview;
     TestBed.configureTestingModule({ imports: [AdminEditorialSectionComponent], providers: [{ provide: AdminEditorialService, useValue: {
-      getOverview: () => of(withQueue), queueAction: (...args: unknown[]) => { calls.push(args); return of({}); },
+      getOverview: () => of(withQueue), getProviders: () => of({ checkedAt: new Date().toISOString(), providers: [] }), queueAction: (...args: unknown[]) => { calls.push(args); return of({}); },
     } }] });
     const fixture = TestBed.createComponent(AdminEditorialSectionComponent);
     fixture.detectChanges();
