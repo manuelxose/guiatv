@@ -27,21 +27,25 @@ Unknown paths under the prefix redirect to its home. Every link is built with `s
 
 ## Cutover plan (not in M01)
 
-Target public identity, to be adopted only after parity review in a later milestone:
+Sports v2 **replaces** the legacy football section (`features/football`, served at `/deportes/futbol/**`). `/laboratorio/futbol` is only the staging mount and disappears at cutover.
+
+Decision: keep the existing public identity `/deportes/futbol/**` instead of inventing `/futbol`. It is already indexed, linked and in the sitemap; moving it would cost ranking for no benefit. v2 takes over those URLs and the slug tree below maps onto them:
 
 ```
-/futbol                         home
-/futbol/en-directo
-/futbol/partidos/:fecha         (fecha = YYYY-MM-DD)
-/futbol/resultados/:fecha
-/futbol/competiciones/:competicion
-/futbol/competiciones/:competicion/clasificacion
-/futbol/equipos/:equipo
-/futbol/partidos/:partido       (slug with date)
-/futbol/noticias
+/deportes/futbol                              home
+/deportes/futbol/partidos-hoy                 today (legacy path kept)
+/deportes/futbol/calendario                   fixtures
+/deportes/futbol/competiciones[/:slug]
+/deportes/futbol/equipos/:slug
+/deportes/futbol/partido/:slug                (slug carries the date)
+/deportes/futbol/noticias
 ```
 
-Rules for the cutover: exactly one public identity per page (legacy `/deportes/futbol/**` gets 301 redirects to the new URL, never two live copies); canonical `<link>` plus `index, follow` replace the preview `noindex`; sitemap entries are generated from the same slug source; structured data (`SportsEvent`, `BreadcrumbList`) is added per page; `RenderMode.Server` stays the default and the Match Center is client-only enhancement over server-rendered content.
+New v2-only pages (en-directo, resultados, siguiendo) are added under the same prefix. Legacy URLs that have no v2 equivalent get a 301 to the closest page, never a 404.
+
+Rules: one public identity per page (no live duplicate during or after the swap); swap in one release by pointing `/deportes/futbol` at `SPORTS_V2_ROUTES` and deleting `FOOTBALL_ROUTES` and `features/football`; replace preview `noindex` with canonical + `index, follow`; keep the sitemap and `ssr-server.mjs` allow-list in step (the `/laboratorio/futbol` entries are removed in the same change); add `SportsEvent` and `BreadcrumbList` structured data; `RenderMode.Server` stays the default.
+
+Only change `SPORTS_V2_BASE` in `sports-v2.paths.ts` to move the mount; every link derives from it.
 
 ## SSR
 
