@@ -154,6 +154,7 @@ const backendDistRoot = resolve(projectRoot, 'apps/backend/dist');
 const frontendDistRoot = resolve(projectRoot, 'apps/frontend/dist/guiatv');
 const frontendServerScript = resolve(projectRoot, 'apps/frontend/scripts/ssr-server.mjs');
 const editorialRunnerScript = resolve(projectRoot, 'scripts/editorial-agents.mjs');
+const editorialLedgerScript = resolve(projectRoot, 'scripts/editorial-job-ledger.mjs');
 const editorialDrafts = resolve(projectRoot, 'docs/seo/editorial-drafts/publish.json');
 const legacyFrontendReleasesRoot = resolve(projectRoot, 'apps/frontend/releases');
 const cliArgs = process.argv.slice(2);
@@ -248,6 +249,7 @@ cpSync(backendDistRoot, join(releaseBackendRoot, 'dist'), { recursive: true });
 cpSync(frontendDistRoot, join(releaseFrontendRoot, 'dist/guiatv'), { recursive: true });
 cpSync(frontendServerScript, join(releaseFrontendRoot, 'scripts/ssr-server.mjs'));
 cpSync(editorialRunnerScript, join(releaseDir, 'scripts/editorial-agents.mjs'));
+cpSync(editorialLedgerScript, join(releaseDir, 'scripts/editorial-job-ledger.mjs'));
 cpSync(editorialDrafts, join(releaseDir, 'docs/seo/editorial-drafts/publish.json'));
 // Imported by ssr-server.mjs.
 for (const helper of ['ssr-canonical.mjs', 'ssr-cache.mjs']) {

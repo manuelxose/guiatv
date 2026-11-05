@@ -19,6 +19,7 @@ test('a release includes and runs the editorial runner from the same checkout', 
     cpSync(resolve('scripts/publish-release.mjs'), join(root, 'scripts/publish-release.mjs'));
     const runner = readFileSync(resolve('scripts/editorial-agents.mjs'));
     put('scripts/editorial-agents.mjs', runner);
+    put('scripts/editorial-job-ledger.mjs', readFileSync(resolve('scripts/editorial-job-ledger.mjs')));
     put('docs/seo/editorial-drafts/publish.json', readFileSync(resolve('docs/seo/editorial-drafts/publish.json')));
     mkdirSync(join(root, 'apps/backend'), { recursive: true });
     cpSync(resolve('apps/backend/dist'), join(root, 'apps/backend/dist'), { recursive: true });

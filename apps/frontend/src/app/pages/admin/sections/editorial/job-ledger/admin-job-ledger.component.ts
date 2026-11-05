@@ -115,7 +115,10 @@ export class AdminJobLedgerComponent implements OnInit, OnDestroy {
   prevPage(): void { if (this.page.skip > 0) { this.page.skip = Math.max(0, this.page.skip - this.pageSize); this.load(); } }
 
   isSelected(jobId: string): boolean { return this.selected.has(jobId); }
-  toggle(jobId: string): void { this.selected.has(jobId) ? this.selected.delete(jobId) : this.selected.add(jobId); }
+  toggle(jobId: string): void {
+    if (this.selected.has(jobId)) this.selected.delete(jobId);
+    else this.selected.add(jobId);
+  }
   get allSelected(): boolean { return this.page.items.length > 0 && this.page.items.every((job) => this.selected.has(job.jobId)); }
   toggleAll(): void {
     if (this.allSelected) this.page.items.forEach((job) => this.selected.delete(job.jobId));
