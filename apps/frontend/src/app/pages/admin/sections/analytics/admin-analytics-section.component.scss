@@ -66,7 +66,8 @@
 }
 
 .geo-map__svg path {
-  fill: var(--portal-border-strong);
+  /* Countries without sessions stay light so the highlighted ones read at a glance. */
+  fill: color-mix(in srgb, var(--portal-text) 10%, var(--portal-surface));
   stroke: var(--portal-surface);
   stroke-width: .5;
   vector-effect: non-scaling-stroke;
@@ -74,7 +75,7 @@
 
 .geo-map__svg .geo-map__country--active { fill: var(--accent-streaming); }
 .geo-map__legend { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
-.geo-map__empty { width: .75rem; height: .75rem; background: var(--portal-border-strong); }
+.geo-map__empty { width: .75rem; height: .75rem; background: color-mix(in srgb, var(--portal-text) 10%, var(--portal-surface)); border: 1px solid var(--portal-border); }
 .geo-map__scale { width: 4rem; height: .75rem; background: linear-gradient(90deg, color-mix(in srgb, var(--accent-streaming) 35%, var(--portal-surface-strong)), var(--accent-streaming)); border-radius: var(--radius-sm); }
 .geo-sort { min-height: 44px; text-align: left; }
 .geo-sort:focus-visible { outline: 2px solid var(--accent-streaming); outline-offset: 2px; }
@@ -132,3 +133,48 @@
 .session-detail__events li { display: flex; flex-wrap: wrap; gap: .5rem; padding: .55rem 0; border-top: 1px solid var(--portal-border); font-size: .875rem; overflow-wrap: anywhere; }
 .session-detail__events li span { min-width: 0; }
 @media (max-width: 600px) { .live-map__content { position: relative; left: auto; bottom: auto; width: auto; margin: .75rem; padding: 1rem; } }
+
+/* GA-style report tables: right-aligned numbers, share bar under the label, totals row. */
+.ga-table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+.ga-table th, .ga-table td { padding: .55rem .75rem; text-align: left; border-bottom: 1px solid var(--portal-border); vertical-align: top; }
+.ga-table thead th { color: var(--portal-text-soft); font-weight: 600; font-size: .8rem; white-space: nowrap; }
+.ga-table tfoot th, .ga-table tfoot td { font-weight: 700; border-bottom: 0; border-top: 2px solid var(--portal-border-strong); }
+.ga-table .ga-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ga-table--full td:first-child { min-width: 14rem; }
+.ga-label { overflow-wrap: anywhere; }
+.ga-detail { display: block; color: var(--portal-text-soft); font-size: .78rem; margin-top: .15rem; }
+.ga-flag { margin-right: .35em; }
+.ga-table td:first-child { min-width: 9rem; }
+.ga-table thead th { vertical-align: bottom; }
+.ga-bar { display: block; height: 4px; margin-top: .35rem; border-radius: 2px; background: var(--portal-surface-strong); overflow: hidden; }
+.ga-bar span { display: block; height: 100%; border-radius: 2px; background: var(--accent-streaming, #2563eb); }
+.ga-row--unknown td { color: var(--portal-text-soft); font-style: italic; }
+.geo-status { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+.geo-status__chip { padding: .3rem .65rem; border: 1px solid var(--portal-border); border-radius: 999px; font-size: .8rem; color: var(--portal-text-soft); }
+.geo-status__chip--ok { border-color: var(--accent-streaming, #2563eb); color: var(--portal-text); }
+.geo-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .5rem; }
+.geo-tabs { display: inline-flex; border: 1px solid var(--portal-border-strong); border-radius: 999px; padding: 2px; }
+.geo-tabs button { min-height: 36px; padding: .3rem .9rem; border-radius: 999px; font-size: .8125rem; color: var(--portal-text-soft); }
+.geo-tabs button[aria-selected='true'] { background: var(--portal-surface-strong); color: var(--portal-text); font-weight: 600; }
+.geo-tabs button:disabled { opacity: .45; cursor: not-allowed; }
+.geo-tabs button:focus-visible { outline: 2px solid var(--accent-streaming); outline-offset: 2px; }
+/* Report tables inside the cards: size columns by content and break only between words. */
+.live-summary__card table.ga-table, .overview-card table.ga-table { table-layout: auto; }
+.live-summary__card .ga-table th, .live-summary__card .ga-table td,
+.overview-card .ga-table th, .overview-card .ga-table td { overflow-wrap: break-word; word-break: normal; }
+.live-summary__card .ga-table th:last-child, .live-summary__card .ga-table td:last-child { width: auto; }
+.ga-table td:first-child { min-width: 7rem; }
+
+/* Exclusions tab */
+.excl-you { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem; border: 1px solid var(--portal-border); border-radius: var(--radius-md); margin-bottom: 1rem; }
+.excl-you > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: .6rem; }
+.excl-ip { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.05rem; }
+.excl-badge { padding: .15rem .55rem; border-radius: 999px; border: 1px solid var(--portal-border-strong); font-size: .78rem; color: var(--portal-text-soft); }
+.excl-badge--ok { border-color: var(--accent-streaming, #2563eb); color: var(--portal-text); }
+.excl-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .75rem; }
+.excl-form label { display: grid; gap: .3rem; font-size: .8125rem; color: var(--portal-text-soft); flex: 1 1 14rem; }
+.excl-form input { min-height: 44px; padding: .5rem .75rem; border: 1px solid var(--portal-border-strong); border-radius: var(--radius-md); background: var(--portal-surface); color: var(--portal-text); font: inherit; }
+.excl-btn { min-height: 44px; padding: .5rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--portal-text); background: var(--portal-text); color: var(--portal-surface); font-weight: 600; }
+.excl-btn:disabled { opacity: .5; cursor: not-allowed; }
+.excl-remove { min-height: 36px; color: var(--spotify-negative, #c0392b); }
+.excl-remove:hover { text-decoration: underline; }

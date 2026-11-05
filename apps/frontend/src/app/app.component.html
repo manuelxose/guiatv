@@ -178,7 +178,8 @@
 
   <app-modal></app-modal>
   <app-auth-login-modal></app-auth-login-modal>
-  @if (!currentPath.startsWith('/embed')) {
+  @if (!currentPath.startsWith('/embed') && !currentPath.startsWith('/admin')) {
+    <!-- Not on /embed (third-party frames) nor /admin (operator console, never measured). -->
     <app-consent-banner></app-consent-banner>
   }
 </div>

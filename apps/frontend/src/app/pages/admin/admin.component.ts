@@ -81,6 +81,7 @@ export class AdminComponent implements OnInit {
         { id: 'retention', label: 'Retención', description: 'Cohortes de usuarios' },
         { id: 'geography', label: 'Geografía', description: 'Ubicación agregada' },
         { id: 'diagnostics', label: 'Diagnóstico', description: 'Ingesta, GeoIP y GA4' },
+        { id: 'exclusions', label: 'Exclusiones', description: 'IPs que no cuentan' },
       ],
     },
     {

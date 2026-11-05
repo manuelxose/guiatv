@@ -72,8 +72,20 @@ export interface AnalyticsOverview {
   topReferrers: Array<{ referrer: string; count: number }>;
   sessionsByDay: Array<{ date: string; count: number }>;
   geography?: Array<{ country: string; region: string; count: number }>;
+  /** Country / region / city breakdown (top 200 by sessions); absent fields mean unknown, never guessed. */
+  geographyDetail?: AnalyticsGeoBucket[];
+  /** Sessions by location outcome: located, country_only, unknown, private, invalid, unavailable, disabled, none (no data). */
+  geographyStatus?: Array<{ status: string; count: number }>;
   aggregateLimitations?: boolean;
   geographyCollectionEnabled?: boolean;
+}
+
+export interface AnalyticsGeoBucket {
+  country?: string;
+  region?: string;
+  regionName?: string;
+  city?: string;
+  count: number;
 }
 
 export interface AnalyticsRealtimePages {

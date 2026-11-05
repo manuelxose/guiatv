@@ -7,12 +7,21 @@ import { LIVE_IDLE_LIMIT_SECONDS } from './analyticsActivity';
 import {
   AnalyticsEventQuery,
   AnalyticsEventRecord,
+  AnalyticsGeoBucket,
   AnalyticsOverview,
   AnalyticsRealtimePages,
   AnalyticsSessionActivity,
   AnalyticsSessionRecord,
   IAnalyticsRepository,
 } from '../../domain/repositories/IAnalyticsRepository';
+
+function compactGeoBucket(bucket: Record<string, unknown>): AnalyticsGeoBucket {
+  const out: AnalyticsGeoBucket = { count: Number(bucket.count) || 0 };
+  for (const key of ['country', 'region', 'regionName', 'city'] as const) {
+    if (typeof bucket[key] === 'string' && bucket[key]) out[key] = bucket[key] as string;
+  }
+  return out;
+}
 
 /** Same privacy policy as the Valkey store: only a truncated prefix (or nothing) is ever written. */
 function storedIp(ip?: string): string | undefined {
@@ -346,12 +355,28 @@ export class MongoAnalyticsRepository implements IAnalyticsRepository {
     ]).exec();
 
     const liveCount = await this.countLiveSessions(liveWindowSec);
-    const geography = await AnalyticsSessionModel.aggregate([
-      { $match: { ...exclusions.sessions, startedAt: { $gte: from, $lte: to } } },
-      { $group: { _id: { country: { $ifNull: ['$country', 'Desconocido'] }, region: { $ifNull: ['$region', 'Desconocido'] } }, count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $project: { _id: 0, country: '$_id.country', region: '$_id.region', count: 1 } },
-    ]).exec();
+    const geographyMatch = { ...exclusions.sessions, startedAt: { $gte: from, $lte: to } };
+    const [geography, geographyDetail, geographyStatus] = await Promise.all([
+      AnalyticsSessionModel.aggregate([
+        { $match: geographyMatch },
+        { $group: { _id: { country: { $ifNull: ['$country', 'Desconocido'] }, region: { $ifNull: ['$region', 'Desconocido'] } }, count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $project: { _id: 0, country: '$_id.country', region: '$_id.region', count: 1 } },
+      ]).exec(),
+      AnalyticsSessionModel.aggregate([
+        { $match: geographyMatch },
+        { $group: { _id: { country: '$country', region: '$region', city: '$city' }, regionName: { $first: '$geo.regionName' }, count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 200 },
+        { $project: { _id: 0, country: '$_id.country', region: '$_id.region', city: '$_id.city', regionName: 1, count: 1 } },
+      ]).exec(),
+      AnalyticsSessionModel.aggregate([
+        { $match: geographyMatch },
+        { $group: { _id: { $ifNull: ['$geo.status', { $cond: [{ $ifNull: ['$country', false] }, 'country_only', 'none'] }] }, count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $project: { _id: 0, status: '$_id', count: 1 } },
+      ]).exec(),
+    ]);
 
     return {
       activeNow: liveCount,
@@ -365,6 +390,8 @@ export class MongoAnalyticsRepository implements IAnalyticsRepository {
       topReferrers,
       sessionsByDay,
       geography,
+      geographyDetail: geographyDetail.map(compactGeoBucket),
+      geographyStatus,
     };
   }
 

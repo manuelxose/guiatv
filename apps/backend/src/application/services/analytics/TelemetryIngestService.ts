@@ -47,7 +47,8 @@ export class TelemetryIngestService {
     private readonly repository: IAnalyticsRepository,
     private readonly geoip: GeoIpService,
     options: IngestQueueOptions = DEFAULT_INGEST_OPTIONS,
-    private readonly resolveRole?: RoleResolver
+    private readonly resolveRole?: RoleResolver,
+    private readonly exclusions?: { isExcluded(ip: string): boolean }
   ) {
     this.queue = new TelemetryIngestQueue<IngestItem>((item) => this.process(item), () => this.repository.isAvailable?.() ?? true, options);
   }
@@ -79,7 +80,7 @@ export class TelemetryIngestService {
       this.rememberExcluded(batch.sessionId);
       if (!batch.session) await this.repository.markExcludedSession(batch.sessionId);
     }
-    const excluded = admin || this.excludedSessions.has(batch.sessionId) || (ip !== '' && excludedIpSet().has(ip));
+    const excluded = admin || this.excludedSessions.has(batch.sessionId) || (ip !== '' && (this.exclusions ? this.exclusions.isExcluded(ip) : excludedIpSet().has(ip)));
     const storedIp = pii === 'none' ? undefined : anonymizeIp(ip);
     const userAgent = pii === 'none' ? undefined : ctx.userAgent?.slice(0, 180) || undefined;
     // `excluded` is always an explicit boolean: stores use it instead of re-deriving it from the (truncated) address.

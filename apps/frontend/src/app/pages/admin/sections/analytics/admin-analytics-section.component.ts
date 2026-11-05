@@ -21,6 +21,7 @@ import {
   AdminRealtimePages,
   AdminAnalyticsDiagnostics,
   AdminGa4Demographics,
+  AdminAnalyticsExclusions,
   describeAnalyticsError,
 } from '../../../../services/admin-analytics.service';
 import {
@@ -30,6 +31,17 @@ import {
 import { WORLD_MAP } from './world-map';
 import { countryMarker } from './map-marker';
 import { LiveMapComponent, LiveMapMarker } from './live-map.component';
+import { barWidth, countryFlag, countryName, geoSourceLabel, geoStatusLabel, locationLabel, locationPrecision, providerLabel, regionLabel, share } from './geo-format';
+
+/** One row of a GA-style location table. */
+export interface GeoRow {
+  key: string;
+  flag: string;
+  label: string;
+  detail: string;
+  count: number;
+  unknown: boolean;
+}
 
 @Component({
   selector: 'app-admin-analytics-section',
@@ -90,7 +102,7 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
   public readonly worldMap = WORLD_MAP;
   public geographyCounts: Record<string, number> = {};
   public geographyMax = 0;
-  public geographySort: 'country' | 'region' | 'count' = 'count';
+  public geographySort: 'label' | 'country' | 'region' | 'count' = 'count';
   public geographyAscending = false;
   public overviewLoading = false;
   public overviewError = false;
@@ -149,6 +161,7 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
     if (this.activeItem === 'journeys' && !this.journeysLoaded) this.loadJourneys();
     if (this.activeItem === 'retention' && !this.retentionLoaded) this.loadRetention();
     if (this.activeItem === 'diagnostics') this.loadDiagnostics();
+    if (this.activeItem === 'exclusions') this.loadExclusions();
   }
 
   toggleSession(sessionId: string): void {
@@ -219,7 +232,7 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
     if (this.activeItem === 'events') for (const event of this.recentEvents) rows.push(['evento', event.type, event.path || event.name || '']);
     if (this.activeItem === 'live') for (const session of this.liveSessions) rows.push(['sesión', session.sessionId, session.lastPath || '']);
     if (this.activeItem === 'retention') for (const cohort of this.retentionCohorts) rows.push(['cohorte', JSON.stringify(cohort), '']);
-    if (this.activeItem === 'geography') for (const place of this.overview?.geography || []) rows.push([place.country, place.region, String(place.count)]);
+    if (this.activeItem === 'geography') for (const row of this.geoRows) rows.push([`ubicación (${this.geoView})`, row.detail ? `${row.label} (${row.detail})` : row.label, String(row.count)]);
     const csv = rows.map((row) => row.map((cell) => `"${cell.replace(/^[\s]*[=+\-@\t\r]/, "'$&").replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const link = document.createElement('a');
@@ -241,15 +254,86 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
     this.pageNumber = 0;
   }
 
-  get sortedGeography(): Array<{ country: string; region: string; count: number }> {
-    const sort = this.geographySort;
+  /** Formatting helpers for the template (names, flags, precision, shares). */
+  readonly fmt = { countryName, countryFlag, locationLabel, locationPrecision, providerLabel, geoSourceLabel, geoStatusLabel, share, barWidth };
+  public geoView: 'country' | 'region' | 'city' = 'country';
+
+  /** True when the backend sent the country/region/city breakdown (city view needs it). */
+  get hasGeoDetail(): boolean {
+    return Array.isArray(this.overview?.geographyDetail);
+  }
+
+  /** Location rows for the selected level, sorted (sessions by default), unknown locations kept as their own row. */
+  get geoRows(): GeoRow[] {
+    const level = this.geoView === 'city' && !this.hasGeoDetail ? 'region' : this.geoView;
+    const source = this.hasGeoDetail
+      ? this.overview!.geographyDetail!
+      : (this.overview?.geography || []).map((g) => ({ country: g.country === 'Desconocido' ? undefined : g.country, region: g.region === 'Desconocido' ? undefined : g.region, count: g.count } as { country?: string; region?: string; regionName?: string; city?: string; count: number }));
+    const rows = new Map<string, GeoRow>();
+    for (const bucket of source) {
+      const country = bucket.country;
+      const region = regionLabel(bucket.region, bucket.regionName);
+      const parts = level === 'country' ? [country] : level === 'region' ? [country, bucket.region] : [country, bucket.region, bucket.city];
+      const unknown = !country || (level === 'region' && !region) || (level === 'city' && !bucket.city);
+      const key = unknown ? `unknown:${level === 'country' ? '' : country || ''}` : parts.join('|');
+      const label = level === 'country'
+        ? (country ? countryName(country) : 'Ubicación desconocida')
+        : level === 'region'
+          ? (region || (country ? 'Región desconocida' : 'Ubicación desconocida'))
+          : (bucket.city || (country ? 'Ciudad desconocida' : 'Ubicación desconocida'));
+      const detail = level === 'country' ? '' : [level === 'city' ? region : '', country ? countryName(country) : ''].filter(Boolean).join(', ');
+      const row = rows.get(key) || { key, flag: countryFlag(country), label, detail, count: 0, unknown };
+      row.count += bucket.count;
+      rows.set(key, row);
+    }
     const direction = this.geographyAscending ? 1 : -1;
-    return [...(this.overview?.geography || [])].sort((a, b) => direction *
-      (sort === 'count' ? a.count - b.count : a[sort].localeCompare(b[sort], 'es')));
+    return [...rows.values()].sort((a, b) => {
+      if (this.geographySort === 'count') return direction * (a.count - b.count) || a.label.localeCompare(b.label, 'es');
+      return direction * a.label.localeCompare(b.label, 'es');
+    });
+  }
+
+  get geoTotal(): number {
+    return this.geoRows.reduce((sum, row) => sum + row.count, 0);
+  }
+
+  get geoMax(): number {
+    return Math.max(0, ...this.geoRows.map((row) => row.count));
+  }
+
+  /** Located / country-only / unknown… totals for the period, with labels. */
+  get geoStatusRows(): Array<{ status: string; label: string; count: number }> {
+    return (this.overview?.geographyStatus || []).map((row) => ({ ...row, label: geoStatusLabel(row.status) }));
+  }
+
+  selectGeoView(view: 'country' | 'region' | 'city'): void {
+    this.geoView = view;
+  }
+
+  /** Live sessions by country, most sessions first, with names and flags. */
+  get liveCountryRows(): Array<{ code: string; flag: string; name: string; count: number }> {
+    return Object.entries(this.liveCountries)
+      .map(([code, count]) => ({ code, flag: countryFlag(code), name: countryName(code), count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'es'));
+  }
+
+  /** Top countries of the period for the overview card. */
+  get overviewCountries(): Array<{ code: string; flag: string; name: string; count: number }> {
+    const counts = new Map<string, number>();
+    for (const place of this.overview?.geography || []) counts.set(place.country, (counts.get(place.country) || 0) + place.count);
+    return [...counts].map(([code, count]) => ({ code, flag: countryFlag(code), name: countryName(code), count })).sort((a, b) => b.count - a.count).slice(0, 5);
+  }
+
+  get overviewPageMax(): number {
+    return Math.max(0, ...(this.overview?.topPages || []).map((page) => page.count));
+  }
+
+  get overviewReferrerMax(): number {
+    return Math.max(0, ...(this.overview?.topReferrers || []).map((ref) => ref.count));
   }
 
   get livePageCounts(): Array<{ label: string; count: number }> {
-    return this.countLiveSessions((session) => session.lastPath || 'Desconocida');
+    return this.countLiveSessions((session) => session.lastPathLabel || session.lastPath || 'Desconocida');
   }
 
   get filteredLiveSessions(): AdminAnalyticsLiveSession[] {
@@ -257,7 +341,7 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
     return this.liveSessions.filter((session) => {
       const crawler = Boolean(this.getCrawlerName(session.userAgent));
       if (this.sessionKind === 'crawler' && !crawler || this.sessionKind === 'other' && crawler) return false;
-      return !query || [session.sessionId, session.lastPath, session.country, session.region, session.city, this.getBrowserSummary(session.userAgent), this.getOsSummary(session.userAgent), this.getCrawlerName(session.userAgent)]
+      return !query || [session.sessionId, session.lastPath, session.lastPathLabel, session.country, countryName(session.country), session.region, session.geo?.regionName, session.city, session.geo?.asOrg, this.getBrowserSummary(session.userAgent), this.getOsSummary(session.userAgent), this.getCrawlerName(session.userAgent)]
         .some((value) => value?.toLocaleLowerCase().includes(query));
     });
   }
@@ -281,7 +365,7 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
     return [...counts].map(([name, count]) => ({ label: name, count })).sort((a, b) => b.count - a.count).slice(0, 5);
   }
 
-  sortGeography(column: 'country' | 'region' | 'count'): void {
+  sortGeography(column: 'label' | 'country' | 'region' | 'count'): void {
     this.geographyAscending = this.geographySort === column ? !this.geographyAscending : column !== 'count';
     this.geographySort = column;
   }
@@ -342,7 +426,7 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
     const rawType = device?.type || (session.metadata?.uaData?.mobile ? 'mobile' : '');
     const type = ({ mobile: 'Móvil', desktop: 'Ordenador', tablet: 'Tableta' } as Record<string, string>)[rawType] || rawType || 'Dispositivo desconocido';
     const orientation = ({ landscape: 'horizontal', portrait: 'vertical' } as Record<string, string>)[device?.orientation] || device?.orientation;
-    return [type, orientation, device?.isTouchDevice ? 'táctil' : ''].filter(Boolean).join(' · ');
+    return [type, orientation, device?.isTouchDevice || device?.touch ? 'táctil' : ''].filter(Boolean).join(' · ');
   }
 
   getSessionDuration(session: AdminAnalyticsLiveSession): string {
@@ -396,6 +480,7 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
     if (this.activeItem === 'retention') this.loadRetention();
     if (this.activeItem === 'pages') this.loadRealtimePages();
     if (this.activeItem === 'diagnostics') this.loadDiagnostics();
+    if (this.activeItem === 'exclusions') this.loadExclusions();
   }
 
   private loadRealtimePages(): void {
@@ -520,9 +605,10 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
           const lat = hasCoordinates ? session.latitude! : 90 - fallback!.y / 2;
           const lng = hasCoordinates ? session.longitude! : fallback!.x / 2 - 180;
           const precision = hasCoordinates ? 'ip' : 'country';
-          const label = hasCoordinates ? [session.city, session.region, country].filter(Boolean).join(', ') : country;
+          const label = hasCoordinates ? locationLabel(session) : countryName(country);
           const key = JSON.stringify([precision, label, lat, lng]);
-          const marker = grouped.get(key) || { key, label, lat, lng, count: 0, precision };
+          const marker: LiveMapMarker = grouped.get(key) || { key, label, lat, lng, count: 0, precision, radiusKm: session.geo?.accuracyRadiusKm };
+          if (marker.radiusKm !== session.geo?.accuracyRadiusKm) marker.radiusKm = undefined; // mixed radii: say nothing
           marker.count++;
           grouped.set(key, marker);
         }
@@ -581,6 +667,49 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
 
   ga4Share(row: { activeUsers: number }, total: number): number {
     return total > 0 ? Math.round((row.activeUsers / total) * 1000) / 10 : 0;
+  }
+
+  public exclusions: AdminAnalyticsExclusions | null = null;
+  public exclusionsError: string | null = null;
+  public exclusionFormError: string | null = null;
+  public exclusionBusy = false;
+  public readonly exclusionSourceLabels: Record<string, string> = { manual: 'Añadida en el panel', env: 'Configuración del servidor (ANALYTICS_EXCLUDED_IPS)', server: 'Automática: dirección del propio servidor', loopback: 'Automática: este servidor (loopback)' };
+
+  get manualExclusions() {
+    return (this.exclusions?.entries || []).filter((entry) => entry.source === 'manual');
+  }
+
+  get automaticExclusions() {
+    return (this.exclusions?.entries || []).filter((entry) => entry.source !== 'manual');
+  }
+
+  loadExclusions(): void {
+    this.exclusionsError = null;
+    this.analyticsService.getExclusions().subscribe({
+      next: (result) => { this.exclusions = result; this.touchUpdated(); },
+      error: (error) => { this.exclusions = null; this.exclusionsError = describeAnalyticsError(error).message; },
+    });
+  }
+
+  addExclusion(value: string, label: string, mine = false): void {
+    if (this.exclusionBusy) return;
+    if (!mine && !value.trim()) { this.exclusionFormError = 'Escribe una dirección IP o un rango CIDR.'; return; }
+    this.exclusionBusy = true;
+    this.exclusionFormError = null;
+    this.analyticsService.addExclusion(mine ? { mine: true, label: label.trim() || undefined } : { value: value.trim(), label: label.trim() || undefined }).subscribe({
+      next: () => { this.exclusionBusy = false; this.loadExclusions(); },
+      error: (error) => { this.exclusionBusy = false; this.exclusionFormError = error?.status === 400 && error?.error?.message ? error.error.message : describeAnalyticsError(error).message; },
+    });
+  }
+
+  removeExclusion(id: string | undefined, value: string): void {
+    if (!id || this.exclusionBusy) return;
+    if (typeof window !== 'undefined' && !window.confirm(`¿Volver a contar el tráfico de ${value}?`)) return;
+    this.exclusionBusy = true;
+    this.analyticsService.removeExclusion(id).subscribe({
+      next: () => { this.exclusionBusy = false; this.loadExclusions(); },
+      error: (error) => { this.exclusionBusy = false; this.exclusionFormError = describeAnalyticsError(error).message; },
+    });
   }
 
   private touchUpdated(): void {

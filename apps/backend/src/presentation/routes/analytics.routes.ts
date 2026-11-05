@@ -50,6 +50,9 @@ export const createAnalyticsRoutes = (
   router.get('/config', (req, res) => controller.getConfig(req, res));
   router.get('/diagnostics', adminAccessGuard, (req, res) => controller.getDiagnostics(req, res));
   router.get('/ga4/demographics', adminAccessGuard, asyncHandler(controller.getGa4Demographics.bind(controller)));
+  router.get('/exclusions', adminAccessGuard, asyncHandler(controller.getExclusions.bind(controller)));
+  router.post('/exclusions', adminAccessGuard, asyncHandler(controller.addExclusion.bind(controller)));
+  router.delete('/exclusions/:id', adminAccessGuard, asyncHandler(controller.removeExclusion.bind(controller)));
 
   router.get('/view', adminAccessGuard, asyncHandler(async (req, res) => {
     const user = (req as AuthenticatedRequest).user;
@@ -61,7 +64,7 @@ export const createAnalyticsRoutes = (
     const user = (req as AuthenticatedRequest).user;
     if (!user) { res.status(403).json({ success: false, message: 'Se requiere una cuenta de administrador' }); return; }
     const { tab, rangeHours, eventFilter } = req.body || {};
-    if (!['overview', 'pages', 'live', 'events', 'journeys', 'retention', 'geography', 'diagnostics'].includes(tab)
+    if (!['overview', 'pages', 'live', 'events', 'journeys', 'retention', 'geography', 'diagnostics', 'exclusions'].includes(tab)
       || ![24, 168, 720].includes(rangeHours)
       || (eventFilter && !['page_view', 'click', 'scroll_depth', 'visibility', 'session_start'].includes(eventFilter))) {
       res.status(400).json({ success: false, message: 'Vista no válida' }); return;

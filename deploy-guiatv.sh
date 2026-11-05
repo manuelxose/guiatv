@@ -310,6 +310,13 @@ else
     echo "package-lock.json unchanged since the last install; skipping npm install"
   else
     build_limited npm install --workspaces --include-workspace-root --legacy-peer-deps --no-audit --no-fund
+    # npm may rewrite the lockfile (another npm version, `dev`/`devOptional` flags, engine fields). The server never
+    # commits, so restore the committed one: a modified tracked file makes every later deploy skip the git sync
+    # ("Working tree has local changes") and silently rebuild the old commit (2026-11-04, runs 69 and 70).
+    if git ls-files --error-unmatch package-lock.json >/dev/null 2>&1 && ! git diff --quiet -- package-lock.json; then
+      echo "npm rewrote package-lock.json; restoring the committed lockfile"
+      git checkout -- package-lock.json
+    fi
     [ -z "${LOCK_SHA}" ] || echo "${LOCK_SHA}" >"${LOCK_STAMP}"
   fi
   build_limited npm run build
