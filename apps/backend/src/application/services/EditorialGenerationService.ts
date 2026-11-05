@@ -50,6 +50,10 @@ type GenerationRequest = {
   createdAt: Date;
   updatedAt: Date;
   createdBy: string;
+  claimsObserved?: number;
+  claimedAt?: Date;
+  finishedAt?: Date;
+  claimToken?: string;
 };
 
 const db = () => BlogPostModel.db;
@@ -173,36 +177,47 @@ export class EditorialGenerationService {
       if (topic.seedUrls.some((url) => !domains.has(new URL(url).hostname.replace(/^www\./, '')))) fail('Every source domain must be enabled in generation settings');
     }
     const now = new Date();
-    const request: GenerationRequest = { id: randomUUID(), kind, status: 'queued', topic, createdAt: now, updatedAt: now, createdBy: actor };
+    const request: GenerationRequest = { id: randomUUID(), kind, status: 'queued', topic, createdAt: now, updatedAt: now, createdBy: actor, claimsObserved: 0 };
     await requests().insertOne(request);
     return this.publicRequest(request);
   }
 
   async cancelRequest(id: string) {
-    const result = await requests().findOneAndUpdate({ id, status: 'queued' }, { $set: { status: 'cancelled', updatedAt: new Date() } }, { returnDocument: 'after' });
+    const now = new Date();
+    const result = await requests().findOneAndUpdate({ id, status: 'queued' }, { $set: { status: 'cancelled', updatedAt: now, finishedAt: now } }, { returnDocument: 'after' });
     if (!result) throw new ConflictError('Only queued requests can be cancelled');
     return this.publicRequest(result);
   }
 
   async retryRequest(id: string) {
-    const result = await requests().findOneAndUpdate({ id, status: { $in: ['failed', 'cancelled'] } }, { $set: { status: 'queued', reason: '', updatedAt: new Date() } }, { returnDocument: 'after' });
+    const result = await requests().findOneAndUpdate({ id, status: { $in: ['failed', 'cancelled'] } }, { $set: { status: 'queued', reason: '', updatedAt: new Date() }, $unset: { claimedAt: '', finishedAt: '', claimToken: '' } }, { returnDocument: 'after' });
     if (!result) throw new NotFoundError('No failed or cancelled generation request found');
     return this.publicRequest(result);
   }
 
   async pendingRequests() {
-    const items = await requests().find({ status: 'queued' }).sort({ createdAt: 1 }).limit(20).toArray();
+    const [discovery, generation] = await Promise.all(['discover', 'generate'].map((kind) =>
+      requests().find({ status: 'queued', kind: kind as GenerationRequest['kind'] }).sort({ createdAt: 1, _id: 1 }).limit(20).toArray()));
+    const items: GenerationRequest[] = [];
+    for (let i = 0; items.length < 20 && (i < discovery.length || i < generation.length); i++) {
+      if (discovery[i]) items.push(discovery[i]);
+      if (items.length < 20 && generation[i]) items.push(generation[i]);
+    }
     return items.map((item) => this.publicRequest(item));
   }
 
-  async claimRequest(id: string) {
-    const result = await requests().findOneAndUpdate({ id, status: 'queued' }, { $set: { status: 'running', updatedAt: new Date() } }, { returnDocument: 'after' });
+  async claimRequest(id: string, owned = false) {
+    const now = new Date();
+    const claimToken = owned ? randomUUID() : undefined;
+    const result = await requests().findOneAndUpdate({ id, status: 'queued' }, { $set: { status: 'running', updatedAt: now, claimedAt: now, ...(claimToken ? { claimToken } : {}) }, $inc: { claimsObserved: 1 } }, { returnDocument: 'after' });
     if (!result) throw new ConflictError('Request is no longer queued');
-    return this.publicRequest(result);
+    return { ...this.publicRequest(result), ...(claimToken ? { claimToken } : {}) };
   }
 
-  async finishRequest(id: string, status: 'completed' | 'failed', reason = '') {
-    const result = await requests().findOneAndUpdate({ id, status: 'running' }, { $set: { status, reason: text(reason, 1000), updatedAt: new Date() } }, { returnDocument: 'after' });
+  async finishRequest(id: string, status: 'completed' | 'failed', reason = '', claimToken?: string) {
+    const now = new Date();
+    const owner = claimToken ? claimToken : { $exists: false };
+    const result = await requests().findOneAndUpdate({ id, status: 'running', claimToken: owner }, { $set: { status, reason: text(reason, 1000), updatedAt: now, finishedAt: now }, $unset: { claimToken: '' } }, { returnDocument: 'after' });
     if (!result) throw new NotFoundError('Running generation request not found');
     return this.publicRequest(result);
   }
@@ -235,9 +250,10 @@ export class EditorialGenerationService {
   }
 
   async operationalState() {
-    const [generation, runnerDoc, lastCycle, queueDoc, manual] = await Promise.all([
+    const [generation, runnerDoc, lastCycle, queueDoc, manual, manualPending, manualRunning] = await Promise.all([
       this.getSettings(), runner().findOne({ _id: 'current' }), cycles().findOne({}, { sort: { at: -1 } }),
       queue().findOne({ _id: 'current' }), requests().find({ status: { $in: ['queued', 'running', 'failed', 'cancelled'] } }).sort({ createdAt: -1 }).limit(50).toArray(),
+      requests().countDocuments({ status: 'queued' }), requests().countDocuments({ status: 'running' }),
     ]);
     const lastSeenAt = runnerDoc?.lastSeenAt ?? null;
     const staleMs = Math.max(15 * 60e3, generation.scheduleHours * 3600e3 + 15 * 60e3);
@@ -254,14 +270,14 @@ export class EditorialGenerationService {
       nextRunAt: generation.enabled && lastSeenAt ? new Date(new Date(lastSeenAt).getTime() + generation.scheduleHours * 3600e3).toISOString() : null,
       queue: [...manual.map((item) => ({ ...this.publicRequest(item), source: 'manual' })), ...(queueDoc?.items ?? []).map((item: any) => ({ ...item, source: 'discovered' }))].slice(0, 100),
       queueSummary: {
-        manualPending: manual.filter((item) => item.status === 'queued').length,
+        manualPending,
         discovered: queueDoc?.items?.filter((item: any) => item.state === 'queued').length ?? 0,
-        running: manual.filter((item) => item.status === 'running').length + (queueDoc?.items?.filter((item: any) => item.state === 'running').length ?? 0),
+        running: manualRunning + (queueDoc?.items?.filter((item: any) => item.state === 'running').length ?? 0),
       },
     };
   }
 
   private publicRequest(item: GenerationRequest) {
-    return { id: item.id, kind: item.kind, status: item.status, topic: item.topic, reason: item.reason ?? null, createdAt: item.createdAt, updatedAt: item.updatedAt, createdBy: item.createdBy };
+    return { id: item.id, kind: item.kind, status: item.status, topic: item.topic, reason: item.reason ?? null, createdAt: item.createdAt, updatedAt: item.updatedAt, createdBy: item.createdBy, claimsObserved: item.claimsObserved ?? null, claimedAt: item.claimedAt ?? null, finishedAt: item.finishedAt ?? null };
   }
 }

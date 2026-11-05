@@ -545,9 +545,10 @@ export class BlogController {
     post.publishedAt = post.publishedAt || now;
     post.reviewNotes = `${kind} by the M11-B evidence policy: every stated fact verified against its source, independent AI review passed. Automatic certification, no per-article human review.`;
     post.editorial = { ...post.editorial, state: 'published' };
-    // A failed save publishes nothing, so it must not keep a slot or lock this draft out.
+    // shortcut: ambiguous failures retain a quota slot and require reconciliation until atomic publication exists.
     await this.saveUnchanged(post).catch(async (error) => {
-      await ledger.deleteOne({ _id: insertedId });
+      if (error instanceof ConflictError) await ledger.deleteOne({ _id: insertedId });
+      else await this.invalidatePublicReads().catch(() => undefined);
       throw error;
     });
     await this.invalidatePublicReads();

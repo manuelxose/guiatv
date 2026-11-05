@@ -216,7 +216,9 @@ export class EditorialOpsController {
     if (body.metaTitle !== undefined) updates['seo.metaTitle'] = String(body.metaTitle).trim().slice(0, 120);
     if (body.metaDescription !== undefined) updates['seo.metaDescription'] = String(body.metaDescription).trim().slice(0, 220);
     if (updates.title !== undefined && String(updates.title).length < 20) throw new ValidationError('Title must contain at least 20 characters', []);
-    await BlogPostModel.updateOne({ _id: post._id, status: 'draft' }, { $set: updates, $unset: { reviewedBy: 1, reviewNotes: 1 } });
+    const version = post.__v === undefined ? { $exists: false } : post.__v;
+    const result = await BlogPostModel.updateOne({ _id: post._id, status: 'draft', __v: version }, { $set: updates, $unset: { reviewedBy: 1, reviewNotes: 1 }, $inc: { __v: 1 } });
+    if (!result.matchedCount) throw new ConflictError('The post changed while this request ran; read it again');
     await audit().insertOne({ at: new Date(), action: 'editorial-post-edit', by: actor(req), postId: String(post._id), slug: post.slug });
     res.json(successResponse({ updated: true, id: String(post._id) }));
   };
@@ -316,6 +318,10 @@ export class EditorialOpsController {
       costEntries: (Array.isArray(b.costEntries) ? b.costEntries : []).filter((e: unknown) => e && typeof e === 'object').slice(0, 50).map((e: Record<string, unknown>) => ({
         role: text(e.role, 20), model: text(e.model, 80) === '__proto__' ? null : text(e.model, 80), inputTokens: amount(e.inputTokens),
         outputTokens: amount(e.outputTokens), searches: amount(e.searches), usd: amount(e.usd),
+        ...(e.costBasis === 'estimated-list' ? { costBasis: 'estimated-list' } : {}),
+        ...(e.modelIdentity === 'requested' || e.modelIdentity === 'reported' ? { modelIdentity: e.modelIdentity } : {}),
+        ...(e.cacheReadInputTokens !== undefined ? { cacheReadInputTokens: amount(e.cacheReadInputTokens) } : {}),
+        ...(e.cacheCreationInputTokens !== undefined ? { cacheCreationInputTokens: amount(e.cacheCreationInputTokens) } : {}),
       })),
       blockingCodes: (Array.isArray(b.blockingCodes) ? b.blockingCodes : []).slice(0, 50).map((c: unknown) => text(c, 60)),
       // M11-E2 audit: how many revisions, what each one did, the budget mode and the public URL (if published).
@@ -389,7 +395,7 @@ export class EditorialOpsController {
   };
 
   runnerWork = async (_req: Request, res: Response): Promise<void> => {
-    res.json(successResponse({ settings: await this.generation.getSettings(), requests: await this.generation.pendingRequests(), policy: await editorialPolicyState() }));
+    res.json(successResponse({ settings: await this.generation.getSettings(), requests: await this.generation.pendingRequests(), policy: await editorialPolicyState(), ownershipProtocols: ['v1'] }));
   };
 
   runnerHeartbeat = async (req: Request, res: Response): Promise<void> => {
@@ -400,10 +406,16 @@ export class EditorialOpsController {
     res.json(successResponse(await this.generation.claimRequest(String(req.params.id))));
   };
 
+  claimOwnedGenerationRequest = async (req: Request, res: Response): Promise<void> => {
+    res.json(successResponse(await this.generation.claimRequest(String(req.params.id), true)));
+  };
+
   finishGenerationRequest = async (req: Request, res: Response): Promise<void> => {
     const status = req.body?.status;
     if (status !== 'completed' && status !== 'failed') throw new ValidationError('Status must be completed or failed', []);
-    res.json(successResponse(await this.generation.finishRequest(String(req.params.id), status, req.body?.reason)));
+    const token = req.header('x-editorial-claim-token');
+    if (token !== undefined && (typeof token !== 'string' || !/^[0-9a-f-]{36}$/i.test(token))) throw new ValidationError('Invalid claim token', []);
+    res.json(successResponse(await this.generation.finishRequest(String(req.params.id), status, req.body?.reason, token)));
   };
 
   runnerCycle = async (req: Request, res: Response): Promise<void> => {

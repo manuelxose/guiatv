@@ -1,8 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { EditorialModel, runEditorialBatch, runEditorialJob } from './EditorialAgentPipeline';
+import { EditorialModel, ModelCallFailed, runEditorialBatch, runEditorialJob } from './EditorialAgentPipeline';
 import { DEFAULT_EDITORIAL_LIMITS, evaluateEvidence } from './EditorialEvidence';
 import { deps, draft, GOOD, NOW, pass, research, scripted, topic } from './EditorialAgentPipeline.fixtures';
+
+test('pipeline records each reported model even if the call fails after spending', async () => {
+  const m = scripted({ research: [research] });
+  const usageBreakdown = [
+    { model: 'main', inputTokens: 10, outputTokens: 2, cacheReadInputTokens: 3, cacheCreationInputTokens: 4, searches: 0, estimatedUsd: 0.01 },
+    { model: 'auxiliary', inputTokens: 7, outputTokens: 1, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, searches: 1, estimatedUsd: 0.02 },
+  ];
+  m.model.call = async () => { throw new ModelCallFailed('failed after billed work', { input_tokens: 24, output_tokens: 3 }, 1, usageBreakdown); };
+  const run = await runEditorialJob(topic, deps(m.model));
+  assert.notEqual(run.state, 'approved-by-policy');
+  assert.deepEqual(run.cost.entries.map((e) => [e.model, e.inputTokens, e.searches, e.costBasis]), [['main', 17, 0, 'estimated-list'], ['auxiliary', 7, 1, 'estimated-list']]);
+  assert.equal(run.cost.usd, 0.03);
+});
 
 test('pipeline: a researched, verified and independently reviewed draft is approved by policy', async () => {
   const m = scripted({ research: [research], evidence: [{ conflicts: [] }], editorial: [draft()], critic: [pass] });

@@ -16,6 +16,8 @@ test('deploy.yml (builds on the VPS) is manual only and shares the deploy lock; 
   assert.doesNotMatch(yml, /^\s+(push|pull_request|schedule|workflow_run):/m, 'nothing may start the on-host build implicitly');
   assert.match(yml, /concurrency:\s*\n\s+group: deploy-prod\s*\n\s+cancel-in-progress: false/);
   const regex = /DOCS_ONLY_REGEX='([^']+)'/.exec(read('deploy-guiatv.sh'))[1];
+  assert.match(read('deploy-guiatv.sh'), /grep -qxF 'docs\/seo\/editorial-drafts\/publish\.json'/, 'editorial maintenance data must trigger a deploy');
+  assert.match(read('.github/workflows/performance.yml'), /grep -qxF 'docs\/seo\/editorial-drafts\/publish\.json'/, 'editorial maintenance data must run CI');
   const re = new RegExp(regex);
   for (const path of ['docs/seo/x.md', 'README.md', 'graphify-out/graph.json', 'tasks/a', 'scripts/uptime-probe.mjs', '.github/workflows/uptime.yml']) assert.ok(re.test(path), `${path} is documentation-only`);
   for (const path of ['apps/backend/src/a.ts', 'apps/frontend/src/a.ts', 'scripts/post-boot-check.mjs', 'scripts/guiatv-ops.sh', 'deploy-guiatv.sh', 'package-lock.json', 'scripts/publish-release.mjs', '.github/workflows/deploy.yml']) assert.ok(!re.test(path), `${path} changes what runs`);

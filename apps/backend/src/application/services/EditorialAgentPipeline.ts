@@ -27,6 +27,7 @@ import {
   IMAGE_PRICES,
   ImageAsset,
   MODEL_PRICES,
+  ReportedModelUsage,
 } from './EditorialEvidence';
 import { EditorialFinding, evaluateEditorialQuality, policyGateFailures } from './EditorialReviewPolicy';
 import { coverAsset, coverRequest, ImageModel, imageProblems, ImageRoute } from './EditorialImages';
@@ -126,6 +127,8 @@ export interface ModelResult {
   json: unknown;
   usage: { input_tokens: number; output_tokens: number };
   searches?: number;
+  /** Separate provider-reported estimated list prices, including auxiliary model use. */
+  usageBreakdown?: ReportedModelUsage[];
 }
 export interface EditorialModel {
   /** Who answers: recorded as the provenance backend ('anthropic', 'replay', …). */
@@ -139,7 +142,7 @@ export interface EditorialModel {
 
 /** A failed call whose billed usage is known; any other error leaves the job's spend unresolved. */
 export class ModelCallFailed extends Error {
-  constructor(message: string, readonly usage: ModelResult['usage'], readonly searches = 0) { super(message); }
+  constructor(message: string, readonly usage: ModelResult['usage'], readonly searches = 0, readonly usageBreakdown?: ReportedModelUsage[]) { super(message); }
 }
 
 export interface EditorialTopic {
@@ -379,11 +382,15 @@ export async function runEditorialJob(topic: EditorialTopic, deps: EditorialDeps
       result = await adapter.call({ role, provider, model, effort, system, prompt, schema, webSearches, webSearchDomains: webSearches ? [...new Set((topic.seedUrls ?? []).map((url) => new URL(url).hostname))] : undefined });
     } catch (error) {
       // A failed call can still be billed: charge what is known, otherwise the batch keeps the whole allowance.
-      if (error instanceof ModelCallFailed) ledger.charge(role, model, error.usage, error.searches);
+      if (error instanceof ModelCallFailed) {
+        if (error.usageBreakdown) ledger.chargeReported(role, error.usageBreakdown);
+        else ledger.charge(role, model, error.usage, error.searches);
+      }
       else ledger.summary.unresolved = true;
       throw error;
     }
-    ledger.charge(role, model, result.usage, result.searches ?? 0);
+    if (result.usageBreakdown) ledger.chargeReported(role, result.usageBreakdown);
+    else ledger.charge(role, model, result.usage, result.searches ?? 0);
     return result.json as T;
   };
 

@@ -10,9 +10,29 @@ import { join } from 'node:path';
 
 const policy = { dailyLimit: 10, approvalsLast24h: 0, active: true };
 const seen = [];
+const heartbeats = [];
+const finishes = [];
+let work = null;
+let oldBackend = false;
 const server = http.createServer((req, res) => {
   seen.push(`${req.method} ${req.url}`);
   const json = (code, body) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
+  if (req.url === '/v2/admin/editorial/generation/runner/heartbeat') {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => { heartbeats.push(JSON.parse(body)); json(200, {}); });
+    return;
+  }
+  if (req.url === '/v2/admin/editorial/generation/runner/work' && work) return json(200, { data: work });
+  if (oldBackend && req.url.endsWith('/claim-owned')) return json(404, {});
+  if (/\/requests\/other\/claim(?:-owned)?$/.test(req.url)) return json(409, {});
+  if (/\/requests\/mine\/claim(?:-owned)?$/.test(req.url)) return json(200, { data: work?.ownershipProtocols ? { claimToken: 'owner-token' } : {} });
+  if (req.url.includes('/generation/runner/requests/') && req.url.endsWith('/finish')) {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => { finishes.push({ body: JSON.parse(body), token: req.headers['x-editorial-claim-token'] }); json(200, {}); });
+    return;
+  }
   if (req.url.startsWith('/v2/admin/editorial/overview')) return policy.unreadable ? json(500, {}) : json(200, { data: { policy } });
   if (req.url.startsWith('/v2/admin/editorial/jobs')) return json(201, {});
   if (req.url.startsWith('/v2/blog')) return json(200, []);
@@ -80,16 +100,62 @@ test('an unreadable Admin stops the cycle (fail closed)', async () => {
   rmSync(dir, { recursive: true });
 });
 
+test('corrupt or unsupported queues are preserved and reported as runner errors', async () => {
+  for (const content of ['{"version":1,', JSON.stringify({ version: 2, topics: [] }), JSON.stringify({ version: 1, topics: {} })]) {
+    const dir = fresh();
+    const path = join(dir, 'topic-queue.json');
+    writeFileSync(path, content);
+    const beforeCalls = seen.length;
+    const beforeHeartbeats = heartbeats.length;
+    try {
+      const result = await cycle(dir);
+      assert.notEqual(result.code, 0, result.output);
+      assert.equal(readFileSync(path, 'utf8'), content);
+      assert.match(heartbeats[beforeHeartbeats].error, /editorial topic queue/);
+      assert.equal(heartbeats[beforeHeartbeats].status, 'error');
+      assert.ok(!seen.slice(beforeCalls).includes('POST /v2/admin/editorial/generation/runner/cycles'));
+    } finally {
+      rmSync(dir, { recursive: true });
+    }
+  }
+});
+
 test('a live lock refuses a second runner; a dead one is recovered', async () => {
   const dir = fresh();
   writeFileSync(join(dir, 'run.lock'), `${process.pid} ${new Date().toISOString()}\n`);
   assert.equal((await cycle(dir)).code, 3, 'concurrent/duplicate job refused');
   writeFileSync(join(dir, 'run.lock'), `999999 ${new Date(Date.now() - 7 * 3600e3).toISOString()}\n`);
+  writeFileSync(join(dir, 'topic-queue.json'), JSON.stringify({ version: 1, lastDiscoveryAt: new Date().toISOString(), topics: [] }));
   const r = await cycle(dir);
   assert.equal(r.code, 0, r.output);
   assert.match(r.output, /lock huérfano recuperado/);
   assert.ok(!existsSync(join(dir, 'run.lock')), 'released at exit');
   rmSync(dir, { recursive: true });
+});
+
+test('discovery finishes only requests claimed by this runner', async () => {
+  const dir = fresh();
+  work = { policy, settings: { enabled: true }, ownershipProtocols: ['v1'], requests: [{ id: 'other', kind: 'discover' }, { id: 'mine', kind: 'discover' }] };
+  const before = seen.length;
+  const beforeHeartbeats = heartbeats.length;
+  const beforeFinishes = finishes.length;
+  try {
+    const result = await cycle(dir);
+    assert.equal(result.code, 1, result.output);
+    const calls = seen.slice(before);
+    assert.ok(calls.includes('POST /v2/admin/editorial/generation/runner/requests/mine/claim-owned'));
+    assert.ok(calls.includes('POST /v2/admin/editorial/generation/runner/requests/mine/finish'));
+    assert.ok(!calls.includes('POST /v2/admin/editorial/generation/runner/requests/other/finish'));
+    assert.equal(finishes[beforeFinishes].token, 'owner-token');
+    assert.equal(finishes[beforeFinishes].body.claimToken, undefined);
+    assert.equal((result.output.match(/descubrimiento fallido/g) ?? []).length, 1, 'no second discovery after failure');
+    assert.equal(heartbeats.slice(beforeHeartbeats).at(-1).status, 'error');
+    assert.deepEqual(heartbeats.slice(beforeHeartbeats).at(-1).providers, heartbeats[beforeHeartbeats].providers);
+    assert.equal(heartbeats.slice(beforeHeartbeats).at(-1).webSearch, true);
+  } finally {
+    work = null;
+    rmSync(dir, { recursive: true });
+  }
 });
 
 test('daily limit reached: nothing is started', async () => {
@@ -103,13 +169,77 @@ test('daily limit reached: nothing is started', async () => {
   rmSync(dir, { recursive: true });
 });
 
-test('provider outage: discovery fails quietly and an empty queue ends the cycle with nothing published', async () => {
+test('a runner can still finish a request against a legacy backend', async () => {
+  const dir = fresh();
+  work = { policy, settings: { enabled: true }, requests: [{ id: 'mine', kind: 'discover' }] };
+  const before = finishes.length;
+  try {
+    const result = await cycle(dir);
+    assert.equal(result.code, 1, result.output);
+    assert.equal(finishes[before].body.status, 'failed');
+    assert.equal(finishes[before].token, undefined);
+  } finally {
+    work = null;
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test('a mixed deployment cannot accidentally claim without ownership', async () => {
+  const dir = fresh();
+  writeFileSync(join(dir, 'topic-queue.json'), JSON.stringify({ version: 1, lastDiscoveryAt: new Date().toISOString(), topics: [] }));
+  work = { policy, settings: { enabled: true }, ownershipProtocols: ['v1'], requests: [{ id: 'mine', kind: 'discover' }] };
+  oldBackend = true;
+  const before = seen.length;
+  try {
+    const result = await cycle(dir);
+    const calls = seen.slice(before);
+    assert.equal(result.code, 0, result.output);
+    assert.ok(calls.includes('POST /v2/admin/editorial/generation/runner/requests/mine/claim-owned'));
+    assert.ok(!calls.includes('POST /v2/admin/editorial/generation/runner/requests/mine/claim'));
+    assert.ok(!calls.includes('POST /v2/admin/editorial/generation/runner/requests/mine/finish'));
+  } finally {
+    oldBackend = false;
+    work = null;
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test('daily limit reached leaves a manual generation request queued', async () => {
+  const dir = fresh();
+  writeFileSync(join(dir, 'topic-queue.json'), JSON.stringify({ version: 1, lastDiscoveryAt: new Date().toISOString(), topics: [] }));
+  work = { policy, settings: { enabled: true }, requests: [{ id: 'mine', kind: 'generate' }] };
+  Object.assign(policy, { approvalsLast24h: 10 });
+  const before = seen.length;
+  try {
+    const result = await cycle(dir);
+    const calls = seen.slice(before);
+    assert.equal(result.code, 0, result.output);
+    assert.equal(lastCycle(dir).result, 'daily-limit');
+    assert.ok(!calls.includes('POST /v2/admin/editorial/generation/runner/requests/mine/claim'));
+    assert.ok(!calls.includes('POST /v2/admin/editorial/generation/runner/requests/mine/finish'));
+    assert.ok(!calls.some((call) => call.startsWith('POST /v1/messages')));
+  } finally {
+    Object.assign(policy, { approvalsLast24h: 0 });
+    work = null;
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test('provider outage: discovery failure is reported when the queue is empty', async () => {
   const dir = fresh();
   const r = await cycle(dir);
-  assert.equal(r.code, 0, r.output);
+  assert.equal(r.code, 1, r.output);
   const log = lastCycle(dir);
   assert.match(log.discovery.error, /gateway down|500/);
-  assert.equal(log.result, 'no-eligible-topics');
+  assert.equal(log.result, 'discovery-error');
+  rmSync(dir, { recursive: true });
+});
+
+test('provider outage: a discovery-only run reports failure', async () => {
+  const dir = fresh();
+  const r = await cycle(dir, {}, 'discover');
+  assert.equal(r.code, 1, r.output);
+  assert.equal(lastCycle(dir).result, 'discovery-error');
   rmSync(dir, { recursive: true });
 });
 

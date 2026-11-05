@@ -152,7 +152,7 @@ const adminHeaders = () => ({ 'content-type': 'application/json', 'x-admin-key':
 // Declared before the command dispatch below: it runs at module top level and reaches these (TDZ otherwise).
 let activeRoutes = null;
 const generationApi = (report, path, options = {}) => fetch(`${report}/v2/admin/editorial/generation/${path}`, { ...options, headers: { ...adminHeaders(), ...options.headers } });
-const generationPost = (report, path, body = {}) => generationApi(report, path, { method: 'POST', body: JSON.stringify(body) });
+const generationPost = (report, path, body = {}, headers = {}) => generationApi(report, path, { method: 'POST', body: JSON.stringify(body), headers });
 
 if (command === 'run') {
   const topics = readJson(target);
@@ -187,8 +187,10 @@ if (command === 'run') {
     await runCycle(report, command === 'discover');
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    await generationPost(report, 'runner/heartbeat', { version: 'm11g-2', status: 'error', error: message }).catch(() => null);
-    await reportCycle(report, 'failed', message, loadQueue()).catch(() => null);
+    await generationPost(report, 'runner/heartbeat', { version: 'm11g-2', status: 'error', error: message, providers: ['anthropic', ...(process.env.OPENAI_API_KEY ? ['openai'] : [])], webSearch: true }).catch(() => null);
+    let queue;
+    try { queue = loadQueue(); } catch { /* Preserve the last server snapshot when the local queue is unreadable. */ }
+    if (queue) await reportCycle(report, 'failed', message, queue).catch(() => null);
     throw error;
   }
 } else if (command === 'verify') {
@@ -307,6 +309,7 @@ function liveModels() {
   return models;
 }
 async function reportCycle(report, result, reason, q, generated = 0) {
+  if (result === 'discovery-error') await generationPost(report, 'runner/heartbeat', { version: 'm11g-2', status: 'error', error: reason, providers: ['anthropic', ...(process.env.OPENAI_API_KEY ? ['openai'] : [])], webSearch: true }).catch(() => null);
   await generationPost(report, 'runner/cycles', { result, reason, queued: q.topics.filter((t) => t.state === 'queued').length, generated, queue: q.topics }).catch(() => null);
 }
 const manualTopic = (topic, settings) => ({
@@ -441,7 +444,14 @@ async function reverify(provenance) {
 // M11-F autonomous operations: topic queue, unattended cycle, verified internal links, maintenance.
 
 function queuePath() { return join(spendDir, 'topic-queue.json'); }
-function loadQueue() { return existsSync(queuePath()) ? JSON.parse(readFileSync(queuePath(), 'utf8')) : { version: 1, topics: [] }; }
+function loadQueue() {
+  if (!existsSync(queuePath())) return { version: 1, topics: [] };
+  let queue;
+  try { queue = JSON.parse(readFileSync(queuePath(), 'utf8')); }
+  catch (error) { throw new Error('Cannot read editorial topic queue; preserve the file and inspect it', { cause: error }); }
+  if (!queue || queue.version !== 1 || !Array.isArray(queue.topics)) throw new Error('Unsupported editorial topic queue format; preserve the file and inspect it');
+  return queue;
+}
 // Write-then-rename: a crash mid-write leaves the previous queue, never half a file.
 function saveQueue(q) { writeFileSync(`${queuePath()}.tmp`, JSON.stringify(q, null, 1)); renameSync(`${queuePath()}.tmp`, queuePath()); }
 function cycleLog(row) { writeFileSync(join(spendDir, 'cycles.jsonl'), `${JSON.stringify({ at: new Date().toISOString(), ...row })}\n`, { flag: 'a' }); }
@@ -475,36 +485,49 @@ async function runCycle(report, discoverOnly) {
   if (log.maintenance?.length && !(await adminPolicy(report))?.active) { cycleLog({ ...log, result: 'inactive' }); await reportCycle(report, 'inactive', 'Publicación detenida durante mantenimiento', q); return; }
   let generated = 0;
   const manual = (work?.requests ?? []).filter((r) => r.kind === 'discover' || r.kind === 'generate');
+  const ownedClaims = work?.ownershipProtocols?.includes('v1');
+  const claim = (request) => generationPost(report, `runner/requests/${request.id}/${ownedClaims ? 'claim-owned' : 'claim'}`)
+    .then((response) => response.ok ? response.json() : null).then((response) => {
+      const token = response?.data?.claimToken;
+      return response && (!ownedClaims || typeof token === 'string') ? { request, token } : null;
+    }).catch(() => null);
+  const finish = (claim, status, reason) => generationPost(report, `runner/requests/${claim.request.id}/finish`,
+    { status, reason }, claim.token ? { 'x-editorial-claim-token': claim.token } : {});
   if (discoverOnly || manual.some((r) => r.kind === 'discover')) {
-    for (const request of manual.filter((r) => r.kind === 'discover')) await generationPost(report, `runner/requests/${request.id}/claim`);
-    log.discovery = await discover(q, corpus, report);
-    for (const request of manual.filter((r) => r.kind === 'discover')) await generationPost(report, `runner/requests/${request.id}/finish`, { status: log.discovery?.error ? 'failed' : 'completed', reason: log.discovery?.error ?? `${log.discovery?.queued?.length ?? 0} temas añadidos` });
-    if (discoverOnly) { cycleLog({ ...log, result: 'discovered' }); await reportCycle(report, log.discovery?.error ? 'discovery-error' : 'ran', log.discovery?.error ?? 'Descubrimiento completado', q); return; }
+    const claimed = [];
+    for (const request of manual.filter((r) => r.kind === 'discover')) {
+      const owner = await claim(request);
+      if (owner) claimed.push(owner);
+    }
+    if (discoverOnly || claimed.length) log.discovery = await discover(q, corpus, report);
+    for (const owner of claimed) await finish(owner, log.discovery?.error ? 'failed' : 'completed', log.discovery?.error ?? `${log.discovery?.queued?.length ?? 0} temas añadidos`);
+    if (discoverOnly) { const result = log.discovery?.error ? 'discovery-error' : 'discovered'; if (log.discovery?.error) process.exitCode = 1; cycleLog({ ...log, result }); await reportCycle(report, log.discovery?.error ? 'discovery-error' : 'ran', log.discovery?.error ?? 'Descubrimiento completado', q); return; }
   }
   for (const request of manual.filter((r) => r.kind === 'generate')) {
-    const claimed = await generationPost(report, `runner/requests/${request.id}/claim`).then((r) => r.ok ? r.json() : null).catch(() => null);
+    if (serverCapacity < 1) break;
+    const claimed = await claim(request);
     if (!claimed) continue;
     const topic = manualTopic(request.topic, work.settings);
     const seeds = await queueLib.checkSeeds({ title: topic.title, intent: topic.intent, seedUrls: topic.seedUrls }, fetchSource);
     if (seeds.some((s) => !s.ok)) {
       const reason = seeds.filter((s) => !s.ok).map((s) => `${s.url}: ${s.note}`).join('; ');
-      await generationPost(report, `runner/requests/${request.id}/finish`, { status: 'failed', reason });
+      await finish(claimed, 'failed', reason);
       continue;
     }
     const [run] = await runTopics([topic], { report, autopublish: true, corpus });
     const ok = run?.state === 'published';
     generated += ok ? 1 : 0;
-    await generationPost(report, `runner/requests/${request.id}/finish`, { status: ok ? 'completed' : 'failed', reason: run?.reason ?? run?.state ?? 'Sin resultado' });
+    await finish(claimed, ok ? 'completed' : 'failed', run?.reason ?? run?.state ?? 'Sin resultado');
     serverCapacity = Math.max(0, serverCapacity - ok);
   }
   const queued = q.topics.filter((t) => t.state === 'queued').length;
-  if (queued < 3 && now - Date.parse(q.lastDiscoveryAt ?? 0) >= 12 * 3600e3) log.discovery = await discover(q, corpus, report);
+  if (!log.discovery && queued < 3 && now - Date.parse(q.lastDiscoveryAt ?? 0) >= 12 * 3600e3) log.discovery = await discover(q, corpus, report);
   const perCycle = work?.settings?.topicsPerCycle ?? integer('EDITORIAL_CYCLE_TOPICS', 1, 10);
   const room = Math.min(serverCapacity, perCycle);
-  if (room <= 0) { cycleLog({ ...log, result: 'daily-limit' }); await reportCycle(report, 'daily-limit', 'Límite diario alcanzado', q, generated); return; }
+  if (room <= 0) { const result = log.discovery?.error ? 'discovery-error' : 'daily-limit'; if (log.discovery?.error) process.exitCode = 1; cycleLog({ ...log, result }); await reportCycle(report, result, log.discovery?.error ?? 'Límite diario alcanzado', q, generated); return; }
   const allowed = new Set(work?.settings?.categories ?? []);
   const picks = queueLib.pickTopics(q, room, q.topics.filter((t) => t.startedAt?.slice(0, 10) === today())).filter((t) => !allowed.size || allowed.has(t.category));
-  if (!picks.length) { cycleLog({ ...log, result: 'no-eligible-topics' }); await reportCycle(report, 'no-eligible-topics', generated ? 'Solicitudes manuales procesadas; no hay más temas elegibles' : 'No hay temas elegibles en la cola', q, generated); return; }
+  if (!picks.length) { const result = log.discovery?.error ? 'discovery-error' : 'no-eligible-topics'; if (log.discovery?.error) process.exitCode = 1; cycleLog({ ...log, result }); await reportCycle(report, result, log.discovery?.error ?? (generated ? 'Solicitudes manuales procesadas; no hay más temas elegibles' : 'No hay temas elegibles en la cola'), q, generated); return; }
   for (const t of picks) {
     t.topic.linkTargets = await verifiedTargets(t.topic.linkTargets ?? []);
     t.topic.length ??= { min: 900, max: 1400 };
@@ -525,8 +548,10 @@ async function runCycle(report, discoverOnly) {
     }
   }
   saveQueue(q);
-  cycleLog({ ...log, result: 'ran', topics: picks.map((t) => `${t.id}: ${t.state}`) });
-  await reportCycle(report, 'ran', picks.map((t) => `${t.id}: ${t.state}`).join('; '), q, generated);
+  const result = log.discovery?.error ? 'discovery-error' : 'ran';
+  if (log.discovery?.error) process.exitCode = 1;
+  cycleLog({ ...log, result, topics: picks.map((t) => `${t.id}: ${t.state}`) });
+  await reportCycle(report, result, [log.discovery?.error, ...picks.map((t) => `${t.id}: ${t.state}`)].filter(Boolean).join('; '), q, generated);
 }
 
 /** DISCOVER → SCORE → QUEUE. The model only proposes; screening, seed checks, links and the score are code. */
