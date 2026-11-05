@@ -13,33 +13,36 @@
   <div *ngIf="!overview && loading" class="panel skeleton" aria-label="Cargando operaciones"><span></span><span></span><span></span></div>
 
   <ng-container *ngIf="overview as ov">
-    <section class="status-grid" aria-label="Estado de la automatización">
-      <article class="status-card">
-        <div><span class="status-dot" [class.on]="ov.generation.enabled"></span><h3>Generación programada</h3></div>
-        <strong>{{ ov.generation.enabled ? 'Activa' : 'En pausa' }}</strong>
-        <p>Cada {{ ov.generation.scheduleHours }} h · hasta {{ ov.generation.topicsPerCycle }} tema(s) por ciclo</p>
-        <button type="button" class="button secondary" (click)="toggleGeneration()" [disabled]="settingsBusy">{{ ov.generation.enabled ? 'Pausar generación' : 'Reanudar generación' }}</button>
+    <section class="status-bar" aria-label="Estado de la automatización">
+      <article class="chip-card">
+        <span class="status-dot" [class.on]="ov.runner.online"></span>
+        <div><small>Runner</small><strong>{{ runnerStatusText }}</strong><span>{{ runnerDetailText }}</span></div>
       </article>
-      <article class="status-card">
-        <div><span class="status-dot" [class.on]="ov.policy.active"></span><h3>Publicación automática</h3></div>
-        <strong>{{ ov.policy.active ? 'Autorizada' : ov.policy.paused ? 'Detenida' : 'No activa' }}</strong>
-        <p>{{ policyText }}</p>
+      <article class="chip-card">
+        <span class="status-dot" [class.on]="ov.generation.enabled"></span>
+        <div><small>Generación programada</small><strong>{{ ov.generation.enabled ? 'Activa' : 'En pausa' }}</strong><span>Cada {{ ov.generation.scheduleHours }} h · {{ ov.generation.topicsPerCycle }} tema(s) · próx. {{ ov.nextRunAt ? (ov.nextRunAt | date: 'short') : '—' }}</span></div>
+        <button type="button" class="button secondary compact" (click)="toggleGeneration()" [disabled]="settingsBusy">{{ ov.generation.enabled ? 'Pausar' : 'Reanudar' }}</button>
       </article>
-      <article class="status-card">
-        <div><span class="status-dot" [class.on]="ov.runner.online"></span><h3>Runner externo</h3></div>
-        <strong>{{ runnerStatusText }}</strong>
-        <p>{{ runnerDetailText }}</p>
-        <p>Modelos confirmados: {{ ov.runner.capabilities.providers.join(', ') || 'sin confirmar' }} · Búsqueda web: {{ ov.runner.capabilities.webSearch ? 'sí' : 'sin confirmar' }}</p>
-        <ng-container *ngIf="ov.runner.process as process"><p>Proceso: {{ process.running ? 'en ejecución' : 'detenido' }}<ng-container *ngIf="process.pid"> · PID {{ process.pid }}</ng-container></p><div class="runner-actions"><button *ngIf="!process.running" type="button" class="button primary" (click)="runnerProcessAction('start')" [disabled]="!process.configured || runnerBusy !== ''">Iniciar</button><button *ngIf="process.running" type="button" class="button danger" (click)="runnerProcessAction('stop')" [disabled]="runnerBusy !== ''">Parar</button><button type="button" class="button secondary" (click)="runnerProcessAction('restart')" [disabled]="!process.configured || runnerBusy !== ''">Reiniciar</button><button type="button" class="button secondary" (click)="toggleRunnerLogs()">{{ runnerLogLines === null ? 'Ver registros' : 'Ocultar registros' }}</button></div><p *ngIf="!process.configured">Gestión no configurada en el servidor: define EDITORIAL_RUNNER_COMMAND y EDITORIAL_RUNNER_ARGS.</p><pre *ngIf="runnerLogLines !== null" class="runner-log" tabindex="0" aria-label="Registros del runner">{{ runnerLogLines.length ? runnerLogLines.join('\n') : 'Sin registros todavía' }}</pre></ng-container>
+      <article class="chip-card">
+        <span class="status-dot" [class.on]="ov.policy.active"></span>
+        <div><small>Publicación automática</small><strong>{{ ov.policy.active ? 'Autorizada' : ov.policy.paused ? 'Detenida' : 'No activa' }}</strong><span>Hoy {{ ov.today.published }} de {{ ov.policy.dailyLimit }}</span></div>
+        <button type="button" class="button danger compact" (click)="emergencyOpen = !emergencyOpen" [attr.aria-expanded]="emergencyOpen" aria-controls="emergency-panel">{{ ov.policy.paused || !ov.policy.activated ? 'Reanudar…' : 'Emergencia' }}</button>
+      </article>
+      <article class="chip-card">
+        <div><small>Gasto</small><strong>${{ ov.spend.todayUsd | number: '1.2-2' }} hoy</strong><span>${{ ov.spend.last30dUsd | number: '1.2-2' }} en 30 días</span></div>
       </article>
     </section>
 
-    <section class="cycle-summary" aria-labelledby="cycle-title">
-      <div><h3 id="cycle-title">Último ciclo</h3><strong>{{ ov.lastCycle ? stateLabel(ov.lastCycle.result) : 'Sin ciclos registrados' }}</strong><p>{{ ov.lastCycle?.reason || 'Cuando el runner informe, aquí verás el motivo de cada parada.' }}</p></div>
-      <dl><div><dt>Ejecutado</dt><dd>{{ ov.lastCycle?.at ? (ov.lastCycle.at | date: 'short') : '—' }}</dd></div><div><dt>Próxima activación estimada</dt><dd>{{ ov.nextRunAt ? (ov.nextRunAt | date: 'short') : 'No disponible' }}</dd></div><div><dt>Trabajos pendientes</dt><dd>{{ ov.queueSummary.manualPending + ov.queueSummary.discovered }}</dd></div></dl>
+    <div *ngIf="diagnosis as why" role="alert" class="notice-box diagnosis"><strong>No se está produciendo.</strong> {{ why }}</div>
+
+    <section class="panel runner-panel" *ngIf="ov.runner.process as process" aria-label="Proceso del runner">
+      <div class="runner-line"><span>Proceso: <strong>{{ process.running ? 'en ejecución' : 'detenido' }}</strong><ng-container *ngIf="process.pid"> · PID {{ process.pid }}</ng-container> · Modelos: {{ ov.runner.capabilities.providers.join(', ') || 'sin confirmar' }} · Búsqueda web: {{ ov.runner.capabilities.webSearch ? 'sí' : 'sin confirmar' }}</span>
+        <div class="runner-actions"><button *ngIf="!process.running" type="button" class="button primary" (click)="runnerProcessAction('start')" [disabled]="!process.configured || runnerBusy !== ''">Iniciar</button><button *ngIf="process.running" type="button" class="button danger" (click)="runnerProcessAction('stop')" [disabled]="runnerBusy !== ''">Parar</button><button type="button" class="button secondary" (click)="runnerProcessAction('restart')" [disabled]="!process.configured || runnerBusy !== ''">Reiniciar</button><button type="button" class="button secondary" (click)="toggleRunnerLogs()">{{ runnerLogLines === null ? 'Ver registros' : 'Ocultar registros' }}</button></div></div>
+      <p *ngIf="!process.configured">Gestión no configurada en el servidor: define EDITORIAL_RUNNER_COMMAND y EDITORIAL_RUNNER_ARGS.</p>
+      <pre *ngIf="runnerLogLines !== null" class="runner-log" tabindex="0" aria-label="Registros del runner">{{ runnerLogLines.length ? runnerLogLines.join('\n') : 'Sin registros todavía' }}</pre>
     </section>
 
-    <section class="panel danger-zone" aria-labelledby="stop-title">
+    <section *ngIf="emergencyOpen" id="emergency-panel" class="panel danger-zone" aria-labelledby="stop-title">
       <div><h3 id="stop-title">Control de emergencia</h3><p>Detiene nuevas generaciones y publicaciones. No afecta a artículos ya publicados.</p></div>
       <ng-container *ngIf="!ov.policy.paused && ov.policy.activated; else resumeControl">
         <label for="editorial-pause-reason">Motivo de la parada</label>
@@ -47,6 +50,7 @@
         <p *ngIf="pauseError" role="alert" class="field-error">{{ pauseError }}</p>
       </ng-container>
       <ng-template #resumeControl>
+        <p>{{ policyText }}</p>
         <form (ngSubmit)="resume()" autocomplete="off" class="inline-form">
           <div><label for="editorial-resume-reviewer">Revisor</label><input id="editorial-resume-reviewer" [(ngModel)]="resumeReviewer" name="reviewer" required /></div>
           <div><label for="editorial-resume-key">Clave humana (no se guarda)</label><input id="editorial-resume-key" [(ngModel)]="resumeKey" name="reviewKey" type="password" autocomplete="off" required /></div>
@@ -57,29 +61,48 @@
     </section>
 
     <nav class="tabs" role="tablist" aria-label="Secciones de Operaciones IA" tabindex="0" (keydown)="tabKeydown($event)">
-      <button *ngFor="let tab of tabs; let i = index" type="button" role="tab" [id]="'editorial-tab-' + tab" [attr.aria-selected]="activeTab === tab" [attr.aria-controls]="'editorial-panel-' + tab" [tabindex]="activeTab === tab ? 0 : -1" (click)="selectTab(tab)">{{ { activity: 'Actividad', queue: 'Cola', generate: 'Generar', settings: 'Configuración' }[tab] }}<span *ngIf="tab === 'queue' && ov.queue.length" class="tab-count">{{ ov.queue.length }}</span></button>
+      <button *ngFor="let tab of tabs" type="button" role="tab" [id]="'editorial-tab-' + tab" [attr.aria-selected]="activeTab === tab" [attr.aria-controls]="'editorial-panel-' + tab" [tabindex]="activeTab === tab ? 0 : -1" (click)="selectTab(tab)">{{ tabLabels[tab] }}<span *ngIf="tab === 'topics' && ov.queue.length" class="tab-count">{{ ov.queue.length }}</span><span *ngIf="tab === 'review' && ov.posts.length" class="tab-count">{{ ov.posts.length }}</span></button>
     </nav>
 
-    <section *ngIf="activeTab === 'activity'" role="tabpanel" id="editorial-panel-activity" aria-labelledby="editorial-tab-activity" class="tab-content">
-      <dl class="metrics"><div><dt>Intentos hoy</dt><dd>{{ ov.today.generated }}</dd></div><div><dt>Publicados</dt><dd>{{ ov.today.published }}</dd></div><div><dt>Retenidos</dt><dd>{{ ov.today.held }}</dd></div><div><dt>Rechazados</dt><dd>{{ ov.today.rejected }}</dd></div><div><dt>Gasto hoy</dt><dd>${{ ov.spend.todayUsd | number: '1.2-4' }}</dd></div><div><dt>Gasto 30 días</dt><dd>${{ ov.spend.last30dUsd | number: '1.2-4' }}</dd></div></dl>
-      <nav class="sub-tabs" aria-label="Vistas de actividad"><button *ngFor="let tab of activityTabs" type="button" [attr.aria-pressed]="activityTab === tab" (click)="selectActivityTab(tab)">{{ activityLabels[tab] }}</button></nav>
-      <section *ngIf="activityTab === 'articles'" class="panel">
+    <section *ngIf="activeTab === 'pipeline'" role="tabpanel" id="editorial-panel-pipeline" aria-labelledby="editorial-tab-pipeline" class="tab-content">
+      <dl class="metrics"><div><dt>Intentos hoy</dt><dd>{{ ov.today.generated }}</dd></div><div><dt>Publicados</dt><dd>{{ ov.today.published }}</dd></div><div><dt>Retenidos</dt><dd>{{ ov.today.held }}</dd></div><div><dt>Rechazados</dt><dd>{{ ov.today.rejected }}</dd></div><div><dt>Último ciclo</dt><dd>{{ ov.lastCycle ? stateLabel(ov.lastCycle.result) : '—' }}</dd></div><div><dt>Pendientes</dt><dd>{{ ov.queueSummary.manualPending + ov.queueSummary.discovered }}</dd></div></dl>
+      <p *ngIf="ov.lastCycle?.reason" class="cycle-reason">Último ciclo ({{ ov.lastCycle?.at | date: 'short' }}): {{ ov.lastCycle?.reason }}</p>
+      <div class="board">
+        <section *ngFor="let col of board" class="board-col" [attr.aria-label]="col.label">
+          <header><h3>{{ col.label }}</h3><span class="tab-count">{{ col.topics.length + col.posts.length }}</span></header>
+          <small>{{ col.hint }}</small>
+          <article *ngFor="let t of col.topics; trackBy: trackId" class="board-card">
+            <strong>{{ t.title || t.topic?.title || 'Descubrimiento de temas' }}</strong>
+            <small>{{ t.source === 'manual' ? 'Manual' : 'Descubierto' }} · {{ t.category || t.topic?.category || '—' }}<ng-container *ngIf="t.score !== undefined"> · {{ t.score }} pts</ng-container></small>
+            <p *ngIf="t.reason" class="reason">{{ t.reason }}</p>
+            <button type="button" class="table-link" (click)="selectTab('topics')">Ver en Temas</button>
+          </article>
+          <article *ngFor="let p of col.posts; trackBy: trackId" class="board-card">
+            <button type="button" class="card-title" (click)="openPost(p.id)">{{ p.title || p.slug }}</button>
+            <div class="card-meta"><app-admin-status-badge [status]="badgeStatus(p.pipelineState)" [label]="stateLabel(p.pipelineState)" /><span>{{ p.updatedAt | date: 'short' }}</span></div>
+            <small>{{ p.claims.supported }} verificadas · crítico {{ stateLabel(p.criticVerdict) }} · ${{ p.costUsd | number: '1.2-4' }}</small>
+          </article>
+          <p *ngIf="!col.topics.length && !col.posts.length" class="empty">Nada aquí</p>
+        </section>
+      </div>
+    </section>
+
+      <section *ngIf="activeTab === 'review'" role="tabpanel" id="editorial-panel-review" aria-labelledby="editorial-tab-review" class="panel">
         <div class="section-heading"><div><h3>Artículos IA</h3><p>Los 50 más recientes. Selecciona un título para revisar evidencias, crítico y coste.</p></div><span>{{ ov.posts.length }}</span></div>
         <div class="mobile-list"><article *ngFor="let p of ov.posts; trackBy: trackId" class="data-card"><button class="card-title" (click)="openPost(p.id)">{{ p.title || p.slug }}</button><div class="card-meta"><app-admin-status-badge [status]="badgeStatus(p.pipelineState)" [label]="stateLabel(p.pipelineState)" /><span>{{ p.updatedAt | date: 'short' }}</span></div><dl><div><dt>Evidencias</dt><dd>{{ p.claims.supported }} verificadas · {{ p.sources }} fuentes</dd></div><div><dt>Crítico</dt><dd>{{ stateLabel(p.criticVerdict) }}</dd></div><div><dt>Coste</dt><dd>${{ p.costUsd | number: '1.2-4' }}</dd></div></dl><div class="queue-actions"><button type="button" class="button secondary" (click)="openPost(p.id)">Editar</button><button *ngIf="canManagePost(p)" type="button" class="button secondary" (click)="requeuePost(p.id)" [disabled]="postActionBusy === p.id">Recuperar</button></div></article></div>
         <div class="table-scroll desktop-table" tabindex="0" role="region" aria-label="Artículos IA, tabla con desplazamiento"><table><caption class="sr-only">Artículos IA más recientes</caption><thead><tr><th>Título</th><th>Estado</th><th>Crítico</th><th>Afirmaciones</th><th>Firmado</th><th class="numeric">Coste</th><th>Próxima revisión</th><th>Acciones</th></tr></thead><tbody><tr *ngFor="let p of ov.posts; trackBy: trackId"><td><button class="table-link" (click)="openPost(p.id)">{{ p.title || p.slug }}</button><small>{{ p.updatedAt | date: 'short' }}</small></td><td><app-admin-status-badge [status]="badgeStatus(p.pipelineState)" [label]="stateLabel(p.pipelineState)" /></td><td>{{ stateLabel(p.criticVerdict) }}</td><td>{{ p.claims.supported }} ✓ / {{ p.claims.conflicting }} ⚠ / {{ p.claims.unverified }} ?</td><td>{{ p.signed ? 'Sí' : 'No' }}</td><td class="numeric">${{ p.costUsd | number: '1.2-4' }}</td><td>{{ p.nextReviewAt ? (p.nextReviewAt | date: 'short') : '—' }}</td><td><div class="table-actions"><button type="button" class="table-link" (click)="openPost(p.id)">Editar</button><button *ngIf="canManagePost(p)" type="button" class="table-link" (click)="requeuePost(p.id)" [disabled]="postActionBusy === p.id">Recuperar</button></div></td></tr></tbody></table></div>
         <p *ngIf="!ov.posts.length" class="empty">Aún no hay artículos IA. Crea una solicitud en «Generar».</p>
       </section>
-      <section *ngIf="activityTab === 'jobs'" class="panel"><div class="section-heading"><div><h3>Ejecuciones</h3><p>Las 50 ejecuciones más recientes, incluidas las bloqueadas.</p></div></div>
+      <section *ngIf="activeTab === 'runs'" role="tabpanel" id="editorial-panel-runs" aria-labelledby="editorial-tab-runs" class="panel"><div class="section-heading"><div><h3>Ejecuciones</h3><p>Las 50 ejecuciones más recientes, incluidas las bloqueadas.</p></div></div>
         <div class="mobile-list"><article *ngFor="let j of ov.jobs; trackBy: trackJob" class="data-card"><div class="card-meta"><app-admin-status-badge [status]="badgeStatus(j.state)" [label]="stateLabel(j.state)" /><time>{{ j.startedAt | date: 'short' }}</time></div><h4>{{ j.slug }}</h4><p>{{ j.reason || 'Sin incidencias' }}</p><small>{{ j.backend || 'Sin backend' }} · ${{ j.costUsd | number: '1.2-4' }} · {{ j.revisions || 0 }} revisiones</small></article></div>
         <div class="table-scroll desktop-table" tabindex="0" role="region" aria-label="Ejecuciones, tabla con desplazamiento"><table><thead><tr><th>Fecha</th><th>Documento</th><th>Estado</th><th>Motivo</th><th>Modelos</th><th>Revisiones</th><th class="numeric">Coste</th></tr></thead><tbody><tr *ngFor="let j of ov.jobs; trackBy: trackJob"><td>{{ j.startedAt | date: 'short' }}</td><td><a *ngIf="j.publicUrl" [href]="j.publicUrl" target="_blank" rel="noopener">{{ j.slug }}</a><ng-container *ngIf="!j.publicUrl">{{ j.slug }}</ng-container></td><td><app-admin-status-badge [status]="badgeStatus(j.state)" [label]="stateLabel(j.state)" /></td><td class="wide-cell">{{ j.reason || '—' }}<small *ngIf="j.blockingCodes.length">{{ j.blockingCodes.join(', ') }}</small></td><td>{{ j.backend || '—' }}</td><td>{{ j.revisions ?? '—' }}</td><td class="numeric">${{ j.costUsd | number: '1.2-4' }}</td></tr></tbody></table></div><p *ngIf="!ov.jobs.length" class="empty">Todavía no hay ejecuciones registradas.</p>
       </section>
-      <section *ngIf="activityTab === 'search' && ov.searchConsole as gsc" class="panel"><div class="section-heading"><div><h3>Search Console</h3><p>Rendimiento de guías públicas. Los datos de Google pueden ser preliminares.</p></div></div>
+      <section *ngIf="activeTab === 'search' && ov.searchConsole as gsc" role="tabpanel" id="editorial-panel-search" aria-labelledby="editorial-tab-search" class="panel"><div class="section-heading"><div><h3>Search Console</h3><p>Rendimiento de guías públicas. Los datos de Google pueden ser preliminares.</p></div></div>
         <div class="mobile-list"><article *ngFor="let g of gsc.guides" class="data-card"><a [href]="g.url" target="_blank" rel="noopener">{{ g.slug }}</a><p>{{ g.inspection?.indexed ? 'Indexada según Google' : 'No confirmada como indexada' }}</p><small *ngIf="g.performance as p">{{ p.clicks }} clics · {{ p.impressions }} impresiones · posición {{ p.position ?? '—' }}</small></article></div>
         <div class="table-scroll desktop-table" tabindex="0" role="region" aria-label="Search Console, tabla con desplazamiento"><table><thead><tr><th>Guía</th><th>Google</th><th>Último rastreo</th><th class="numeric">Clics</th><th class="numeric">Impresiones</th><th class="numeric">CTR</th><th class="numeric">Posición</th><th>Días</th></tr></thead><tbody><tr *ngFor="let g of gsc.guides"><td><a [href]="g.url" target="_blank" rel="noopener">{{ g.slug }}</a></td><td>{{ g.inspection?.indexed ? 'Indexada' : g.inspection?.coverageState || 'Sin inspeccionar' }}</td><td>{{ g.inspection?.lastCrawlTime ? (g.inspection?.lastCrawlTime | date: 'short') : '—' }}</td><ng-container *ngIf="g.performance as p; else noPerf"><td class="numeric">{{ p.clicks }}</td><td class="numeric">{{ p.impressions }}</td><td class="numeric">{{ p.ctr !== null ? (p.ctr | percent: '1.1-1') : '—' }}</td><td class="numeric">{{ p.position !== null ? (p.position | number: '1.1-1') : '—' }}</td><td>{{ p.days }}/{{ gsc.windowDays }}</td></ng-container></tr></tbody></table></div><p *ngIf="!gsc.guides.length" class="empty">No hay datos públicos de Search Console.</p>
       </section>
-    </section>
 
-    <section *ngIf="activeTab === 'queue'" role="tabpanel" id="editorial-panel-queue" aria-labelledby="editorial-tab-queue" class="tab-content">
+    <section *ngIf="activeTab === 'topics'" role="tabpanel" id="editorial-panel-topics" aria-labelledby="editorial-tab-topics" class="tab-content">
       <div class="section-heading"><div><h3>Cola de trabajo</h3><p>Solicitudes manuales y último snapshot de temas descubiertos por el runner.</p></div><button type="button" class="button secondary" (click)="discover()" [disabled]="requestBusy">Descubrir temas</button></div>
       <div *ngIf="!ov.runner.online" role="note" class="notice-box">El runner no tiene señal reciente. Las nuevas solicitudes quedarán pendientes hasta que se conecte.</div>
       <div class="queue-list"><article *ngFor="let item of ov.queue; trackBy: trackId" class="queue-card"><div class="queue-main"><div class="card-meta"><app-admin-status-badge [status]="badgeStatus(item.status || item.state)" [label]="stateLabel(item.status || item.state)" /><span>{{ item.source === 'manual' ? 'Solicitud manual' : 'Descubierto' }}</span><span *ngIf="item.kind === 'discover'">Descubrimiento</span></div><h3>{{ item.title || item.topic?.title || 'Descubrimiento de nuevos temas' }}</h3><p *ngIf="item.topic?.intent">{{ item.topic.intent }}</p><p *ngIf="item.reason" class="reason">{{ item.reason }}</p><div class="source-links"><a *ngFor="let url of item.sources || item.topic?.seedUrls || []" [href]="url" target="_blank" rel="noopener">{{ url }}</a></div><small>{{ item.category || item.topic?.category || '—' }}<ng-container *ngIf="item.score !== undefined"> · puntuación {{ item.score }}</ng-container> · {{ item.updatedAt || item.createdAt | date: 'short' }}</small></div><div class="queue-actions"><button *ngIf="item.source === 'manual' && item.status === 'queued'" class="button secondary" (click)="queueAction(item.id, 'cancel')" [disabled]="queueBusy === item.id">Cancelar</button><button *ngIf="item.source === 'manual' && (item.status === 'failed' || item.status === 'cancelled')" class="button secondary" (click)="queueAction(item.id, 'retry')" [disabled]="queueBusy === item.id">Reintentar</button></div></article></div>

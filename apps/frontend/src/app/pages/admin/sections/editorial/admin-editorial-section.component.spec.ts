@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { AdminEditorialService, EditorialOverview, EditorialPolicyStatus } from '../../../../services/admin-editorial.service';
+import { postStage, queueStage } from './editorial-status';
 import { AdminEditorialSectionComponent, policyStateText } from './admin-editorial-section.component';
 
 const BASE: EditorialPolicyStatus = {
@@ -35,6 +36,18 @@ describe('policyStateText', () => {
   });
 });
 
+describe('stage mapping', () => {
+  it('places queue entries and posts in exactly one column, and drops finished history', () => {
+    expect(queueStage({ status: 'queued' })).toBe('queued');
+    expect(queueStage({ state: 'running' })).toBe('running');
+    expect(queueStage({ state: 'held' })).toBe('held');
+    expect(queueStage({ state: 'rejected' })).toBeNull();
+    expect(postStage({ status: 'publish', pipelineState: 'published' })).toBe('published');
+    expect(postStage({ status: 'draft', pipelineState: 'blocked' })).toBe('held');
+    expect(postStage({ status: 'draft', pipelineState: 'verified' })).toBe('review');
+  });
+});
+
 describe('Operaciones IA', () => {
   beforeEach(() => TestBed.configureTestingModule({ imports: [AdminEditorialSectionComponent], providers: [{ provide: AdminEditorialService, useValue: { getOverview: () => of(overview) } }] }));
 
@@ -45,13 +58,13 @@ describe('Operaciones IA', () => {
     expect(text).toContain('Generación programada');
     expect(text).toContain('Publicación automática');
     expect(text).toContain('Sin señal');
-    expect(fixture.nativeElement.querySelectorAll('[role="tab"]').length).toBe(4);
+    expect(fixture.nativeElement.querySelectorAll('[role="tab"]').length).toBe(7);
   });
 
   it('separates Google indexing and performance without zero-filling', () => {
     const fixture = TestBed.createComponent(AdminEditorialSectionComponent);
     fixture.detectChanges();
-    fixture.componentInstance.selectActivityTab('search');
+    fixture.componentInstance.selectTab('search');
     fixture.detectChanges();
     const rows = Array.from(fixture.nativeElement.querySelectorAll('.desktop-table tbody tr')).slice(-2).map((r: any) => (r.textContent || '').replace(/\s+/g, ' '));
     expect(rows[0]).toContain('Indexada');
@@ -66,7 +79,7 @@ describe('Operaciones IA', () => {
     const component = fixture.componentInstance;
     component.tabKeydown(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
     fixture.detectChanges();
-    expect(component.activeTab).toBe('queue');
-    expect(fixture.nativeElement.querySelector('#editorial-tab-queue').getAttribute('aria-selected')).toBe('true');
+    expect(component.activeTab).toBe('topics');
+    expect(fixture.nativeElement.querySelector('#editorial-tab-topics').getAttribute('aria-selected')).toBe('true');
   });
 });

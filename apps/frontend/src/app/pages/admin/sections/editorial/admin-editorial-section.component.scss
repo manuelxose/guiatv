@@ -153,3 +153,26 @@ blockquote { color: var(--portal-text-soft); margin: 8px 0 8px 16px; }
   .metrics dd { font-size: 1.2rem; }
   .inline-form > input, .inline-form > div { min-width: 100%; }
 }
+
+/* Redesign phase 1: compact status bar + pipeline board */
+.status-bar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; position: sticky; top: 0; z-index: var(--z-content); }
+.chip-card { display: flex; align-items: center; gap: 12px; min-width: 0; background: var(--portal-surface); border: 1px solid var(--portal-border); border-radius: var(--radius-lg); padding: 12px 14px; }
+.chip-card > div { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.chip-card small { margin: 0; text-transform: uppercase; letter-spacing: .04em; font-size: 11px; }
+.chip-card strong { font-size: 1rem; overflow-wrap: anywhere; }
+.chip-card span:not(.status-dot) { color: var(--portal-text-soft); font-size: 12px; overflow-wrap: anywhere; }
+.button.compact { min-height: 44px; padding: 6px 12px; }
+.diagnosis { background: var(--portal-surface); line-height: 1.5; }
+.runner-panel { display: grid; gap: 10px; padding: 14px 16px; }
+.runner-line { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--portal-text-soft); }
+.cycle-reason { color: var(--portal-text-soft); }
+.board { display: grid; grid-template-columns: repeat(5, minmax(220px, 1fr)); gap: 12px; overflow-x: auto; padding-bottom: 6px; }
+.board-col { display: grid; gap: 8px; align-content: start; min-width: 0; background: var(--portal-surface); border: 1px solid var(--portal-border); border-radius: var(--radius-lg); padding: 12px; }
+.board-col > header { display: flex; justify-content: space-between; align-items: center; }
+.board-col > small { margin: 0; }
+.board-card { display: grid; gap: 6px; background: var(--portal-surface-strong); border: 1px solid var(--portal-border); border-radius: var(--radius-md); padding: 12px; min-width: 0; }
+.board-card strong, .board-card .card-title { overflow-wrap: anywhere; }
+.board-card .reason { color: var(--spotify-warning); font-size: 12px; overflow-wrap: anywhere; }
+.board-card small { margin: 0; }
+@media (max-width: 1279px) { .status-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); position: static; } }
+@media (max-width: 767px) { .status-bar { grid-template-columns: 1fr; } .board { grid-template-columns: 1fr; overflow: visible; } }
