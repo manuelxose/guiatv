@@ -22,8 +22,6 @@ const FLUSH_DELAY_MS = 5_000;
 const HEARTBEAT_MS = 30_000;
 const SESSION_IDLE_MS = 30 * 60_000;
 const HEARTBEAT_IDLE_STOP_MS = 30 * 60_000;
-const PRECONSENT_MAX = 20;
-const PRECONSENT_MAX_AGE_MS = 10 * 60_000;
 const MAX_BACKOFF_MS = 60_000;
 const SCROLL_THROTTLE_MS = 500;
 const SCROLL_THRESHOLDS = [25, 50, 75, 100];
@@ -31,18 +29,17 @@ const SCROLL_THRESHOLDS = [25, 50, 75, 100];
 const GA4_FORWARDED_PREFIXES = ['assistant_', 'comparator_', 'compare_', 'affiliate_', 'search', 'share', 'login', 'sign_up'];
 
 /**
- * Consent-aware, non-blocking first-party collector (and GA4 bridge). Lives in a lazy chunk: `AnalyticsService` (the
- * eager facade) imports it only after the visitor grants the analytics purpose, so visitors who do not consent never
- * download it.
+ * Non-blocking first-party collector (and GA4 bridge). Lives in a lazy chunk imported by `AnalyticsService`.
  *
- * * Nothing runs during SSR. In the browser nothing is stored or sent until the analytics purpose is granted; events
- *   produced before the choice are kept only in memory (bounded, 10 min) and are discarded if consent is denied.
+ * * Nothing runs during SSR. Every visit is measured; without consent the anonymous and session ids exist only in
+ *   memory (nothing is written to localStorage/sessionStorage, no cookie) and GA4 stays off. Granting consent makes
+ *   the ids persistent and allows GA4; withdrawing it deletes them again.
  * * Events are batched (25 per request, 5 s delay, one timer at a time) and sent with `fetch` outside Angular's zone,
  *   so no analytics request is a pending task for hydration/stability and no change detection follows one.
  *   Hidden/pagehide flushes use `sendBeacon` (falling back to `fetch keepalive`).
  * * Page views are deduplicated on the sanitised path (SSR + hydration + router + redirects produce one view).
  * * Paths carry no query string or fragment; referrers are reduced to an external host; event data is bounded.
- * * Revoking consent stops timers and listeners, clears the queue and deletes the analytics identifiers.
+ * * Withdrawing consent deletes the stored analytics identifiers and turns GA4 off; first-party counting continues.
  */
 @Injectable({ providedIn: 'root' })
 export class AnalyticsCollector implements OnDestroy {
@@ -59,7 +56,7 @@ export class AnalyticsCollector implements OnDestroy {
   private started = false;
   private configState: 'pending' | 'ready' = 'pending';
   private readonly queue = new AnalyticsQueue();
-  private preConsent: Array<QueuedEvent & { at: number }> = [];
+  private ga4Id: string | null = null;
 
   private anonId: string | null = null;
   private sessionId: string | null = null;
@@ -88,7 +85,7 @@ export class AnalyticsCollector implements OnDestroy {
   private unsubscribeConsent: (() => void) | null = null;
 
   /** Delivery counters, readable in tests and from the console for diagnostics. */
-  readonly stats = { sent: 0, failed: 0, beacons: 0, droppedPreConsent: 0 };
+  readonly stats = { sent: 0, failed: 0, beacons: 0 };
 
   /** Called by the facade (which already applied the browser/localhost checks). */
   init(): void {
@@ -96,9 +93,33 @@ export class AnalyticsCollector implements OnDestroy {
     this.initialized = true;
     this.landingReferrer = sanitizeReferrer(this.document.referrer, this.document.location?.host || '');
     this.landingUtm = extractUtm(this.document.location?.search);
-    this.unsubscribeConsent = this.consent.onChange((state) => (state === 'granted' ? this.start() : this.revoke()));
-    if (this.consent.state === 'granted') this.start();
-    else this.removeIdentifiers(); // also clears identifiers the pre-consent collector used to create
+    this.unsubscribeConsent = this.consent.onChange((state) => this.onConsent(state));
+    // Everyone is measured, but without consent nothing is written to the device (ids live in memory only, no GA4).
+    if (this.consent.state !== 'granted') this.removeIdentifiers(); // clears identifiers left by earlier visits
+    this.start();
+  }
+
+  /** Granted: ids become persistent and GA4 may load. Anything else: back to memory-only ids and no GA4. */
+  private onConsent(state: string): void {
+    if (!this.started) return;
+    if (state === 'granted') {
+      try {
+        if (this.anonId) localStorage.setItem(ANON_KEY, this.anonId);
+      } catch {
+        // storage blocked: ids stay in memory
+      }
+      this.persistSession(Date.now());
+      this.applyGa4();
+    } else {
+      this.ga4.disable();
+      this.removeIdentifiers();
+    }
+  }
+
+  private applyGa4(): void {
+    if (this.consent.state !== 'granted' || this.configState !== 'ready' || !this.ga4Id) return;
+    this.ga4.enable(this.ga4Id, this.lastPageViewPath || '/', this.landingReferrer);
+    if (this.lastPageViewPath) this.ga4.pageView(this.lastPageViewPath, this.currentTitle());
   }
 
   trackPageView(url: string): void {
@@ -126,7 +147,7 @@ export class AnalyticsCollector implements OnDestroy {
     this.firedScroll = new Set();
     this.enqueue({ type: 'page_view', name: 'page_view', path, referrer: first ? this.landingReferrer : undefined });
     // Before the config answer GA4 is not decided yet; `loadConfig` then sends the current page view once.
-    if (this.started && this.configState === 'ready') this.ga4.pageView(path, this.currentTitle());
+    if (this.started && this.configState === 'ready' && this.consent.state === 'granted') this.ga4.pageView(path, this.currentTitle());
   }
 
   trackEvent(type: string, data?: Record<string, unknown>, name?: string): void {
@@ -136,7 +157,7 @@ export class AnalyticsCollector implements OnDestroy {
     const cleanName = name ? sanitizeString(name)?.slice(0, 60) : undefined;
     const cleanData = sanitizeData(data);
     this.enqueue({ type, name: cleanName, path: this.lastPageViewPath || sanitizePath(this.document.location?.pathname) || undefined, data: cleanData });
-    if (this.started && this.configState === 'ready' && GA4_FORWARDED_PREFIXES.some((prefix) => type.startsWith(prefix))) this.ga4.event(type, this.ga4Params(cleanData));
+    if (this.started && this.configState === 'ready' && this.consent.state === 'granted' && GA4_FORWARDED_PREFIXES.some((prefix) => type.startsWith(prefix))) this.ga4.event(type, this.ga4Params(cleanData));
   }
 
   ngOnDestroy(): void {
@@ -151,9 +172,6 @@ export class AnalyticsCollector implements OnDestroy {
     this.started = true;
     this.anonId = this.getOrCreateAnonId();
     this.ensureSession();
-    const cutoff = Date.now() - PRECONSENT_MAX_AGE_MS;
-    for (const { at, ...event } of this.preConsent) if (at >= cutoff) this.queue.push(event);
-    this.preConsent = [];
     this.zone.runOutsideAngular(() => {
       this.bindListeners();
       this.startHeartbeat();
@@ -166,7 +184,6 @@ export class AnalyticsCollector implements OnDestroy {
     this.started = false;
     this.stopRuntime();
     this.queue.clear();
-    this.preConsent = [];
     this.pendingSession = this.pendingEnd = this.pendingHeartbeat = null;
     this.pendingResume = false;
     this.removeIdentifiers();
@@ -203,27 +220,18 @@ export class AnalyticsCollector implements OnDestroy {
       return;
     }
     const measurementId = config.ga4?.measurementId || environment.analytics?.ga4MeasurementId;
-    if (config.ga4?.enabled && measurementId) {
-      this.ga4.enable(measurementId, this.lastPageViewPath || '/', this.landingReferrer);
-      if (this.lastPageViewPath) this.ga4.pageView(this.lastPageViewPath, this.currentTitle());
-    }
+    this.ga4Id = config.ga4?.enabled && measurementId ? measurementId : null;
+    this.applyGa4();
     this.scheduleFlush(0);
   }
 
   // ---- queueing --------------------------------------------------------------------------------------------------
 
   private enqueue(partial: Omit<QueuedEvent, 'eventId' | 'occurredAt'>): void {
-    const state = this.consent.state;
-    if (state === 'denied' || (this.unmeasured && partial.type !== 'page_exit')) return;
+    if (this.unmeasured && partial.type !== 'page_exit') return;
     const event: QueuedEvent = { ...partial, eventId: this.uuid(), occurredAt: new Date().toISOString() };
-    if (state === 'unset' || !this.started) {
-      this.preConsent.push({ ...event, at: Date.now() });
-      if (this.preConsent.length > PRECONSENT_MAX) {
-        this.preConsent.shift();
-        this.stats.droppedPreConsent++;
-      }
-      return;
-    }
+    if (!this.started) return; // kill switch (or not started yet): nothing is kept
+
     this.touchSession();
     this.queue.push(event);
     this.scheduleFlush(FLUSH_DELAY_MS);
@@ -348,7 +356,7 @@ export class AnalyticsCollector implements OnDestroy {
     const now = Date.now();
     let stored: { id?: string; last?: number } | null = null;
     try {
-      stored = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
+      stored = this.consent.state === 'granted' ? JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null') : null;
     } catch {
       stored = null;
     }
@@ -372,6 +380,7 @@ export class AnalyticsCollector implements OnDestroy {
   }
 
   private persistSession(now: number): void {
+    if (this.consent.state !== 'granted') return; // memory-only session without consent
     try {
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({ id: this.sessionId, last: now }));
     } catch {
@@ -507,6 +516,7 @@ export class AnalyticsCollector implements OnDestroy {
   // ---- identifiers -----------------------------------------------------------------------------------------------
 
   private getOrCreateAnonId(): string {
+    if (this.consent.state !== 'granted') return this.uuid(); // memory-only without consent
     try {
       const stored = localStorage.getItem(ANON_KEY);
       if (stored && /^[A-Za-z0-9-]{8,64}$/.test(stored)) return stored;

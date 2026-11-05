@@ -62,50 +62,39 @@ describe('AnalyticsCollector (lazy, consent-aware collector)', () => {
     sessionStorage.clear();
   });
 
-  it('sends nothing and stores no identifier before consent', fakeAsync(() => {
-    const { service } = setup('unset');
+  it('measures a visit without consent but stores nothing on the device and keeps GA4 off', fakeAsync(() => {
+    const { service, ga4 } = setup('unset');
     localStorage.setItem('gtv_anon_id', 'legacy-id-created-without-consent');
     service.init();
-    service.trackPageView('/');
-    service.trackEvent('assistant_opened', { surface: 'x' });
-    tick(60_000);
-    flushMicrotasks();
-    expect(sent.length).toBe(0);
-    expect(window.fetch).not.toHaveBeenCalled();
-    expect(localStorage.getItem('gtv_anon_id')).toBeNull();
-    expect(sessionStorage.getItem('gtv_session')).toBeNull();
-    discardPeriodicTasks();
-  }));
-
-  it('keeps pre-consent events in memory only and sends them, session first, once consent is granted', fakeAsync(() => {
-    const { service, consent } = setup('unset');
-    service.init();
     service.trackPageView('/programacion-tv/series?q=secret#frag');
-    expect(sent.length).toBe(0);
-    consent.grant();
     flushMicrotasks(); // config
-    tick(0);
+    tick(5_000);
     flushMicrotasks();
     const batch = collects()[0];
     expect(batch).toBeDefined();
-    expect(batch.body.session).toBeDefined();
-    expect(batch.body.session.initialPath).toBe('/programacion-tv/series');
+    expect(batch.body.session).toBeDefined(); // initialPath comes from the real location, which is the landing path
     expect(batch.body.events.map((e: any) => e.type)).toEqual(['page_view']);
-    expect(batch.body.events[0].path).toBe('/programacion-tv/series');
     expect(JSON.stringify(batch.body)).not.toContain('secret');
-    expect(localStorage.getItem('gtv_anon_id')).toBe(batch.body.anonId);
+    expect(localStorage.getItem('gtv_anon_id')).toBeNull();
+    expect(sessionStorage.getItem('gtv_session')).toBeNull();
+    expect(ga4.enable).not.toHaveBeenCalled();
     service.ngOnDestroy();
     discardPeriodicTasks();
   }));
 
-  it('discards the in-memory buffer when consent is denied', fakeAsync(() => {
+  it('makes the ids persistent when consent is granted later', fakeAsync(() => {
     const { service, consent } = setup('unset');
     service.init();
-    service.trackPageView('/');
-    consent.deny();
-    tick(60_000);
+    service.trackPageView('/canales');
     flushMicrotasks();
-    expect(sent.length).toBe(0);
+    tick(5_000);
+    flushMicrotasks();
+    const anonId = collects()[0].body.anonId;
+    expect(localStorage.getItem('gtv_anon_id')).toBeNull();
+    consent.grant();
+    expect(localStorage.getItem('gtv_anon_id')).toBe(anonId);
+    expect(JSON.parse(sessionStorage.getItem('gtv_session') || '{}').id).toBe(collects()[0].body.sessionId);
+    service.ngOnDestroy();
     discardPeriodicTasks();
   }));
 
@@ -209,7 +198,7 @@ describe('AnalyticsCollector (lazy, consent-aware collector)', () => {
     discardPeriodicTasks();
   }));
 
-  it('stops everything and deletes identifiers when consent is revoked', fakeAsync(() => {
+  it('deletes stored identifiers and turns GA4 off when consent is withdrawn, but keeps counting', fakeAsync(() => {
     const { service, consent, ga4 } = setup('granted');
     service.init();
     flushMicrotasks();
@@ -223,9 +212,11 @@ describe('AnalyticsCollector (lazy, consent-aware collector)', () => {
     expect(ga4.disable).toHaveBeenCalled();
     const before = sent.length;
     service.trackPageView('/canales');
-    tick(120_000);
+    tick(5_000);
     flushMicrotasks();
-    expect(sent.length).toBe(before);
+    expect(sent.length).toBeGreaterThan(before);
+    expect(localStorage.getItem('gtv_anon_id')).toBeNull();
+    service.ngOnDestroy();
     discardPeriodicTasks();
   }));
 
@@ -289,21 +280,6 @@ describe('AnalyticsCollector (lazy, consent-aware collector)', () => {
     expect(events.some((e: any) => e.type === 'click' || e.type === 'assistant_opened')).toBeFalse();
     expect(events.filter((e: any) => e.type === 'page_view').map((e: any) => e.path)).toEqual(['/canales', '/canales']);
     service.ngOnDestroy();
-    discardPeriodicTasks();
-  }));
-
-  it('review m5: a request in flight when consent is revoked is forgotten (not requeued for a later grant)', fakeAsync(() => {
-    const { service, consent } = setup('granted');
-    service.init();
-    flushMicrotasks();
-    tick(0);
-    flushMicrotasks();
-    fetchFails = true;
-    service.trackPageView('/deportes');
-    tick(5_000); // the request is issued; its rejection is still pending
-    consent.deny();
-    flushMicrotasks();
-    expect((service as any).queue.size).toBe(0);
     discardPeriodicTasks();
   }));
 
