@@ -26,6 +26,7 @@ export const createAdminEditorialRoutes = (controller: EditorialOpsController, a
   router.put('/generation/settings', strictRateLimit, asyncHandler(controller.updateGenerationSettings));
   router.post('/generation/requests', strictRateLimit, asyncHandler(controller.createGenerationRequest));
   router.post('/generation/discovery', strictRateLimit, asyncHandler(controller.createDiscoveryRequest));
+  router.post('/generation/queue-actions', strictRateLimit, asyncHandler(controller.createQueueAction));
   router.post('/generation/requests/:id/cancel', strictRateLimit, asyncHandler(controller.cancelGenerationRequest));
   router.post('/generation/requests/:id/retry', strictRateLimit, asyncHandler(controller.retryGenerationRequest));
   router.get('/generation/runner/process', asyncHandler(controller.runnerProcessState));

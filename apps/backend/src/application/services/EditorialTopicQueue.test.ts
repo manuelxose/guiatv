@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  cleanSlug,
+  applyQueueAction, cleanSlug,
   checkSeeds, pickTopics, proposeTopics, QueuedTopic, recoverQueue, screenProposal, scoreProposal, sourceFamily, TopicProposal, TopicQueueFile,
 } from './EditorialTopicQueue';
 import { DEFAULT_ROUTES, EditorialModel } from './EditorialAgentPipeline';
@@ -129,4 +129,28 @@ test('cleanSlug normalises accents, symbols and length so a good topic is not re
   assert.equal(cleanSlug('Control parental: Netflix + Disney+ ¿cómo?'), 'control-parental-netflix-disney-como');
   const long = cleanSlug('a-'.repeat(60));
   assert.ok(long.length <= 80 && !long.endsWith('-'));
+});
+
+test('queue actions: approve, reject, prioritize and edit obey the same rules as automatic screening', () => {
+  const law = (id: string) => `https://www.boe.es/buscar/act.php?id=${id}`;
+  const two = { seedUrls: [law('BOE-A-1'), 'https://www.cnmc.es/x'] };
+  const file = (): TopicQueueFile => ({ version: 1, topics: [
+    queued('held-ok', { state: 'held', attempts: 2, reason: 'blocked', topic: { ...queued('x').topic, ...two } }),
+    queued('held-single', { state: 'held', topic: { ...queued('x').topic, seedUrls: [law('BOE-A-1')] } }),
+    queued('q1'), queued('run', { state: 'running' }),
+  ] });
+  const f = file();
+  assert.match(applyQueueAction(f, { action: 'approve', topicId: 'held-ok' }, NOW), /aprobado/);
+  assert.deepEqual([f.topics[0].state, f.topics[0].attempts, f.topics[0].reason], ['queued', 0, undefined]);
+  assert.throws(() => applyQueueAction(f, { action: 'approve', topicId: 'held-single' }, NOW), /una entidad editora/);
+  applyQueueAction(f, { action: 'prioritize', topicId: 'q1' }, NOW);
+  assert.equal(pickTopics(f, 1, [])[0].id, 'q1', 'a pinned topic outranks a higher score');
+  applyQueueAction(f, { action: 'reject', topicId: 'q1', reason: 'no interesa' }, NOW);
+  assert.deepEqual([f.topics[2].state, f.topics[2].reason, f.topics[2].pinned], ['rejected', 'manual: no interesa', false]);
+  assert.throws(() => applyQueueAction(f, { action: 'reject', topicId: 'run' }, NOW), /running/);
+  assert.throws(() => applyQueueAction(f, { action: 'reject', topicId: 'nope' }, NOW), /ya no está/);
+  assert.throws(() => applyQueueAction(f, { action: 'edit', topicId: 'held-ok', edit: { title: 'corto' } }, NOW), /título/);
+  assert.throws(() => applyQueueAction(f, { action: 'edit', topicId: 'held-ok', edit: { seedUrls: ['http://x.es'] } }, NOW), /https/);
+  applyQueueAction(f, { action: 'edit', topicId: 'held-ok', edit: { seedUrls: [law('BOE-A-9'), 'https://www.cnmc.es/y'] } }, NOW);
+  assert.deepEqual(f.topics[0].topic.seedUrls, [law('BOE-A-9'), 'https://www.cnmc.es/y']);
 });

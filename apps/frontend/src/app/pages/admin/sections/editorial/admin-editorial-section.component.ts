@@ -11,7 +11,7 @@ import {
 import { AdminConfirmDialogComponent } from '../../components/admin-confirm-dialog/admin-confirm-dialog.component';
 import { AdminStatusBadgeComponent } from '../../components/admin-status-badge/admin-status-badge.component';
 import { PIPELINE_STAGES, PipelineStage, STATE_BADGE, STATE_LABELS, postStage, queueStage } from './editorial-status';
-import { EditorialPostSummary, EditorialQueueItem } from '../../../../services/admin-editorial.service';
+import { EditorialPostSummary, EditorialQueueActionName, EditorialQueueItem } from '../../../../services/admin-editorial.service';
 import { interval } from 'rxjs';
 
 function formatDate(iso: string): string {
@@ -64,6 +64,16 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
   readonly stages = PIPELINE_STAGES;
   activeTab: typeof this.tabs[number] = 'pipeline';
   emergencyOpen = false;
+  readonly topicFilters = [
+    { id: 'all', label: 'Todos' }, { id: 'queued', label: 'En cola' }, { id: 'held', label: 'Retenidos' },
+    { id: 'rejected', label: 'Rechazados' }, { id: 'manual', label: 'Manuales' },
+  ] as const;
+  readonly actionLabels: Record<string, string> = { approve: 'aprobar', reject: 'rechazar', prioritize: 'priorizar', edit: 'editar' };
+  topicFilter: typeof this.topicFilters[number]['id'] = 'all';
+  editId = '';
+  editForm = { title: '', intent: '', seedUrlsText: '' };
+  rejectId = '';
+  rejectReason = '';
   overview: EditorialOverview | null = null;
   loading = false;
   error = '';
@@ -155,6 +165,33 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
       topics: (ov?.queue ?? []).filter((q) => queueStage(q) === st.id),
       posts: (ov?.posts ?? []).filter((p) => postStage(p) === st.id),
     }));
+  }
+  topicMatches(q: EditorialQueueItem, f: string): boolean {
+    const state = q.status ?? q.state;
+    return f === 'all' || (f === 'manual' ? q.source === 'manual' : f === 'held' ? state === 'held' || state === 'failed' : f === 'rejected' ? state === 'rejected' || state === 'expired' || state === 'cancelled' : state === f);
+  }
+  topicCount(f: string): number { return (this.overview?.queue ?? []).filter((q) => this.topicMatches(q, f)).length; }
+  get topics(): EditorialQueueItem[] {
+    return (this.overview?.queue ?? []).filter((q) => this.topicMatches(q, this.topicFilter)).sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || (b.score ?? 0) - (a.score ?? 0));
+  }
+  pendingFor(id: string) { return this.overview?.pendingActions?.find((a) => a.topicId === id); }
+  startEdit(item: EditorialQueueItem): void {
+    this.rejectId = '';
+    this.editId = item.id;
+    this.editForm = { title: item.title || '', intent: item.intent || item.topic?.intent || '', seedUrlsText: (item.sources || item.topic?.seedUrls || []).join('\n') };
+  }
+  saveTopicEdit(id: string): void {
+    const edit = { title: this.editForm.title.trim(), intent: this.editForm.intent.trim(), seedUrls: this.editForm.seedUrlsText.split(/[\n,]/).map((s) => s.trim()).filter(Boolean) };
+    this.topicAction(id, 'edit', { edit });
+  }
+  topicAction(id: string, action: EditorialQueueActionName, extra: { reason?: string; edit?: { title?: string; intent?: string; seedUrls?: string[] } } = {}): void {
+    if (this.queueBusy) return;
+    this.queueBusy = id;
+    this.error = '';
+    this.service.queueAction(id, action, extra).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => { this.queueBusy = ''; this.editId = ''; this.rejectId = ''; this.notice = `Decisión registrada: ${this.actionLabels[action]}. El runner la aplicará en su próximo ciclo.`; this.refresh(true); },
+      error: (e) => { this.queueBusy = ''; this.error = errorMessage(e, 'No se pudo registrar la decisión'); },
+    });
   }
   readonly topReasons = topReasons;
   badgeStatus(state: string | null | undefined): string { return STATE_BADGE[state || ''] || 'queued'; }

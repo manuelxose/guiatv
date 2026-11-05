@@ -479,6 +479,17 @@ async function runCycle(report, discoverOnly) {
   serverCapacity = Math.max(0, policy.dailyLimit - policy.approvalsLast24h);
   const corpus = await publicCorpus();
   const log = { recovered, policy: { active: policy.active, dailyLimit: policy.dailyLimit, publishedLast24h: policy.approvalsLast24h } };
+  // Human decisions on queued topics apply first and even while publication is stopped: they only edit the queue.
+  const ownedQ = work?.ownershipProtocols?.includes('v1');
+  for (const request of (work?.requests ?? []).filter((r) => r.kind === 'queue-action')) {
+    const r = await generationPost(report, `runner/requests/${request.id}/${ownedQ ? 'claim-owned' : 'claim'}`).then((x) => x.ok ? x.json() : null).catch(() => null);
+    const token = r?.data?.claimToken;
+    if (!r || (ownedQ && typeof token !== 'string')) continue;
+    let status = 'completed';
+    let reason;
+    try { reason = queueLib.applyQueueAction(q, request.queueAction, new Date()); saveQueue(q); } catch (e) { status = 'failed'; reason = String(e.message).slice(0, 500); }
+    await generationPost(report, `runner/requests/${request.id}/finish`, { status, reason }, token ? { 'x-editorial-claim-token': token } : {});
+  }
   if (!discoverOnly) log.maintenance = (await maintainPublished(report, { apply: policy.active, max: 2, corpus })).map((x) => `${x.slug}: ${x.result}`);
   if (!policy.active) { cycleLog({ ...log, result: 'inactive' }); await reportCycle(report, 'inactive', 'Publicación automática inactiva o parada de emergencia', q); return; }
   if (work?.settings?.enabled === false) { await reportCycle(report, 'generation-paused', 'Generación programada en pausa', q); return; }

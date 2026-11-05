@@ -315,3 +315,39 @@ test('restart recovery: an interrupted topic is retried once; a failing provider
   assert.ok(!seen.some((s) => /approve-by-policy|revise-by-policy|POST \/v2\/blog /.test(s)), 'nothing was saved or published');
   rmSync(dir, { recursive: true });
 });
+
+test('queue actions from the Admin are applied to the queue, even while publication is stopped, and reported', async () => {
+  const dir = fresh();
+  writeFileSync(join(dir, 'topic-queue.json'), JSON.stringify({ version: 1, lastDiscoveryAt: new Date().toISOString(), topics: [queued('streaming-uno', { state: 'held' }), queued('streaming-dos')] }));
+  work = { policy: { ...policy, active: false }, settings: { enabled: true }, ownershipProtocols: ['v1'], requests: [
+    { id: 'mine', kind: 'queue-action', queueAction: { action: 'reject', topicId: 'streaming-uno', reason: 'prueba' } },
+    { id: 'other', kind: 'queue-action', queueAction: { action: 'reject', topicId: 'streaming-dos' } },
+  ] };
+  const beforeFinishes = finishes.length;
+  try {
+    const r = await cycle(dir);
+    const topics = JSON.parse(readFileSync(join(dir, 'topic-queue.json'), 'utf8')).topics;
+    assert.deepEqual(topics.map((t) => t.state), ['rejected', 'queued'], r.output);
+    assert.equal(topics[0].reason, 'manual: prueba');
+    assert.equal(finishes.length - beforeFinishes, 1, 'only the claimed request is finished');
+    assert.equal(finishes[beforeFinishes].body.status, 'completed');
+  } finally {
+    work = null;
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test('a queue action that cannot apply is finished as failed with the reason', async () => {
+  const dir = fresh();
+  writeFileSync(join(dir, 'topic-queue.json'), JSON.stringify({ version: 1, lastDiscoveryAt: new Date().toISOString(), topics: [] }));
+  work = { policy: { ...policy, active: false }, settings: { enabled: true }, ownershipProtocols: ['v1'], requests: [{ id: 'mine', kind: 'queue-action', queueAction: { action: 'approve', topicId: 'no-existe' } }] };
+  const beforeFinishes = finishes.length;
+  try {
+    await cycle(dir);
+    assert.equal(finishes[beforeFinishes].body.status, 'failed');
+    assert.match(finishes[beforeFinishes].body.reason, /ya no está en la cola/);
+  } finally {
+    work = null;
+    rmSync(dir, { recursive: true });
+  }
+});
