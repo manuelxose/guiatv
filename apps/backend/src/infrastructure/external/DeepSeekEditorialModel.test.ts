@@ -30,19 +30,21 @@ test('deepseek model: server-owned provider, search without the unsupported web_
   assert.deepEqual(result.json, { claims: [] });
   assert.equal(f.sent[0].model, 'deepseek-flash');
   assert.deepEqual(f.sent[0].tools.map((t: any) => `${t.type}:${t.max_uses}`), ['web_search_20260209:2']);
-  assert.equal(f.sent[0].max_tokens, 32000);
+  assert.equal(f.sent[0].max_tokens, 64000);
   // DeepSeek ignores output_config.format; the schema must travel in the prompt and be parsed from a fence.
   assert.deepEqual(f.sent[0].output_config, { effort: 'high' });
   assert.match(f.sent[0].messages[0].content, /```json/);
+  assert.deepEqual(f.sent[0].thinking, { type: 'enabled', budget_tokens: 16000 });
 });
 
-test('deepseek model: non-research roles get the schema in the prompt, not in output_config.format', async () => {
+test('deepseek model: non-research roles get the schema in the prompt and no thinking budget', async () => {
   const f = fake({ ...reply, content: [{ type: 'text', text: '{"verdict":"pass","issues":[]}' }], usage: { input_tokens: 10, output_tokens: 5 } });
   const model = new DeepSeekEditorialModel({ apiKey: 'test-key', client: f.client });
-  const result = await model.call(call({ role: 'critic', webSearches: undefined }));
+  const result = await model.call(call({ role: 'editorial', webSearches: undefined }));
   assert.deepEqual(result.json, { verdict: 'pass', issues: [] });
   assert.deepEqual(f.sent[0].output_config, { effort: 'high' });
   assert.match(f.sent[0].messages[0].content, /```json/);
+  assert.deepEqual(f.sent[0].thinking, { type: 'disabled' });
 });
 
 test('deepseek model: an unbounded stream is aborted instead of consuming the worker', async () => {

@@ -23,6 +23,10 @@ export interface AnthropicEditorialModelOptions {
   timeoutMs?: number;
   /** Provider-specific cap on server-side searches (DeepSeek returns much larger result blocks). */
   maxWebSearches?: number;
+  /** Per-role thinking mode; DeepSeek's thinking tokens count against max_tokens. */
+  thinking?: (role: ModelCall['role']) => 'enabled' | 'disabled' | undefined;
+  /** Provider-specific output cap (DeepSeek supports more than Anthropic). */
+  maxOutputTokens?: number;
 }
 
 /**
@@ -34,8 +38,9 @@ export interface AnthropicEditorialModelOptions {
 export class AnthropicEditorialModel implements EditorialModel {
   readonly provider: string;
   readonly webSearch = true;
-  readonly maxOutputTokens = MAX_OUTPUT_TOKENS;
+  readonly maxOutputTokens: number;
   readonly maxWebSearches: number | undefined;
+  private readonly thinking: ((role: ModelCall['role']) => 'enabled' | 'disabled' | undefined) | undefined;
   private readonly client: Pick<Anthropic, 'messages'>;
   /** Gateway model namespace (e.g. `cc/` for the owner's subscription gateway); routes, prices and provenance keep the canonical id. */
   private readonly modelPrefix: string;
@@ -58,6 +63,8 @@ export class AnthropicEditorialModel implements EditorialModel {
     this.webFetch = options.webFetch ?? true;
     this.structuredOutput = options.structuredOutput ?? 'json_schema';
     this.maxWebSearches = options.maxWebSearches;
+    this.thinking = options.thinking;
+    this.maxOutputTokens = options.maxOutputTokens ?? MAX_OUTPUT_TOKENS;
   }
 
   async call(request: ModelCall): Promise<ModelResult> {
@@ -78,11 +85,14 @@ export class AnthropicEditorialModel implements EditorialModel {
 
     // Server tools can pause a long turn; resume it a bounded number of times.
     for (let turn = 0; turn < 4; turn++) {
+      const thinkingMode = this.thinking?.(request.role);
       const stream = this.client.messages.stream({
         model: `${this.modelPrefix}${request.model}`,
-        max_tokens: MAX_OUTPUT_TOKENS,
+        max_tokens: this.maxOutputTokens,
         system: request.system,
         messages,
+        ...(thinkingMode === 'enabled' ? { thinking: { type: 'enabled' as const, budget_tokens: 16_000 } }
+          : thinkingMode === 'disabled' ? { thinking: { type: 'disabled' as const } } : {}),
         output_config: promptSchema ? { effort: request.effort } : { effort: request.effort, format: { type: 'json_schema', schema: request.schema } },
         ...(research
           ? { tools: [

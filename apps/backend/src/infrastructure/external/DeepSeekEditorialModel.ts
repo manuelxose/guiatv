@@ -36,6 +36,9 @@ export class DeepSeekEditorialModel extends AnthropicEditorialModel {
       structuredOutput: 'prompt',
       maxWebSearches: 2,
       timeoutMs: options.timeoutMs ?? 300_000,
+      maxOutputTokens: 64_000,
+      // Thinking tokens count against max_tokens; a 1,400-word article must not be truncated by reasoning.
+      thinking: (role) => role === 'editorial' || role === 'seo' ? 'disabled' : 'enabled',
     });
   }
 }
