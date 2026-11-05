@@ -11,7 +11,9 @@ import { join } from 'node:path';
 const policy = { dailyLimit: 10, approvalsLast24h: 0, active: true };
 const seen = [];
 const heartbeats = [];
+const finishes = [];
 let work = null;
+let oldBackend = false;
 const server = http.createServer((req, res) => {
   seen.push(`${req.method} ${req.url}`);
   const json = (code, body) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
@@ -22,9 +24,15 @@ const server = http.createServer((req, res) => {
     return;
   }
   if (req.url === '/v2/admin/editorial/generation/runner/work' && work) return json(200, { data: work });
-  if (req.url === '/v2/admin/editorial/generation/runner/requests/other/claim') return json(409, {});
-  if (req.url === '/v2/admin/editorial/generation/runner/requests/mine/claim') return json(200, { data: {} });
-  if (req.url.includes('/generation/runner/requests/') && req.url.endsWith('/finish')) return json(200, {});
+  if (oldBackend && req.url.endsWith('/claim-owned')) return json(404, {});
+  if (/\/requests\/other\/claim(?:-owned)?$/.test(req.url)) return json(409, {});
+  if (/\/requests\/mine\/claim(?:-owned)?$/.test(req.url)) return json(200, { data: work?.ownershipProtocols ? { claimToken: 'owner-token' } : {} });
+  if (req.url.includes('/generation/runner/requests/') && req.url.endsWith('/finish')) {
+    let body = '';
+    req.on('data', (chunk) => { body += chunk; });
+    req.on('end', () => { finishes.push({ body: JSON.parse(body), token: req.headers['x-editorial-claim-token'] }); json(200, {}); });
+    return;
+  }
   if (req.url.startsWith('/v2/admin/editorial/overview')) return policy.unreadable ? json(500, {}) : json(200, { data: { policy } });
   if (req.url.startsWith('/v2/admin/editorial/jobs')) return json(201, {});
   if (req.url.startsWith('/v2/blog')) return json(200, []);
@@ -127,15 +135,19 @@ test('a live lock refuses a second runner; a dead one is recovered', async () =>
 
 test('discovery finishes only requests claimed by this runner', async () => {
   const dir = fresh();
-  work = { policy, settings: { enabled: true }, requests: [{ id: 'other', kind: 'discover' }, { id: 'mine', kind: 'discover' }] };
+  work = { policy, settings: { enabled: true }, ownershipProtocols: ['v1'], requests: [{ id: 'other', kind: 'discover' }, { id: 'mine', kind: 'discover' }] };
   const before = seen.length;
   const beforeHeartbeats = heartbeats.length;
+  const beforeFinishes = finishes.length;
   try {
     const result = await cycle(dir);
     assert.equal(result.code, 1, result.output);
     const calls = seen.slice(before);
+    assert.ok(calls.includes('POST /v2/admin/editorial/generation/runner/requests/mine/claim-owned'));
     assert.ok(calls.includes('POST /v2/admin/editorial/generation/runner/requests/mine/finish'));
     assert.ok(!calls.includes('POST /v2/admin/editorial/generation/runner/requests/other/finish'));
+    assert.equal(finishes[beforeFinishes].token, 'owner-token');
+    assert.equal(finishes[beforeFinishes].body.claimToken, undefined);
     assert.equal((result.output.match(/descubrimiento fallido/g) ?? []).length, 1, 'no second discovery after failure');
     assert.equal(heartbeats.slice(beforeHeartbeats).at(-1).status, 'error');
     assert.deepEqual(heartbeats.slice(beforeHeartbeats).at(-1).providers, heartbeats[beforeHeartbeats].providers);
@@ -155,6 +167,62 @@ test('daily limit reached: nothing is started', async () => {
   assert.equal(lastCycle(dir).result, 'daily-limit', r.output);
   assert.equal(JSON.parse(readFileSync(join(dir, 'topic-queue.json'), 'utf8')).topics[0].state, 'queued');
   rmSync(dir, { recursive: true });
+});
+
+test('a runner can still finish a request against a legacy backend', async () => {
+  const dir = fresh();
+  work = { policy, settings: { enabled: true }, requests: [{ id: 'mine', kind: 'discover' }] };
+  const before = finishes.length;
+  try {
+    const result = await cycle(dir);
+    assert.equal(result.code, 1, result.output);
+    assert.equal(finishes[before].body.status, 'failed');
+    assert.equal(finishes[before].token, undefined);
+  } finally {
+    work = null;
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test('a mixed deployment cannot accidentally claim without ownership', async () => {
+  const dir = fresh();
+  writeFileSync(join(dir, 'topic-queue.json'), JSON.stringify({ version: 1, lastDiscoveryAt: new Date().toISOString(), topics: [] }));
+  work = { policy, settings: { enabled: true }, ownershipProtocols: ['v1'], requests: [{ id: 'mine', kind: 'discover' }] };
+  oldBackend = true;
+  const before = seen.length;
+  try {
+    const result = await cycle(dir);
+    const calls = seen.slice(before);
+    assert.equal(result.code, 0, result.output);
+    assert.ok(calls.includes('POST /v2/admin/editorial/generation/runner/requests/mine/claim-owned'));
+    assert.ok(!calls.includes('POST /v2/admin/editorial/generation/runner/requests/mine/claim'));
+    assert.ok(!calls.includes('POST /v2/admin/editorial/generation/runner/requests/mine/finish'));
+  } finally {
+    oldBackend = false;
+    work = null;
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test('daily limit reached leaves a manual generation request queued', async () => {
+  const dir = fresh();
+  writeFileSync(join(dir, 'topic-queue.json'), JSON.stringify({ version: 1, lastDiscoveryAt: new Date().toISOString(), topics: [] }));
+  work = { policy, settings: { enabled: true }, requests: [{ id: 'mine', kind: 'generate' }] };
+  Object.assign(policy, { approvalsLast24h: 10 });
+  const before = seen.length;
+  try {
+    const result = await cycle(dir);
+    const calls = seen.slice(before);
+    assert.equal(result.code, 0, result.output);
+    assert.equal(lastCycle(dir).result, 'daily-limit');
+    assert.ok(!calls.includes('POST /v2/admin/editorial/generation/runner/requests/mine/claim'));
+    assert.ok(!calls.includes('POST /v2/admin/editorial/generation/runner/requests/mine/finish'));
+    assert.ok(!calls.some((call) => call.startsWith('POST /v1/messages')));
+  } finally {
+    Object.assign(policy, { approvalsLast24h: 0 });
+    work = null;
+    rmSync(dir, { recursive: true });
+  }
 });
 
 test('provider outage: discovery failure is reported when the queue is empty', async () => {

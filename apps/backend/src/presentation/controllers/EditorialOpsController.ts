@@ -318,6 +318,10 @@ export class EditorialOpsController {
       costEntries: (Array.isArray(b.costEntries) ? b.costEntries : []).filter((e: unknown) => e && typeof e === 'object').slice(0, 50).map((e: Record<string, unknown>) => ({
         role: text(e.role, 20), model: text(e.model, 80) === '__proto__' ? null : text(e.model, 80), inputTokens: amount(e.inputTokens),
         outputTokens: amount(e.outputTokens), searches: amount(e.searches), usd: amount(e.usd),
+        ...(e.costBasis === 'estimated-list' ? { costBasis: 'estimated-list' } : {}),
+        ...(e.modelIdentity === 'requested' || e.modelIdentity === 'reported' ? { modelIdentity: e.modelIdentity } : {}),
+        ...(e.cacheReadInputTokens !== undefined ? { cacheReadInputTokens: amount(e.cacheReadInputTokens) } : {}),
+        ...(e.cacheCreationInputTokens !== undefined ? { cacheCreationInputTokens: amount(e.cacheCreationInputTokens) } : {}),
       })),
       blockingCodes: (Array.isArray(b.blockingCodes) ? b.blockingCodes : []).slice(0, 50).map((c: unknown) => text(c, 60)),
       // M11-E2 audit: how many revisions, what each one did, the budget mode and the public URL (if published).
@@ -391,7 +395,7 @@ export class EditorialOpsController {
   };
 
   runnerWork = async (_req: Request, res: Response): Promise<void> => {
-    res.json(successResponse({ settings: await this.generation.getSettings(), requests: await this.generation.pendingRequests(), policy: await editorialPolicyState() }));
+    res.json(successResponse({ settings: await this.generation.getSettings(), requests: await this.generation.pendingRequests(), policy: await editorialPolicyState(), ownershipProtocols: ['v1'] }));
   };
 
   runnerHeartbeat = async (req: Request, res: Response): Promise<void> => {
@@ -402,10 +406,16 @@ export class EditorialOpsController {
     res.json(successResponse(await this.generation.claimRequest(String(req.params.id))));
   };
 
+  claimOwnedGenerationRequest = async (req: Request, res: Response): Promise<void> => {
+    res.json(successResponse(await this.generation.claimRequest(String(req.params.id), true)));
+  };
+
   finishGenerationRequest = async (req: Request, res: Response): Promise<void> => {
     const status = req.body?.status;
     if (status !== 'completed' && status !== 'failed') throw new ValidationError('Status must be completed or failed', []);
-    res.json(successResponse(await this.generation.finishRequest(String(req.params.id), status, req.body?.reason)));
+    const token = req.header('x-editorial-claim-token');
+    if (token !== undefined && (typeof token !== 'string' || !/^[0-9a-f-]{36}$/i.test(token))) throw new ValidationError('Invalid claim token', []);
+    res.json(successResponse(await this.generation.finishRequest(String(req.params.id), status, req.body?.reason, token)));
   };
 
   runnerCycle = async (req: Request, res: Response): Promise<void> => {

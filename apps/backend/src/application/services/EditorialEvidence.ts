@@ -719,6 +719,8 @@ export const MODEL_PRICES: Readonly<Record<string, readonly [number, number]>> =
   'claude-haiku-5-5': [0.1, 0.5],
   'gpt-6.1-terra': [1, 5],
   'gpt-6-luna': [0.1, 0.5],
+  'gpt-5.6-terra': [2, 12],
+  'gpt-5.6-luna': [0.2, 1.2],
 });
 /** Web search is billed per search on top of tokens. */
 export const WEB_SEARCH_USD = 0.01;
@@ -758,7 +760,8 @@ export const DEFAULT_EDITORIAL_LIMITS: Readonly<EditorialLimits> = Object.freeze
   maxConcurrentJobs: 1,
 });
 
-export interface CostEntry { role: string; model: string; inputTokens: number; outputTokens: number; searches: number; usd: number }
+export interface CostEntry { role: string; model: string; inputTokens: number; outputTokens: number; searches: number; usd: number; costBasis?: 'estimated-list'; modelIdentity?: 'reported' | 'requested'; cacheReadInputTokens?: number; cacheCreationInputTokens?: number }
+export interface ReportedModelUsage { model: string; inputTokens: number; outputTokens: number; searches: number; estimatedUsd: number; cacheReadInputTokens: number; cacheCreationInputTokens?: number; modelIdentity?: 'reported' | 'requested' }
 export interface CostSummary {
   entries: CostEntry[]; usd: number; inputTokens: number; outputTokens: number; sourceFetches: number; draftAttempts: number; reviewFailures: number;
   /** A call failed without reporting its usage: the real spend is unknown, so it counts as the whole allowance. */
@@ -777,6 +780,32 @@ export class CostLedger {
     if (!price) throw new EditorialBudgetExceeded(`modelo sin precio conocido: ${model}`);
     const usd = (usage.input_tokens * price[0] + usage.output_tokens * price[1]) / 1e6 + searches * WEB_SEARCH_USD;
     return this.record({ role, model, inputTokens: usage.input_tokens, outputTokens: usage.output_tokens, searches, usd: +usd.toFixed(6) });
+  }
+
+  /** CLI list prices are estimates, not charges against a subscription. */
+  chargeReported(role: string, entries: ReportedModelUsage[]): void {
+    if (!Array.isArray(entries) || !entries.length) { this.summary.unresolved = true; throw new Error('missing per-model usage'); }
+    for (const e of entries) {
+      if (!e || typeof e.model !== 'string' || !e.model.trim() || (e.modelIdentity !== undefined && e.modelIdentity !== 'reported' && e.modelIdentity !== 'requested') || !Number.isFinite(e.estimatedUsd) || e.estimatedUsd < 0 ||
+        ![e.inputTokens, e.outputTokens, e.searches, e.cacheReadInputTokens, ...(e.cacheCreationInputTokens === undefined ? [] : [e.cacheCreationInputTokens])].every((n) => Number.isSafeInteger(n) && n >= 0) ||
+        !Number.isSafeInteger(e.inputTokens + e.cacheReadInputTokens + (e.cacheCreationInputTokens ?? 0))) {
+        this.summary.unresolved = true;
+        throw new Error('invalid per-model usage');
+      }
+    }
+    let exceeded: EditorialBudgetExceeded | undefined;
+    for (const e of entries) {
+      try {
+        this.record({ role, model: e.model, inputTokens: e.inputTokens + e.cacheReadInputTokens + (e.cacheCreationInputTokens ?? 0),
+          outputTokens: e.outputTokens, searches: e.searches, usd: e.estimatedUsd, costBasis: 'estimated-list',
+          cacheReadInputTokens: e.cacheReadInputTokens, ...(e.cacheCreationInputTokens !== undefined ? { cacheCreationInputTokens: e.cacheCreationInputTokens } : {}),
+          ...(e.modelIdentity ? { modelIdentity: e.modelIdentity } : {}) });
+      } catch (error) {
+        if (!(error instanceof EditorialBudgetExceeded)) throw error;
+        exceeded = error;
+      }
+    }
+    if (exceeded) throw exceeded;
   }
 
   /**

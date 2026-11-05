@@ -36,6 +36,7 @@ export const createAdminEditorialRoutes = (controller: EditorialOpsController, a
   router.get('/generation/runner/work', asyncHandler(controller.runnerWork));
   router.post('/generation/runner/heartbeat', asyncHandler(controller.runnerHeartbeat));
   router.post('/generation/runner/requests/:id/claim', asyncHandler(controller.claimGenerationRequest));
+  router.post('/generation/runner/requests/:id/claim-owned', asyncHandler(controller.claimOwnedGenerationRequest));
   router.post('/generation/runner/requests/:id/finish', asyncHandler(controller.finishGenerationRequest));
   router.post('/generation/runner/cycles', asyncHandler(controller.runnerCycle));
   router.post('/jobs', asyncHandler(controller.recordJob));

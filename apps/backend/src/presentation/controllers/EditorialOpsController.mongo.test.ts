@@ -127,11 +127,14 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     assert.equal((await call(ops.post, { params: { id: 'not-an-id' } })).error?.name, 'NotFoundError');
 
     // Job reports: every run, blocked ones included; a replayed report is refused; no text accepted.
-    const job = { jobId: '2026-10-27T10:00:00.000Z-x', slug: 'x', state: 'blocked', reason: 'solo 2 afirmaciones verificadas', startedAt: new Date().toISOString(), backend: 'anthropic', costUsd: 0.42, costEntries: [{ role: 'research', model: 'claude-opus-5-5', inputTokens: 1, outputTokens: 2, searches: 3, usd: 0.42 }], blockingCodes: [], draftMarkdown: 'secret' };
+    const job = { jobId: '2026-10-27T10:00:00.000Z-x', slug: 'x', state: 'blocked', reason: 'solo 2 afirmaciones verificadas', startedAt: new Date().toISOString(), backend: 'anthropic', costUsd: 0.42, costEntries: [{ role: 'research', model: 'claude-opus-5-5', inputTokens: 1, outputTokens: 2, searches: 3, usd: 0.42, costBasis: 'estimated-list', modelIdentity: 'requested', cacheReadInputTokens: 1 }], blockingCodes: [], draftMarkdown: 'secret' };
     assert.equal((await call(ops.recordJob, { body: job })).code, 201);
     assert.equal((await call(ops.recordJob, { body: job })).error?.name, 'ConflictError');
     assert.equal((await call(ops.recordJob, { body: { ...job, jobId: 'y', costUsd: -1 } })).error?.name, 'ValidationError');
     assert.equal((await mongoose.connection.collection('editorial_jobs').findOne({ jobId: job.jobId }))!.draftMarkdown, undefined);
+    const storedCost = (await mongoose.connection.collection('editorial_jobs').findOne({ jobId: job.jobId }))!.costEntries[0];
+    assert.deepEqual([storedCost.costBasis, storedCost.modelIdentity, storedCost.cacheReadInputTokens], ['estimated-list', 'requested', 1]);
+    assert.equal('cacheCreationInputTokens' in storedCost, false);
 
     // M11-E2: the audit of an autonomous job (revisions, budget mode, public URL); a URL off the site is not stored.
     const auto = { ...job, jobId: '2026-10-27T11:00:00.000Z-y', slug: 'y', startedAt: new Date(Date.parse(job.startedAt) + 1).toISOString(), state: 'published', reason: null, blockingCodes: [], revisions: 2, revisionLog: ['revise/re-research:unsupported-claim', 'revise/rewrite', 'pass/pass'], budget: 'unlimited', publicUrl: 'https://guiaprogramaciontv.com/guias/y', costEntries: [{ role: 'critic', model: 'claude-opus-5-5', inputTokens: 10, outputTokens: 20, searches: 0, usd: 0.1 }], costUsd: 0.1 };
@@ -215,6 +218,23 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     assert.equal(retried.finishedAt, null);
     assert.equal((await generation.claimRequest(request.id)).claimsObserved, 2);
     assert.ok((await generation.finishRequest(request.id, 'completed')).finishedAt);
+    const owned = await generation.createRequest('discover', null, 'test');
+    const firstOwner = await generation.claimRequest(owned.id, true);
+    assert.ok(firstOwner.claimToken);
+    await assert.rejects(generation.finishRequest(owned.id, 'completed'));
+    await assert.rejects(generation.finishRequest(owned.id, 'completed', '', 'wrong'));
+    assert.ok(!(await generation.operationalState()).queue.some((entry) => 'claimToken' in entry));
+    await generation.finishRequest(owned.id, 'failed', 'retry', firstOwner.claimToken);
+    await generation.retryRequest(owned.id);
+    const secondOwner = await generation.claimRequest(owned.id, true);
+    assert.notEqual(secondOwner.claimToken, firstOwner.claimToken);
+    await assert.rejects(generation.finishRequest(owned.id, 'completed', '', firstOwner.claimToken));
+    assert.equal((await generation.finishRequest(owned.id, 'completed', '', secondOwner.claimToken)).status, 'completed');
+    await requests.insertMany(Array.from({ length: 25 }, (_, i) => ({ id: `fair-generate-${i}`, kind: 'generate', status: 'queued', createdAt: new Date(2020, 0, i + 1), updatedAt: new Date(), createdBy: 'test' })));
+    const fairWork = await generation.pendingRequests();
+    assert.equal(fairWork.length, 20);
+    assert.equal(fairWork.filter((item) => item.kind === 'discover').length, 10);
+    assert.deepEqual(fairWork.filter((item) => item.kind === 'generate').map((item) => item.id), Array.from({ length: 10 }, (_, i) => `fair-generate-${i}`));
 
     // Router authorization over HTTP: no session, a non-admin session, and resume without the review key.
     process.env.ANALYTICS_ADMIN_KEY = 'admin-key-test';
@@ -230,6 +250,26 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
       assert.equal(await status('/overview', { headers: bearer('user-token') }), 403);
       assert.equal(await status(`/posts/${coverId}`, { headers: bearer('user-token') }), 403);
       assert.equal(await status('/overview', { headers: bearer('admin-token') }), 200);
+      const httpRequest = await generation.createRequest('discover', null, 'http');
+      const post = (path: string, body: object, headers: Record<string, string> = {}) => fetch(`${base}${path}`, { method: 'POST', headers: { ...bearer('admin-token'), 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
+      const httpClaim = await post(`/generation/runner/requests/${httpRequest.id}/claim-owned`, {});
+      assert.equal(httpClaim.status, 200);
+      const httpToken = ((await httpClaim.json()) as any).data.claimToken;
+      assert.match(httpToken, /^[0-9a-f-]{36}$/i);
+      assert.equal((await post(`/generation/runner/requests/${httpRequest.id}/finish`, { status: 'completed' })).status, 404);
+      assert.equal((await post(`/generation/runner/requests/${httpRequest.id}/finish`, { status: 'completed' }, { 'x-editorial-claim-token': httpToken })).status, 200);
+      const logs: string[] = [];
+      const originalError = console.error;
+      (generation as any).finishRequest = async () => { throw new Error('injected database failure'); };
+      console.error = (...parts: unknown[]) => { logs.push(parts.map(String).join(' ')); };
+      try {
+        assert.equal((await post(`/generation/runner/requests/${httpRequest.id}/finish`, { status: 'completed' }, { 'x-editorial-claim-token': httpToken })).status, 500);
+      } finally {
+        console.error = originalError;
+        delete (generation as any).finishRequest;
+      }
+      assert.ok(logs.some((line) => line.includes('injected database failure')));
+      assert.ok(logs.every((line) => !line.includes(httpToken)), 'claim token must not appear in unexpected-error logs');
       assert.equal(await status('/policy/resume', { method: 'POST', headers: bearer('admin-token') }), 403);
       assert.equal(await status('/policy/resume', { method: 'POST', headers: { ...bearer('admin-token'), 'x-editorial-review-key': 'wrong' } }), 403);
       process.env.AUCTORIO_EDITORIAL_REVIEW_KEY = 'automation-key-test';

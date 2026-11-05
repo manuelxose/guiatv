@@ -53,6 +53,7 @@ type GenerationRequest = {
   claimsObserved?: number;
   claimedAt?: Date;
   finishedAt?: Date;
+  claimToken?: string;
 };
 
 const db = () => BlogPostModel.db;
@@ -189,26 +190,34 @@ export class EditorialGenerationService {
   }
 
   async retryRequest(id: string) {
-    const result = await requests().findOneAndUpdate({ id, status: { $in: ['failed', 'cancelled'] } }, { $set: { status: 'queued', reason: '', updatedAt: new Date() }, $unset: { claimedAt: '', finishedAt: '' } }, { returnDocument: 'after' });
+    const result = await requests().findOneAndUpdate({ id, status: { $in: ['failed', 'cancelled'] } }, { $set: { status: 'queued', reason: '', updatedAt: new Date() }, $unset: { claimedAt: '', finishedAt: '', claimToken: '' } }, { returnDocument: 'after' });
     if (!result) throw new NotFoundError('No failed or cancelled generation request found');
     return this.publicRequest(result);
   }
 
   async pendingRequests() {
-    const items = await requests().find({ status: 'queued' }).sort({ createdAt: 1 }).limit(20).toArray();
+    const [discovery, generation] = await Promise.all(['discover', 'generate'].map((kind) =>
+      requests().find({ status: 'queued', kind: kind as GenerationRequest['kind'] }).sort({ createdAt: 1, _id: 1 }).limit(20).toArray()));
+    const items: GenerationRequest[] = [];
+    for (let i = 0; items.length < 20 && (i < discovery.length || i < generation.length); i++) {
+      if (discovery[i]) items.push(discovery[i]);
+      if (items.length < 20 && generation[i]) items.push(generation[i]);
+    }
     return items.map((item) => this.publicRequest(item));
   }
 
-  async claimRequest(id: string) {
+  async claimRequest(id: string, owned = false) {
     const now = new Date();
-    const result = await requests().findOneAndUpdate({ id, status: 'queued' }, { $set: { status: 'running', updatedAt: now, claimedAt: now }, $inc: { claimsObserved: 1 } }, { returnDocument: 'after' });
+    const claimToken = owned ? randomUUID() : undefined;
+    const result = await requests().findOneAndUpdate({ id, status: 'queued' }, { $set: { status: 'running', updatedAt: now, claimedAt: now, ...(claimToken ? { claimToken } : {}) }, $inc: { claimsObserved: 1 } }, { returnDocument: 'after' });
     if (!result) throw new ConflictError('Request is no longer queued');
-    return this.publicRequest(result);
+    return { ...this.publicRequest(result), ...(claimToken ? { claimToken } : {}) };
   }
 
-  async finishRequest(id: string, status: 'completed' | 'failed', reason = '') {
+  async finishRequest(id: string, status: 'completed' | 'failed', reason = '', claimToken?: string) {
     const now = new Date();
-    const result = await requests().findOneAndUpdate({ id, status: 'running' }, { $set: { status, reason: text(reason, 1000), updatedAt: now, finishedAt: now } }, { returnDocument: 'after' });
+    const owner = claimToken ? claimToken : { $exists: false };
+    const result = await requests().findOneAndUpdate({ id, status: 'running', claimToken: owner }, { $set: { status, reason: text(reason, 1000), updatedAt: now, finishedAt: now }, $unset: { claimToken: '' } }, { returnDocument: 'after' });
     if (!result) throw new NotFoundError('Running generation request not found');
     return this.publicRequest(result);
   }

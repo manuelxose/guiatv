@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 import { dirname, join, resolve } from 'node:path';
 
@@ -24,9 +24,13 @@ test('a release includes and runs the editorial runner from the same checkout', 
     cpSync(resolve('apps/backend/dist'), join(root, 'apps/backend/dist'), { recursive: true });
     put('apps/frontend/dist/guiatv/browser/index.html', 'frontend');
     for (const file of ['ssr-server.mjs', 'ssr-canonical.mjs', 'ssr-cache.mjs']) put(`apps/frontend/scripts/${file}`, '');
+    put('releases/20261104000000/release.json', '{}');
+    put('releases/20261104000000/artifacts/m11b/runs/evidence.json', 'previous evidence');
+    symlinkSync(join(root, 'releases/20261104000000'), join(root, 'current'), 'junction');
 
     const published = spawnSync(process.execPath, [join(root, 'scripts/publish-release.mjs'), '20261105000000'], { encoding: 'utf8', env: { ...process.env, GUIATV_RELEASE_KEEP: '1' } });
     assert.equal(published.status, 0, published.stderr);
+    assert.equal(readFileSync(join(root, 'releases/20261104000000/artifacts/m11b/runs/evidence.json'), 'utf8'), 'previous evidence');
     assert.deepEqual(readFileSync(join(root, 'current/scripts/editorial-agents.mjs')), runner);
     const cwd = join(root, 'current');
     const entrypoint = spawnSync(process.execPath, ['scripts/editorial-agents.mjs', 'invalid'], { cwd, encoding: 'utf8' });

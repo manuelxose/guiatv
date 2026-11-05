@@ -152,7 +152,7 @@ const adminHeaders = () => ({ 'content-type': 'application/json', 'x-admin-key':
 // Declared before the command dispatch below: it runs at module top level and reaches these (TDZ otherwise).
 let activeRoutes = null;
 const generationApi = (report, path, options = {}) => fetch(`${report}/v2/admin/editorial/generation/${path}`, { ...options, headers: { ...adminHeaders(), ...options.headers } });
-const generationPost = (report, path, body = {}) => generationApi(report, path, { method: 'POST', body: JSON.stringify(body) });
+const generationPost = (report, path, body = {}, headers = {}) => generationApi(report, path, { method: 'POST', body: JSON.stringify(body), headers });
 
 if (command === 'run') {
   const topics = readJson(target);
@@ -485,30 +485,39 @@ async function runCycle(report, discoverOnly) {
   if (log.maintenance?.length && !(await adminPolicy(report))?.active) { cycleLog({ ...log, result: 'inactive' }); await reportCycle(report, 'inactive', 'Publicación detenida durante mantenimiento', q); return; }
   let generated = 0;
   const manual = (work?.requests ?? []).filter((r) => r.kind === 'discover' || r.kind === 'generate');
+  const ownedClaims = work?.ownershipProtocols?.includes('v1');
+  const claim = (request) => generationPost(report, `runner/requests/${request.id}/${ownedClaims ? 'claim-owned' : 'claim'}`)
+    .then((response) => response.ok ? response.json() : null).then((response) => {
+      const token = response?.data?.claimToken;
+      return response && (!ownedClaims || typeof token === 'string') ? { request, token } : null;
+    }).catch(() => null);
+  const finish = (claim, status, reason) => generationPost(report, `runner/requests/${claim.request.id}/finish`,
+    { status, reason }, claim.token ? { 'x-editorial-claim-token': claim.token } : {});
   if (discoverOnly || manual.some((r) => r.kind === 'discover')) {
     const claimed = [];
     for (const request of manual.filter((r) => r.kind === 'discover')) {
-      const response = await generationPost(report, `runner/requests/${request.id}/claim`).catch(() => null);
-      if (response?.ok) claimed.push(request);
+      const owner = await claim(request);
+      if (owner) claimed.push(owner);
     }
     if (discoverOnly || claimed.length) log.discovery = await discover(q, corpus, report);
-    for (const request of claimed) await generationPost(report, `runner/requests/${request.id}/finish`, { status: log.discovery?.error ? 'failed' : 'completed', reason: log.discovery?.error ?? `${log.discovery?.queued?.length ?? 0} temas añadidos` });
+    for (const owner of claimed) await finish(owner, log.discovery?.error ? 'failed' : 'completed', log.discovery?.error ?? `${log.discovery?.queued?.length ?? 0} temas añadidos`);
     if (discoverOnly) { const result = log.discovery?.error ? 'discovery-error' : 'discovered'; if (log.discovery?.error) process.exitCode = 1; cycleLog({ ...log, result }); await reportCycle(report, log.discovery?.error ? 'discovery-error' : 'ran', log.discovery?.error ?? 'Descubrimiento completado', q); return; }
   }
   for (const request of manual.filter((r) => r.kind === 'generate')) {
-    const claimed = await generationPost(report, `runner/requests/${request.id}/claim`).then((r) => r.ok ? r.json() : null).catch(() => null);
+    if (serverCapacity < 1) break;
+    const claimed = await claim(request);
     if (!claimed) continue;
     const topic = manualTopic(request.topic, work.settings);
     const seeds = await queueLib.checkSeeds({ title: topic.title, intent: topic.intent, seedUrls: topic.seedUrls }, fetchSource);
     if (seeds.some((s) => !s.ok)) {
       const reason = seeds.filter((s) => !s.ok).map((s) => `${s.url}: ${s.note}`).join('; ');
-      await generationPost(report, `runner/requests/${request.id}/finish`, { status: 'failed', reason });
+      await finish(claimed, 'failed', reason);
       continue;
     }
     const [run] = await runTopics([topic], { report, autopublish: true, corpus });
     const ok = run?.state === 'published';
     generated += ok ? 1 : 0;
-    await generationPost(report, `runner/requests/${request.id}/finish`, { status: ok ? 'completed' : 'failed', reason: run?.reason ?? run?.state ?? 'Sin resultado' });
+    await finish(claimed, ok ? 'completed' : 'failed', run?.reason ?? run?.state ?? 'Sin resultado');
     serverCapacity = Math.max(0, serverCapacity - ok);
   }
   const queued = q.topics.filter((t) => t.state === 'queued').length;

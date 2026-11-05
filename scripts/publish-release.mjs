@@ -5,13 +5,14 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   renameSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { constants as fsConstants } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
@@ -228,6 +229,10 @@ if (checkOnly) {
 }
 
 mkdirSync(releasesRoot, { recursive: true });
+// The active release may still contain an executing runner and must remain available for rollback.
+const previousRelease = existsSync(currentLink) ? realpathSync(currentLink) : null;
+const protectedReleaseIds = new Set([releaseId]);
+if (previousRelease && dirname(previousRelease) === realpathSync(releasesRoot)) protectedReleaseIds.add(basename(previousRelease));
 
 if (existsSync(releaseDir)) {
   console.error(`[publish-release] Release directory already exists: ${releaseDir}`);
@@ -274,10 +279,10 @@ renameSync(tempLink, currentLink);
 
 removePathIfExists(join(releasesRoot, 'current'));
 removePathIfExists(join(legacyFrontendReleasesRoot, 'current'));
-pruneLegacyUnifiedReleases(releasesRoot, new Set([releaseId]));
+pruneLegacyUnifiedReleases(releasesRoot, protectedReleaseIds);
 removePathIfExists(legacyFrontendReleasesRoot);
 
-pruneReleases(releasesRoot, keepCount, new Set([releaseId]));
+pruneReleases(releasesRoot, keepCount, protectedReleaseIds);
 
 console.log(`[publish-release] Published unified release ${releaseId}`);
 console.log(`[publish-release] Current -> ${releaseDir}`);
