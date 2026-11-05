@@ -436,7 +436,7 @@ function allowedNumbers(claims: EvidenceClaim[]): Set<string> {
 }
 /** Numbers of `text` once the spans of references located by `claims` are removed: a reference is not a figure, a copy of its number is. */
 const figuresIn = (text: string, claims: EvidenceClaim[]) => numbersIn(withoutLocatedRefs(text, claims.flatMap((c) => c.legalRefs ?? [])));
-const stripListNumber = (unit: string) => unit.replace(/^\s*\d{1,2}[.)]\s+/, '');
+const stripListNumber = (unit: string) => unit.replace(/^\s*(?:[-*+]|\d{1,2}[.)])\s+/, '');
 const FABRICATED_EXPERIENCE =
   /\b(?:(?:he|hemos)\s+(?:probado|testado|usado|comprobado\s+personalmente)|en\s+(?:mi|nuestra)\s+experiencia|nuestras?\s+pruebas?|personalmente|(?:entrevistamos|hemos\s+entrevistado|hablamos\s+con)\b|nos\s+(?:dijo|contó|confirmó))/i;
 // Markers are uppercase on purpose: Spanish "todo" is an ordinary word.
@@ -455,12 +455,15 @@ function factualUnits(markdown: string): string[] {
   return stripFences(markdown)
     .split('\n')
     .filter((line) => line.trim() && !/^#\s/.test(line) && !/^\s*\|?\s*:?-{3,}/.test(line))
-    .flatMap((line) => (/^\s*\|/.test(line) ? [line] : line.split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ¿¡])/)))
-    .map(stripListNumber);
+    // The list marker is not a sentence boundary: strip it before splitting "1. Text" into "1." + "Text".
+    .map(stripListNumber)
+    .flatMap((line) => (/^\s*\|/.test(line) ? [line] : line.split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ¿¡])/)));
 }
 const stripFences = (md: string) => md.replace(/^---[\s\S]*?---\s*/, '').replace(/```[\s\S]*?```/g, '');
-/** What a reader sees of a markdown line: link and image targets are attributes, not text. */
-const visibleMarkdown = (md: string) => stripClaimMarkers(md).replace(/\]\([^)]*\)/g, ']').replace(/<https?:[^>]+>/g, '');
+/** What a reader sees of a markdown line: link and image targets are attributes, not text; list numbers are not facts. */
+const visibleMarkdown = (md: string) => stripClaimMarkers(md)
+  .replace(/^\s*(?:[-*+]|\d{1,2}[.)])\s+/gm, '')
+  .replace(/\]\([^)]*\)/g, ']').replace(/<https?:[^>]+>/g, '');
 const words = (text: string) => normalizeForMatch(text.replace(/[^\p{L}\p{N}]+/gu, ' ')).length;
 const ENTITIES: Record<string, string> = { amp: '&', quot: '"', '#39': "'", apos: "'", lt: '<', gt: '>', nbsp: ' ', euro: '€' };
 /** Visible words and numbers in order; "6,99" stays one token, so changing a figure changes the sequence. */

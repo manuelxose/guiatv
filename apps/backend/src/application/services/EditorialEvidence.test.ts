@@ -322,3 +322,12 @@ test('signature: only unmodified provenance signed with the runner key is attest
   assert.equal(provenanceSignatureValid({ ...signed, backend: 'replay' }, 'k'), false);
   assert.equal(provenanceSignatureValid({ ...signed, critic: { ...signed.critic!, verdict: 'revise' } }, 'k'), false);
 });
+
+test('M14-B: an ordered list marker is not a factual figure and does not change the reviewed content', () => {
+  const v = verifyBundle(bundleFixture(), snapshots);
+  const draftMarkdown = `${DRAFT}\n\n1. Comprueba el plan con anuncios [[c1]].\n2. Revisa la parrilla de La 2 [[c2]].`;
+  const content = `${render(DRAFT).replace('</div>', '<ol><li>Comprueba el plan con anuncios.</li><li>Revisa la parrilla de La 2.</li></ol></div>')}`;
+  const findings = evaluateEvidence({ content, excerpt: 'Resumen', author: { name: AI_AUTHOR.name }, seo: { metaTitle: 'Título', metaDescription: 'Descripción' } }, provenanceFor(v, draftMarkdown), NOW);
+  assert.ok(!findings.some((f) => f.code === 'uncited-factual-statement' && /«1\.»|«2\.»/.test(f.message)), JSON.stringify(findings));
+  assert.ok(!findings.some((f) => f.code === 'content-not-reviewed-draft'), 'list numbering must not break the HTML/draft comparison');
+});
