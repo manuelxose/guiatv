@@ -23,8 +23,17 @@ sudo /var/www/guiatv/deploy-guiatv.sh
 
 ## Deploy automatico (GitHub Actions)
 
-Desde la Fase 3E, `.github/workflows/deploy.yml` (compila EN el VPS) es **solo manual** (`workflow_dispatch`): un merge a `main`
-ya no despliega nada. La via por defecto es `.github/workflows/deploy-artifact.yml` (CI compila, el servidor solo verifica y publica).
+**Cada merge a `main` se despliega solo** (decision del owner, 2026-11-05): cuando "Build, test, and performance budgets"
+termina en verde para ese push, `.github/workflows/deploy-artifact.yml` compila en CI el commit exacto que paso el CI,
+sube el artefacto y el servidor solo verifica, instala dependencias si cambio `package-lock.json` (sin compilar), publica
+y hace smoke. Los cambios solo de documentacion no reinician nada. Tambien se puede lanzar a mano (Run workflow).
+`.github/workflows/deploy.yml` (compila EN el VPS) sigue siendo **solo manual**, como alternativa.
+
+Garantias del script (`deploy-guiatv.sh`):
+- Despliega el commit del artefacto, aunque `main` ya haya avanzado (deploys en cola).
+- Nunca despliega en silencio un checkout con cambios locales: si solo es `package-lock.json` reescrito por npm,
+  lo restaura; cualquier otro cambio hace **fallar** el deploy (rojo) listando los ficheros. Forzarlo: `DEPLOY_ALLOW_DIRTY=1`.
+  (Antes desplegaba el codigo viejo y marcaba exito: runs 69, 70 y 72.)
 
 - CI hace SSH con el usuario `deploy` del VPS (clave dedicada, sin password).
 - Ejecuta `sudo /var/www/guiatv/deploy-guiatv.sh` (build + release + restart + smoke).

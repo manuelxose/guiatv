@@ -129,14 +129,42 @@ grep -q "restoring the committed lockfile" "${T}/run8b.log" || fail "the lockfil
 (cd "${T}/work" && echo lock2 >package-lock.json && git commit -qam "lock 2" && git push -q origin main)
 sha="$(git -C "${T}/origin.git" rev-parse main)"
 mkdir -p "${T}/lockart/apps/backend/dist/server" "${T}/lockart/apps/frontend/dist/guiatv/browser" "${T}/lockart/apps/frontend/dist/guiatv/server"
+touch "${T}/lockart/apps/backend/dist/server/index.js" "${T}/lockart/apps/frontend/dist/guiatv/browser/main.js" "${T}/lockart/apps/frontend/dist/guiatv/server/main.server.mjs" "${T}/lockart/apps/frontend/dist/guiatv/server/index.server.html"
 echo "${sha}" >"${T}/lockart/ARTIFACT_GIT_SHA"; tar -czf "${T}/lockart.tgz" -C "${T}/lockart" ARTIFACT_GIT_SHA apps
 live="$(readlink -f "${SRV}/current")"
-set +e; DEPLOY_ARTIFACT="${T}/lockart.tgz" DEPLOY_ARTIFACT_SHA256="$(sha256sum "${T}/lockart.tgz" | cut -d' ' -f1)" bash "${ROOT}/deploy-guiatv.sh" >"${T}/run8c.log" 2>&1; code=$?; set -e
-[ "${code}" != "0" ] && grep -q "package-lock.json changed since the last install" "${T}/run8c.log" && [ "$(readlink -f "${SRV}/current")" = "${live}" ] || { cat "${T}/run8c.log"; fail "an artifact over a changed lockfile must be refused before any change"; }
-bash "${ROOT}/deploy-guiatv.sh" >"${T}/run8d.log" 2>&1 || { cat "${T}/run8d.log"; fail "a normal deploy must install the new lockfile"; }
-grep -q "install" "${T}/npm.log" || fail "the changed lockfile was not installed"
-grep -q "HEAD is now at" "${T}/run8d.log" || { cat "${T}/run8d.log"; fail "the deploy after a lockfile install did not sync with origin"; }
+# A dependency change deploys automatically too: the artifact installs the new lockfile (no build) and publishes.
+DEPLOY_ARTIFACT="${T}/lockart.tgz" DEPLOY_ARTIFACT_SHA256="$(sha256sum "${T}/lockart.tgz" | cut -d' ' -f1)" bash "${ROOT}/deploy-guiatv.sh" >"${T}/run8c.log" 2>&1 || { cat "${T}/run8c.log"; fail "an artifact over a changed lockfile must install and deploy"; }
+grep -q "installing dependencies (no build)" "${T}/run8c.log" || { cat "${T}/run8c.log"; fail "the changed lockfile was not installed in artifact mode"; }
+grep -q "^install" "${T}/npm.log" || fail "the changed lockfile was not installed"
+! grep -q "run build" "${T}/npm.log" || fail "artifact mode compiled on the server"
+[ "$(readlink -f "${SRV}/current")" != "${live}" ] || fail "the artifact release over a changed lockfile was not activated"
+[ "$(git -C "${SRV}" rev-parse HEAD)" = "${sha}" ] || fail "artifact deploy is not at the artifact commit"
 git -C "${SRV}" diff --quiet || fail "the checkout is dirty after a lockfile install"
+: >"${T}/npm.log"
+
+# --- 5b. main moved on after the artifact was built: deploy the artifact's commit, never a mismatch ------------
+art_old_sha="$(git -C "${T}/origin.git" rev-parse main)"
+(cd "${T}/work" && echo third >f && git commit -qam "newer commit on main" && git push -q origin main)
+oldart="${T}/oldart"; mkdir -p "${oldart}/apps/backend/dist/server" "${oldart}/apps/frontend/dist/guiatv/browser" "${oldart}/apps/frontend/dist/guiatv/server"
+touch "${oldart}/apps/backend/dist/server/index.js" "${oldart}/apps/frontend/dist/guiatv/browser/main.js" "${oldart}/apps/frontend/dist/guiatv/server/main.server.mjs" "${oldart}/apps/frontend/dist/guiatv/server/index.server.html"
+echo "${art_old_sha}" >"${oldart}/ARTIFACT_GIT_SHA"; tar -czf "${T}/oldart.tgz" -C "${oldart}" ARTIFACT_GIT_SHA apps
+FORCE_DEPLOY=1 DEPLOY_ARTIFACT="${T}/oldart.tgz" DEPLOY_ARTIFACT_SHA256="$(sha256sum "${T}/oldart.tgz" | cut -d' ' -f1)" bash "${ROOT}/deploy-guiatv.sh" >"${T}/run8e.log" 2>&1 || { cat "${T}/run8e.log"; fail "an artifact of an older main commit must deploy at that commit"; }
+[ "$(git -C "${SRV}" rev-parse HEAD)" = "${art_old_sha}" ] || fail "the server checkout is not at the artifact's commit"
+
+# --- 5c. a dirty checkout is never deployed silently ------------------------------------------------------------
+echo "hand edit" >>"${SRV}/f"
+live="$(readlink -f "${SRV}/current")"; : >"${T}/npm.log"
+set +e; bash "${ROOT}/deploy-guiatv.sh" >"${T}/run8f.log" 2>&1; code=$?; set -e
+[ "${code}" != "0" ] && grep -q "refusing to deploy a checkout that is not origin/main" "${T}/run8f.log" && grep -q " M f" "${T}/run8f.log" || { cat "${T}/run8f.log"; fail "a dirty checkout must fail loudly and list the files"; }
+[ "$(readlink -f "${SRV}/current")" = "${live}" ] && ! grep -q "run build" "${T}/npm.log" || fail "a refused dirty deploy built or switched release"
+DEPLOY_ALLOW_DIRTY=1 bash "${ROOT}/deploy-guiatv.sh" >"${T}/run8g.log" 2>&1 || { cat "${T}/run8g.log"; fail "DEPLOY_ALLOW_DIRTY=1 must deploy the checkout as is"; }
+grep -q "DEPLOY_ALLOW_DIRTY=1" "${T}/run8g.log" || fail "the dirty override was not announced"
+git -C "${SRV}" checkout -q -- f
+# Only a rewritten lockfile: restored automatically and the deploy syncs.
+echo '"devOptional": true' >>"${SRV}/package-lock.json"
+bash "${ROOT}/deploy-guiatv.sh" >"${T}/run8h.log" 2>&1 || { cat "${T}/run8h.log"; fail "a deploy over a rewritten lockfile must restore it and sync"; }
+grep -q "HEAD is now at" "${T}/run8h.log" || { cat "${T}/run8h.log"; fail "the deploy over a rewritten lockfile did not sync"; }
+git -C "${SRV}" diff --quiet || fail "the rewritten lockfile was not restored"
 (cd "${T}/work" && echo second >f && git commit -qam "runtime change 2" && git push -q origin main)
 sha="$(git -C "${T}/origin.git" rev-parse main)"
 art="${T}/art"; mkdir -p "${art}/apps/backend/dist/server" "${art}/apps/frontend/dist/guiatv/browser" "${art}/apps/frontend/dist/guiatv/server"
@@ -149,7 +177,7 @@ set +e; DEPLOY_ARTIFACT="${T}/artifact.tgz" DEPLOY_ARTIFACT_SHA256="$(printf '0%
 [ "${code}" != "0" ] && grep -q "checksum mismatch" "${T}/run9.log" && [ "$(readlink -f "${SRV}/current")" = "${live}" ] || fail "a corrupt artifact must be refused before any change"
 echo "0000000000000000000000000000000000000000" >"${art}/ARTIFACT_GIT_SHA"; tar -czf "${T}/stale.tgz" -C "${art}" ARTIFACT_GIT_SHA apps
 set +e; DEPLOY_ARTIFACT="${T}/stale.tgz" DEPLOY_ARTIFACT_SHA256="$(sha256sum "${T}/stale.tgz" | cut -d' ' -f1)" bash "${ROOT}/deploy-guiatv.sh" >"${T}/run10.log" 2>&1; code=$?; set -e
-[ "${code}" != "0" ] && grep -q "not built from the checked-out commit" "${T}/run10.log" && [ "$(readlink -f "${SRV}/current")" = "${live}" ] || fail "an artifact from another commit must be refused"
+[ "${code}" != "0" ] && grep -qE "not built from the checked-out commit|is not on origin/main; refusing" "${T}/run10.log" && [ "$(readlink -f "${SRV}/current")" = "${live}" ] || fail "an artifact from another commit must be refused"
 DEPLOY_ARTIFACT="${T}/artifact.tgz" DEPLOY_ARTIFACT_SHA256="${asum}" bash "${ROOT}/deploy-guiatv.sh" >"${T}/run11.log" 2>&1 || { cat "${T}/run11.log"; fail "a valid artifact must deploy"; }
 [ "$(readlink -f "${SRV}/current")" != "${live}" ] || fail "the artifact release was not activated"
 ! grep -qE "run build|^install" "${T}/npm.log" || { cat "${T}/npm.log"; fail "artifact mode installed or compiled on the server"; }
