@@ -22,7 +22,8 @@
     "prerender": "ng build --prerender",
     "start:prod": "npm run build:ssr && npm run serve:ssr",
     "test": "ng test --watch=false --browsers=ChromeHeadlessNoSandbox",
-    "lint": "eslint \"src/**/*.ts\" \"src/**/*.html\""
+    "lint": "eslint \"src/**/*.ts\" \"src/**/*.html\"",
+    "check:sports-v2": "node scripts/check-sports-v2-isolation.mjs"
   },
   "dependencies": {
     "@angular/animations": "20.3.29",
