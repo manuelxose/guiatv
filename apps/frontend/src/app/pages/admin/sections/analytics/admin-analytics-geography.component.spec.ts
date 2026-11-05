@@ -64,11 +64,46 @@ describe('Analytics geography', () => {
     const element: HTMLElement = fixture.nativeElement;
     expect(fixture.componentInstance.geographyCounts['ES']).toBe(5);
     expect(element.querySelectorAll('svg path.geo-map__country--active').length).toBeGreaterThan(0);
+    // Country view (default): names instead of codes, most sessions first, unknown kept as its own row.
+    expect(element.querySelectorAll('tbody tr').length).toBe(2);
+    expect(element.querySelector('tbody tr')?.textContent).toContain('España');
+    expect(element.querySelector('tbody tr')?.textContent).toContain('83,3 %');
+    expect(element.textContent).toContain('Ubicación desconocida');
+    expect(element.querySelector('tfoot')?.textContent).toContain('6');
+    fixture.componentInstance.selectGeoView('region');
+    fixture.detectChanges();
     expect(element.querySelectorAll('tbody tr').length).toBe(3);
-    expect(element.textContent).toContain('Desconocido');
-    fixture.componentInstance.sortGeography('region');
+    expect(element.querySelector('tbody tr')?.textContent).toContain('CT');
+    fixture.componentInstance.sortGeography('label');
     fixture.detectChanges();
     expect(element.querySelector('tbody tr')?.textContent).toContain('CT');
+    fixture.destroy();
+  });
+
+  it('shows cities, region names and location quality when the backend sends the detail', () => {
+    service.getOverview.and.returnValue(of({ ...overview,
+      geographyDetail: [
+        { country: 'ES', region: 'MD', regionName: 'Comunidad de Madrid', city: 'Madrid', count: 2 },
+        { country: 'ES', region: 'CT', regionName: 'Cataluña', city: 'Barcelona', count: 3 },
+        { count: 1 },
+      ],
+      geographyStatus: [{ status: 'located', count: 5 }, { status: 'private', count: 1 }],
+    }));
+    const fixture = TestBed.createComponent(AdminAnalyticsSectionComponent);
+    fixture.componentInstance.activeItem = 'geography';
+    fixture.detectChanges();
+    const element: HTMLElement = fixture.nativeElement;
+    expect(element.textContent).toContain('Ciudad aproximada por IP');
+    expect(element.textContent).toContain('Red privada o local');
+    fixture.componentInstance.selectGeoView('city');
+    fixture.detectChanges();
+    const first = element.querySelector('tbody tr')!.textContent!;
+    expect(first).toContain('Barcelona');
+    expect(first).toContain('Cataluña, España');
+    expect(first).toContain('50 %');
+    fixture.componentInstance.selectGeoView('region');
+    fixture.detectChanges();
+    expect(element.textContent).toContain('Comunidad de Madrid');
     fixture.destroy();
   });
 
@@ -232,10 +267,7 @@ describe('Analytics geography', () => {
     expect(element.textContent).toContain('2 sesiones mostradas');
     expect(element.textContent).toContain('Sin punto en el mapa: 1');
     expect(element.textContent).toContain('/guia');
-    (element.querySelector('app-live-map button') as HTMLButtonElement).click();
-    fixture.detectChanges();
-    expect(element.textContent).toContain('Actividad simulada');
-    expect(element.querySelector('app-live-map button')?.getAttribute('aria-pressed')).toBe('true');
+    expect(element.textContent).not.toContain('simulad'); // no fabricated activity anywhere
     fixture.destroy();
   });
 
@@ -252,8 +284,8 @@ describe('Analytics geography', () => {
     fixture.detectChanges();
     const markers = fixture.componentInstance.liveMarkers;
     expect(markers.length).toBe(3);
-    expect(markers.find((marker) => marker.label === 'Madrid, MD, ES')).toEqual(jasmine.objectContaining({ lat: 40.4, lng: -3.7, precision: 'ip' }));
-    expect(markers.find((marker) => marker.label === 'ES')?.precision).toBe('country');
+    expect(markers.find((marker) => marker.label === 'Madrid, MD, España')).toEqual(jasmine.objectContaining({ lat: 40.4, lng: -3.7, precision: 'ip' }));
+    expect(markers.find((marker) => marker.label === 'España')?.precision).toBe('country');
     expect(fixture.componentInstance.liveUnmapped).toBe(1);
     fixture.destroy();
   });
@@ -272,6 +304,23 @@ describe('Analytics geography', () => {
     Array.from(element.querySelectorAll('button')).find((button) => button.textContent?.includes('Ver eventos de esta sesión'))!.click();
     expect(service.getRecentEvents).toHaveBeenCalledWith(40, undefined, 'apple-session', 24);
     expect(navigate).toHaveBeenCalledWith('events');
+    fixture.destroy();
+  });
+
+  it('shows the full approximate location, its precision and network in the session table', () => {
+    const base = { startedAt: '2026-11-04T10:00:00Z', lastSeenAt: '2026-11-04T10:05:00Z' };
+    service.getLive = () => of({ activeCount: 2, sessions: [
+      { ...base, sessionId: 'geo-ok', anonId: 'a', country: 'ES', region: 'MD', city: 'Madrid', latitude: 40.4, longitude: -3.7, geo: { status: 'located', source: 'maxmind', regionName: 'Comunidad de Madrid', accuracyRadiusKm: 20, asn: 3352, asOrg: 'Telefonica de Espana' } },
+      { ...base, sessionId: 'geo-private', anonId: 'b', geo: { status: 'private' } },
+    ] });
+    const fixture = TestBed.createComponent(AdminAnalyticsSectionComponent);
+    fixture.componentInstance.activeItem = 'live';
+    fixture.detectChanges();
+    const element: HTMLElement = fixture.nativeElement;
+    const cells = Array.from(element.querySelectorAll('.session-table__row td:nth-child(3)')).map((td) => td.textContent || '');
+    expect(cells.some((text) => text.includes('Madrid, Comunidad de Madrid, España') && text.includes('±20 km') && text.includes('Telefonica de Espana (AS3352)'))).toBeTrue();
+    expect(cells.some((text) => text.includes('Ubicación desconocida') && text.includes('Red privada'))).toBeTrue();
+    expect(element.querySelector('#live-country-title')?.parentElement?.textContent).toContain('España');
     fixture.destroy();
   });
 });

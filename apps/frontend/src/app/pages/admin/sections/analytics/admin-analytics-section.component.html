@@ -65,8 +65,8 @@
             <h5>Páginas principales</h5>
             <p>{{ overview.aggregateLimitations ? 'Rutas con más eventos en los días incluidos.' : 'Rutas con más vistas durante el periodo seleccionado.' }}</p>
             <div class="overview-table-wrap">
-              <table><thead><tr><th scope="col">Página</th><th scope="col">{{ overview.aggregateLimitations ? 'Eventos' : 'Vistas' }}</th></tr></thead>
-                <tbody><tr *ngFor="let page of overview.topPages.slice(0, 8)"><td [attr.title]="page.path">{{ page.label || page.path }}</td><td>{{ page.count | number }}</td></tr></tbody>
+              <table class="ga-table"><thead><tr><th scope="col">Página</th><th scope="col" class="ga-num">{{ overview.aggregateLimitations ? 'Eventos' : 'Vistas' }}</th><th scope="col" class="ga-num">% del total</th></tr></thead>
+                <tbody><tr *ngFor="let page of overview.topPages.slice(0, 8)"><td [attr.title]="page.path"><span class="ga-label">{{ page.label || page.path }}</span><span class="ga-bar" aria-hidden="true"><span [style.width]="fmt.barWidth(page.count, overviewPageMax)"></span></span></td><td class="ga-num">{{ page.count | number }}</td><td class="ga-num">{{ fmt.share(page.count, overview.totalPageViews) }}</td></tr></tbody>
               </table>
             </div>
             <p *ngIf="!overview.topPages.length" class="overview-empty">No hay datos disponibles para este periodo.</p>
@@ -76,8 +76,8 @@
             <h5>Procedencia</h5>
             <p>{{ overview.aggregateLimitations ? 'Referentes registrados en eventos de los días incluidos.' : 'Referentes registrados en eventos de vista de página.' }}</p>
             <div class="overview-table-wrap">
-              <table><thead><tr><th scope="col">Referente</th><th scope="col">{{ overview.aggregateLimitations ? 'Eventos' : 'Vistas' }}</th></tr></thead>
-                <tbody><tr *ngFor="let ref of overview.topReferrers.slice(0, 8)"><td>{{ ref.referrer }}</td><td>{{ ref.count | number }}</td></tr></tbody>
+              <table class="ga-table"><thead><tr><th scope="col">Referente</th><th scope="col" class="ga-num">{{ overview.aggregateLimitations ? 'Eventos' : 'Vistas' }}</th></tr></thead>
+                <tbody><tr *ngFor="let ref of overview.topReferrers.slice(0, 8)"><td><span class="ga-label">{{ ref.referrer }}</span><span class="ga-bar" aria-hidden="true"><span [style.width]="fmt.barWidth(ref.count, overviewReferrerMax)"></span></span></td><td class="ga-num">{{ ref.count | number }}</td></tr></tbody>
               </table>
             </div>
             <p *ngIf="!overview.topReferrers.length" class="overview-empty">No hay referentes disponibles para este periodo.</p>
@@ -94,10 +94,10 @@
           </section>
           <section class="overview-card">
             <h5>Ubicación de las sesiones</h5>
-            <p>País y región registrados para el periodo.</p>
+            <p>Países de las sesiones del periodo (ubicación aproximada por IP).</p>
             <div *ngIf="overview.geography?.length" class="overview-table-wrap">
-              <table><thead><tr><th scope="col">País / región</th><th scope="col">Sesiones</th></tr></thead>
-                <tbody><tr *ngFor="let place of (overview.geography || []).slice(0, 5)"><td>{{ place.country }} · {{ place.region }}</td><td>{{ place.count | number }}</td></tr></tbody>
+              <table class="ga-table"><thead><tr><th scope="col">País</th><th scope="col" class="ga-num">Sesiones</th><th scope="col" class="ga-num">%</th></tr></thead>
+                <tbody><tr *ngFor="let place of overviewCountries"><td><span *ngIf="place.flag" class="ga-flag" aria-hidden="true">{{ place.flag }}</span>{{ place.name }}</td><td class="ga-num">{{ place.count | number }}</td><td class="ga-num">{{ fmt.share(place.count, overview.totalSessions) }}</td></tr></tbody>
               </table>
             </div>
             <p *ngIf="!overview.geography" class="overview-empty">La ubicación no está disponible en este almacenamiento.</p>
@@ -209,9 +209,9 @@
         </section>
         <section class="live-summary__card" aria-labelledby="live-country-title">
           <h5 id="live-country-title">Ubicación</h5>
-          <p class="live-summary__hint">País de las sesiones mostradas</p>
+          <p class="live-summary__hint">País de las sesiones mostradas, de más a menos</p>
           <p *ngIf="!liveSessions.length">No hay sesiones activas.</p>
-          <table *ngIf="liveSessions.length"><thead><tr><th scope="col">País</th><th scope="col">Sesiones</th></tr></thead><tbody><tr *ngFor="let country of liveCountries | keyvalue"><td>{{ country.key }}</td><td>{{ country.value }}</td></tr></tbody></table>
+          <table *ngIf="liveSessions.length" class="ga-table"><thead><tr><th scope="col">País</th><th scope="col" class="ga-num">Sesiones</th><th scope="col" class="ga-num">%</th></tr></thead><tbody><tr *ngFor="let country of liveCountryRows"><td><span *ngIf="country.flag" class="ga-flag" aria-hidden="true">{{ country.flag }}</span>{{ country.name }}</td><td class="ga-num">{{ country.count }}</td><td class="ga-num">{{ fmt.share(country.count, liveSessions.length) }}</td></tr></tbody></table>
         </section>
       </div>
       <section class="session-panel" aria-labelledby="sessions-title">
@@ -236,7 +236,7 @@
               <tr class="session-table__row">
                 <td><strong class="session-table__path" [attr.title]="session.lastPath">{{ session.lastPathLabel || session.lastPath || 'Ruta desconocida' }}</strong><span class="session-table__sub">Sesión {{ session.sessionId.slice(0, 8) }}</span><span *ngIf="getCrawlerName(session.userAgent) as crawler" class="session-table__badge">Rastreador identificado: {{ crawler }}</span></td>
                 <td><span>{{ getDeviceSummary(session) }}</span><span class="session-table__sub">{{ getBrowserSummary(session.userAgent) || 'Navegador desconocido' }} · {{ getOsSummary(session.userAgent) || 'Sistema desconocido' }}</span><span *ngIf="getConnectionSummary(session)" class="session-table__sub">{{ getConnectionSummary(session) }}</span></td>
-                <td>{{ session.city || session.region || session.country || 'Desconocida' }}<span *ngIf="session.city && session.country" class="session-table__sub">{{ session.country }}</span></td>
+                <td><span *ngIf="fmt.countryFlag(session.country)" class="ga-flag" aria-hidden="true">{{ fmt.countryFlag(session.country) }}</span>{{ fmt.locationLabel(session) }}<span class="session-table__sub">{{ fmt.locationPrecision(session) }}</span><span *ngIf="fmt.providerLabel(session)" class="session-table__sub">Red: {{ fmt.providerLabel(session) }}</span></td>
                 <td>{{ getSessionDuration(session) }}</td>
                 <td><time>{{ session.lastSeenAt | date:'shortTime' }}</time><span *ngIf="getIdleLabel(session)" class="session-table__idle">{{ getIdleLabel(session) }}</span></td>
                 <td><div class="session-table__actions"><button type="button" (click)="toggleSession(session.sessionId)" [attr.aria-expanded]="isExpanded(session.sessionId)" [attr.aria-controls]="'session-detail-' + session.sessionId">{{ isExpanded(session.sessionId) ? 'Ocultar detalles' : 'Ver detalles' }}</button><button type="button" (click)="openSessionEvents(session.sessionId)">Ver eventos de esta sesión</button></div></td>
@@ -247,8 +247,11 @@
                 <div><dt>Procedencia</dt><dd>{{ session.referrer || 'No disponible' }}</dd></div>
                 <div><dt>Idioma</dt><dd>{{ session.language || 'No disponible' }}</dd></div>
                 <div><dt>Zona horaria</dt><dd>{{ session.timezone || 'No disponible' }}</dd></div>
-                <div><dt>País / región</dt><dd>{{ session.country || 'Desconocido' }} / {{ session.region || 'Desconocida' }}</dd></div>
-                <div><dt>Ciudad aproximada por IP</dt><dd>{{ session.city || 'Desconocida' }}</dd></div>
+                <div><dt>Ubicación aproximada por IP</dt><dd>{{ fmt.locationLabel(session) }}</dd></div>
+                <div><dt>Precisión</dt><dd>{{ fmt.locationPrecision(session) }}</dd></div>
+                <div><dt>Proveedor de red (ASN)</dt><dd>{{ fmt.providerLabel(session) || 'No disponible' }}</dd></div>
+                <div><dt>Fuente de la ubicación</dt><dd>{{ fmt.geoSourceLabel(session.geo?.source) }}<span *ngIf="session.geo?.db"> · {{ session.geo?.db }}</span></dd></div>
+                <div *ngIf="session.latitude !== undefined && session.longitude !== undefined"><dt>Coordenadas del área (redondeadas a 0,1°)</dt><dd>{{ session.latitude }}, {{ session.longitude }}</dd></div>
                 <div><dt>Pantalla</dt><dd>{{ session.screen?.width || '—' }} × {{ session.screen?.height || '—' }}</dd></div>
                 <div><dt>Ventana</dt><dd>{{ session.viewport?.width || '—' }} × {{ session.viewport?.height || '—' }}</dd></div>
                 <div class="session-detail__wide"><dt>Agente de usuario</dt><dd>{{ session.userAgent || 'No disponible' }}</dd></div>
@@ -370,7 +373,7 @@
 
     <div *ngSwitchCase="'geography'" class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6">
       <h4 class="text-lg font-semibold text-[var(--portal-text)]">Ubicación de las sesiones</h4>
-      <p class="text-sm text-[var(--portal-text-soft)] mb-4">País y región de las sesiones del periodo seleccionado. Las ubicaciones no disponibles aparecen como desconocidas.</p>
+      <p class="text-sm text-[var(--portal-text-soft)] mb-4">País, región y ciudad aproximados (por IP) de las sesiones del periodo seleccionado. Las ubicaciones no disponibles aparecen como desconocidas.</p>
       <p *ngIf="overviewLoading" class="text-sm text-[var(--portal-text-soft)]" role="status">Cargando datos geográficos…</p>
       <p *ngIf="overviewError" class="text-sm text-[var(--portal-text)]" role="alert">No se han podido cargar los datos geográficos.</p>
       <ng-container *ngIf="overview && !overviewLoading && !overviewError">
@@ -378,28 +381,47 @@
         <p *ngIf="!overview.geography" class="text-sm text-[var(--portal-text)] mb-4" role="status">El almacenamiento activo no proporciona datos geográficos para este informe.</p>
         <p *ngIf="overview.geography && !overview.geography.length" class="text-sm text-[var(--portal-text-muted)]">No hay datos para este periodo.</p>
         <ng-container *ngIf="overview.geography?.length">
+          <div *ngIf="geoStatusRows.length" class="geo-status" aria-label="Calidad de la ubicación en el periodo">
+            <span *ngFor="let row of geoStatusRows" class="geo-status__chip" [class.geo-status__chip--ok]="row.status === 'located'"><strong>{{ row.count | number }}</strong> {{ row.label }}</span>
+          </div>
           <figure class="geo-map mb-6" aria-labelledby="geo-map-title geo-map-description">
             <figcaption id="geo-map-title" class="font-semibold text-[var(--portal-text)]">Sesiones por país</figcaption>
-            <p id="geo-map-description" class="text-sm text-[var(--portal-text-soft)]">La intensidad representa el número de sesiones. Los valores exactos, las regiones y las ubicaciones desconocidas aparecen en la tabla.</p>
+            <p id="geo-map-description" class="text-sm text-[var(--portal-text-soft)]">La intensidad representa el número de sesiones. Los valores exactos, las regiones, las ciudades y las ubicaciones desconocidas aparecen en la tabla.</p>
             <svg viewBox="0 0 720 360" role="img" aria-labelledby="geo-map-title geo-map-description" class="geo-map__svg">
               <path *ngFor="let country of worldMap" [attr.d]="country.path" [class.geo-map__country--active]="geographyCounts[country.code]" [style.opacity]="geographyCounts[country.code] ? 0.35 + 0.65 * geographyCounts[country.code] / geographyMax : 1">
-                <title>{{ country.code }}: {{ geographyCounts[country.code] || 0 }} sesiones</title>
+                <title>{{ fmt.countryName(country.code) }}: {{ geographyCounts[country.code] || 0 }} sesiones</title>
               </path>
             </svg>
             <div class="geo-map__legend text-sm text-[var(--portal-text-soft)]"><span class="geo-map__empty" aria-hidden="true"></span><span>Sin sesiones</span><span>Menos</span><span class="geo-map__scale" aria-hidden="true"></span><span>Más ({{ geographyMax }})</span></div>
             <p class="text-xs text-[var(--portal-text-soft)] mt-2">Mapa simplificado: algunos territorios pequeños pueden no aparecer. Fuente cartográfica: Natural Earth.</p>
           </figure>
-          <div class="overflow-x-auto" tabindex="0" role="region" aria-label="Tabla de sesiones por país y región">
-            <table class="w-full text-sm text-left">
-              <caption class="sr-only">Sesiones por país y región durante el periodo seleccionado</caption>
+          <div class="geo-toolbar">
+            <div class="geo-tabs" role="tablist" aria-label="Nivel de detalle">
+              <button type="button" role="tab" [attr.aria-selected]="geoView === 'country'" (click)="selectGeoView('country')">País</button>
+              <button type="button" role="tab" [attr.aria-selected]="geoView === 'region'" (click)="selectGeoView('region')">Región</button>
+              <button type="button" role="tab" [attr.aria-selected]="geoView === 'city'" [disabled]="!hasGeoDetail" [attr.title]="hasGeoDetail ? null : 'El backend conectado no envía el desglose por ciudad'" (click)="selectGeoView('city')">Ciudad</button>
+            </div>
+            <span class="text-sm text-[var(--portal-text-soft)]">{{ geoRows.length | number }} filas · {{ geoTotal | number }} sesiones</span>
+          </div>
+          <div class="overflow-x-auto" tabindex="0" role="region" aria-label="Tabla de sesiones por ubicación">
+            <table class="ga-table ga-table--full">
+              <caption class="sr-only">Sesiones por {{ geoView === 'country' ? 'país' : geoView === 'region' ? 'región' : 'ciudad' }} durante el periodo seleccionado</caption>
               <thead><tr>
-                <th class="p-3" scope="col" [attr.aria-sort]="geographySortDirection('country')"><button type="button" class="geo-sort" (click)="sortGeography('country')">País ↕</button></th>
-                <th class="p-3" scope="col" [attr.aria-sort]="geographySortDirection('region')"><button type="button" class="geo-sort" (click)="sortGeography('region')">Región ↕</button></th>
-                <th class="p-3" scope="col" [attr.aria-sort]="geographySortDirection('count')"><button type="button" class="geo-sort" (click)="sortGeography('count')">Sesiones ↕</button></th>
+                <th scope="col" [attr.aria-sort]="geographySortDirection('label')"><button type="button" class="geo-sort" (click)="sortGeography('label')">{{ geoView === 'country' ? 'País' : geoView === 'region' ? 'Región' : 'Ciudad' }} ↕</button></th>
+                <th scope="col" class="ga-num" [attr.aria-sort]="geographySortDirection('count')"><button type="button" class="geo-sort" (click)="sortGeography('count')">Sesiones ↕</button></th>
+                <th scope="col" class="ga-num">% del total</th>
               </tr></thead>
-              <tbody><tr *ngFor="let place of sortedGeography" class="border-t border-[var(--portal-border)]"><td class="p-3">{{ place.country }}</td><td class="p-3">{{ place.region }}</td><td class="p-3">{{ place.count }}</td></tr></tbody>
+              <tbody>
+                <tr *ngFor="let row of geoRows" [class.ga-row--unknown]="row.unknown">
+                  <td><span *ngIf="row.flag" class="ga-flag" aria-hidden="true">{{ row.flag }}</span><span class="ga-label">{{ row.label }}</span><span *ngIf="row.detail" class="ga-detail">{{ row.detail }}</span><span class="ga-bar" aria-hidden="true"><span [style.width]="fmt.barWidth(row.count, geoMax)"></span></span></td>
+                  <td class="ga-num">{{ row.count | number }}</td>
+                  <td class="ga-num">{{ fmt.share(row.count, geoTotal) }}</td>
+                </tr>
+              </tbody>
+              <tfoot><tr><th scope="row">Total</th><td class="ga-num">{{ geoTotal | number }}</td><td class="ga-num">100 %</td></tr></tfoot>
             </table>
           </div>
+          <p class="text-xs text-[var(--portal-text-soft)] mt-2">Ubicación aproximada según la IP (base GeoIP local o cabeceras de un proxy de confianza). No identifica a nadie ni indica una posición exacta; las sesiones sin datos aparecen como desconocidas.</p>
         </ng-container>
       </ng-container>
     </div>

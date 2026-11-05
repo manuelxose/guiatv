@@ -6,6 +6,7 @@ import { isLongIdle } from './analyticsActivity';
 import {
   AnalyticsEventQuery,
   AnalyticsEventRecord,
+  AnalyticsGeoBucket,
   AnalyticsOverview,
   AnalyticsRealtimePages,
   AnalyticsSessionActivity,
@@ -22,6 +23,9 @@ const SESSION_EVENT_MAX = 200;
 const SESSION_EVENT_TTL_SECONDS = 48 * 60 * 60;
 /** Window in which a repeated eventId (client retry, beacon + fetch) is ignored. */
 const EVENT_DEDUPE_TTL_SECONDS = 60 * 60;
+/** Distinct country/region/city combinations kept per day (least frequent dropped first). */
+const GEO_DAY_MAX = 1_000;
+const GEO_SEPARATOR = '\u001f';
 
 const DEFAULT_TTL_DAYS = Number.parseInt(
   process.env.ANALYTICS_TTL_DAYS || '14',
@@ -235,6 +239,15 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
       pipeline.expire(this.sessionCountKey(day), this.ttlSeconds);
       pipeline.pfAdd(this.uniqueKey(day), payload.anonId);
       pipeline.expire(this.uniqueKey(day), this.ttlSeconds);
+      if (this.piiMode !== 'none') {
+        // Daily location aggregates (the realtime index has no location): same counting rule as the sessions.
+        const member = [payload.country, payload.region, payload.city, payload.geo?.regionName].map((value) => (value || '').replace(/\u001f/g, ' ')).join(GEO_SEPARATOR);
+        pipeline.zIncrBy(this.geoKey(day), 1, member);
+        pipeline.zRemRangeByRank(this.geoKey(day), 0, -GEO_DAY_MAX - 1);
+        pipeline.expire(this.geoKey(day), this.ttlSeconds);
+        pipeline.hIncrBy(this.geoStatusKey(day), payload.geo?.status || (payload.country ? 'country_only' : 'none'), 1);
+        pipeline.expire(this.geoStatusKey(day), this.ttlSeconds);
+      }
     }
 
     await pipeline.exec();
@@ -487,10 +500,11 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
 
     const uniqueVisitors = await this.countUniques(uniqueKeys);
 
-    const [topPages, topReferrers, activeNow] = await Promise.all([
+    const [topPages, topReferrers, activeNow, geo] = await Promise.all([
       this.aggregateTopPages(days),
       this.aggregateTopReferrers(days),
       this.countLiveSessions(liveWindowSec),
+      this.piiMode === 'none' ? Promise.resolve(null) : this.aggregateGeography(days),
     ]);
 
     return {
@@ -504,6 +518,7 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
       sessionsByDay,
       aggregateLimitations: true,
       geographyCollectionEnabled: this.piiMode !== 'none',
+      ...(geo || {}),
     };
   }
 
@@ -726,6 +741,39 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 10)
       .map(([referrer, count]) => ({ referrer, count }));
+  }
+
+  private async aggregateGeography(days: string[]): Promise<Pick<AnalyticsOverview, 'geography' | 'geographyDetail' | 'geographyStatus'>> {
+    const [sets, statuses] = await Promise.all([
+      Promise.all(days.map((day) => this.client.zRangeWithScores(this.geoKey(day), 0, -1))),
+      Promise.all(days.map((day) => this.client.hGetAll(this.geoStatusKey(day)))),
+    ]);
+    const detail = new Map<string, number>();
+    for (const entries of sets) for (const entry of entries) detail.set(entry.value, (detail.get(entry.value) || 0) + entry.score);
+    const byRegion = new Map<string, { country: string; region: string; count: number }>();
+    const buckets = [...detail].map(([member, count]) => {
+      const [country, region, city, regionName] = member.split(GEO_SEPARATOR);
+      const regionKey = `${country || 'Desconocido'}${GEO_SEPARATOR}${region || 'Desconocido'}`;
+      const row = byRegion.get(regionKey) || { country: country || 'Desconocido', region: region || 'Desconocido', count: 0 };
+      row.count += count;
+      byRegion.set(regionKey, row);
+      return Object.fromEntries(Object.entries({ country, region, city, regionName, count }).filter(([, value]) => value !== '' && value !== undefined)) as unknown as AnalyticsGeoBucket;
+    });
+    const status = new Map<string, number>();
+    for (const hash of statuses) for (const [key, value] of Object.entries(this.normalizeHashReply(hash) || {})) status.set(key, (status.get(key) || 0) + this.toNumber(value));
+    return {
+      geography: [...byRegion.values()].sort((a, b) => b.count - a.count),
+      geographyDetail: buckets.sort((a, b) => b.count - a.count).slice(0, 200),
+      geographyStatus: [...status].map(([key, count]) => ({ status: key, count })).sort((a, b) => b.count - a.count),
+    };
+  }
+
+  private geoKey(day: string): string {
+    return `analytics:geo:${day}`;
+  }
+
+  private geoStatusKey(day: string): string {
+    return `analytics:geo:status:${day}`;
   }
 
   private pruneTopSet(pipeline: ReturnType<RedisClientType['multi']>, key: string): void {

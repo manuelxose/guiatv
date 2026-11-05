@@ -18,6 +18,8 @@ export interface AdminAnalyticsOverview {
   geographyDetailConfigured?: boolean;
   aggregateLimitations?: boolean;
   geographyCollectionEnabled?: boolean;
+  geographyDetail?: Array<{ country?: string; region?: string; regionName?: string; city?: string; count: number }>;
+  geographyStatus?: Array<{ status: string; count: number }>;
   store?: 'mongo' | 'valkey';
   geoipEnabled?: boolean;
 }
