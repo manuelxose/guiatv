@@ -164,3 +164,17 @@
 .overview-card .ga-table th, .overview-card .ga-table td { overflow-wrap: break-word; word-break: normal; }
 .live-summary__card .ga-table th:last-child, .live-summary__card .ga-table td:last-child { width: auto; }
 .ga-table td:first-child { min-width: 7rem; }
+
+/* Exclusions tab */
+.excl-you { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem; border: 1px solid var(--portal-border); border-radius: var(--radius-md); margin-bottom: 1rem; }
+.excl-you > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: .6rem; }
+.excl-ip { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.05rem; }
+.excl-badge { padding: .15rem .55rem; border-radius: 999px; border: 1px solid var(--portal-border-strong); font-size: .78rem; color: var(--portal-text-soft); }
+.excl-badge--ok { border-color: var(--accent-streaming, #2563eb); color: var(--portal-text); }
+.excl-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .75rem; }
+.excl-form label { display: grid; gap: .3rem; font-size: .8125rem; color: var(--portal-text-soft); flex: 1 1 14rem; }
+.excl-form input { min-height: 44px; padding: .5rem .75rem; border: 1px solid var(--portal-border-strong); border-radius: var(--radius-md); background: var(--portal-surface); color: var(--portal-text); font: inherit; }
+.excl-btn { min-height: 44px; padding: .5rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--portal-text); background: var(--portal-text); color: var(--portal-surface); font-weight: 600; }
+.excl-btn:disabled { opacity: .5; cursor: not-allowed; }
+.excl-remove { min-height: 36px; color: var(--spotify-negative, #c0392b); }
+.excl-remove:hover { text-decoration: underline; }

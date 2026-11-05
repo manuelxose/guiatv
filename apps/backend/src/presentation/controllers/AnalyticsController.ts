@@ -6,13 +6,14 @@ import { ValidationError } from '../../shared/errors';
 import { analyticsExclusions } from '../../infrastructure/repositories/analyticsExclusions';
 import { AuthenticatedRequest } from '../middlewares/authGuard';
 import { analyticsClientIp, isTrustedAnalyticsProxy } from './analyticsClientIp';
-import { anonymizeIp } from '../../infrastructure/analytics/ipPrivacy';
+import { anonymizeIp, canonicalIp } from '../../infrastructure/analytics/ipPrivacy';
 import { LIVE_IDLE_LIMIT_SECONDS } from '../../infrastructure/repositories/analyticsActivity';
 import { TelemetryIngestService } from '../../application/services/analytics/TelemetryIngestService';
 import { TelemetryFlagSource, telemetryFlags } from '../../application/services/analytics/telemetryFlags';
 import { NormalizedBatch, TELEMETRY_LIMITS, normalizeEvent, normalizeSession, validateCollectBatch } from '../../application/services/analytics/telemetryValidation';
 import { PathLabelResolver } from '../../application/services/analytics/pathLabels';
 import { Ga4ReportingService } from '../../infrastructure/analytics/Ga4ReportingService';
+import { AnalyticsExclusionService, ExclusionError } from '../../application/services/analytics/AnalyticsExclusionService';
 
 /** Legacy per-event endpoints (pre-consent collector still cached in open tabs). Off unless explicitly accepted. */
 const legacyAccepted = () => process.env.ANALYTICS_LEGACY_ENDPOINTS === 'accept';
@@ -25,8 +26,41 @@ export class AnalyticsController {
     private readonly flags: TelemetryFlagSource = telemetryFlags,
     private readonly labels?: PathLabelResolver,
     private readonly storeKind: 'mongo' | 'valkey' = 'mongo',
-    private readonly ga4Reporting?: Ga4ReportingService
+    private readonly ga4Reporting?: Ga4ReportingService,
+    private readonly exclusions?: AnalyticsExclusionService
   ) {}
+
+  /** `GET /exclusions` (admin): every rule (built-in and manual) plus the requester's own address and status. */
+  async getExclusions(req: Request, res: Response): Promise<void> {
+    if (!this.exclusions) { res.status(501).json({ success: false, code: 'unsupported', message: 'Exclusiones no disponibles en este backend.' }); return; }
+    const ip = canonicalIp(this.getClientInfo(req).ip);
+    // The requester's own address only, to themselves (admin-only, no-store): needed to exclude it.
+    res.status(200).json(successResponse({ entries: await this.exclusions.list(), you: { ip: ip || null, excludedBy: ip ? this.exclusions.matching(ip) : [] } }));
+  }
+
+  /** `POST /exclusions` (admin): `{ value: ip|cidr, label? }` or `{ mine: true, label? }`. */
+  async addExclusion(req: Request, res: Response): Promise<void> {
+    if (!this.exclusions) { res.status(501).json({ success: false, code: 'unsupported', message: 'Exclusiones no disponibles en este backend.' }); return; }
+    const body = req.body || {};
+    const value = body.mine === true ? canonicalIp(this.getClientInfo(req).ip) : typeof body.value === 'string' ? body.value : '';
+    const user = (req as AuthenticatedRequest).user;
+    try {
+      const entry = await this.exclusions.add(value, typeof body.label === 'string' ? body.label : body.mine === true ? 'Mi IP (administración)' : undefined, user?.email || user?.id || 'admin-key');
+      res.status(201).json(successResponse({ entry }));
+    } catch (error) {
+      if (error instanceof ExclusionError) { res.status(400).json({ success: false, message: error.message }); return; }
+      throw error;
+    }
+  }
+
+  /** `DELETE /exclusions/:id` (admin). */
+  async removeExclusion(req: Request, res: Response): Promise<void> {
+    if (!this.exclusions) { res.status(501).json({ success: false, code: 'unsupported', message: 'Exclusiones no disponibles en este backend.' }); return; }
+    const id = String(req.params.id || '');
+    if (!/^[a-f0-9]{24}$/i.test(id)) { res.status(400).json({ success: false, message: 'Identificador no válido.' }); return; }
+    const removed = await this.exclusions.remove(id);
+    res.status(removed ? 200 : 404).json(removed ? successResponse({ removed: true }) : { success: false, message: 'No existe esa exclusión.' });
+  }
 
   /** `GET /ga4/demographics` (admin): aggregate GA4 age/gender/interests exactly as GA4 reports them, or why not. */
   async getGa4Demographics(req: Request, res: Response): Promise<void> {

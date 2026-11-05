@@ -8,7 +8,7 @@
       <p *ngIf="lastUpdated && activeItem !== 'pages'" class="text-sm text-[var(--portal-text-soft)]">Última respuesta recibida: {{ lastUpdated | date:'short' }}</p>
     </div>
     <div class="flex flex-wrap items-center gap-2">
-      <div *ngIf="activeItem !== 'live' && activeItem !== 'pages'" class="flex items-center gap-2 rounded-full border border-[var(--portal-border)] bg-[var(--portal-surface)] px-2 py-1">
+      <div *ngIf="!['live', 'pages', 'diagnostics', 'exclusions'].includes(activeItem)" class="flex items-center gap-2 rounded-full border border-[var(--portal-border)] bg-[var(--portal-surface)] px-2 py-1">
         <button
           *ngFor="let range of ranges"
           class="px-3 py-1.5 rounded-full text-xs transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
@@ -24,7 +24,7 @@
         type="button"
         class="px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text)] hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
         (click)="exportCsv()"
-        [disabled]="(['overview', 'geography'].includes(activeItem) && (overviewLoading || overviewError || !overview)) || (activeItem === 'geography' && !overview?.geography) || (activeItem === 'pages' && (!realtimePages || realtimePagesError))"
+        [disabled]="activeItem === 'exclusions' || activeItem === 'diagnostics' || (['overview', 'geography'].includes(activeItem) && (overviewLoading || overviewError || !overview)) || (activeItem === 'geography' && !overview?.geography) || (activeItem === 'pages' && (!realtimePages || realtimePagesError))"
       >
         Exportar CSV
       </button>
@@ -482,6 +482,52 @@
             </div>
           </div>
           <p *ngIf="ga4.available" class="text-xs text-[var(--portal-text-faint)] mt-2">Últimos {{ $any(ga4).days }} días · propiedad {{ $any(ga4).propertyId }} · {{ $any(ga4).cached ? 'en caché' : 'consultado' }} {{ $any(ga4).generatedAt | date:'short' }}</p>
+        </ng-container>
+      </section>
+    </div>
+    <div *ngSwitchCase="'exclusions'" class="space-y-6 analytics-exclusions">
+      <section class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6" aria-labelledby="excl-title">
+        <h4 id="excl-title" class="text-lg font-semibold text-[var(--portal-text)] mb-1">Direcciones excluidas de Analytics</h4>
+        <p class="text-sm text-[var(--portal-text-soft)] mb-4">El tráfico de estas IPs o rangos no cuenta en ningún informe (sesiones, páginas, tiempo real, geografía). Se aplica desde el momento en que se añade: los datos anteriores solo guardan la IP recortada y no se pueden volver a evaluar. Las cuentas de administración ya se excluyen solas al navegar con sesión iniciada.</p>
+        <p *ngIf="exclusionsError" class="text-sm text-[var(--spotify-warning)]" role="alert">{{ exclusionsError }}</p>
+        <p *ngIf="!exclusions && !exclusionsError" class="text-sm text-[var(--portal-text-soft)]" role="status">Cargando…</p>
+        <ng-container *ngIf="exclusions as ex">
+          <div class="excl-you">
+            <div>
+              <span class="text-sm text-[var(--portal-text-soft)]">Tu IP actual</span>
+              <strong class="excl-ip">{{ ex.you.ip || 'No disponible' }}</strong>
+              <span *ngIf="ex.you.excludedBy.length" class="excl-badge excl-badge--ok">Excluida ({{ ex.you.excludedBy[0].label || ex.you.excludedBy[0].value }})</span>
+              <span *ngIf="ex.you.ip && !ex.you.excludedBy.length" class="excl-badge">Se está contando</span>
+            </div>
+            <button type="button" class="excl-btn" [disabled]="exclusionBusy || !ex.you.ip || ex.you.excludedBy.length > 0" (click)="addExclusion('', '', true)">Excluir mi IP</button>
+          </div>
+          <form class="excl-form" (submit)="$event.preventDefault(); addExclusion(exclValue.value, exclLabel.value); exclValue.value = ''; exclLabel.value = ''">
+            <label>IP o rango CIDR <input #exclValue type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="203.0.113.7 · 203.0.113.0/24 · 2001:db8::/48" maxlength="64"></label>
+            <label>Etiqueta (opcional) <input #exclLabel type="text" placeholder="Oficina, servidor de pruebas…" maxlength="80"></label>
+            <button type="submit" class="excl-btn" [disabled]="exclusionBusy">Excluir</button>
+          </form>
+          <p *ngIf="exclusionFormError" class="text-sm text-[var(--spotify-warning)]" role="alert">{{ exclusionFormError }}</p>
+          <h5 class="font-semibold text-[var(--portal-text)] mt-6 mb-2">Añadidas en el panel</h5>
+          <p *ngIf="!manualExclusions.length" class="text-sm text-[var(--portal-text-soft)]">Todavía no hay exclusiones manuales.</p>
+          <div *ngIf="manualExclusions.length" class="overflow-x-auto" tabindex="0" role="region" aria-label="Exclusiones añadidas en el panel">
+            <table class="ga-table">
+              <thead><tr><th scope="col">IP o rango</th><th scope="col">Etiqueta</th><th scope="col">Añadida</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
+              <tbody><tr *ngFor="let entry of manualExclusions">
+                <td><code>{{ entry.value }}</code></td>
+                <td>{{ entry.label || '—' }}</td>
+                <td>{{ entry.createdAt ? (entry.createdAt | date:'short') : '—' }}<span *ngIf="entry.createdBy" class="ga-detail">{{ entry.createdBy }}</span></td>
+                <td class="ga-num"><button type="button" class="excl-remove" [disabled]="exclusionBusy" (click)="removeExclusion(entry.id, entry.value)">Quitar</button></td>
+              </tr></tbody>
+            </table>
+          </div>
+          <h5 class="font-semibold text-[var(--portal-text)] mt-6 mb-2">Automáticas</h5>
+          <p class="text-sm text-[var(--portal-text-soft)] mb-2">Siempre excluidas; no se pueden quitar desde aquí.</p>
+          <div class="overflow-x-auto" tabindex="0" role="region" aria-label="Exclusiones automáticas">
+            <table class="ga-table">
+              <thead><tr><th scope="col">IP o rango</th><th scope="col">Origen</th></tr></thead>
+              <tbody><tr *ngFor="let entry of automaticExclusions"><td><code>{{ entry.value }}</code></td><td>{{ exclusionSourceLabels[entry.source] || entry.source }}</td></tr></tbody>
+            </table>
+          </div>
         </ng-container>
       </section>
     </div>

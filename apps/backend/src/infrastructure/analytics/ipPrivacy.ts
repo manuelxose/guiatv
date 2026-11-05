@@ -73,3 +73,46 @@ export function isPrivateOrLocalIp(raw: string | undefined | null): boolean {
 export function excludedIpSet(env: NodeJS.ProcessEnv = process.env): Set<string> {
   return new Set(['127.0.0.1', '::1', ...(env.ANALYTICS_EXCLUDED_IPS || '').split(',')].map((ip) => canonicalIp(ip)).filter(Boolean));
 }
+
+/** An exact address or a CIDR range, canonicalised ("203.0.113.0/24", "2001:db8::/48", "198.51.100.7"). */
+export interface IpRule {
+  value: string;
+  version: 4 | 6;
+  base: bigint;
+  prefix: number;
+}
+
+function toBigInt(ip: string): { version: 4 | 6; value: bigint } | null {
+  const canonical = canonicalIp(ip);
+  const kind = isIP(canonical);
+  if (kind === 4) return { version: 4, value: canonical.split('.').reduce((acc, octet) => (acc << 8n) | BigInt(Number(octet)), 0n) };
+  if (kind === 6) return { version: 6, value: expandIpv6(canonical).reduce((acc, group) => (acc << 16n) | BigInt(parseInt(group, 16)), 0n) };
+  return null;
+}
+
+/** Parses "a.b.c.d", "a.b.c.d/n", "v6" or "v6/n"; null when invalid (bad address, prefix out of range). */
+export function parseIpRule(input: string): IpRule | null {
+  const raw = String(input || '').trim();
+  const [address, prefixText, extra] = raw.split('/');
+  if (extra !== undefined || !address) return null;
+  const parsed = toBigInt(address);
+  if (!parsed) return null;
+  const bits = parsed.version === 4 ? 32 : 128;
+  const prefix = prefixText === undefined ? bits : /^\d{1,3}$/.test(prefixText) ? Number(prefixText) : NaN;
+  if (!Number.isInteger(prefix) || prefix < 0 || prefix > bits) return null;
+  const mask = prefix === 0 ? 0n : ((1n << BigInt(prefix)) - 1n) << BigInt(bits - prefix);
+  const base = parsed.value & mask;
+  const text = parsed.version === 4
+    ? [24n, 16n, 8n, 0n].map((shift) => String((base >> shift) & 255n)).join('.')
+    : new URL(`http://[${Array.from({ length: 8 }, (_, i) => ((base >> BigInt(112 - i * 16)) & 0xffffn).toString(16)).join(':')}]/`).hostname.slice(1, -1);
+  return { value: prefix === bits ? text : `${text}/${prefix}`, version: parsed.version, base, prefix };
+}
+
+export function ipMatchesRule(ip: string, rule: IpRule): boolean {
+  const parsed = toBigInt(ip);
+  if (!parsed || parsed.version !== rule.version) return false;
+  const bits = rule.version === 4 ? 32 : 128;
+  if (rule.prefix === 0) return true;
+  const mask = ((1n << BigInt(rule.prefix)) - 1n) << BigInt(bits - rule.prefix);
+  return (parsed.value & mask) === rule.base;
+}

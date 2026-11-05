@@ -115,6 +115,20 @@ export type AdminGa4Demographics =
   | { available: true; propertyId: string; days: number; generatedAt: string; cached: boolean; breakdowns: AdminGa4Breakdown[] }
   | { available: false; reason: string; message: string };
 
+export interface AdminAnalyticsExclusion {
+  id?: string;
+  value: string;
+  label?: string;
+  createdAt?: string;
+  createdBy?: string;
+  source: 'manual' | 'env' | 'server' | 'loopback';
+}
+
+export interface AdminAnalyticsExclusions {
+  entries: AdminAnalyticsExclusion[];
+  you: { ip: string | null; excludedBy: AdminAnalyticsExclusion[] };
+}
+
 export type AnalyticsErrorKind = 'network' | 'unauthorized' | 'forbidden' | 'not_deployed' | 'storage_unavailable' | 'unsupported_store' | 'rate_limited' | 'server' | 'unknown';
 
 /**
@@ -223,6 +237,18 @@ export class AdminAnalyticsService {
     return this.http
       .get<ApiResponse<{ ga4: AdminGa4Demographics }>>(`${this.baseUrl}/analytics/ga4/demographics?days=${days}`, { headers: this.buildHeaders() })
       .pipe(map((resp) => resp.data.ga4));
+  }
+
+  getExclusions(): Observable<AdminAnalyticsExclusions> {
+    return this.http.get<ApiResponse<AdminAnalyticsExclusions>>(`${this.baseUrl}/analytics/exclusions`, { headers: this.buildHeaders() }).pipe(map((resp) => resp.data));
+  }
+
+  addExclusion(body: { value?: string; label?: string; mine?: boolean }): Observable<AdminAnalyticsExclusion> {
+    return this.http.post<ApiResponse<{ entry: AdminAnalyticsExclusion }>>(`${this.baseUrl}/analytics/exclusions`, body, { headers: this.buildHeaders() }).pipe(map((resp) => resp.data.entry));
+  }
+
+  removeExclusion(id: string): Observable<boolean> {
+    return this.http.delete<ApiResponse<{ removed: boolean }>>(`${this.baseUrl}/analytics/exclusions/${encodeURIComponent(id)}`, { headers: this.buildHeaders() }).pipe(map(() => true));
   }
 
   private buildHeaders(): HttpHeaders {

@@ -21,6 +21,7 @@ import {
   AdminRealtimePages,
   AdminAnalyticsDiagnostics,
   AdminGa4Demographics,
+  AdminAnalyticsExclusions,
   describeAnalyticsError,
 } from '../../../../services/admin-analytics.service';
 import {
@@ -160,6 +161,7 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
     if (this.activeItem === 'journeys' && !this.journeysLoaded) this.loadJourneys();
     if (this.activeItem === 'retention' && !this.retentionLoaded) this.loadRetention();
     if (this.activeItem === 'diagnostics') this.loadDiagnostics();
+    if (this.activeItem === 'exclusions') this.loadExclusions();
   }
 
   toggleSession(sessionId: string): void {
@@ -478,6 +480,7 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
     if (this.activeItem === 'retention') this.loadRetention();
     if (this.activeItem === 'pages') this.loadRealtimePages();
     if (this.activeItem === 'diagnostics') this.loadDiagnostics();
+    if (this.activeItem === 'exclusions') this.loadExclusions();
   }
 
   private loadRealtimePages(): void {
@@ -664,6 +667,49 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
 
   ga4Share(row: { activeUsers: number }, total: number): number {
     return total > 0 ? Math.round((row.activeUsers / total) * 1000) / 10 : 0;
+  }
+
+  public exclusions: AdminAnalyticsExclusions | null = null;
+  public exclusionsError: string | null = null;
+  public exclusionFormError: string | null = null;
+  public exclusionBusy = false;
+  public readonly exclusionSourceLabels: Record<string, string> = { manual: 'Añadida en el panel', env: 'Configuración del servidor (ANALYTICS_EXCLUDED_IPS)', server: 'Automática: dirección del propio servidor', loopback: 'Automática: este servidor (loopback)' };
+
+  get manualExclusions() {
+    return (this.exclusions?.entries || []).filter((entry) => entry.source === 'manual');
+  }
+
+  get automaticExclusions() {
+    return (this.exclusions?.entries || []).filter((entry) => entry.source !== 'manual');
+  }
+
+  loadExclusions(): void {
+    this.exclusionsError = null;
+    this.analyticsService.getExclusions().subscribe({
+      next: (result) => { this.exclusions = result; this.touchUpdated(); },
+      error: (error) => { this.exclusions = null; this.exclusionsError = describeAnalyticsError(error).message; },
+    });
+  }
+
+  addExclusion(value: string, label: string, mine = false): void {
+    if (this.exclusionBusy) return;
+    if (!mine && !value.trim()) { this.exclusionFormError = 'Escribe una dirección IP o un rango CIDR.'; return; }
+    this.exclusionBusy = true;
+    this.exclusionFormError = null;
+    this.analyticsService.addExclusion(mine ? { mine: true, label: label.trim() || undefined } : { value: value.trim(), label: label.trim() || undefined }).subscribe({
+      next: () => { this.exclusionBusy = false; this.loadExclusions(); },
+      error: (error) => { this.exclusionBusy = false; this.exclusionFormError = error?.status === 400 && error?.error?.message ? error.error.message : describeAnalyticsError(error).message; },
+    });
+  }
+
+  removeExclusion(id: string | undefined, value: string): void {
+    if (!id || this.exclusionBusy) return;
+    if (typeof window !== 'undefined' && !window.confirm(`¿Volver a contar el tráfico de ${value}?`)) return;
+    this.exclusionBusy = true;
+    this.analyticsService.removeExclusion(id).subscribe({
+      next: () => { this.exclusionBusy = false; this.loadExclusions(); },
+      error: (error) => { this.exclusionBusy = false; this.exclusionFormError = describeAnalyticsError(error).message; },
+    });
   }
 
   private touchUpdated(): void {

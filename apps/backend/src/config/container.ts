@@ -681,14 +681,25 @@ export class Container {
     const { DEFAULT_INGEST_OPTIONS } = await import('../application/services/analytics/TelemetryIngestQueue');
     const ingestAuthService = this.get<{ getSession(token: string): Promise<{ role?: string }> }>('authService');
     // Role of a bearer token, resolved by the drain loop (cached 5 min), never awaited by the /collect request.
-    const telemetryIngestService = new TelemetryIngestService(this.get('analyticsRepository'), geoIpService, DEFAULT_INGEST_OPTIONS, async (token) => (await ingestAuthService.getSession(token))?.role);
+    // Excluded addresses: loopback, this host's own addresses, ANALYTICS_EXCLUDED_IPS and admin-managed rules (Mongo,
+    // whatever the analytics store), cached in memory for the ingestion loop.
+    const { AnalyticsExclusionService } = await import('../application/services/analytics/AnalyticsExclusionService');
+    const { AnalyticsExclusionModel } = await import('../infrastructure/database/models/AnalyticsExclusion.model');
+    const analyticsExclusions = new AnalyticsExclusionService({
+      list: async () => ((await AnalyticsExclusionModel.find({}).sort({ createdAt: 1 }).limit(500).lean().exec()) as unknown as Array<{ _id: unknown; value: string; label?: string; createdAt?: Date; createdBy?: string }>)
+        .map((row) => ({ id: String(row._id), value: row.value, label: row.label, createdAt: row.createdAt, createdBy: row.createdBy })),
+      add: async (entry) => ({ id: String((await AnalyticsExclusionModel.create(entry))._id) }),
+      remove: async (id) => (await AnalyticsExclusionModel.deleteOne({ _id: id }).exec()).deletedCount > 0,
+    });
+    this.dependencies.set('analyticsExclusions', analyticsExclusions);
+    const telemetryIngestService = new TelemetryIngestService(this.get('analyticsRepository'), geoIpService, DEFAULT_INGEST_OPTIONS, async (token) => (await ingestAuthService.getSession(token))?.role, analyticsExclusions);
     this.dependencies.set('telemetryIngestService', telemetryIngestService);
     const pathLabels = new PathLabelResolver(async (ids) => {
       const rows = (await TVReadAiringModel.find({ id: { $in: ids } }, { _id: 0, id: 1, 'program.title': 1, 'channel.name': 1, 'airing.start': 1 }).limit(ids.length).lean().exec()) as unknown as Array<{ id: string; program?: { title?: string }; channel?: { name?: string }; airing?: { start?: string } }>;
       return rows.map((row) => ({ id: row.id, title: row.program?.title, channelName: row.channel?.name, start: row.airing?.start }));
     });
     const { Ga4ReportingService } = await import('../infrastructure/analytics/Ga4ReportingService');
-    const analyticsController = new AnalyticsController(this.get('analyticsService'), telemetryIngestService, telemetryFlags, pathLabels, this.get('analyticsStoreKind'), new Ga4ReportingService());
+    const analyticsController = new AnalyticsController(this.get('analyticsService'), telemetryIngestService, telemetryFlags, pathLabels, this.get('analyticsStoreKind'), new Ga4ReportingService(), analyticsExclusions);
     this.dependencies.set('analyticsController', analyticsController);
 
     const monetizationController = new MonetizationController(this.get('monetizationService'));

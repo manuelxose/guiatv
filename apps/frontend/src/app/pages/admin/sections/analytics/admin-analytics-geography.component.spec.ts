@@ -323,4 +323,32 @@ describe('Analytics geography', () => {
     expect(element.querySelector('#live-country-title')?.parentElement?.textContent).toContain('España');
     fixture.destroy();
   });
+
+  it('exclusions tab: shows my IP, adds "mine", lists manual and automatic rules, surfaces validation errors', () => {
+    let entries: any[] = [{ value: '127.0.0.1', source: 'loopback' }, { value: '203.0.113.50', source: 'server' }];
+    service.getExclusions = jasmine.createSpy().and.callFake(() => of({ entries, you: { ip: '81.2.69.142', excludedBy: entries.filter((e) => e.value === '81.2.69.142') } }));
+    service.addExclusion = jasmine.createSpy().and.callFake((body: any) => {
+      if (body.value === 'bad') return throwError(() => ({ status: 400, error: { message: 'Dirección IP o rango CIDR no válido' } }));
+      entries = [...entries, { id: 'a'.repeat(24), value: '81.2.69.142', label: 'Mi IP (administración)', source: 'manual' }];
+      return of(entries[entries.length - 1]);
+    });
+    service.removeExclusion = jasmine.createSpy().and.returnValue(of(true));
+    const fixture = TestBed.createComponent(AdminAnalyticsSectionComponent);
+    fixture.componentInstance.activeItem = 'exclusions';
+    fixture.detectChanges();
+    const element: HTMLElement = fixture.nativeElement;
+    expect(element.textContent).toContain('81.2.69.142');
+    expect(element.textContent).toContain('Se está contando');
+    expect(element.textContent).toContain('Automática: dirección del propio servidor');
+    expect(element.textContent).toContain('Todavía no hay exclusiones manuales');
+    (Array.from(element.querySelectorAll('button')).find((b) => b.textContent?.includes('Excluir mi IP')) as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(service.addExclusion).toHaveBeenCalledWith({ mine: true, label: undefined });
+    expect(element.textContent).toContain('Excluida (Mi IP (administración))');
+    expect(element.querySelector('.excl-remove')).not.toBeNull();
+    fixture.componentInstance.addExclusion('bad', '');
+    fixture.detectChanges();
+    expect(element.textContent).toContain('Dirección IP o rango CIDR no válido');
+    fixture.destroy();
+  });
 });
