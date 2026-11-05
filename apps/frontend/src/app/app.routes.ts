@@ -152,6 +152,12 @@ export const routes: Routes = [
     data: { tab: 'streaming', layout: 'portal-page' }
   },
   {
+    // Sports v2 (greenfield rebuild, M01): isolated, noindex preview. See docs/sports-v2/ROUTES.md.
+    path: 'laboratorio/futbol',
+    loadChildren: () => import('./sports-v2/sports-v2.routes').then((m) => m.SPORTS_V2_ROUTES),
+    data: { robots: 'noindex, nofollow', layout: 'minimal-shell' },
+  },
+  {
     path: 'deportes',
     pathMatch: 'full',
     redirectTo: 'deportes/futbol',

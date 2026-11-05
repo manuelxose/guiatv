@@ -77,6 +77,7 @@ const KNOWN_ROUTES = [
   /^\/plataformas$/,
   /^\/deportes$/,
   /^\/deportes\/futbol(\/.*)?$/,
+  /^\/laboratorio\/futbol(\/.*)?$/, // sports-v2 preview (noindex)
   /^\/contenido\/[^/]+$/,
   /^\/peliculas\/[^/]+$/,
   /^\/series\/[^/]+$/,
@@ -106,6 +107,7 @@ const KNOWN_ROUTES = [
 
 const NOINDEX_ROUTES = [
   /^\/(?:iniciar-sesion|registro|perfil|mi-cuenta|comunidad|para-ti|admin)(?:\/.*)?$/,
+  /^\/laboratorio\/futbol(?:\/.*)?$/,
   /^\/contenido\/[^/]+$/,
   // Client-rendered iframe widget: a 200 shell for third-party sites, never a search result.
   /^\/embed\/programacion$/,

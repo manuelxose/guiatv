@@ -1,0 +1,62 @@
+// Sports v2 design tokens. Scoped as CSS custom properties on the shell root,
+// so nothing leaks into the production application.
+@mixin sv2-tokens {
+  // Surfaces: four layers, darkest at the back.
+  --sv2-bg: #0a0c0f;
+  --sv2-surface-1: #12151a;
+  --sv2-surface-2: #181c22;
+  --sv2-surface-3: #20252d;
+  --sv2-border: rgba(255, 255, 255, 0.08);
+  --sv2-border-strong: rgba(255, 255, 255, 0.16);
+
+  // Text. Contrast on surface-1: text 15.8:1, muted 7.6:1, faint 5.0:1.
+  --sv2-text: #f1f3f6;
+  --sv2-text-muted: #a4adba;
+  --sv2-text-faint: #7f8997;
+
+  // Brand accent (pitch lime) and its readable-on-accent ink.
+  --sv2-accent: #c6f25a;
+  --sv2-accent-ink: #11160a;
+  --sv2-focus: #ffffff;
+
+  // Semantic match status colours, each also paired with a glyph + label.
+  --sv2-live: #ff6b6b;
+  --sv2-finished: #aab4c3;
+  --sv2-scheduled: #6bb4ff;
+  --sv2-postponed: #f6c453;
+
+  // Type scale.
+  --sv2-font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --sv2-fs-xs: 0.75rem;
+  --sv2-fs-sm: 0.8125rem;
+  --sv2-fs-md: 0.9375rem;
+  --sv2-fs-lg: 1.125rem;
+  --sv2-fs-xl: 1.5rem;
+  --sv2-fs-score: 2.25rem;
+
+  // Space (4px grid), radius, elevation.
+  --sv2-s1: 4px;
+  --sv2-s2: 8px;
+  --sv2-s3: 12px;
+  --sv2-s4: 16px;
+  --sv2-s5: 24px;
+  --sv2-s6: 32px;
+  --sv2-r-sm: 8px;
+  --sv2-r-md: 12px;
+  --sv2-r-lg: 16px;
+  --sv2-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+
+  --sv2-ease: cubic-bezier(0.2, 0, 0, 1);
+  --sv2-dur: 160ms;
+
+  // Layout metrics.
+  --sv2-topbar-h: 64px;
+  --sv2-sidebar-w: 264px;
+  --sv2-sidebar-w-collapsed: 72px;
+  --sv2-context-w: 360px;
+
+  font-family: var(--sv2-font);
+  color: var(--sv2-text);
+  background: var(--sv2-bg);
+  font-variant-numeric: normal;
+}
