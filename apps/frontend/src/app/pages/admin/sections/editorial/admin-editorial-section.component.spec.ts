@@ -138,3 +138,32 @@ describe('review helpers', () => {
     expect(c.reviewKey).toBe('');
   });
 });
+
+describe('runner start contract', () => {
+  it('does not announce success when a manual start is refused (started:false)', () => {
+    const result = { started: false, reason: 'generation-disabled', mode: 'automatic', enabled: false, configured: true, managed: true, running: false, pid: null, command: null, cwd: null, envKeys: [], logPath: null };
+    TestBed.configureTestingModule({ imports: [AdminEditorialSectionComponent], providers: [{ provide: AdminEditorialService, useValue: {
+      getOverview: () => of(overview), getProviders: () => of({ checkedAt: new Date().toISOString(), providers: [] }), runnerProcess: () => of(result),
+    } }] });
+    const fixture = TestBed.createComponent(AdminEditorialSectionComponent);
+    fixture.detectChanges();
+    const c = fixture.componentInstance;
+    c.runnerProcessAction('start');
+    expect(c.notice).toBe('');
+    expect(c.error).toContain('generation-disabled');
+    expect(c.error).toContain('en pausa');
+  });
+
+  it('confirms a manual start as audited when started:true', () => {
+    const result = { started: true, mode: 'manual', configured: true, managed: true, running: true, pid: 1, command: 'node', cwd: '/srv', envKeys: [], logPath: null };
+    TestBed.configureTestingModule({ imports: [AdminEditorialSectionComponent], providers: [{ provide: AdminEditorialService, useValue: {
+      getOverview: () => of(overview), getProviders: () => of({ checkedAt: new Date().toISOString(), providers: [] }), runnerProcess: () => of(result),
+    } }] });
+    const fixture = TestBed.createComponent(AdminEditorialSectionComponent);
+    fixture.detectChanges();
+    const c = fixture.componentInstance;
+    c.runnerProcessAction('start');
+    expect(c.notice).toContain('auditoría');
+    expect(c.error).toBe('');
+  });
+});

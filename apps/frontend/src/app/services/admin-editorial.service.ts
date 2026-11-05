@@ -210,6 +210,14 @@ export interface EditorialRunnerProcess {
   logPath: string | null;
 }
 
+/** M14-R: a start/restart result carries `started`/`mode`; `started=false` means the start was refused. `stop` omits them. */
+export interface EditorialRunnerActionResult extends EditorialRunnerProcess {
+  started?: boolean;
+  mode?: 'automatic' | 'manual';
+  reason?: string | null;
+  enabled?: boolean;
+}
+
 export interface EditorialOperations {
   generation: EditorialGenerationSettings;
   runner: { online: boolean; lastSeenAt: string | null; version: string | null; status?: 'never-connected' | 'offline' | 'ready' | 'error' | string; lastError?: string | null; capabilities: { providers: string[]; webSearch: boolean }; process?: EditorialRunnerProcess };
@@ -449,8 +457,10 @@ export class AdminEditorialService {
     return this.http.post<ApiResponse<{ recovered: Array<{ jobId: string; state: string }>; count: number }>>(`${this.baseUrl}/ledger/recover-stale`, {}).pipe(map((resp) => resp.data));
   }
 
-  runnerProcess(action: 'start' | 'stop' | 'restart'): Observable<EditorialRunnerProcess> {
-    return this.http.post<ApiResponse<EditorialRunnerProcess>>(`${this.baseUrl}/generation/runner/process/${action}`, {}).pipe(map((resp) => resp.data));
+  runnerProcess(action: 'start' | 'stop' | 'restart'): Observable<EditorialRunnerActionResult> {
+    // A human pressing the button starts manually; the runner may refuse only an automatic start.
+    const body = action === 'stop' ? {} : { mode: 'manual' as const };
+    return this.http.post<ApiResponse<EditorialRunnerActionResult>>(`${this.baseUrl}/generation/runner/process/${action}`, body).pipe(map((resp) => resp.data));
   }
 
   runnerLogs(lines = 120): Observable<{ configured: boolean; path: string | null; lines: string[] }> {

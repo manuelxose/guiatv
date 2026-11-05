@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, HostListener, OnDestroy, OnInit, Output } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subject, Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
 import {
@@ -13,6 +14,7 @@ import {
 
 type LedgerAction = 'pause' | 'resume' | 'cancel' | 'retry' | 'recover' | 'archive' | 'delete';
 type Pending = { action: LedgerAction; ids: string[]; title: string; needsReason: boolean };
+type SortKey = 'slug' | 'state' | 'usd' | 'attempt' | 'updatedAt';
 
 const STATE_LABELS: Record<EditorialLedgerState, string> = {
   queued: 'En cola', running: 'Ejecutando', paused: 'Pausado', cancelling: 'Cancelando',
@@ -24,6 +26,9 @@ const STAGE_LABELS: Record<EditorialLedgerStageName, string> = {
   'article-drafting': 'Redacción', 'seo-enrichment': 'SEO y metadatos', 'quality-evaluation': 'Evaluación de calidad',
   revision: 'Revisión', 'publication-eligibility': 'Elegibilidad de publicación', publication: 'Publicación', 'sitemap-registration': 'Sitemap',
 };
+
+/** Bulk actions are capped server-side; select-all is only offered when it is safe. */
+const MAX_BULK = 50;
 
 @Component({
   selector: 'app-admin-job-ledger',
@@ -38,6 +43,14 @@ export class AdminJobLedgerComponent implements OnInit, OnDestroy {
   readonly stageLabels = STAGE_LABELS;
   readonly states = Object.keys(STATE_LABELS) as EditorialLedgerState[];
   readonly pageSize = 25;
+  readonly maxBulk = MAX_BULK;
+  readonly sortableColumns: Array<{ key: SortKey; label: string }> = [
+    { key: 'slug', label: 'Trabajo' },
+    { key: 'state', label: 'Estado' },
+    { key: 'attempt', label: 'Intento' },
+    { key: 'usd', label: 'Coste' },
+    { key: 'updatedAt', label: 'Actualizado' },
+  ];
 
   page: EditorialLedgerPage = { items: [], total: 0, limit: this.pageSize, skip: 0 };
   loading = false;
@@ -56,17 +69,28 @@ export class AdminJobLedgerComponent implements OnInit, OnDestroy {
   pendingReason = '';
   pendingBusy = false;
   lastUpdated: Date | null = null;
+  sortKey: SortKey = 'updatedAt';
+  sortDir: 'asc' | 'desc' = 'desc';
 
   private subs = new Subscription();
   private readonly search$ = new Subject<string>();
   private timer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(private readonly service: AdminEditorialService) {}
+  constructor(
+    private readonly service: AdminEditorialService,
+    private readonly route: ActivatedRoute,
+    private readonly router: Router,
+  ) {}
 
   ngOnInit(): void {
     this.subs.add(this.search$.pipe(debounceTime(300), distinctUntilChanged()).subscribe(() => this.load()));
+    this.syncFromUrl();
     this.load();
     this.timer = setInterval(() => this.load(true), 15_000);
+    // Deep links and back/forward: apply only a real change so a write never reloads itself.
+    this.subs.add(this.route.queryParamMap.subscribe(() => {
+      if (this.syncFromUrl()) this.load();
+    }));
   }
   ngOnDestroy(): void {
     this.subs.unsubscribe();
@@ -78,6 +102,41 @@ export class AdminJobLedgerComponent implements OnInit, OnDestroy {
   onEscape(): void {
     if (this.pending) this.cancelPending();
     else if (this.detailOpen) this.closeDetail();
+  }
+
+  /** Reflect the URL state/q/skip/archived/stale into the component. Returns true when something changed. */
+  private syncFromUrl(): boolean {
+    const params = this.route.snapshot.queryParamMap;
+    const state = params.get('state') || '';
+    const q = params.get('q') || '';
+    const archivedRaw = params.get('archived');
+    const archived: '' | '1' | '0' = archivedRaw === '1' ? '1' : archivedRaw === '' ? '' : '0';
+    const stale = params.get('stale') === '1';
+    const skip = Math.max(0, Number(params.get('skip')) || 0);
+    const validState = state && (this.states as string[]).includes(state) ? state : '';
+    const changed =
+      validState !== this.state || q !== this.q || archived !== this.archived ||
+      stale !== this.stale || skip !== this.page.skip;
+    if (changed) {
+      this.state = validState;
+      this.q = q;
+      this.archived = archived;
+      this.stale = stale;
+      this.page.skip = skip;
+    }
+    return changed;
+  }
+
+  /** Write the current filters and page back to the URL so a view can be linked and shared. */
+  private writeUrl(): void {
+    const queryParams: Record<string, string | null> = {
+      state: this.state || null,
+      q: this.q.trim() || null,
+      archived: this.archived === '0' ? null : this.archived,
+      stale: this.stale ? '1' : null,
+      skip: this.page.skip > 0 ? String(this.page.skip) : null,
+    };
+    this.router.navigate([], { queryParams, queryParamsHandling: 'merge', replaceUrl: true }).catch(() => undefined);
   }
 
   load(silent = false): void {
@@ -105,14 +164,52 @@ export class AdminJobLedgerComponent implements OnInit, OnDestroy {
     }));
   }
 
-  onSearch(): void { this.search$.next(this.q); }
-  applyFilters(): void { this.page.skip = 0; this.load(); }
-  clearFilters(): void { this.q = ''; this.state = ''; this.archived = '0'; this.stale = false; this.page.skip = 0; this.load(); }
+  onSearch(): void { this.search$.next(this.q); this.writeUrl(); }
+  applyFilters(): void { this.page.skip = 0; this.writeUrl(); this.load(); }
+  clearFilters(): void { this.q = ''; this.state = ''; this.archived = '0'; this.stale = false; this.page.skip = 0; this.writeUrl(); this.load(); }
 
   get from(): number { return this.page.total ? this.page.skip + 1 : 0; }
   get to(): number { return Math.min(this.page.skip + this.page.items.length, this.page.total); }
-  nextPage(): void { if (this.to < this.page.total) { this.page.skip += this.pageSize; this.load(); } }
-  prevPage(): void { if (this.page.skip > 0) { this.page.skip = Math.max(0, this.page.skip - this.pageSize); this.load(); } }
+  nextPage(): void { if (this.to < this.page.total) { this.page.skip += this.pageSize; this.writeUrl(); this.load(); } }
+  prevPage(): void { if (this.page.skip > 0) { this.page.skip = Math.max(0, this.page.skip - this.pageSize); this.writeUrl(); this.load(); } }
+
+  /** Client-side sort of the loaded page; a server-side sort needs a backend parameter (out of scope). */
+  get sortedItems(): EditorialLedgerJob[] {
+    const dir = this.sortDir === 'asc' ? 1 : -1;
+    return [...this.page.items].sort((a, b) => {
+      switch (this.sortKey) {
+        case 'slug': return a.slug.localeCompare(b.slug) * dir;
+        case 'state': return a.state.localeCompare(b.state) * dir;
+        case 'usd': return (a.usage.usd - b.usage.usd) * dir;
+        case 'attempt': return (a.attempt - b.attempt) * dir;
+        default: return (Date.parse(a.updatedAt) - Date.parse(b.updatedAt)) * dir;
+      }
+    });
+  }
+  toggleSort(key: SortKey): void {
+    if (this.sortKey === key) this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+    else { this.sortKey = key; this.sortDir = 'desc'; }
+  }
+  sortAria(key: SortKey): 'ascending' | 'descending' | 'none' {
+    return this.sortKey === key ? (this.sortDir === 'asc' ? 'ascending' : 'descending') : 'none';
+  }
+
+  /** Export the loaded page as CSV. A full-history export would need a backend endpoint (out of scope). */
+  exportCsv(): void {
+    const header = ['jobId', 'slug', 'kind', 'state', 'currentStage', 'attempt', 'maxAttempts', 'worker', 'usd', 'modelCalls', 'inputTokens', 'outputTokens', 'createdAt', 'startedAt', 'endedAt', 'archivedAt', 'error'];
+    const lines = this.sortedItems.map((job) => [
+      job.jobId, job.slug, job.kind, job.state, job.currentStage ?? '', String(job.attempt), String(job.maxAttempts),
+      job.worker?.id ?? '', String(job.usage.usd), String(job.usage.modelCalls), String(job.usage.inputTokens), String(job.usage.outputTokens),
+      job.createdAt, job.startedAt ?? '', job.endedAt ?? '', job.archivedAt ?? '', job.error ? `${job.error.classification}: ${job.error.message}` : '',
+    ]);
+    const csv = [header.join(','), ...lines.map((line) => line.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))].join('\r\n');
+    const url = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `trabajos-editoriales-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
 
   isSelected(jobId: string): boolean { return this.selected.has(jobId); }
   toggle(jobId: string): void {
@@ -125,6 +222,34 @@ export class AdminJobLedgerComponent implements OnInit, OnDestroy {
     else this.page.items.forEach((job) => this.selected.add(job.jobId));
   }
   clearSelection(): void { this.selected.clear(); }
+
+  /** Select every matching result, but only when the bulk cap makes it safe. */
+  selectAllMatching(): void {
+    if (this.page.total > MAX_BULK) {
+      this.error = `No se pueden seleccionar más de ${MAX_BULK} trabajos a la vez (hay ${this.page.total} coincidencias). Refina los filtros para una selección segura.`;
+      return;
+    }
+    if (!this.page.total) return;
+    this.busy = 'select-all';
+    this.subs.add(this.service.getLedger({
+      states: this.state || undefined,
+      q: this.q.trim() || undefined,
+      archived: this.archived === '' ? undefined : this.archived === '1',
+      stale: this.stale,
+      limit: this.page.total,
+      skip: 0,
+    }).subscribe({
+      next: (page) => {
+        page.items.forEach((job) => this.selected.add(job.jobId));
+        this.busy = '';
+        this.notice = `${page.items.length} trabajos seleccionados (todos los que coinciden).`;
+      },
+      error: (e) => {
+        this.busy = '';
+        this.error = e?.error?.error?.message || e?.error?.message || 'No se pudieron seleccionar todos los resultados';
+      },
+    }));
+  }
 
   can(action: LedgerAction, job: EditorialLedgerJob): boolean {
     const terminal = ['completed', 'failed', 'cancelled', 'dead-letter', 'blocked'].includes(job.state);

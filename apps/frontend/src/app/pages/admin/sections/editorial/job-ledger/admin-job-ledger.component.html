@@ -5,6 +5,8 @@
       <p>Ejecuciones con lease, etapa actual, plazos y puntos de control. Los trabajos con lease expirado se pueden recuperar sin esperar al runner.</p>
     </div>
     <div class="ledger-actions">
+      <button type="button" class="button secondary" (click)="selectAllMatching()" [disabled]="busy !== '' || !page.total">Seleccionar todos ({{ page.total }})</button>
+      <button type="button" class="button secondary" (click)="exportCsv()" [disabled]="!page.items.length">Exportar CSV</button>
       <button type="button" class="button secondary" (click)="load()" [disabled]="loading">{{ loading ? 'Actualizando…' : 'Actualizar' }}</button>
       <button type="button" class="button secondary" (click)="runRecovery()" [disabled]="busy === 'recover-stale'">{{ busy === 'recover-stale' ? 'Recuperando…' : 'Recuperar leases expirados' }}</button>
       <span *ngIf="lastUpdated as at" class="stamp">Actualizado {{ at | date: 'HH:mm:ss' }}</span>
@@ -55,18 +57,18 @@
       <thead>
         <tr>
           <th scope="col" class="select"><input type="checkbox" [checked]="allSelected" (change)="toggleAll()" aria-label="Seleccionar todos los trabajos de esta página" /></th>
-          <th scope="col">Trabajo</th>
-          <th scope="col">Estado</th>
+          <th scope="col"><button type="button" class="sort-btn" [attr.aria-sort]="sortAria('slug')" (click)="toggleSort('slug')">Trabajo<span aria-hidden="true">{{ sortKey === 'slug' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '' }}</span></button></th>
+          <th scope="col"><button type="button" class="sort-btn" [attr.aria-sort]="sortAria('state')" (click)="toggleSort('state')">Estado<span aria-hidden="true">{{ sortKey === 'state' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '' }}</span></button></th>
           <th scope="col">Etapa</th>
-          <th scope="col">Intento</th>
+          <th scope="col"><button type="button" class="sort-btn" [attr.aria-sort]="sortAria('attempt')" (click)="toggleSort('attempt')">Intento<span aria-hidden="true">{{ sortKey === 'attempt' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '' }}</span></button></th>
           <th scope="col">Lease</th>
-          <th scope="col" class="numeric">Coste</th>
+          <th scope="col" class="numeric"><button type="button" class="sort-btn numeric" [attr.aria-sort]="sortAria('usd')" (click)="toggleSort('usd')">Coste<span aria-hidden="true">{{ sortKey === 'usd' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '' }}</span></button></th>
           <th scope="col">Duración</th>
           <th scope="col">Acciones</th>
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let job of page.items; trackBy: trackJob" [class.selected]="isSelected(job.jobId)">
+        <tr *ngFor="let job of sortedItems; trackBy: trackJob" [class.selected]="isSelected(job.jobId)">
           <td class="select"><input type="checkbox" [checked]="isSelected(job.jobId)" (change)="toggle(job.jobId)" [attr.aria-label]="'Seleccionar ' + job.slug" /></td>
           <td>
             <button type="button" class="table-link" (click)="openDetail(job)">{{ job.slug }}</button>
@@ -145,8 +147,8 @@
       <p *ngIf="!job.stages.length" class="empty">Sin etapas registradas todavía.</p>
     </section>
     <section *ngIf="job.checkpoints.length">
-      <h4>Puntos de control</h4>
-      <ul class="checkpoints"><li *ngFor="let point of job.checkpoints"><code>{{ point.ref }}</code><small>{{ point.at | date: 'short' }}<ng-container *ngIf="point.stage"> · {{ stageLabel(point.stage) }}</ng-container></small></li></ul>
+      <h4>Puntos de control y artefactos</h4>
+      <ul class="checkpoints"><li *ngFor="let point of job.checkpoints"><code>{{ point.ref }}</code><small>{{ point.at | date: 'short' }}<ng-container *ngIf="point.stage"> · {{ stageLabel(point.stage) }}</ng-container><ng-container *ngIf="point.hash"> · sha {{ point.hash }}</ng-container></small></li></ul>
     </section>
     <section *ngIf="job.publication as publication">
       <h4>Publicación</h4>

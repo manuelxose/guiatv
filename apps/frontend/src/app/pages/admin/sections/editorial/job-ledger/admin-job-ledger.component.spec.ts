@@ -1,3 +1,4 @@
+import { of } from 'rxjs';
 import { AdminJobLedgerComponent } from './admin-job-ledger.component';
 import { EditorialLedgerJob } from '../../../../../services/admin-editorial.service';
 
@@ -11,11 +12,17 @@ const job = (over: Partial<EditorialLedgerJob> = {}): EditorialLedgerJob => ({
   publication: null, revision: 1, deadlines: { stageMs: 600000, articleMs: 3600000 }, ...over,
 });
 
+const routeMock = () => ({
+  snapshot: { queryParamMap: { get: () => null } },
+  queryParamMap: of({ get: () => null }),
+});
+const routerMock = () => ({ navigate: () => Promise.resolve(true) });
+
 describe('AdminJobLedgerComponent', () => {
   let component: AdminJobLedgerComponent;
 
   beforeEach(() => {
-    component = new AdminJobLedgerComponent({} as never);
+    component = new AdminJobLedgerComponent({} as never, routeMock() as never, routerMock() as never);
     jasmine.clock().install();
     jasmine.clock().mockDate(new Date('2026-11-05T18:00:30Z'));
   });
@@ -44,5 +51,24 @@ describe('AdminJobLedgerComponent', () => {
     component.detailOpen = true;
     component.onEscape();
     expect(component.detailOpen).toBeFalse();
+  });
+
+  it('sorts the loaded page client-side without mutating the source order', () => {
+    component.page.items = [
+      job({ jobId: 'job-b', slug: 'b-guia', state: 'failed', attempt: 2, updatedAt: '2026-11-05T18:01:00Z' }),
+      job({ jobId: 'job-a', slug: 'a-guia', state: 'running', attempt: 1, updatedAt: '2026-11-05T18:00:00Z' }),
+    ];
+    component.sortKey = 'slug';
+    component.sortDir = 'asc';
+    expect(component.sortedItems.map((item) => item.slug)).toEqual(['a-guia', 'b-guia']);
+    component.toggleSort('slug');
+    expect(component.sortDir).toBe('desc');
+    expect(component.sortedItems[0].slug).toBe('b-guia');
+  });
+
+  it('refuses select-all when more results than the safe bulk cap', () => {
+    component.page.total = 51;
+    component.selectAllMatching();
+    expect(component.error).toContain('50');
   });
 });
