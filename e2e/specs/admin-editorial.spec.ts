@@ -55,7 +55,7 @@ test('separates states, explains inactivity and opens an accessible private deta
   const captured: Request[] = [];
   await openSection(page, context, captured);
   await expect(page.getByText('No hay temas elegibles en la cola', { exact: true })).toBeVisible();
-  await expect(page.locator('.chip-card').filter({ hasText: 'Runner' })).toContainText('Sin señal');
+  await expect(page.locator('.status-card').filter({ hasText: 'Runner externo' })).toContainText('Sin señal');
   await page.getByRole('button', { name: OVERVIEW.posts[0].title }).click();
   const drawer = page.getByRole('dialog');
   await expect(drawer).toBeVisible();
@@ -76,9 +76,9 @@ test('edits, recovers and deletes an unfinished AI draft with confirmation', asy
 
   await page.getByRole('button', { name: 'Recuperar y volver a encolar' }).click();
   expect(captured.some((r) => r.url().endsWith('/requeue'))).toBe(true);
-  await expect(page.getByRole('tab', { name: /Temas/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: /Cola/ })).toHaveAttribute('aria-selected', 'true');
 
-  await page.getByRole('tab', { name: /Revisión/ }).click();
+  await page.getByRole('tab', { name: 'Actividad' }).click();
   await page.getByRole('button', { name: OVERVIEW.posts[0].title }).click();
   await page.getByRole('button', { name: 'Eliminar borrador' }).click();
   await page.getByRole('button', { name: 'Eliminar borrador', exact: true }).last().click();
@@ -97,7 +97,6 @@ test('passes axe on light and dark themes', async ({ page, context }) => {
 test('emergency stop requires reason and confirmation', async ({ page, context }) => {
   const captured: Request[] = [];
   await openSection(page, context, captured);
-  await page.getByRole('button', { name: 'Emergencia', exact: true }).click();
   const stop = page.getByRole('button', { name: 'Parada de emergencia', exact: true });
   await expect(stop).toBeDisabled();
   await page.getByLabel('Motivo de la parada').fill('prueba e2e');
@@ -149,7 +148,7 @@ test('changes provider configuration and keeps human key only in headers', async
 test('starts the managed runner process and reads its logs without exposing secrets', async ({ page, context }) => {
   const captured: Request[] = [];
   await openSection(page, context, captured);
-  await expect(page.locator('.chip-card').filter({ hasText: 'Runner' })).toContainText('detenido');
+  await expect(page.locator('.status-card').filter({ hasText: 'Runner externo' })).toContainText('detenido');
   await page.getByRole('button', { name: 'Iniciar', exact: true }).click();
   expect(captured.some((r) => r.url().endsWith('/generation/runner/process/start'))).toBe(true);
   await page.getByRole('button', { name: 'Ver registros' }).click();
@@ -162,7 +161,7 @@ for (const width of [360, 390, 768, 1440]) test(`responsive at ${width}px withou
   await page.setViewportSize({ width, height: 800 });
   await openSection(page, context, captured);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await expect(page.getByRole('tab', { name: 'Pipeline' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Actividad' })).toBeVisible();
   if (width < 768) await expect(page.locator('.mobile-list').first()).toBeVisible();
   else await expect(page.locator('.desktop-table').first()).toBeVisible();
 });
