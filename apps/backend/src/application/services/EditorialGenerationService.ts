@@ -43,7 +43,9 @@ export interface EditorialGenerationTopic {
 type GenerationRequest = {
   _id?: string;
   id: string;
-  kind: 'generate' | 'discover';
+  kind: 'generate' | 'discover' | 'queue-action';
+  /** kind 'queue-action': a human decision on one topic of the runner's queue, applied by the runner. */
+  queueAction?: { action: 'approve' | 'reject' | 'prioritize' | 'edit'; topicId: string; reason?: string; edit?: { title?: string; intent?: string; seedUrls?: string[] } };
   status: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
   topic?: EditorialGenerationTopic;
   reason?: string;
@@ -182,6 +184,24 @@ export class EditorialGenerationService {
     return this.publicRequest(request);
   }
 
+  async createQueueAction(input: any, actor: string) {
+    const action = enumValue(input?.action, ['approve', 'reject', 'prioritize', 'edit'] as const);
+    const topicId = text(input?.topicId, 80);
+    if (!topicId) fail('topicId is required');
+    const edit = action === 'edit' ? {
+      ...(typeof input?.edit?.title === 'string' ? { title: text(input.edit.title, 110) } : {}),
+      ...(typeof input?.edit?.intent === 'string' ? { intent: text(input.edit.intent, 500) } : {}),
+      ...(Array.isArray(input?.edit?.seedUrls) ? { seedUrls: input.edit.seedUrls.slice(0, 6).map((u: unknown) => text(u, 2000)).filter(Boolean) } : {}),
+    } : undefined;
+    if (action === 'edit' && !Object.keys(edit ?? {}).length) fail('Nothing to edit');
+    // One pending decision per topic: a second click must not stack contradictory actions.
+    if (await requests().findOne({ kind: 'queue-action', status: 'queued', 'queueAction.topicId': topicId })) throw new ConflictError('Ya hay una acción pendiente para este tema');
+    const now = new Date();
+    const request: GenerationRequest = { id: randomUUID(), kind: 'queue-action', status: 'queued', queueAction: { action, topicId, reason: text(input?.reason, 300), ...(edit ? { edit } : {}) }, createdAt: now, updatedAt: now, createdBy: actor, claimsObserved: 0 };
+    await requests().insertOne(request);
+    return this.publicRequest(request);
+  }
+
   async cancelRequest(id: string) {
     const now = new Date();
     const result = await requests().findOneAndUpdate({ id, status: 'queued' }, { $set: { status: 'cancelled', updatedAt: now, finishedAt: now } }, { returnDocument: 'after' });
@@ -196,9 +216,10 @@ export class EditorialGenerationService {
   }
 
   async pendingRequests() {
+    const actions = await requests().find({ status: 'queued', kind: 'queue-action' }).sort({ createdAt: 1, _id: 1 }).limit(20).toArray();
     const [discovery, generation] = await Promise.all(['discover', 'generate'].map((kind) =>
       requests().find({ status: 'queued', kind: kind as GenerationRequest['kind'] }).sort({ createdAt: 1, _id: 1 }).limit(20).toArray()));
-    const items: GenerationRequest[] = [];
+    const items: GenerationRequest[] = [...actions];
     for (let i = 0; items.length < 20 && (i < discovery.length || i < generation.length); i++) {
       if (discovery[i]) items.push(discovery[i]);
       if (items.length < 20 && generation[i]) items.push(generation[i]);
@@ -240,7 +261,7 @@ export class EditorialGenerationService {
     if (Array.isArray(input?.queue)) {
       const items = input.queue.slice(0, 100).map((item: any) => ({
         id: text(item.id, 80), title: text(item.title, 110), category: text(item.category, 40),
-        state: text(item.state, 30), score: Number(item.score) || 0, attempts: Number(item.attempts) || 0,
+        state: text(item.state, 30), pinned: item.pinned === true, intent: text(item.intent, 500), explanation: Array.isArray(item.scoreExplanation) ? item.scoreExplanation.slice(0, 14).map((x: unknown) => text(x, 300)) : [], score: Number(item.score) || 0, attempts: Number(item.attempts) || 0,
         reason: text(item.reason, 1000), sources: Array.isArray(item.sourceCandidates) ? item.sourceCandidates.slice(0, 4).map((x: unknown) => text(x, 2000)) : [],
         updatedAt: text(item.updatedAt, 40),
       })).filter((item: any) => item.id && item.title);
@@ -250,10 +271,11 @@ export class EditorialGenerationService {
   }
 
   async operationalState() {
-    const [generation, runnerDoc, lastCycle, queueDoc, manual, manualPending, manualRunning] = await Promise.all([
+    const [generation, runnerDoc, lastCycle, queueDoc, manual, manualPending, manualRunning, pendingActions] = await Promise.all([
       this.getSettings(), runner().findOne({ _id: 'current' }), cycles().findOne({}, { sort: { at: -1 } }),
-      queue().findOne({ _id: 'current' }), requests().find({ status: { $in: ['queued', 'running', 'failed', 'cancelled'] } }).sort({ createdAt: -1 }).limit(50).toArray(),
-      requests().countDocuments({ status: 'queued' }), requests().countDocuments({ status: 'running' }),
+      queue().findOne({ _id: 'current' }), requests().find({ kind: { $ne: 'queue-action' }, status: { $in: ['queued', 'running', 'failed', 'cancelled'] } }).sort({ createdAt: -1 }).limit(50).toArray(),
+      requests().countDocuments({ kind: { $ne: 'queue-action' }, status: 'queued' }), requests().countDocuments({ kind: { $ne: 'queue-action' }, status: 'running' }),
+      requests().find({ kind: 'queue-action', status: 'queued' }).sort({ createdAt: 1 }).limit(50).toArray(),
     ]);
     const lastSeenAt = runnerDoc?.lastSeenAt ?? null;
     const staleMs = Math.max(15 * 60e3, generation.scheduleHours * 3600e3 + 15 * 60e3);
@@ -269,6 +291,7 @@ export class EditorialGenerationService {
       lastCycle: lastCycle ? { at: lastCycle.at, result: lastCycle.result, reason: lastCycle.reason, queued: lastCycle.queued, generated: lastCycle.generated } : null,
       nextRunAt: generation.enabled && lastSeenAt ? new Date(new Date(lastSeenAt).getTime() + generation.scheduleHours * 3600e3).toISOString() : null,
       queue: [...manual.map((item) => ({ ...this.publicRequest(item), source: 'manual' })), ...(queueDoc?.items ?? []).map((item: any) => ({ ...item, source: 'discovered' }))].slice(0, 100),
+      pendingActions: pendingActions.map((r) => ({ id: r.id, ...r.queueAction })),
       queueSummary: {
         manualPending,
         discovered: queueDoc?.items?.filter((item: any) => item.state === 'queued').length ?? 0,
@@ -278,6 +301,6 @@ export class EditorialGenerationService {
   }
 
   private publicRequest(item: GenerationRequest) {
-    return { id: item.id, kind: item.kind, status: item.status, topic: item.topic, reason: item.reason ?? null, createdAt: item.createdAt, updatedAt: item.updatedAt, createdBy: item.createdBy, claimsObserved: item.claimsObserved ?? null, claimedAt: item.claimedAt ?? null, finishedAt: item.finishedAt ?? null };
+    return { id: item.id, kind: item.kind, status: item.status, topic: item.topic, queueAction: item.queueAction, reason: item.reason ?? null, createdAt: item.createdAt, updatedAt: item.updatedAt, createdBy: item.createdBy, claimsObserved: item.claimsObserved ?? null, claimedAt: item.claimedAt ?? null, finishedAt: item.finishedAt ?? null };
   }
 }

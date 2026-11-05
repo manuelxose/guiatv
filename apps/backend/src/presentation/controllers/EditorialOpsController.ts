@@ -359,6 +359,10 @@ export class EditorialOpsController {
     res.status(201).json(successResponse(await this.generation.createRequest('discover', {}, actor(req))));
   };
 
+  createQueueAction = async (req: Request, res: Response): Promise<void> => {
+    res.status(201).json(successResponse(await this.generation.createQueueAction(req.body, actor(req))));
+  };
+
   cancelGenerationRequest = async (req: Request, res: Response): Promise<void> => {
     res.json(successResponse(await this.generation.cancelRequest(String(req.params.id))));
   };

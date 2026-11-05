@@ -46,6 +46,8 @@ export interface QueuedTopic {
   /** The pipeline input, built once when the topic is accepted. */
   topic: EditorialTopic;
   publicUrl?: string;
+  /** Set by an administrator: runs before any unpinned topic, whatever its score. */
+  pinned?: boolean;
 }
 
 export interface TopicQueueFile {
@@ -280,13 +282,73 @@ export function pickTopics(file: TopicQueueFile, n: number, startedToday: Queued
   const picked: QueuedTopic[] = [];
   const perCategory = new Map<string, number>();
   for (const t of startedToday) perCategory.set(t.category, (perCategory.get(t.category) ?? 0) + 1);
-  for (const t of file.topics.filter((x) => x.state === 'queued').sort((a, b) => b.score - a.score || a.createdAt.localeCompare(b.createdAt))) {
+  for (const t of file.topics.filter((x) => x.state === 'queued').sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.score - a.score || a.createdAt.localeCompare(b.createdAt))) {
     if (picked.length >= n) break;
     if (picked.some((p) => p.category === t.category)) continue;
     if ((perCategory.get(t.category) ?? 0) >= policy.maxPerCategoryPerDay) continue;
     picked.push(t);
   }
   return picked;
+}
+
+export type QueueActionName = 'approve' | 'reject' | 'prioritize' | 'edit';
+export interface QueueAction {
+  action: QueueActionName;
+  topicId: string;
+  reason?: string;
+  edit?: { title?: string; intent?: string; seedUrls?: string[] };
+}
+
+/**
+ * A human decision on one topic of the runner's queue. The queue file lives on the runner host, so the Admin sends
+ * these as requests and the runner applies them here, with the same validation as automatic screening.
+ * Returns a one-line note for the log; throws a message the Admin shows when the action cannot apply.
+ */
+export function applyQueueAction(file: TopicQueueFile, a: QueueAction, now: Date): string {
+  const t = file.topics.find((x) => x.id === a.topicId);
+  if (!t) throw new Error(`el tema ${a.topicId} ya no está en la cola`);
+  if (t.state === 'running' || t.state === 'published') throw new Error(`el tema está ${t.state}: no se puede modificar`);
+  const at = now.toISOString();
+  switch (a.action) {
+    case 'approve': {
+      if (!t.topic.internalSources.length && seedPublishers(t.topic.seedUrls ?? []) < 2) {
+        throw new Error('el tema solo tiene una entidad editora y ninguna fuente propia: edita las fuentes semilla antes de aprobarlo (el control de valor exige dos o datos propios)');
+      }
+      Object.assign(t, { state: 'queued', attempts: 0, updatedAt: at });
+      delete t.reason;
+      return `${t.id}: aprobado a mano`;
+    }
+    case 'reject':
+      Object.assign(t, { state: 'rejected', pinned: false, reason: `manual: ${(a.reason ?? '').trim().slice(0, 300) || 'rechazado por un administrador'}`, updatedAt: at });
+      return `${t.id}: rechazado a mano`;
+    case 'prioritize':
+      if (t.state !== 'queued') throw new Error('solo se priorizan temas en cola');
+      t.pinned = !t.pinned;
+      t.updatedAt = at;
+      return `${t.id}: ${t.pinned ? 'priorizado' : 'prioridad retirada'}`;
+    case 'edit': {
+      const e = a.edit ?? {};
+      if (e.title !== undefined) {
+        if (e.title.length < 20 || e.title.length > 110) throw new Error('el título debe tener entre 20 y 110 caracteres');
+        t.title = e.title;
+      }
+      if (e.intent !== undefined) {
+        if (e.intent.length < 20) throw new Error('la intención debe tener al menos 20 caracteres');
+        t.intent = e.intent;
+        t.topic.intent = e.intent;
+      }
+      if (e.seedUrls !== undefined) {
+        if (!e.seedUrls.length || e.seedUrls.length > 6 || e.seedUrls.some((u) => !/^https:\/\//.test(u))) throw new Error('entre 1 y 6 fuentes semilla https');
+        t.topic.seedUrls = e.seedUrls;
+        t.sourceCandidates = e.seedUrls;
+        t.sourceFamilies = [...new Set(e.seedUrls.map(sourceFamily))];
+      }
+      t.updatedAt = at;
+      return `${t.id}: editado`;
+    }
+    default:
+      throw new Error('acción desconocida');
+  }
 }
 
 const PROPOSAL_SCHEMA = {

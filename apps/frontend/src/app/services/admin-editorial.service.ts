@@ -138,7 +138,10 @@ export interface EditorialQueueItem {
   status?: 'queued' | 'running' | 'completed' | 'failed' | 'cancelled'; state?: string;
   topic?: EditorialGenerationTopic; reason?: string | null; createdAt?: string; updatedAt?: string;
   createdBy?: string; source: 'manual' | 'discovered'; score?: number; attempts?: number; sources?: string[];
+  pinned?: boolean; intent?: string; explanation?: string[];
 }
+export type EditorialQueueActionName = 'approve' | 'reject' | 'prioritize' | 'edit';
+export interface EditorialPendingAction { id: string; action: EditorialQueueActionName; topicId: string; reason?: string }
 export interface EditorialRunnerProcess {
   configured: boolean;
   managed: boolean;
@@ -156,6 +159,8 @@ export interface EditorialOperations {
   lastCycle: { at: string; result: string; reason: string; queued: number; generated: number } | null;
   nextRunAt: string | null;
   queue: EditorialQueueItem[];
+  /** Human decisions on queued topics that the runner has not applied yet. */
+  pendingActions?: EditorialPendingAction[];
   queueSummary: { manualPending: number; discovered: number; running: number };
 }
 
@@ -296,6 +301,11 @@ export class AdminEditorialService {
 
   requeuePost(id: string): Observable<EditorialQueueItem> {
     return this.http.post<ApiResponse<EditorialQueueItem>>(`${this.baseUrl}/posts/${encodeURIComponent(id)}/requeue`, {}).pipe(map((resp) => resp.data));
+  }
+
+  /** Human decision on a queued topic; the runner applies it at its next cycle. */
+  queueAction(topicId: string, action: EditorialQueueActionName, extra: { reason?: string; edit?: { title?: string; intent?: string; seedUrls?: string[] } } = {}): Observable<EditorialQueueItem> {
+    return this.http.post<ApiResponse<EditorialQueueItem>>(`${this.baseUrl}/generation/queue-actions`, { topicId, action, ...extra }).pipe(map((resp) => resp.data));
   }
 
   runnerProcess(action: 'start' | 'stop' | 'restart'): Observable<EditorialRunnerProcess> {

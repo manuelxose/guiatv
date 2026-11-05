@@ -176,3 +176,14 @@ blockquote { color: var(--portal-text-soft); margin: 8px 0 8px 16px; }
 .board-card small { margin: 0; }
 @media (max-width: 1279px) { .status-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); position: static; } }
 @media (max-width: 767px) { .status-bar { grid-template-columns: 1fr; } .board { grid-template-columns: 1fr; overflow: visible; } }
+
+/* Phase 2: topic control */
+.pending-box { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pending-line { color: var(--spotify-warning); }
+.pin-tag { border: 1px solid var(--spotify-green); border-radius: var(--radius-pill); padding: 1px 8px; font-size: 12px; color: var(--portal-text); }
+.topic-card.pinned { border-color: var(--spotify-green); }
+.topic-actions { flex-wrap: wrap; justify-content: flex-end; align-self: flex-start; }
+.explain { margin-top: 8px; color: var(--portal-text-soft); }
+.explain summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.explain li { margin: 4px 0; overflow-wrap: anywhere; }
+.topic-edit { margin-top: 12px; }

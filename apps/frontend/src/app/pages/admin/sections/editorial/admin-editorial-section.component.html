@@ -103,10 +103,49 @@
       </section>
 
     <section *ngIf="activeTab === 'topics'" role="tabpanel" id="editorial-panel-topics" aria-labelledby="editorial-tab-topics" class="tab-content">
-      <div class="section-heading"><div><h3>Cola de trabajo</h3><p>Solicitudes manuales y último snapshot de temas descubiertos por el runner.</p></div><button type="button" class="button secondary" (click)="discover()" [disabled]="requestBusy">Descubrir temas</button></div>
-      <div *ngIf="!ov.runner.online" role="note" class="notice-box">El runner no tiene señal reciente. Las nuevas solicitudes quedarán pendientes hasta que se conecte.</div>
-      <div class="queue-list"><article *ngFor="let item of ov.queue; trackBy: trackId" class="queue-card"><div class="queue-main"><div class="card-meta"><app-admin-status-badge [status]="badgeStatus(item.status || item.state)" [label]="stateLabel(item.status || item.state)" /><span>{{ item.source === 'manual' ? 'Solicitud manual' : 'Descubierto' }}</span><span *ngIf="item.kind === 'discover'">Descubrimiento</span></div><h3>{{ item.title || item.topic?.title || 'Descubrimiento de nuevos temas' }}</h3><p *ngIf="item.topic?.intent">{{ item.topic.intent }}</p><p *ngIf="item.reason" class="reason">{{ item.reason }}</p><div class="source-links"><a *ngFor="let url of item.sources || item.topic?.seedUrls || []" [href]="url" target="_blank" rel="noopener">{{ url }}</a></div><small>{{ item.category || item.topic?.category || '—' }}<ng-container *ngIf="item.score !== undefined"> · puntuación {{ item.score }}</ng-container> · {{ item.updatedAt || item.createdAt | date: 'short' }}</small></div><div class="queue-actions"><button *ngIf="item.source === 'manual' && item.status === 'queued'" class="button secondary" (click)="queueAction(item.id, 'cancel')" [disabled]="queueBusy === item.id">Cancelar</button><button *ngIf="item.source === 'manual' && (item.status === 'failed' || item.status === 'cancelled')" class="button secondary" (click)="queueAction(item.id, 'retry')" [disabled]="queueBusy === item.id">Reintentar</button></div></article></div>
-      <p *ngIf="!ov.queue.length" class="empty panel">La cola está vacía. Solicita descubrimiento o crea un documento.</p>
+      <div class="section-heading"><div><h3>Temas</h3><p>Todo lo que el runner tiene en cola: solicitudes manuales y temas descubiertos. Tus decisiones las aplica el runner en su próximo ciclo.</p></div><button type="button" class="button secondary" (click)="discover()" [disabled]="requestBusy">Descubrir temas</button></div>
+      <div *ngIf="!ov.runner.online" role="note" class="notice-box">El runner no tiene señal reciente. Las solicitudes y decisiones quedarán pendientes hasta que se conecte.</div>
+      <div *ngIf="ov.pendingActions?.length" role="status" class="notice-box pending-box">
+        <span>{{ ov.pendingActions!.length }} decisión(es) esperan al runner.</span>
+        <button type="button" class="button secondary compact" (click)="runnerProcessAction('start')" [disabled]="runnerBusy !== '' || !ov.runner.process?.configured">Aplicar ahora (inicia un ciclo)</button>
+      </div>
+      <nav class="sub-tabs" aria-label="Filtrar temas"><button *ngFor="let f of topicFilters" type="button" [attr.aria-pressed]="topicFilter === f.id" (click)="topicFilter = f.id">{{ f.label }} <span class="tab-count">{{ topicCount(f.id) }}</span></button></nav>
+      <div class="queue-list">
+        <article *ngFor="let item of topics; trackBy: trackId" class="queue-card topic-card" [class.pinned]="item.pinned">
+          <div class="queue-main">
+            <div class="card-meta"><app-admin-status-badge [status]="badgeStatus(item.status || item.state)" [label]="stateLabel(item.status || item.state)" /><span>{{ item.source === 'manual' ? 'Solicitud manual' : 'Descubierto' }}</span><span *ngIf="item.pinned" class="pin-tag">Prioritario</span><span *ngIf="item.kind === 'discover'">Descubrimiento</span></div>
+            <h3>{{ item.title || item.topic?.title || 'Descubrimiento de nuevos temas' }}</h3>
+            <p *ngIf="item.intent || item.topic?.intent">{{ item.intent || item.topic?.intent }}</p>
+            <p *ngIf="item.reason" class="reason">{{ item.reason }}</p>
+            <p *ngIf="pendingFor(item.id) as pa" class="pending-line">Decisión pendiente: {{ actionLabels[pa.action] }}<ng-container *ngIf="pa.reason"> — {{ pa.reason }}</ng-container></p>
+            <div class="source-links"><a *ngFor="let url of item.sources || item.topic?.seedUrls || []" [href]="url" target="_blank" rel="noopener">{{ url }}</a></div>
+            <small>{{ item.category || item.topic?.category || '—' }}<ng-container *ngIf="item.score !== undefined"> · puntuación {{ item.score }}</ng-container><ng-container *ngIf="item.attempts"> · {{ item.attempts }} intento(s)</ng-container> · {{ item.updatedAt || item.createdAt | date: 'short' }}</small>
+            <details *ngIf="item.explanation?.length" class="explain"><summary>Por qué esta puntuación</summary><ul><li *ngFor="let line of item.explanation">{{ line }}</li></ul></details>
+
+            <form *ngIf="editId === item.id" (ngSubmit)="saveTopicEdit(item.id)" class="form-grid topic-edit">
+              <div class="full"><label [for]="'te-title-' + item.id">Título</label><input [id]="'te-title-' + item.id" [(ngModel)]="editForm.title" name="title" minlength="20" maxlength="110" required /></div>
+              <div class="full"><label [for]="'te-intent-' + item.id">Intención del lector</label><textarea [id]="'te-intent-' + item.id" [(ngModel)]="editForm.intent" name="intent" rows="2" minlength="20" maxlength="500" required></textarea></div>
+              <div class="full"><label [for]="'te-seeds-' + item.id">Fuentes semilla (1–6, una URL https por línea)</label><textarea [id]="'te-seeds-' + item.id" [(ngModel)]="editForm.seedUrlsText" name="seeds" rows="4" required></textarea></div>
+              <div class="full submit-row"><span>El runner vuelve a validar las fuentes cuando genera el artículo.</span><div class="queue-actions"><button type="button" class="button secondary" (click)="editId = ''">Cancelar</button><button type="submit" class="button primary" [disabled]="queueBusy === item.id">Guardar cambios</button></div></div>
+            </form>
+            <form *ngIf="rejectId === item.id" (ngSubmit)="topicAction(item.id, 'reject', { reason: rejectReason })" class="inline-form">
+              <div><label [for]="'tr-' + item.id">Motivo del rechazo</label><input [id]="'tr-' + item.id" [(ngModel)]="rejectReason" name="reason" maxlength="300" placeholder="Por ejemplo: ya cubierto por otra guía" /></div>
+              <button type="button" class="button secondary" (click)="rejectId = ''">Cancelar</button><button type="submit" class="button danger" [disabled]="queueBusy === item.id">Rechazar tema</button>
+            </form>
+          </div>
+          <div class="queue-actions topic-actions">
+            <ng-container *ngIf="item.source === 'discovered'">
+              <button type="button" class="button secondary" *ngIf="['held', 'rejected', 'expired'].includes(item.state || '')" (click)="topicAction(item.id, 'approve')" [disabled]="queueBusy === item.id || !!pendingFor(item.id)">Aprobar</button>
+              <button type="button" class="button secondary" *ngIf="item.state === 'queued'" (click)="topicAction(item.id, 'prioritize')" [disabled]="queueBusy === item.id || !!pendingFor(item.id)">{{ item.pinned ? 'Quitar prioridad' : 'Priorizar' }}</button>
+              <button type="button" class="button secondary" *ngIf="['queued', 'held', 'rejected', 'expired'].includes(item.state || '')" (click)="startEdit(item)">Editar</button>
+              <button type="button" class="button danger" *ngIf="['queued', 'held'].includes(item.state || '')" (click)="rejectId = item.id; rejectReason = ''" [disabled]="!!pendingFor(item.id)">Rechazar</button>
+            </ng-container>
+            <button *ngIf="item.source === 'manual' && item.status === 'queued'" class="button secondary" (click)="queueAction(item.id, 'cancel')" [disabled]="queueBusy === item.id">Cancelar</button>
+            <button *ngIf="item.source === 'manual' && (item.status === 'failed' || item.status === 'cancelled')" class="button secondary" (click)="queueAction(item.id, 'retry')" [disabled]="queueBusy === item.id">Reintentar</button>
+          </div>
+        </article>
+      </div>
+      <p *ngIf="!topics.length" class="empty panel">No hay temas con este filtro. Solicita descubrimiento o crea un documento en «Generar».</p>
     </section>
 
     <section *ngIf="activeTab === 'generate'" role="tabpanel" id="editorial-panel-generate" aria-labelledby="editorial-tab-generate" class="tab-content form-layout">
