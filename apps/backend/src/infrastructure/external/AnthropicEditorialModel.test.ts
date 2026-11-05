@@ -74,3 +74,10 @@ test('M14-B: an already-aborted job signal never opens a provider stream', async
   await assert.rejects(new AnthropicEditorialModel({ client: f.client }).call(call({ signal: controller.signal })), /abort|cancel/i);
   assert.equal(f.sent.length, 0);
 });
+
+test('prompt-mode JSON tolerates prose after the object and picks the last valid fence', () => {
+  assert.deepEqual(parseJson('```json\n{"a":1}\n```\nHe consultado estas fuentes.', true), { a: 1 });
+  assert.deepEqual(parseJson('{"claims":[]}\n\nNota adicional', true), { claims: [] });
+  assert.deepEqual(parseJson('```json\n{"a":1}\n```\ntexto\n```json\n{"b":2}\n```\nfin', true), { b: 2 });
+  assert.deepEqual(parseJson('{"a":1} y {"b":2}', false), { a: 1 });
+});

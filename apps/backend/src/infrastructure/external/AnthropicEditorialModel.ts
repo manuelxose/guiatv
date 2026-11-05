@@ -172,10 +172,45 @@ export class AnthropicEditorialModel implements EditorialModel {
 }
 
 export function parseJson(text: string, fenced: boolean): unknown {
-  // Prompt-mode providers usually wrap the object in a fence but sometimes answer with bare JSON.
-  const body = fenced
-    ? [...text.matchAll(/```json\s*([\s\S]*?)```/g)].pop()?.[1] ?? (/^\s*[{[]/.test(text) ? text : undefined)
-    : text;
-  if (!body) throw new Error('no JSON block in the answer');
-  return JSON.parse(body);
+  const candidates = fenced
+    ? [
+      ...[...text.matchAll(/```(?:json)?\s*([\s\S]*?)```/g)].map((match) => match[1]).reverse(),
+      ...(/^\s*[{[]/.test(text) ? [text] : []),
+    ]
+    : [text];
+  for (const candidate of candidates) {
+    const value = parseCandidate(candidate);
+    if (value !== undefined) return value;
+  }
+  throw new Error('no JSON block in the answer');
+}
+
+/** Some providers append prose or a second object after the JSON: parse the first balanced value, never a prefix. */
+function parseCandidate(value: string): unknown {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  try { return JSON.parse(trimmed); } catch { /* try the first balanced JSON value */ }
+  const start = trimmed.search(/[{[]/);
+  if (start < 0) return undefined;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < trimmed.length; i++) {
+    const char = trimmed[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') inString = true;
+    else if (char === '{' || char === '[') depth++;
+    else if (char === '}' || char === ']') {
+      depth--;
+      if (depth === 0) {
+        try { return JSON.parse(trimmed.slice(start, i + 1)); } catch { return undefined; }
+      }
+    }
+  }
+  return undefined;
 }
