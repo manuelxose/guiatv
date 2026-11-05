@@ -3,23 +3,44 @@ import { ModelCallFailed, type EditorialModel, type ModelCall, type ModelResult 
 
 const MAX_OUTPUT_TOKENS = 32000;
 
+export interface AnthropicEditorialModelOptions {
+  apiKey?: string;
+  maxRetries?: number;
+  client?: Pick<Anthropic, 'messages'>;
+  modelPrefix?: string;
+  /** Provenance backend. Defaults to `anthropic`; a compatible provider (DeepSeek) supplies its own id. */
+  provider?: string;
+  /** Anthropic-compatible API root, e.g. https://api.deepseek.com/anthropic. */
+  baseURL?: string;
+  /** Anthropic server tools include web_fetch; DeepSeek's compatible endpoint only implements web_search. */
+  webFetch?: boolean;
+}
+
 /**
  * EditorialModel over the Claude Messages API. Research gets web search and fetch (server tools, so
  * its JSON comes back as text); every other role uses structured outputs against the role's schema.
  * A refusal or an unparseable answer throws: the job stops rather than switching model mid-fact-check.
+ * The same adapter serves Anthropic-compatible providers (DeepSeek) through `provider` and `baseURL`.
  */
 export class AnthropicEditorialModel implements EditorialModel {
-  readonly provider = 'anthropic';
+  readonly provider: string;
   readonly webSearch = true;
   readonly maxOutputTokens = MAX_OUTPUT_TOKENS;
   private readonly client: Pick<Anthropic, 'messages'>;
   /** Gateway model namespace (e.g. `cc/` for the owner's subscription gateway); routes, prices and provenance keep the canonical id. */
   private readonly modelPrefix: string;
+  private readonly webFetch: boolean;
 
-  constructor(options: { apiKey?: string; maxRetries?: number; client?: Pick<Anthropic, 'messages'>; modelPrefix?: string } = {}) {
+  constructor(options: AnthropicEditorialModelOptions = {}) {
+    this.provider = options.provider ?? 'anthropic';
     // Zero-arg resolution (ANTHROPIC_API_KEY, auth token, `ant auth login` profile) unless a key is injected.
-    this.client = options.client ?? new Anthropic({ ...(options.apiKey ? { apiKey: options.apiKey } : {}), maxRetries: options.maxRetries ?? 1 });
+    this.client = options.client ?? new Anthropic({
+      ...(options.apiKey ? { apiKey: options.apiKey } : {}),
+      ...(options.baseURL ? { baseURL: options.baseURL } : {}),
+      maxRetries: options.maxRetries ?? 1,
+    });
     this.modelPrefix = options.modelPrefix ?? process.env.ANTHROPIC_MODEL_PREFIX ?? '';
+    this.webFetch = options.webFetch ?? true;
   }
 
   async call(request: ModelCall): Promise<ModelResult> {
@@ -47,7 +68,7 @@ export class AnthropicEditorialModel implements EditorialModel {
         ...(research
           ? { tools: [
             { type: 'web_search_20260209', name: 'web_search', max_uses: request.webSearches },
-            { type: 'web_fetch_20260209', name: 'web_fetch', max_uses: request.webSearches! * 2 },
+            ...(this.webFetch ? [{ type: 'web_fetch_20260209', name: 'web_fetch', max_uses: request.webSearches! * 2 }] : []),
           ] as Anthropic.ToolUnion[] }
           : {}),
       }).finalMessage().catch((error: unknown) => {

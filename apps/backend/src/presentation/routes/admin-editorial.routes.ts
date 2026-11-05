@@ -23,6 +23,7 @@ export const createAdminEditorialRoutes = (controller: EditorialOpsController, a
   router.post('/policy/pause', strictRateLimit, asyncHandler(controller.pause));
   router.post('/policy/resume', strictRateLimit, humanEditorialReviewGuard, asyncHandler(controller.resume));
   router.post('/policy/daily-limit', strictRateLimit, humanEditorialReviewGuard, asyncHandler(controller.setDailyLimit));
+  router.get('/providers', asyncHandler(controller.providerHealth));
   router.get('/generation/settings', asyncHandler(controller.generationSettings));
   router.put('/generation/settings', strictRateLimit, asyncHandler(controller.updateGenerationSettings));
   router.post('/generation/requests', strictRateLimit, asyncHandler(controller.createGenerationRequest));

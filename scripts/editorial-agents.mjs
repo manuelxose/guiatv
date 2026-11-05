@@ -187,7 +187,7 @@ if (command === 'run') {
     await runCycle(report, command === 'discover');
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    await generationPost(report, 'runner/heartbeat', { version: 'm11g-2', status: 'error', error: message, providers: ['anthropic', ...(process.env.OPENAI_API_KEY ? ['openai'] : [])], webSearch: true }).catch(() => null);
+    await generationPost(report, 'runner/heartbeat', { version: 'm11g-2', status: 'error', error: message, providers: liveProviderNames(), webSearch: true }).catch(() => null);
     let queue;
     try { queue = loadQueue(); } catch { /* Preserve the last server snapshot when the local queue is unreadable. */ }
     if (queue) await reportCycle(report, 'failed', message, queue).catch(() => null);
@@ -304,12 +304,20 @@ async function adminPolicy(report) {
 }
 
 function liveModels() {
-  const models = [new (require(join(dist, 'infrastructure/external/AnthropicEditorialModel.js')).AnthropicEditorialModel)()];
+  const models = [];
+  // Only providers with a server-side credential are offered. A stale ANTHROPIC_AUTH_TOKEN pointing at a dead
+  // loopback gateway must not be advertised: M14-A moved production to DeepSeek's server-owned API.
+  if (process.env.ANTHROPIC_API_KEY) models.push(new (require(join(dist, 'infrastructure/external/AnthropicEditorialModel.js')).AnthropicEditorialModel)());
   if (process.env.OPENAI_API_KEY) models.push(new (require(join(dist, 'infrastructure/external/OpenAIEditorialModel.js')).OpenAIEditorialModel)());
+  if (process.env.DEEPSEEK_API_KEY) models.push(new (require(join(dist, 'infrastructure/external/DeepSeekEditorialModel.js')).DeepSeekEditorialModel)());
+  if (!models.length) throw new Error('No live model provider is configured (DEEPSEEK_API_KEY, OPENAI_API_KEY or ANTHROPIC_API_KEY)');
   return models;
 }
+function liveProviderNames() {
+  return [...(process.env.ANTHROPIC_API_KEY ? ['anthropic'] : []), ...(process.env.OPENAI_API_KEY ? ['openai'] : []), ...(process.env.DEEPSEEK_API_KEY ? ['deepseek'] : [])];
+}
 async function reportCycle(report, result, reason, q, generated = 0) {
-  if (result === 'discovery-error') await generationPost(report, 'runner/heartbeat', { version: 'm11g-2', status: 'error', error: reason, providers: ['anthropic', ...(process.env.OPENAI_API_KEY ? ['openai'] : [])], webSearch: true }).catch(() => null);
+  if (result === 'discovery-error') await generationPost(report, 'runner/heartbeat', { version: 'm11g-2', status: 'error', error: reason, providers: liveProviderNames(), webSearch: true }).catch(() => null);
   await generationPost(report, 'runner/cycles', { result, reason, queued: q.topics.filter((t) => t.state === 'queued').length, generated, queue: q.topics }).catch(() => null);
 }
 const manualTopic = (topic, settings) => ({
@@ -470,7 +478,7 @@ async function runCycle(report, discoverOnly) {
   const q = loadQueue();
   const recovered = queueLib.recoverQueue(q, now);
   saveQueue(q);
-  await generationPost(report, 'runner/heartbeat', { version: 'm11g-2', providers: ['anthropic', ...(process.env.OPENAI_API_KEY ? ['openai'] : [])], webSearch: true }).catch(() => null);
+  await generationPost(report, 'runner/heartbeat', { version: 'm11g-2', providers: liveProviderNames(), webSearch: true }).catch(() => null);
   const workResponse = await generationApi(report, 'runner/work').then((r) => r.ok ? r.json() : null).catch(() => null);
   const work = workResponse?.data;
   const policy = work?.policy ?? await adminPolicy(report);

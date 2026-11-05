@@ -6,7 +6,7 @@ import { FormsModule } from '@angular/forms';
 import {
   AdminEditorialService, EditorialContentType, EditorialFinding, EditorialGenerationSettings,
   EditorialGenerationTopic, EditorialLength, EditorialOverview, EditorialPolicyStatus,
-  EditorialPostDetail, EditorialRole, EditorialSeverity,
+  EditorialPostDetail, EditorialProviderHealth, EditorialProviderState, EditorialRole, EditorialSeverity,
 } from '../../../../services/admin-editorial.service';
 import { AdminConfirmDialogComponent } from '../../components/admin-confirm-dialog/admin-confirm-dialog.component';
 import { AdminStatusBadgeComponent } from '../../components/admin-status-badge/admin-status-badge.component';
@@ -55,7 +55,7 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
   readonly categories = ['Televisión', 'Cine', 'Series', 'Streaming', 'Fútbol', 'Deportes', 'Tecnología'];
   readonly contentTypes: Array<{ id: EditorialContentType; label: string }> = [{ id: 'guide', label: 'Guía' }, { id: 'ranking', label: 'Ranking' }, { id: 'analysis', label: 'Análisis' }];
   readonly lengths: Array<{ id: EditorialLength; label: string }> = [{ id: 'short', label: 'Corta · 600–900' }, { id: 'medium', label: 'Media · 900–1400' }, { id: 'long', label: 'Larga · 1400–2000' }];
-  readonly models: Record<string, string[]> = { anthropic: ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'], openai: ['gpt-6.1-terra', 'gpt-6-luna'] };
+  readonly models: Record<string, string[]> = { anthropic: ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'], openai: ['gpt-6.1-terra', 'gpt-6-luna'], deepseek: ['deepseek-v4-pro', 'deepseek-flash'] };
   readonly severities: EditorialSeverity[] = ['block', 'warn', 'human'];
   readonly severityLabels: Record<EditorialSeverity, string> = { block: 'Bloqueante', warn: 'Aviso', human: 'Revisión humana' };
   readonly stateLabels = STATE_LABELS;
@@ -125,13 +125,32 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
   deleteDialogOpen = false;
   runnerBusy = '';
   runnerLogLines: string[] | null = null;
+  providers: EditorialProviderHealth | null = null;
+  providersLoading = false;
+  providersError = '';
+  readonly providerStateLabels: Record<EditorialProviderState, string> = {
+    connected: 'Conectado', unauthorized: 'Credencial rechazada', unreachable: 'Sin conexión',
+    error: 'Error del proveedor', 'not-configured': 'Sin credencial',
+  };
   private readonly destroyRef = inject(DestroyRef);
   private readonly service = inject(AdminEditorialService);
 
   ngOnInit(): void {
     this.refresh();
+    this.loadProviders();
     // Live view: poll while the tab is visible; silent so the page does not flash a loading state.
     interval(15000).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => { if (!document.hidden && !this.loading) this.refresh(true); });
+  }
+
+  loadProviders(refresh = false): void {
+    const request = (this.service as Partial<AdminEditorialService>).getProviders?.(refresh);
+    if (!request) return;
+    this.providersLoading = true;
+    this.providersError = '';
+    request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (data) => { this.providers = data; this.providersLoading = false; },
+      error: (e) => { this.providersLoading = false; this.providersError = errorMessage(e, 'No se pudo comprobar la conexión con los proveedores'); },
+    });
   }
   ngOnDestroy(): void { document.body.style.overflow = ''; }
 

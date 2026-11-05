@@ -712,7 +712,12 @@ export function evaluateEvidence(post: EvidencePost, provenance: EditorialProven
 
 // ---- cost control ---------------------------------------------------------------------------------
 
-/** USD per million tokens (input, output), from the providers' first-party price lists. */
+/**
+ * USD per million tokens (input, output), from the providers' first-party price lists.
+ * DeepSeek rates are its published PEAK rates (2026-11-05, https://api-docs.deepseek.com/quick_start/pricing),
+ * so the estimate is an upper bound; actual off-peak billing can be half. Source-reported charges are not
+ * available from the API, so every ledger amount is labelled estimated-list, never an invoice.
+ */
 export const MODEL_PRICES: Readonly<Record<string, readonly [number, number]>> = Object.freeze({
   'claude-opus-5-5': [4, 20],
   'claude-sonnet-5-5': [2, 10],
@@ -721,9 +726,14 @@ export const MODEL_PRICES: Readonly<Record<string, readonly [number, number]>> =
   'gpt-6-luna': [0.1, 0.5],
   'gpt-5.6-terra': [2, 12],
   'gpt-5.6-luna': [0.2, 1.2],
+  'deepseek-flash': [0.3, 1.2],
+  'deepseek-v4-pro': [1.32, 3.96],
 });
 /** Web search is billed per search on top of tokens. */
 export const WEB_SEARCH_USD = 0.01;
+/** DeepSeek bills $0.75 per 1,000 successful search or fetch requests. */
+export const DEEPSEEK_SEARCH_USD = 0.00075;
+export const webSearchPrice = (model: string): number => model.startsWith('deepseek-') ? DEEPSEEK_SEARCH_USD : WEB_SEARCH_USD;
 /**
  * USD per generated image. Only the local mock is priced: a real image model is added here after its
  * price and commercial terms are checked (docs/adr/0001), and until then the ledger refuses it.
@@ -778,7 +788,7 @@ export class CostLedger {
   charge(role: string, model: string, usage: { input_tokens: number; output_tokens: number }, searches = 0): CostEntry {
     const price = MODEL_PRICES[model];
     if (!price) throw new EditorialBudgetExceeded(`modelo sin precio conocido: ${model}`);
-    const usd = (usage.input_tokens * price[0] + usage.output_tokens * price[1]) / 1e6 + searches * WEB_SEARCH_USD;
+    const usd = (usage.input_tokens * price[0] + usage.output_tokens * price[1]) / 1e6 + searches * webSearchPrice(model);
     return this.record({ role, model, inputTokens: usage.input_tokens, outputTokens: usage.output_tokens, searches, usd: +usd.toFixed(6) });
   }
 

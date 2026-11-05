@@ -114,7 +114,7 @@ export interface EditorialSearchConsole {
 
 export type EditorialContentType = 'guide' | 'ranking' | 'analysis';
 export type EditorialLength = 'short' | 'medium' | 'long';
-export interface EditorialModelRoute { provider: 'anthropic' | 'openai'; model: string; effort: 'low' | 'medium' | 'high' }
+export interface EditorialModelRoute { provider: 'anthropic' | 'openai' | 'deepseek'; model: string; effort: 'low' | 'medium' | 'high' }
 export interface EditorialGenerationSettings {
   enabled: boolean;
   scheduleHours: 3 | 6 | 12 | 24;
@@ -163,6 +163,21 @@ export interface EditorialOperations {
   pendingActions?: EditorialPendingAction[];
   queueSummary: { manualPending: number; discovered: number; running: number };
 }
+
+export type EditorialProviderState = 'connected' | 'unauthorized' | 'unreachable' | 'error' | 'not-configured';
+export interface EditorialProviderStatus {
+  id: 'deepseek' | 'anthropic' | 'openai';
+  label: string;
+  configured: boolean;
+  credentialEnv: string;
+  baseUrlHost: string | null;
+  state: EditorialProviderState;
+  models: string[];
+  latencyMs: number | null;
+  checkedAt: string;
+  error: string | null;
+}
+export interface EditorialProviderHealth { checkedAt: string; providers: EditorialProviderStatus[] }
 
 export interface EditorialOverview extends EditorialOperations {
   policy: EditorialPolicyStatus;
@@ -243,6 +258,12 @@ export class AdminEditorialService {
   getOverview(): Observable<EditorialOverview> {
     return this.http
       .get<ApiResponse<EditorialOverview>>(`${this.baseUrl}/overview`)
+      .pipe(map((resp) => resp.data));
+  }
+
+  getProviders(refresh = false): Observable<EditorialProviderHealth> {
+    return this.http
+      .get<ApiResponse<EditorialProviderHealth>>(`${this.baseUrl}/providers${refresh ? '?refresh=1' : ''}`)
       .pipe(map((resp) => resp.data));
   }
 

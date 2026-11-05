@@ -105,10 +105,10 @@ function validRoutes(value: unknown): RouteTable {
     result[role] = list.map((route) => {
       if (!route || typeof route !== 'object') return fail(`${role}: invalid route`);
       const r = route as Record<string, unknown>;
-      const provider = enumValue(r.provider, ['anthropic', 'openai'] as const);
+      const provider = enumValue(r.provider, ['anthropic', 'openai', 'deepseek'] as const);
       const model = text(r.model, 80);
       if (!model || !MODEL_PRICES[model]) return fail(`${role}: unknown or unpriced model`);
-      if (provider === 'anthropic' && !model.startsWith('claude-') || provider === 'openai' && !model.startsWith('gpt-')) return fail(`${role}: model does not belong to ${provider}`);
+      if (provider === 'anthropic' && !model.startsWith('claude-') || provider === 'openai' && !model.startsWith('gpt-') || provider === 'deepseek' && !model.startsWith('deepseek-')) return fail(`${role}: model does not belong to ${provider}`);
       return { provider, model, effort: enumValue(r.effort, ['low', 'medium', 'high'] as const) };
     });
   }
@@ -246,7 +246,7 @@ export class EditorialGenerationService {
   async reportRunner(input: any) {
     const now = new Date();
     const capabilities = {
-      providers: Array.isArray(input?.providers) ? input.providers.filter((x: unknown) => x === 'anthropic' || x === 'openai') : [],
+      providers: Array.isArray(input?.providers) ? input.providers.filter((x: unknown) => x === 'anthropic' || x === 'openai' || x === 'deepseek') : [],
       webSearch: input?.webSearch === true,
     };
     await runner().updateOne({ _id: 'current' }, { $set: { lastSeenAt: now, version: text(input?.version, 40), status: text(input?.status, 30) || 'ready', lastError: text(input?.error, 1000), capabilities } }, { upsert: true });

@@ -61,7 +61,7 @@ export const DEFAULT_ROUTES: RouteTable = Object.freeze({
 export const DEFAULT_IMAGE_ROUTES: readonly ImageRoute[] = Object.freeze([]);
 
 /** Providers with a real adapter in this codebase. Policy approval trusts signed provenance only from these. */
-export const LIVE_PROVIDERS: ReadonlySet<string> = new Set(['anthropic', 'openai']);
+export const LIVE_PROVIDERS: ReadonlySet<string> = new Set(['anthropic', 'openai', 'deepseek']);
 export const LIVE_IMAGE_PROVIDERS: ReadonlySet<string> = new Set<string>();
 
 /**

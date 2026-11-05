@@ -18,6 +18,7 @@ import { editorialCoverPreview } from '../middlewares/editorialMediaGate';
 import { searchConsoleOverview } from '../../application/services/SearchConsoleMonitor';
 import { EditorialGenerationService } from '../../application/services/EditorialGenerationService';
 import { EditorialRunnerService } from '../../application/services/EditorialRunnerService';
+import { EditorialProvidersService } from '../../application/services/EditorialProvidersService';
 
 /**
  * M11-C Admin supervision of the AI editorial pipeline (/v2/admin/editorial, admin role enforced by the router).
@@ -70,6 +71,7 @@ const usdOf = (p?: EditorialProvenance) => p?.cost?.usd ?? 0;
 export class EditorialOpsController {
   private readonly generation = new EditorialGenerationService();
   private readonly runnerProcess = new EditorialRunnerService();
+  private readonly providers = new EditorialProvidersService();
 
   constructor(private readonly storage: IStorageRepository) {}
 
@@ -110,7 +112,9 @@ export class EditorialOpsController {
       searchConsoleOverview().catch(() => null),
       this.generation.operationalState(),
     ]);
-    const { routes, imageRoutes } = routesFromEnv();
+    // The runner uses the Admin's persisted route table, not the deploy-time defaults; show what actually runs.
+    const routes = operations.generation.routes;
+    const { imageRoutes } = routesFromEnv();
     // The runner owns the money caps; its latest report says which budget it ran under (M11-E2 testing: unlimited).
     const unlimited = recentJobs[0]?.budget === 'unlimited';
     const count = (state: string) => todayJobs.filter((j) => j.state === state).length;
@@ -359,6 +363,11 @@ export class EditorialOpsController {
       throw error;
     }
     res.status(201).json(successResponse({ jobId: job.jobId }));
+  };
+
+  providerHealth = async (req: Request, res: Response): Promise<void> => {
+    // Automatic on page load; an explicit ?refresh=1 bypasses the 60 s cache after a credential change.
+    res.json(successResponse(await this.providers.check(req.query.refresh === '1')));
   };
 
   generationSettings = async (_req: Request, res: Response): Promise<void> => {
