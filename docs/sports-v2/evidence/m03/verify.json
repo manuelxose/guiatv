@@ -1,0 +1,83 @@
+{
+  "ranAt": "2026-11-05T19:44:51.234Z",
+  "match": "se-palmeiras-clube-do-remo-2026-11-05",
+  "checks": [
+    {
+      "name": "timezone madrid: kickoff shown as 23:30",
+      "ok": true,
+      "detail": "· 23:30 · hora de Madrid (CET)"
+    },
+    {
+      "name": "timezone madrid: zone is stated",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "timezone tokyo: kickoff shown as 07:30",
+      "ok": true,
+      "detail": "· 07:30 · tu hora local (Asia/Tokyo, GMT+9)"
+    },
+    {
+      "name": "timezone tokyo: zone is stated",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "live: a poll happened near kickoff",
+      "ok": true,
+      "detail": "calls=1"
+    },
+    {
+      "name": "live: the match moved to live with score 1-0, in place, no reload",
+      "ok": true,
+      "detail": "● En vivo PAL SE Palmeiras CRE Clube do Remo 1 0"
+    },
+    {
+      "name": "live: last-update line visible",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "live: no polling while the tab is hidden",
+      "ok": true,
+      "detail": "calls 1 -> 1"
+    },
+    {
+      "name": "live: failure marks data stale and keeps the last score",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "live: retries are bounded after repeated failures",
+      "ok": true,
+      "detail": "extra calls over 30 min = 4"
+    },
+    {
+      "name": "search: groups real results",
+      "ok": true,
+      "detail": "Equipo SE Palmeiras | Partido SE Palmeiras - Clube do Remo Brasileirão · jue, 5 nov | Ver todos los resultados"
+    },
+    {
+      "name": "search: keyboard selection navigates to a semantic URL",
+      "ok": true,
+      "detail": "http://localhost:4210/laboratorio/futbol/equipos/se-palmeiras"
+    },
+    {
+      "name": "favourites: followed team survives a reload",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "favourites: home personalises \"Mis equipos\"",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "no unexpected console errors",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "consoleErrors": [],
+  "hydrationErrors": []
+}

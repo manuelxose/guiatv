@@ -3,13 +3,14 @@ import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, injec
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
+import { dayKey, kickoffTime, longDay } from '../domain/calendar';
 import { sv2Link } from '../sports-v2.paths';
 import { SportsStore } from '../state/sports-store';
 import { Sv2IconComponent } from '../ui/icon';
 import { Sv2EmptyStateComponent, Sv2ErrorStateComponent, Sv2LoadingSkeletonComponent } from '../ui/states';
 import { MATCH_TABS, MatchTab, Sv2MatchDetailsComponent } from './match-details';
 import { Sv2MatchHeroComponent } from './match-hero';
-import { usePageTitle } from './page-title';
+import { breadcrumbs, sportsEvent, SPORTS_SITE_URL, sv2Path, useNotFound, useSeo, Sv2Seo } from './seo';
 
 /** Full-page Match Center: the desktop "expand" target and the dedicated full-screen mobile view. */
 @Component({
@@ -38,6 +39,8 @@ import { usePageTitle } from './page-title';
           <h1 class="sr">{{ title() }}</h1>
           <app-sv2-match-hero [match]="m" size="lg" />
           <app-sv2-match-details [match]="m" prefix="sv2pg" [tab]="tab()" (tabChange)="setTab($event)" [relatedLimit]="4" />
+        } @else if (store.resolving()) {
+          <app-sv2-loading-skeleton [count]="3" />
         } @else {
           <app-sv2-empty-state title="No encontramos este partido" hint="Puede que el enlace sea antiguo o que el partido ya no esté disponible." actionLabel="Ver el calendario" [actionLink]="fixtures" />
         }
@@ -76,11 +79,36 @@ export class Sv2MatchPageComponent {
     return m ? `${this.store.team(m.homeSlug)?.name ?? ''} - ${this.store.team(m.awaySlug)?.name ?? ''}` : 'Partido';
   });
 
+  private readonly site = inject(SPORTS_SITE_URL);
+  private readonly seo = computed<Sv2Seo | null>(() => {
+    const m = this.match();
+    if (!m) return { title: 'Partido' };
+    const home = this.store.team(m.homeSlug)?.name ?? '';
+    const away = this.store.team(m.awaySlug)?.name ?? '';
+    const comp = this.store.competition(m.competitionSlug)?.name ?? '';
+    const where = m.broadcasts.length ? `Dónde verlo: ${m.broadcasts.map((b) => b.channel).join(', ')}.` : 'Emisión aún no confirmada.';
+    const segments = ['partido', m.slug];
+    const path = sv2Path(segments);
+    return {
+      title: `${home} - ${away}`,
+      description: `${home} contra ${away} (${comp}), ${longDay(dayKey(m.kickoff))} a las ${kickoffTime(m.kickoff)}. ${where}`,
+      segments,
+      jsonLd: [
+        sportsEvent(this.site, { name: `${home} - ${away}`, kickoff: m.kickoff, status: m.status, home, away, competition: comp, path }),
+        breadcrumbs(this.site, [['Fútbol', sv2Path()], [comp, sv2Path(['competiciones', m.competitionSlug])], [`${home} - ${away}`, path]]),
+      ],
+    };
+  });
+
   constructor() {
     this.store.matchPageOpen.set(true);
     this.store.contextOpen.set(false);
     inject(DestroyRef).onDestroy(() => this.store.matchPageOpen.set(false));
-    usePageTitle(() => this.title());
+    effect(() => {
+      if (this.store.loadState() === 'ready') untracked(() => void this.store.ensureMatch(this.slug()));
+    });
+    useNotFound(() => this.store.loadState() === 'ready' && !this.store.resolving() && !this.match(), false);
+    useSeo(() => this.seo());
     // Keep the sidebar's selection in step so leaving the page lands on the same match.
     effect(() => {
       const m = this.match();

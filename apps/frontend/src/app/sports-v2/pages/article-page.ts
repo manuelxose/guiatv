@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
@@ -7,7 +7,7 @@ import { sv2Link } from '../sports-v2.paths';
 import { SportsStore } from '../state/sports-store';
 import { Sv2ArticleCardComponent } from '../ui/article-card';
 import { Sv2EmptyStateComponent, Sv2ErrorStateComponent, Sv2LoadingSkeletonComponent } from '../ui/states';
-import { usePageTitle } from './page-title';
+import { breadcrumbs, SPORTS_SITE_URL, sv2Path, useNotFound, useSeo } from './seo';
 
 /** Article detail: byline, date, body and links to the teams, competition and match it covers. */
 @Component({
@@ -32,6 +32,7 @@ import { usePageTitle } from './page-title';
             </div>
             <p class="lead">{{ a.summary }}</p>
             @for (p of a.body; track $index) { <p>{{ p }}</p> }
+            @if (a.canonicalPath) { <p><a [href]="a.canonicalPath">Ver el artículo en Guía TV</a></p> }
             @if (store.isDemo) { <p class="demo" role="note">Artículo ficticio de demostración: no es información real.</p> }
           </article>
 
@@ -50,6 +51,8 @@ import { usePageTitle } from './page-title';
               <div class="grid">@for (n of more(); track n.slug) { <app-sv2-article-card [item]="n" /> }</div>
             </section>
           }
+        } @else if (store.resolving()) {
+          <app-sv2-loading-skeleton [count]="3" />
         } @else {
           <app-sv2-empty-state title="No encontramos esta noticia" hint="Puede que el enlace sea antiguo." actionLabel="Ver noticias" [actionLink]="newsLink" />
         }
@@ -83,6 +86,7 @@ import { usePageTitle } from './page-title';
 export class Sv2ArticlePageComponent {
   protected readonly store = inject(SportsStore);
   private readonly route = inject(ActivatedRoute);
+  private readonly site = inject(SPORTS_SITE_URL);
   protected readonly newsLink = sv2Link('noticias');
   protected readonly longStamp = longStamp;
   private readonly slug = toSignal(this.route.paramMap.pipe(map((p) => p.get('slug') ?? '')), { initialValue: this.route.snapshot.paramMap.get('slug') ?? '' });
@@ -93,7 +97,27 @@ export class Sv2ArticlePageComponent {
   protected readonly more = computed(() => this.store.news().filter((n) => n.slug !== this.slug()).slice(0, 3));
 
   constructor() {
-    usePageTitle(() => this.article()?.title ?? 'Noticia');
+    effect(() => {
+      if (this.store.loadState() === 'ready' && this.slug()) untracked(() => void this.store.ensureArticle(this.slug()));
+    });
+    useNotFound(() => this.store.loadState() === 'ready' && !this.store.resolving() && !this.article());
+    useSeo(() => {
+      const a = this.article();
+      if (!a) return { title: 'Noticia' };
+      const segments = ['noticias', a.slug];
+      const canonicalPath = a.canonicalPath;
+      const url = this.site + (canonicalPath ?? sv2Path(segments));
+      return {
+        title: a.title,
+        description: a.summary || undefined,
+        segments,
+        canonicalPath,
+        jsonLd: [
+          { '@context': 'https://schema.org', '@type': 'NewsArticle', headline: a.title, datePublished: a.publishedAt, author: { '@type': 'Organization', name: a.author }, mainEntityOfPage: url },
+          breadcrumbs(this.site, [['Fútbol', sv2Path()], ['Noticias', sv2Path(['noticias'])], [a.title, canonicalPath ?? sv2Path(segments)]]),
+        ],
+      };
+    });
   }
 
   protected link(...segments: string[]): string[] {

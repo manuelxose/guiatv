@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, untracked } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { shortDay, timezoneLabel } from '../domain/calendar';
+import { shortDay, zoneDescription } from '../domain/calendar';
 import { SportsStore } from '../state/sports-store';
 import { Sv2ErrorStateComponent, Sv2LoadingSkeletonComponent } from '../ui/states';
 import { Sv2DateStripComponent } from './date-strip';
@@ -20,7 +20,7 @@ import { usePageTitle } from './page-title';
     <app-sv2-matches-nav />
     <header>
       <h1>{{ results ? 'Resultados' : 'Partidos' }}</h1>
-      <p class="sub">Horarios en hora de Madrid ({{ tz }}).</p>
+      <p class="sub">Horarios en {{ tz }}.</p>
     </header>
     @switch (store.loadState()) {
       @case ('error') { <app-sv2-error-state (retry)="store.retry()" /> }
@@ -55,7 +55,7 @@ export class Sv2FixturesPageComponent {
   protected readonly store = inject(SportsStore);
   protected readonly f = useMatchFilters();
   protected readonly results = inject(ActivatedRoute).snapshot.data['mode'] === 'results';
-  protected readonly tz = timezoneLabel();
+  protected readonly tz = zoneDescription();
   protected readonly day = computed(() => this.f.day() ?? this.store.today());
   protected readonly shown = computed(() => this.f.apply(this.results ? this.store.finishedMatches() : this.store.matchesOnDay(this.day())));
   protected readonly nextDay = computed(() => this.store.matchDays().find((d) => d > this.day()) ?? null);
@@ -64,5 +64,9 @@ export class Sv2FixturesPageComponent {
 
   constructor() {
     usePageTitle(() => (this.results ? 'Resultados' : 'Partidos'));
+    effect(() => {
+      const d = this.day();
+      if (!this.results && this.store.loadState() === 'ready') untracked(() => void this.store.ensureDay(d));
+    });
   }
 }

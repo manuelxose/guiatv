@@ -5,6 +5,26 @@ import { FootballQueryService } from '@/application/sports/services/FootballQuer
 import { BroadcastReconciliationService } from '@/application/sports/services/BroadcastReconciliationService';
 import { normalizeMatchStatus } from '@/domain/sports/football/types';
 
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_RANGE_DAYS = 10; // football-data.org rejects wider ranges
+
+/** Optional inclusive day range (YYYY-MM-DD). Both bounds or neither; at most 10 days. Exported for tests. */
+export function parseDateRange(from: unknown, to: unknown): { dateFrom?: string; dateTo?: string } {
+  if (from === undefined && to === undefined) return {};
+  const [a, b] = [String(from ?? ''), String(to ?? '')];
+  const ms = (d: string) => {
+    const t = DAY.test(d) ? Date.parse(`${d}T00:00:00Z`) : NaN;
+    return Number.isNaN(t) || new Date(t).toISOString().slice(0, 10) !== d ? NaN : t; // rejects 2026-02-31
+  };
+  const span = (ms(b) - ms(a)) / 86_400_000;
+  if (Number.isNaN(span) || span < 0 || span > MAX_RANGE_DAYS) {
+    throw new ValidationError('dateFrom and dateTo must be YYYY-MM-DD, ordered, at most 10 days apart', [
+      { field: 'dateFrom', message: 'Invalid range', value: { from, to } },
+    ]);
+  }
+  return { dateFrom: a, dateTo: b };
+}
+
 export class FootballController {
   constructor(
     private readonly footballQueryService: FootballQueryService,
@@ -19,6 +39,7 @@ export class FootballController {
   async matches(req: Request, res: Response): Promise<void> {
     const result = await this.footballQueryService.getMatches({
       date: req.query.date ? String(req.query.date) : undefined,
+      ...parseDateRange(req.query.dateFrom, req.query.dateTo),
       status: req.query.status ? normalizeMatchStatus(String(req.query.status)) : undefined,
       competitionSlug: req.query.competition ? String(req.query.competition) : undefined,
       teamSlug: req.query.team ? String(req.query.team) : undefined,

@@ -1,4 +1,4 @@
-import { addDays, dayKey, dayLabel, isDayKey, kickoffTime, madridInstant, timezoneLabel } from './calendar';
+import { addDays, dayKey, dayLabel, displayZone, isDayKey, kickoffTime, madridInstant, setDisplayZone, timezoneLabel, zoneDescription } from './calendar';
 
 describe('sports-v2 calendar', () => {
   it('builds day keys in Madrid time, not UTC', () => {
@@ -35,5 +35,36 @@ describe('sports-v2 calendar', () => {
     expect(isDayKey('05/11/2026')).toBeFalse();
     expect(isDayKey('2026-13-45')).toBeFalse();
     expect(isDayKey(null)).toBeFalse();
+  });
+});
+
+describe('sports-v2 display zone', () => {
+  afterEach(() => setDisplayZone('Europe/Madrid'));
+
+  it('shifts day and clock for the visitor while the instant stays the same', () => {
+    const iso = '2026-11-05T23:30:00Z'; // 00:30 in Madrid, 20:30 in Buenos Aires
+    expect(dayKey(iso)).toBe('2026-11-06');
+    expect(setDisplayZone('America/Argentina/Buenos_Aires')).toBeTrue();
+    expect(dayKey(iso)).toBe('2026-11-05');
+    expect(kickoffTime(iso)).toBe('20:30');
+    expect(Date.parse(iso)).toBe(Date.UTC(2026, 10, 5, 23, 30)); // the instant itself never changes
+  });
+
+  it('describes the zone honestly', () => {
+    expect(zoneDescription(new Date('2026-11-05T12:00:00Z'))).toBe('hora de Madrid (CET)');
+    setDisplayZone('Asia/Tokyo');
+    expect(zoneDescription()).toContain('tu hora local (Asia/Tokyo');
+  });
+
+  it('ignores a zone the runtime does not know', () => {
+    expect(setDisplayZone('Mars/Olympus')).toBeFalse();
+    expect(setDisplayZone(undefined)).toBeFalse();
+    expect(displayZone()).toBe('Europe/Madrid');
+  });
+
+  it('puts a match on the right day across a DST change (Madrid, 2026-10-25)', () => {
+    expect(dayKey('2026-10-24T22:30:00Z')).toBe('2026-10-25'); // 00:30 CEST
+    expect(dayKey('2026-10-25T23:30:00Z')).toBe('2026-10-26'); // 00:30 CET
+    expect(kickoffTime('2026-10-25T19:00:00Z')).toBe('20:00'); // CET after the change
   });
 });

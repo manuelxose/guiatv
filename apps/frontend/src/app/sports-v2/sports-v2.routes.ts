@@ -1,5 +1,7 @@
+import { Type } from '@angular/core';
 import { Routes } from '@angular/router';
-import { DemoFootballData, FootballData } from './data/football-data';
+import { FootballData } from './data/football-data';
+import { HttpFootballData } from './data/http-football-data';
 import { BrowserFollowStorage, FollowStorage } from './data/follow-storage';
 import { SportsStore } from './state/sports-store';
 import { Sv2Viewport } from './state/viewport';
@@ -8,13 +10,12 @@ import { Sv2Viewport } from './state/viewport';
 const PREVIEW = { robots: 'noindex, nofollow', layout: 'minimal-shell' } as const;
 const TITLE = (name: string) => `${name} · Fútbol (vista previa) - Guía TV`;
 
-/** Lazy route tree mounted at SPORTS_V2_BASE by app.routes.ts. */
-export const SPORTS_V2_ROUTES: Routes = [
+/** Lazy route tree mounted at SPORTS_V2_BASE by app.routes.ts. Tests pass the demo adapter. */
+export const sportsV2Routes = (data: Type<FootballData> = HttpFootballData): Routes => [
   {
     path: '',
     loadComponent: () => import('./shell/app-shell').then((m) => m.Sv2AppShellComponent),
-    // M03 swaps DemoFootballData for the HTTP adapter here; nothing else changes.
-    providers: [{ provide: FootballData, useClass: DemoFootballData }, { provide: FollowStorage, useClass: BrowserFollowStorage }, Sv2Viewport, SportsStore],
+    providers: [{ provide: FootballData, useClass: data }, { provide: FollowStorage, useClass: BrowserFollowStorage }, Sv2Viewport, SportsStore],
     data: PREVIEW,
     children: [
       { path: '', pathMatch: 'full', loadComponent: () => import('./pages/home-page').then((m) => m.Sv2HomePageComponent), title: 'Fútbol (vista previa) - Guía TV' },
@@ -35,3 +36,5 @@ export const SPORTS_V2_ROUTES: Routes = [
     ],
   },
 ];
+
+export const SPORTS_V2_ROUTES: Routes = sportsV2Routes();

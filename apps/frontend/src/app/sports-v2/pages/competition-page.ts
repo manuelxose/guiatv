@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
@@ -11,7 +11,7 @@ import { Sv2EmptyStateComponent, Sv2ErrorStateComponent, Sv2LoadingSkeletonCompo
 import { Sv2TeamIdentityComponent } from '../ui/team-identity';
 import { Sv2TabsComponent, TabItem } from '../ui/tabs';
 import { Sv2MatchListComponent } from './match-list';
-import { usePageTitle } from './page-title';
+import { breadcrumbs, SPORTS_SITE_URL, sv2Path, useNotFound, useSeo } from './seo';
 import { Sv2StandingsTableComponent } from './standings-table';
 
 const TABS: readonly TabItem[] = [
@@ -130,6 +130,7 @@ const KIND = { league: 'Liga', cup: 'Copa', international: 'Internacional' } as 
 export class Sv2CompetitionPageComponent {
   protected readonly store = inject(SportsStore);
   private readonly route = inject(ActivatedRoute);
+  private readonly site = inject(SPORTS_SITE_URL);
   private readonly router = inject(Router);
   protected readonly tabs = TABS;
   protected readonly listLink = sv2Link('competiciones');
@@ -150,7 +151,21 @@ export class Sv2CompetitionPageComponent {
   protected readonly tableLink = computed(() => sv2Link('clasificaciones', this.slug()));
 
   constructor() {
-    usePageTitle(() => this.competition()?.name ?? 'Competición');
+    effect(() => {
+      if (this.store.loadState() === 'ready' && this.slug()) untracked(() => void this.store.ensureCompetition(this.slug()));
+    });
+    useNotFound(() => this.store.loadState() === 'ready' && !this.store.resolving() && !this.competition());
+    useSeo(() => {
+      const c = this.competition();
+      if (!c) return { title: 'Competición' };
+      const segments = ['competiciones', c.slug];
+      return {
+        title: c.name,
+        description: `Partidos, resultados, clasificación y noticias de ${c.name}${c.country ? ' (' + c.country + ')' : ''}.`,
+        segments,
+        jsonLd: [breadcrumbs(this.site, [['Fútbol', sv2Path()], ['Competiciones', sv2Path(['competiciones'])], [c.name, sv2Path(segments)]])],
+      };
+    });
   }
 
   protected teamLink(slug: string): string[] {
