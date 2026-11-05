@@ -3,15 +3,16 @@ import assert from 'node:assert/strict';
 import express, { NextFunction, Request, Response } from 'express';
 import type { AddressInfo } from 'node:net';
 import { createRateLimiter, isDirectLocalRead } from './rateLimit';
+import { trustProxy } from './trustProxy';
 
-// A real express app with the production proxy setting (`trust proxy` 1, app.ts). The test client connects over
-// loopback, exactly like nginx and Angular SSR do on the server; what tells them apart is nginx's forwarding header.
+// A real express app with the production proxy setting (`trust proxy` = trustProxy, app.ts). The test client connects
+// over loopback, exactly like nginx and Angular SSR do on the server; what tells them apart is nginx's forwarding header.
 async function withApp(
   run: (call: (init?: { method?: string; headers?: Record<string, string>; path?: string }) => Promise<number>) => Promise<void>,
   limiterOptions: Parameters<typeof createRateLimiter>[0] = {},
 ) {
   const app = express();
-  app.set('trust proxy', 1);
+  app.set('trust proxy', trustProxy);
   app.use(createRateLimiter({ windowMs: 60_000, max: 2, ...limiterOptions }));
   app.all(['/v2/x', '/v2/affiliate/resolve', '/v2/affiliate/impression'], (_req, res) => res.status(200).end());
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => res.status(err.statusCode || 500).end());
@@ -35,6 +36,37 @@ test('external clients (arriving through nginx, with X-Forwarded-For) stay rate-
   await withApp(async (call) => {
     const viaNginx = () => call({ headers: { 'x-forwarded-for': '203.0.113.7, 198.51.100.1', 'x-real-ip': '198.51.100.1' } });
     assert.deepEqual(await statuses(viaNginx, 3), [200, 200, 429]);
+  });
+});
+
+// 172.68.10.20 is inside Cloudflare's 172.64.0.0/13: the edge address nginx appends for public traffic.
+test('visitors behind the same Cloudflare edge get their own buckets', async () => {
+  await withApp(async (call) => {
+    const visitor = (ip: string) => () => call({ headers: { 'x-forwarded-for': `${ip}, 172.68.10.20`, 'x-real-ip': '172.68.10.20' } });
+    assert.deepEqual(await statuses(visitor('83.40.1.1'), 2), [200, 200]);
+    assert.deepEqual(await statuses(visitor('2a02:9130::1'), 2), [200, 200], 'a second visitor is not limited by the first');
+    assert.equal(await visitor('83.40.1.1')(), 429, 'the first visitor is still limited');
+  });
+});
+
+test('a forged X-Forwarded-For sent straight to the origin cannot pick a fresh bucket', async () => {
+  // 198.51.100.9 bypasses Cloudflare and talks to nginx, which appends it; everything to its left is the sender's.
+  let n = 0;
+  const forged = [
+    () => `203.0.113.${++n}, 198.51.100.9`,
+    () => `203.0.113.${++n}, 172.68.10.20, 198.51.100.9`,
+    () => `172.68.10.${++n}, 198.51.100.9`,
+  ];
+  for (const header of forged) {
+    await withApp(async (call) => {
+      const results = await statuses(() => call({ headers: { 'x-forwarded-for': header() } }), 3);
+      assert.equal(results[2], 429, `still limited with ${header()}`);
+    });
+  }
+  // Through Cloudflare, a client-written prefix is ignored too: Cloudflare appends the real visitor after it.
+  await withApp(async (call) => {
+    const throughEdge = () => call({ headers: { 'x-forwarded-for': `203.0.113.${++n}, 83.40.1.1, 172.68.10.20` } });
+    assert.deepEqual(await statuses(throughEdge, 3), [200, 200, 429]);
   });
 });
 

@@ -332,4 +332,4 @@ The owner's screenshots of the live panel (after #177, release `20261105022104`)
   * deploy sandbox: new case 9 (GeoIP units installed and enabled, first download before the API restart, not repeated);
   * Karma analytics specs: 21/21;
   * production `build:ssr` passes.
-* **Out of scope, noted:** Express `trust proxy` is `1`, so `req.ip` (rate limiting) is the Cloudflare edge for every visitor behind Cloudflare.
+* **Out of scope, noted:** Express `trust proxy` is `1`, so `req.ip` (rate limiting) is the Cloudflare edge for every visitor behind Cloudflare. Fixed separately: `trust proxy` now trusts loopback, then Cloudflare's ranges (`docs/ops/CLIENT-IP-BEHIND-CLOUDFLARE.md`).
