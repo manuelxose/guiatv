@@ -11,6 +11,7 @@ import { requestLogger } from '../middlewares/requestLogger';
 import { inflightRequestTracker } from '../middlewares/inflightRequestTracker';
 import { publicCachePolicy } from '../middlewares/publicCachePolicy';
 import { errorHandler } from '../middlewares/errorHandler';
+import { trustProxy } from '../middlewares/trustProxy';
 import { notFoundHandler } from '../middlewares/notFoundHandler';
 
 /**
@@ -23,7 +24,8 @@ export const createApp = (dependencies: RoutesDependencies): Application => {
 
   // Weak ETags let browsers/edges revalidate bounded public representations.
   app.set('etag', 'weak');
-  app.set('trust proxy', 1);
+  // req.ip = the visitor behind Cloudflare → loopback nginx; a forged X-Forwarded-For never picks it (trustProxy.ts).
+  app.set('trust proxy', trustProxy);
 
   // M13-B3a: first, so every request (sitemap included) is visible to the stall detector from its first byte.
   app.use(inflightRequestTracker);

@@ -232,10 +232,8 @@ export class AuthController {
   } {
     return {
       userAgent: String(req.header('user-agent') || '').trim() || undefined,
-      ipAddress:
-        (req.header('x-forwarded-for') || '').split(',')[0].trim() ||
-        req.ip ||
-        undefined,
+      // req.ip, not the leftmost X-Forwarded-For entry: that one is whatever the client sent (trustProxy.ts).
+      ipAddress: req.ip || undefined,
       deviceName:
         (typeof req.body?.deviceName === 'string'
           ? req.body.deviceName
