@@ -97,9 +97,35 @@
         <div class="mobile-list"><article *ngFor="let j of ov.jobs; trackBy: trackJob" class="data-card"><div class="card-meta"><app-admin-status-badge [status]="badgeStatus(j.state)" [label]="stateLabel(j.state)" /><time>{{ j.startedAt | date: 'short' }}</time></div><h4>{{ j.slug }}</h4><p>{{ j.reason || 'Sin incidencias' }}</p><small>{{ j.backend || 'Sin backend' }} · ${{ j.costUsd | number: '1.2-4' }} (orientativo) · {{ j.revisions || 0 }} revisiones</small><button type="button" class="table-link" [attr.aria-expanded]="expandedJob === j.jobId" (click)="toggleJob(j.jobId)">{{ expandedJob === j.jobId ? 'Ocultar fases' : 'Ver fases' }}</button><ng-container *ngIf="expandedJob === j.jobId"><ng-container *ngTemplateOutlet="jobDetail; context: { $implicit: j }" /></ng-container></article></div>
         <div class="table-scroll desktop-table" tabindex="0" role="region" aria-label="Ejecuciones, tabla con desplazamiento"><table><thead><tr><th>Fecha</th><th>Documento</th><th>Estado</th><th>Motivo</th><th>Modelos</th><th>Revisiones</th><th class="numeric">Coste (orientativo)</th></tr></thead><tbody><ng-container *ngFor="let j of ov.jobs; trackBy: trackJob"><tr><td><button type="button" class="table-link" [attr.aria-expanded]="expandedJob === j.jobId" (click)="toggleJob(j.jobId)">{{ j.startedAt | date: 'short' }}</button></td><td><a *ngIf="j.publicUrl" [href]="j.publicUrl" target="_blank" rel="noopener">{{ j.slug }}</a><ng-container *ngIf="!j.publicUrl">{{ j.slug }}</ng-container></td><td><app-admin-status-badge [status]="badgeStatus(j.state)" [label]="stateLabel(j.state)" /></td><td class="wide-cell">{{ j.reason || '—' }}<small *ngIf="j.blockingCodes.length">{{ j.blockingCodes.join(', ') }}</small></td><td>{{ j.backend || '—' }}</td><td>{{ j.revisions ?? '—' }}</td><td class="numeric">${{ j.costUsd | number: '1.2-4' }}</td></tr><tr *ngIf="expandedJob === j.jobId" class="job-detail-row"><td colspan="7"><ng-container *ngTemplateOutlet="jobDetail; context: { $implicit: j }" /></td></tr></ng-container></tbody></table></div><p *ngIf="!ov.jobs.length" class="empty">Todavía no hay ejecuciones registradas.</p>
       </section>
-      <section *ngIf="activeTab === 'search' && ov.searchConsole as gsc" role="tabpanel" id="editorial-panel-search" aria-labelledby="editorial-tab-search" class="panel"><div class="section-heading"><div><h3>Search Console</h3><p>Rendimiento de guías públicas. Los datos de Google pueden ser preliminares.</p></div></div>
+      <section *ngIf="activeTab === 'search' && ov.searchConsole as gsc" role="tabpanel" id="editorial-panel-search" aria-labelledby="editorial-tab-search" class="panel"><div class="section-heading"><div><h3>Search Console</h3><p>Rendimiento de guías públicas. Los datos de Google pueden ser preliminares.</p></div><button type="button" class="button secondary" (click)="runSearchConsole()" [disabled]="gscBusy">{{ gscBusy ? 'Sincronizando…' : 'Sincronizar ahora' }}</button></div>
+        <div class="gsc-run">
+          <div>
+            <h4>Última sincronización</h4>
+            <ng-container *ngIf="gsc.lastRun as run; else neverRun">
+              <p><strong>{{ run.status }}</strong> · {{ run.startedAt | date: 'short' }}<ng-container *ngIf="run.finishedAt"> → {{ run.finishedAt | date: 'short' }}</ng-container></p>
+              <p>{{ run.inspected }} inspeccionadas · {{ run.skipped }} omitidas · {{ run.pageRows ?? 0 }} filas de página · {{ run.queryRows ?? 0 }} filas de consulta</p>
+              <p *ngIf="run.message" class="warning-text">{{ run.message }}</p>
+            </ng-container>
+            <ng-template #neverRun><p>Todavía no hay ninguna sincronización registrada.</p></ng-template>
+          </div>
+          <div *ngIf="gsc.lastRun?.diagnostics as d" class="gsc-diag">
+            <p *ngIf="d.property.available && d.guides.state === 'zero-for-guides'">La propiedad sí devuelve datos de búsqueda ({{ d.property.date }} días, {{ d.property.page }} páginas, {{ d.property.query }} consultas), pero ninguna guía tiene impresiones en esta ventana. Es un cero real, no un fallo de integración.</p>
+            <p *ngIf="!d.property.available">La propiedad no devolvió ninguna fila en la ventana: revisa el identificador y los permisos antes de hablar de desindexación.</p>
+            <p *ngIf="d.property.errors.length" class="warning-text">Errores de diagnóstico: {{ d.property.errors.join('; ') }}</p>
+          </div>
+        </div>
+        <details *ngIf="gsc.lastRun?.skipReasons?.length" class="gsc-skips">
+          <summary>{{ gsc.lastRun?.skipReasons?.length }} URLs omitidas con su motivo</summary>
+          <ul>
+            <li *ngFor="let skip of (gsc.lastRun?.skipReasons ?? [])"><code>{{ skip.url }}</code><span>{{ searchConsoleLabel(skip.reason) }}</span></li>
+          </ul>
+        </details>
         <div class="mobile-list"><article *ngFor="let g of gsc.guides" class="data-card"><a [href]="g.url" target="_blank" rel="noopener">{{ g.slug }}</a><p>{{ g.inspection?.indexed ? 'Indexada según Google' : 'No confirmada como indexada' }}</p><small *ngIf="g.performance as p">{{ p.clicks }} clics · {{ p.impressions }} impresiones · posición {{ p.position ?? '—' }}</small></article></div>
         <div class="table-scroll desktop-table" tabindex="0" role="region" aria-label="Search Console, tabla con desplazamiento"><table><thead><tr><th>Guía</th><th>Google</th><th>Último rastreo</th><th class="numeric">Clics</th><th class="numeric">Impresiones</th><th class="numeric">CTR</th><th class="numeric">Posición</th><th>Días</th></tr></thead><tbody><tr *ngFor="let g of gsc.guides"><td><a [href]="g.url" target="_blank" rel="noopener">{{ g.slug }}</a></td><td>{{ g.inspection?.indexed ? 'Indexada' : g.inspection?.coverageState || 'Sin inspeccionar' }}</td><td>{{ g.inspection?.lastCrawlTime ? (g.inspection?.lastCrawlTime | date: 'short') : '—' }}</td><ng-container *ngIf="g.performance as p; else noPerf"><td class="numeric">{{ p.clicks }}</td><td class="numeric">{{ p.impressions }}</td><td class="numeric">{{ p.ctr !== null ? (p.ctr | percent: '1.1-1') : '—' }}</td><td class="numeric">{{ p.position !== null ? (p.position | number: '1.1-1') : '—' }}</td><td>{{ p.days }}/{{ gsc.windowDays }}</td></ng-container></tr></tbody></table></div><p *ngIf="!gsc.guides.length" class="empty">No hay datos públicos de Search Console.</p>
+      </section>
+
+      <section *ngIf="activeTab === 'ledger'" role="tabpanel" id="editorial-panel-ledger" aria-labelledby="editorial-tab-ledger" class="panel">
+        <app-admin-job-ledger (lastUpdatedChange)="lastUpdatedChange.emit($event)" />
       </section>
 
     <section *ngIf="activeTab === 'topics'" role="tabpanel" id="editorial-panel-topics" aria-labelledby="editorial-tab-topics" class="tab-content">

@@ -1,0 +1,165 @@
+<div class="ledger">
+  <div class="ledger-heading">
+    <div>
+      <h3>Registro de trabajos</h3>
+      <p>Ejecuciones con lease, etapa actual, plazos y puntos de control. Los trabajos con lease expirado se pueden recuperar sin esperar al runner.</p>
+    </div>
+    <div class="ledger-actions">
+      <button type="button" class="button secondary" (click)="load()" [disabled]="loading">{{ loading ? 'Actualizando…' : 'Actualizar' }}</button>
+      <button type="button" class="button secondary" (click)="runRecovery()" [disabled]="busy === 'recover-stale'">{{ busy === 'recover-stale' ? 'Recuperando…' : 'Recuperar leases expirados' }}</button>
+      <span *ngIf="lastUpdated as at" class="stamp">Actualizado {{ at | date: 'HH:mm:ss' }}</span>
+    </div>
+  </div>
+
+  <p *ngIf="error" class="feedback error" role="alert">{{ error }}</p>
+  <p *ngIf="notice" class="feedback success" role="status">{{ notice }}</p>
+
+  <form class="filters" (ngSubmit)="applyFilters()" aria-label="Filtros del registro de trabajos">
+    <div>
+      <label for="ledger-q">Buscar</label>
+      <input id="ledger-q" name="q" [(ngModel)]="q" (ngModelChange)="onSearch()" placeholder="jobId o slug" autocomplete="off" />
+    </div>
+    <div>
+      <label for="ledger-state">Estado</label>
+      <select id="ledger-state" name="state" [(ngModel)]="state" (ngModelChange)="applyFilters()">
+        <option value="">Todos</option>
+        <option *ngFor="let value of states" [value]="value">{{ stateLabels[value] }}</option>
+      </select>
+    </div>
+    <div>
+      <label for="ledger-archived">Archivo</label>
+      <select id="ledger-archived" name="archived" [(ngModel)]="archived" (ngModelChange)="applyFilters()">
+        <option value="0">Activos</option>
+        <option value="1">Archivados</option>
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <label class="check"><input type="checkbox" name="stale" [(ngModel)]="stale" (ngModelChange)="applyFilters()" /> Solo lease expirado</label>
+    <button type="button" class="button secondary" (click)="clearFilters()">Limpiar</button>
+  </form>
+
+  <div *ngIf="selected.size" class="bulk" role="region" aria-label="Acciones sobre la selección">
+    <strong>{{ selected.size }} seleccionados</strong>
+    <span class="bulk-hint">La selección se mantiene entre páginas hasta que la limpias.</span>
+    <button type="button" class="button secondary" (click)="ask('pause')">Pausar</button>
+    <button type="button" class="button secondary" (click)="ask('cancel')">Cancelar</button>
+    <button type="button" class="button secondary" (click)="ask('retry')">Reintentar</button>
+    <button type="button" class="button secondary" (click)="ask('archive')">Archivar</button>
+    <button type="button" class="button danger" (click)="ask('delete')">Borrar metadatos</button>
+    <button type="button" class="link" (click)="clearSelection()">Limpiar selección</button>
+  </div>
+
+  <div class="table-scroll" tabindex="0" role="region" aria-label="Registro de trabajos, tabla con desplazamiento">
+    <table>
+      <caption class="sr-only">Trabajos del motor editorial, {{ page.total }} en total</caption>
+      <thead>
+        <tr>
+          <th scope="col" class="select"><input type="checkbox" [checked]="allSelected" (change)="toggleAll()" aria-label="Seleccionar todos los trabajos de esta página" /></th>
+          <th scope="col">Trabajo</th>
+          <th scope="col">Estado</th>
+          <th scope="col">Etapa</th>
+          <th scope="col">Intento</th>
+          <th scope="col">Lease</th>
+          <th scope="col" class="numeric">Coste</th>
+          <th scope="col">Duración</th>
+          <th scope="col">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let job of page.items; trackBy: trackJob" [class.selected]="isSelected(job.jobId)">
+          <td class="select"><input type="checkbox" [checked]="isSelected(job.jobId)" (change)="toggle(job.jobId)" [attr.aria-label]="'Seleccionar ' + job.slug" /></td>
+          <td>
+            <button type="button" class="table-link" (click)="openDetail(job)">{{ job.slug }}</button>
+            <small>{{ shortJob(job.jobId) }} · {{ job.kind }}</small>
+          </td>
+          <td><span class="badge" [ngClass]="badgeClass(job.state)">{{ stateLabels[job.state] }}</span><small *ngIf="job.cancelRequested">Cancelación pedida</small></td>
+          <td>{{ job.currentStage ? stageLabels[job.currentStage] : '-' }}</td>
+          <td>{{ job.attempt }}/{{ job.maxAttempts }}</td>
+          <td><span *ngIf="job.lease" [class.expired]="!leaseLive(job)">{{ leaseText(job) }}</span><span *ngIf="!job.lease">-</span><small *ngIf="job.worker">{{ job.worker.host || job.worker.id }}</small></td>
+          <td class="numeric">${{ job.usage.usd | number: '1.2-4' }}</td>
+          <td>{{ duration(job) }}</td>
+          <td>
+            <div class="table-actions">
+              <button *ngIf="can('pause', job)" type="button" class="table-link" (click)="ask('pause', job)">Pausar</button>
+              <button *ngIf="can('resume', job)" type="button" class="table-link" (click)="ask('resume', job)">Reanudar</button>
+              <button *ngIf="can('recover', job)" type="button" class="table-link" (click)="ask('recover', job)">Recuperar</button>
+              <button *ngIf="can('retry', job)" type="button" class="table-link" (click)="ask('retry', job)">Reintentar</button>
+              <button *ngIf="can('cancel', job)" type="button" class="table-link danger-link" (click)="ask('cancel', job)">Cancelar</button>
+              <button *ngIf="can('archive', job)" type="button" class="table-link" (click)="ask('archive', job)">Archivar</button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p *ngIf="!loading && !page.items.length" class="empty">No hay trabajos con estos filtros.</p>
+  <div class="pager" *ngIf="page.total">
+    <button type="button" class="button secondary" (click)="prevPage()" [disabled]="page.skip === 0">Anterior</button>
+    <span>{{ from }}–{{ to }} de {{ page.total }}</span>
+    <button type="button" class="button secondary" (click)="nextPage()" [disabled]="to >= page.total">Siguiente</button>
+  </div>
+
+  <div *ngIf="pending" class="confirm" role="dialog" aria-modal="true" aria-labelledby="ledger-confirm-title">
+    <h4 id="ledger-confirm-title">{{ pending.title }}</h4>
+    <p *ngIf="pending.action === 'delete'">Se borran solo los metadatos de ejecución de trabajos terminales ya archivados. No se borra ningún artículo publicado.</p>
+    <p *ngIf="pending.action === 'archive'">El trabajo queda fuera de la lista activa; sus datos se conservan.</p>
+    <p *ngIf="pending.action === 'cancel'">La cancelación se completa cuando el worker confirma o cuando expira su lease; no se marca como cancelada antes.</p>
+    <label *ngIf="pending.needsReason" for="ledger-reason">Motivo</label>
+    <input *ngIf="pending.needsReason" id="ledger-reason" name="reason" [(ngModel)]="pendingReason" maxlength="500" required />
+    <div class="confirm-actions">
+      <button type="button" class="button secondary" (click)="cancelPending()" [disabled]="pendingBusy">Volver</button>
+      <button type="button" class="button" [class.danger]="pending.action === 'delete' || pending.action === 'cancel'" (click)="confirmPending()" [disabled]="pendingBusy || (pending.needsReason && !pendingReason.trim())">{{ pendingBusy ? 'Aplicando…' : 'Confirmar' }}</button>
+    </div>
+  </div>
+
+  <aside *ngIf="detailOpen && detail as job" class="drawer" role="dialog" aria-modal="true" aria-labelledby="ledger-detail-title">
+    <header>
+      <div>
+        <p class="eyebrow">Trabajo</p>
+        <h3 id="ledger-detail-title">{{ job.slug }}</h3>
+        <small>{{ job.jobId }}</small>
+      </div>
+      <button type="button" class="button secondary" (click)="closeDetail()" aria-label="Cerrar detalle">Cerrar</button>
+    </header>
+    <div class="detail-grid">
+      <div><dt>Estado</dt><dd><span class="badge" [ngClass]="badgeClass(job.state)">{{ stateLabels[job.state] }}</span></dd></div>
+      <div><dt>Etapa</dt><dd>{{ job.currentStage ? stageLabels[job.currentStage] : '-' }}</dd></div>
+      <div><dt>Intento</dt><dd>{{ job.attempt }}/{{ job.maxAttempts }}</dd></div>
+      <div><dt>Worker</dt><dd>{{ job.worker?.id || 'Sin worker' }}</dd></div>
+      <div><dt>Lease</dt><dd>{{ leaseText(job) }} · generación {{ job.lease?.generation ?? '-' }}</dd></div>
+      <div><dt>Plazo del artículo</dt><dd>{{ job.articleDeadlineAt ? (job.articleDeadlineAt | date: 'short') : '-' }}</dd></div>
+      <div><dt>Coste</dt><dd>${{ job.usage.usd | number: '1.2-4' }} · {{ job.usage.modelCalls }} llamadas</dd></div>
+      <div><dt>Tokens</dt><dd>{{ job.usage.inputTokens }} entrada / {{ job.usage.outputTokens }} salida</dd></div>
+    </div>
+    <p *ngIf="job.error" class="feedback error" role="alert">{{ job.error.classification }}: {{ job.error.message }}</p>
+    <section>
+      <h4>Línea de tiempo</h4>
+      <ol class="stages">
+        <li *ngFor="let stage of job.stages" [ngClass]="stageClass(stage.state)">
+          <div class="stage-head"><strong>{{ stageLabels[stage.name] }}</strong><span class="badge" [ngClass]="stageClass(stage.state)">{{ stage.state }}</span></div>
+          <small>Intento {{ stage.attempt }} · {{ stageDuration(stage) }}<ng-container *ngIf="stage.detail"> · {{ stage.detail }}</ng-container></small>
+          <p *ngIf="stage.error" class="stage-error">{{ stage.error.classification }}: {{ stage.error.message }}</p>
+        </li>
+      </ol>
+      <p *ngIf="!job.stages.length" class="empty">Sin etapas registradas todavía.</p>
+    </section>
+    <section *ngIf="job.checkpoints.length">
+      <h4>Puntos de control</h4>
+      <ul class="checkpoints"><li *ngFor="let point of job.checkpoints"><code>{{ point.ref }}</code><small>{{ point.at | date: 'short' }}<ng-container *ngIf="point.stage"> · {{ stageLabel(point.stage) }}</ng-container></small></li></ul>
+    </section>
+    <section *ngIf="job.publication as publication">
+      <h4>Publicación</h4>
+      <p>{{ publication.state }} · {{ publication.key }}<ng-container *ngIf="publication.url"> · <a [href]="publication.url" target="_blank" rel="noopener">{{ publication.url }}</a></ng-container></p>
+    </section>
+    <footer class="drawer-actions">
+      <button *ngIf="can('pause', job)" type="button" class="button secondary" (click)="ask('pause', job)">Pausar</button>
+      <button *ngIf="can('resume', job)" type="button" class="button secondary" (click)="ask('resume', job)">Reanudar</button>
+      <button *ngIf="can('recover', job)" type="button" class="button secondary" (click)="ask('recover', job)">Recuperar lease</button>
+      <button *ngIf="can('retry', job)" type="button" class="button secondary" (click)="ask('retry', job)">Reintentar</button>
+      <button *ngIf="can('cancel', job)" type="button" class="button danger" (click)="ask('cancel', job)">Cancelar</button>
+      <button *ngIf="can('archive', job)" type="button" class="button secondary" (click)="ask('archive', job)">Archivar</button>
+      <button *ngIf="can('delete', job)" type="button" class="button danger" (click)="ask('delete', job)">Borrar metadatos</button>
+    </footer>
+  </aside>
+</div>

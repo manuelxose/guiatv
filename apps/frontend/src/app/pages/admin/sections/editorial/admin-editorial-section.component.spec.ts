@@ -58,7 +58,7 @@ describe('Operaciones IA', () => {
     expect(text).toContain('Generación programada');
     expect(text).toContain('Publicación automática');
     expect(text).toContain('Sin señal');
-    expect(fixture.nativeElement.querySelectorAll('[role="tab"]').length).toBe(7);
+    expect(fixture.nativeElement.querySelectorAll('[role="tab"]').length).toBe(8);
   });
 
   it('separates Google indexing and performance without zero-filling', () => {

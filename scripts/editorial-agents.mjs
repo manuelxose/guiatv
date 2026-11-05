@@ -31,6 +31,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSyn
 import { resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { marked } from 'marked';
+import { createLedgerLifecycle, ledgerEnabled, ledgerOptions } from './editorial-job-ledger.mjs';
 
 const require = createRequire(import.meta.url);
 const dist = resolve('apps/backend/dist');
@@ -47,6 +48,21 @@ const site = arg('site', 'https://guiaprogramaciontv.com').replace(/\/$/, '');
 const out = resolve(arg('out', arg('runs', 'artifacts/m11b/runs')));
 const readJson = (p) => JSON.parse(readFileSync(resolve(p), 'utf8'));
 const UA = 'GuiaTV-Editorial-Agent/1.0 (+https://guiaprogramaciontv.com/politica-editorial)';
+
+// M14-B: a SIGTERM is a request to stop, not proof of cancellation. Abort the live job, let it acknowledge
+// and close its lease, then exit; the server reconciles anything that could not be acknowledged.
+let activeLedger = null;
+let shuttingDown = false;
+const shutdown = (signal) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.error(`[editorial] ${signal}: cerrando el trabajo en curso y su lease`);
+  const done = activeLedger?.abortAll('cancelled') ?? Promise.resolve();
+  done.catch(() => null).finally(() => process.exit(143));
+  setTimeout(() => process.exit(143), 5000).unref?.();
+};
+process.once('SIGTERM', () => shutdown('SIGTERM'));
+process.once('SIGINT', () => shutdown('SIGINT'));
 
 // One polite GET per cited page: no crawling, 2 MB cap, text only.
 async function fetchSource(url) {
@@ -333,12 +349,16 @@ async function runTopics(topics, { report, autopublish, replay = null, corpus, p
   const routes = activeRoutes ?? envRoutes;
   const mockImages = process.argv.includes('--mock-images');
   const images = mockImages ? [new (require(join(dist, 'infrastructure/external/MockImageModel.js')).MockImageModel)()] : [];
+  // M14-B: every article runs under a durable lease with stage telemetry. A ledger outage stops the run (fail closed).
+  const ledger = ledgerEnabled(report) ? createLedgerLifecycle({ ...ledgerOptions(report), logger: console }) : null;
+  activeLedger = ledger;
   const deps = (slug) => ({
     // Live adapters, one per provider with credentials; a new provider is added here once it exists (docs/adr/0001).
     ...(replay ? { model: replayModel(structuredClone(replay[slug] ?? {}), slug) } : { models: liveModels() }),
     routes, images, imageRoutes: mockImages && !process.env.EDITORIAL_IMAGE_ROUTES ? [{ provider: 'mock', model: 'mock-cover-1' }] : imageRoutes,
     fetchSource, internalLinkStatus, corpus, render: (md) => marked.parse(md),
     signingKey: process.env.EDITORIAL_PIPELINE_SIGNING_KEY,
+    ...(ledger ? { lifecycle: ledger.lifecycle } : {}),
   });
   mkdirSync(join(out, 'media'), { recursive: true });
   const startedAt = new Date().toISOString();
@@ -361,13 +381,38 @@ async function runTopics(topics, { report, autopublish, replay = null, corpus, p
       : { slug: t.slug, state: 'blocked', reason: 'límite diario', findings: [], cost: {} })))
     : await pipeline.runEditorialBatch(topics, deps(), limits(), doneToday, spentToday(), journal);
   for (const run of runs) {
+    const session = ledger?.session(run.slug) ?? null;
     // Live jobs were persisted as they settled; replays (no spend) and jobs held before starting are written here.
     if (!settled.has(run.slug)) { persist(run); if (replay) appendSpend({ kind: 'settle', jobId: jobId(run.slug), slug: run.slug, usd: run.cost.usd ?? 0 }); }
     const blocks = run.findings.filter((f) => f.severity === 'block');
     let publication = null;
     if (autopublish && run.state === 'approved-by-policy') {
-      publication = await publish(run, report, out);
+      const key = `${run.slug}:${run.provenance?.draftHash ?? 'sin-draft'}`;
+      let begun = false;
+      try {
+        // The publication is fenced: it only starts while this worker still owns the lease, and the ledger
+        // refuses a key another completed job already published.
+        await session?.startStage('publication', 'publicación por política');
+        await session?.publicationBegin(key);
+        begun = true;
+        publication = await publish(run, report, out);
+      } catch (error) {
+        publication = { ok: false, message: `publicación no iniciada: ${error instanceof Error ? error.message : String(error)}` };
+      }
+      if (begun) await session?.publicationFinish(publication.ok ? 'published' : 'rejected', publication.url ?? null).catch(() => null);
+      else if (session) session.publication = { key, state: 'rejected', url: null };
       if (publication.ok) { run.state = publication.state ?? 'published'; run.publicUrl = publication.url; } else run.reason = `publicación rechazada: ${publication.message}`.slice(0, 1000);
+      // A published URL is only "registered" when the public sitemap really lists it; the sitemap is generated, not submitted.
+      if (publication.ok) {
+        const listed = await fetch(`${site}/sitemap-blog.xml`, { headers: { 'user-agent': UA } })
+          .then((response) => response.text()).then((xml) => xml.includes(`/guias/${run.slug}`)).catch(() => null);
+        const detail = listed === null ? 'no se pudo leer sitemap-blog.xml' : 'listado comprobado en sitemap-blog.xml';
+        await session?.startStage('sitemap-registration', detail).catch(() => null);
+        await session?.finishStage('sitemap-registration', listed === null ? 'skipped' : listed ? 'completed' : 'failed',
+          listed === false ? { classification: 'publication', message: 'la URL publicada no aparece en sitemap-blog.xml' } : undefined, detail).catch(() => null);
+      }
+      await session?.finishStage('publication', publication.ok ? 'completed' : 'failed',
+        publication.ok ? undefined : { classification: 'publication', message: publication.message }, publication.ok ? publication.url : undefined).catch(() => null);
       persist({ ...run, publication });
     }
     const tries = run.revisions ?? [];
@@ -384,7 +429,10 @@ async function runTopics(topics, { report, autopublish, replay = null, corpus, p
       }) }).catch((e) => ({ ok: false, status: e.message }));
       if (!res.ok) console.log(`   job report FAILED ${res.status}`);
     }
+    // The lease is released last: a crash before this line is recovered from the expired lease.
+    await ledger?.close(run.slug, run);
   }
+  activeLedger = null;
   return runs;
 }
 

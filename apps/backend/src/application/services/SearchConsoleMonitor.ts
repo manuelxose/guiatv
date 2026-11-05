@@ -27,6 +27,17 @@ const runs = () => db().collection('editorial_gsc_runs');
 
 export type GscRunStatus = 'ok' | 'partial' | 'missing-credentials' | 'auth-error' | 'forbidden' | 'quota-exceeded' | 'error';
 
+export interface GscSkipReason {
+  url: string;
+  reason: 'fresh-inspected' | 'fresh-indexed' | 'inspection-limit' | 'no-slug';
+}
+
+export interface GscDiagnostics {
+  /** Rows the property itself returns when the /guias/ filter is removed: proves access vs a guide-level zero. */
+  property: { date: number; page: number; query: number; available: boolean; errors: string[] };
+  guides: { pageRows: number; queryRows: number; state: 'ok' | 'zero-for-guides' | 'unavailable' };
+}
+
 export interface GscRun {
   siteUrl: string;
   startedAt: Date;
@@ -38,6 +49,9 @@ export interface GscRun {
   inspectionErrors: number;
   pageRows: number;
   queryRows: number;
+  /** One entry per URL skipped, with the actual condition; a bare count is not diagnosable. */
+  skipReasons?: GscSkipReason[];
+  diagnostics?: GscDiagnostics;
 }
 
 export interface SearchConsoleMonitorOptions {
@@ -98,7 +112,10 @@ export async function runSearchConsoleMonitor(options: SearchConsoleMonitorOptio
   const now = options.now ?? new Date();
   const siteUrl = options.siteUrl ?? gscSiteUrl();
   const fetchImpl = options.fetch ?? fetch;
-  const run: GscRun = { siteUrl, startedAt: now, status: 'ok', message: null, inspected: 0, skipped: 0, inspectionErrors: 0, pageRows: 0, queryRows: 0 };
+  const run: GscRun = {
+    siteUrl, startedAt: now, status: 'ok', message: null, inspected: 0, skipped: 0, inspectionErrors: 0,
+    pageRows: 0, queryRows: 0, skipReasons: [],
+  };
 
   try {
     let token: string;
@@ -120,6 +137,23 @@ export async function runSearchConsoleMonitor(options: SearchConsoleMonitorOptio
     // Search Analytics first: two calls, and an inspection quota stop must not cost the performance data.
     await performance().createIndex({ date: 1, page: 1, query: 1 }, { unique: true });
     const searchUrl = `${API}/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`;
+    // Property-level baseline: if the unfiltered property has rows, a zero for /guias/ means "no guide traffic",
+    // not "the integration is broken". Errors are recorded, never converted into a zero.
+    const diagnostics: GscDiagnostics = { property: { date: 0, page: 0, query: 0, available: false, errors: [] }, guides: { pageRows: 0, queryRows: 0, state: 'unavailable' } };
+    run.diagnostics = diagnostics;
+    for (const dimension of ['date', 'page', 'query'] as const) {
+      try {
+        const data = await post(searchUrl, {
+          startDate: isoDay(now.getTime() - (GSC_WINDOW_DAYS - 1) * DAY), endDate: isoDay(now.getTime()),
+          dimensions: [dimension], dataState: 'all', rowLimit: 5,
+        });
+        diagnostics.property[dimension] = (data.rows ?? []).length;
+      } catch (error) {
+        if (error instanceof GscHttpError && [401, 403, 429].includes(error.status)) throw error;
+        diagnostics.property.errors.push(`${dimension}: ${error instanceof Error ? error.message.slice(0, 120) : 'unknown error'}`);
+      }
+    }
+    diagnostics.property.available = diagnostics.property.date + diagnostics.property.page + diagnostics.property.query > 0;
     for (const dimensions of [['date', 'page'], ['date', 'page', 'query']]) {
       // shortcut: one page of up to 25000 rows, no startRow paging; enough for the guide count, page if it grows.
       const data = await post(searchUrl, {
@@ -141,17 +175,30 @@ export async function runSearchConsoleMonitor(options: SearchConsoleMonitorOptio
       }
       if (dimensions.length === 2) run.pageRows = rows.length; else run.queryRows = rows.length;
     }
+    diagnostics.guides = {
+      pageRows: run.pageRows, queryRows: run.queryRows,
+      state: diagnostics.property.available ? (run.pageRows || run.queryRows ? 'ok' : 'zero-for-guides') : 'unavailable',
+    };
 
     // The URL Inspection API reports Google's indexed copy; it does not live-crawl the page.
     await inspections().createIndex({ url: 1 }, { unique: true });
     await history().createIndex({ url: 1, inspectedAt: 1 });
     const guides = await BlogPostModel.find(PUBLIC_EDITORIAL_FILTER).select({ slug: 1 }).sort({ publishedAt: -1 }).lean().exec();
-    const fresh = new Set((await inspections().find({ error: null, $or: [
+    const fresh = new Map<string, GscSkipReason['reason']>();
+    for (const row of await inspections().find({ error: null, $or: [
       { inspectedAt: { $gt: new Date(now.getTime() - DAY) } },
       { verdict: 'PASS', inspectedAt: { $gt: new Date(now.getTime() - INDEXED_RECHECK_MS) } },
-    ] }, { projection: { url: 1 } }).toArray()).map((d) => d.url));
+    ] }, { projection: { url: 1, verdict: 1, inspectedAt: 1 } }).toArray()) {
+      const indexed = row.verdict === 'PASS' && Date.parse(String(row.inspectedAt)) > now.getTime() - INDEXED_RECHECK_MS;
+      fresh.set(String(row.url), indexed ? 'fresh-indexed' : 'fresh-inspected');
+    }
     for (const url of guides.filter((g) => g.slug).map((g) => guideUrl(String(g.slug)))) {
-      if (fresh.has(url) || run.inspected + run.inspectionErrors >= MAX_INSPECTIONS_PER_RUN) { run.skipped++; continue; }
+      const skip = fresh.get(url) ?? (run.inspected + run.inspectionErrors >= MAX_INSPECTIONS_PER_RUN ? 'inspection-limit' : null);
+      if (skip) {
+        run.skipped++;
+        run.skipReasons!.push({ url, reason: skip });
+        continue;
+      }
       try {
         const r = (await post(`${API}/v1/urlInspection/index:inspect`, { inspectionUrl: url, siteUrl, languageCode: 'es' })).inspectionResult?.indexStatusResult ?? {};
         const observed = {
