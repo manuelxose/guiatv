@@ -114,6 +114,11 @@ export function sourceFamily(url: string): string {
   }
 }
 
+/** Model slugs often carry accents, symbols or excess length: normalise instead of rejecting a good topic. */
+export function cleanSlug(s: string): string {
+  return String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80).replace(/-+$/, '');
+}
+
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+){2,}$/;
 /** Distinct publishing hosts among seed URLs (www. ignored). */
 export function seedPublishers(urls: string[]): number {
@@ -145,7 +150,7 @@ export function screenProposal(p: TopicProposal, ctx: ScreenContext): string[] {
     else if (until < ctx.now.getTime() + 3 * 864e5) reasons.push('expired: la oportunidad caduca en menos de 3 días');
   }
   const seeds = Array.isArray(p.seedUrls) ? p.seedUrls : [];
-  if (!seeds.length || seeds.length > 4) reasons.push('insufficient-evidence: 1-4 fuentes semilla');
+  if (!seeds.length || seeds.length > 6) reasons.push('insufficient-evidence: 1-6 fuentes semilla');
   for (const url of seeds) {
     if (!/^https:\/\//.test(url)) { reasons.push(`invalid-candidate: semilla ${url}`); continue; }
     // Primary sources only: press can corroborate during research, it cannot be the reason a topic exists.
@@ -198,7 +203,10 @@ export async function checkSeeds(p: TopicProposal, fetchSource: (url: string) =>
   const words = [...topicTokens(`${p.title} ${p.intent}`)];
   const out: SeedCheck[] = [];
   for (const url of p.seedUrls) {
-    const res = await fetchSource(url.split('#')[0]).catch(() => ({ status: 0, text: '' }));
+    const get = () => fetchSource(url.split('#')[0]).catch(() => ({ status: 0, text: '' }));
+    let res = await get();
+    // Network errors, rate limits and 5xx are transient: one retry before a good source is discarded.
+    if (res.status === 0 || res.status === 429 || res.status >= 500) res = await get();
     const text = res.text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
     const hits = words.filter((w) => text.includes(w)).length;
     const ok = res.status === 200 && text.length >= 800 && hits >= Math.min(3, words.length);
@@ -330,7 +338,7 @@ Secciones y datos propios de GuíaTV:\n${ctx.siteInventory}
 
 Propón hasta 8 temas de guía distintos entre sí, repartidos entre categorías (${TOPIC_CATEGORIES.join(', ')}), que un lector en España busque y que se puedan respaldar con fuentes primarias.
 Reglas:
-- Cada tema tiene 2-4 seedUrls de al menos DOS entidades editoras distintas (por ejemplo la ley en el BOE y el regulador o la plataforma afectada); un tema con un solo editor no se puede publicar. Solo https de fuentes primarias en estos dominios: ${SEED_DOMAINS.join(', ')}. URLs exactas de páginas que existen y tienen el dato en el HTML (por ejemplo una ley consolidada en boe.es/buscar/act.php?id=…, una página de ayuda o de condiciones de una plataforma). Nada de portadas genéricas.
+- Cada tema tiene 3-5 seedUrls (incluye alternativas por si alguna URL falla o no se puede leer) de al menos DOS entidades editoras distintas (por ejemplo la ley en el BOE y el regulador o la plataforma afectada); un tema con un solo editor no se puede publicar. Solo https de fuentes primarias en estos dominios: ${SEED_DOMAINS.join(', ')}. URLs exactas de páginas que existen y tienen el dato en el HTML (por ejemplo una ley consolidada en boe.es/buscar/act.php?id=…, una página de ayuda o de condiciones de una plataforma). Nada de portadas genéricas.
 - No dependas siempre de la misma ley o del mismo organismo: busca fuentes de familias distintas.
 - Nada de programación del día ni listados que caduquen en días (volatilidad tv-schedule no vale).
 - slug en minúsculas con guiones (3-8 palabras); title de 20-100 caracteres; intent = la pregunta concreta del lector.

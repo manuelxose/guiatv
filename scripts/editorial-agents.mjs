@@ -572,6 +572,7 @@ async function discover(q, corpus, report) {
   appendSpend({ kind: 'settle', jobId, slug: 'discovery', usd: result.cost.usd });
   const summary = { proposed: result.proposals.length, queued: [], rejected: [], usd: +result.cost.usd.toFixed(4), model: result.model };
   for (const p of result.proposals) {
+    p.slug = queueLib.cleanSlug(p.slug);
     const ctx = { now, coverage, queue: q.topics };
     let reasons = queueLib.screenProposal(p, ctx);
     let seeds = [];
