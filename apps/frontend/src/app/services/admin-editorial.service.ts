@@ -59,8 +59,57 @@ export interface EditorialJobSummary {
   publicUrl?: string | null;
 }
 
-/** M11-E2: today's attempts and their outcome; attempts and publications are counted separately. */
-export interface EditorialToday {
+/** M14-B durable execution record: one row per claimed job, with stage timeline and lease. */
+export type EditorialLedgerState = 'queued' | 'running' | 'paused' | 'cancelling' | 'cancelled' | 'completed' | 'failed' | 'dead-letter' | 'blocked';
+export type EditorialLedgerStageName = 'topic-selection' | 'source-discovery' | 'source-retrieval' | 'evidence-validation' | 'research-synthesis' | 'editorial-outline' | 'article-drafting' | 'seo-enrichment' | 'quality-evaluation' | 'revision' | 'publication-eligibility' | 'publication' | 'sitemap-registration';
+export interface EditorialLedgerStage {
+  key: string;
+  name: EditorialLedgerStageName;
+  attempt: number;
+  state: 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'cancelled';
+  startedAt: string;
+  endedAt: string | null;
+  deadlineAt: string;
+  error: { classification: string; message: string } | null;
+  detail: string | null;
+}
+export interface EditorialLedgerJob {
+  jobId: string;
+  slug: string;
+  kind: 'article' | 'discovery' | 'maintenance' | 'enrichment';
+  state: EditorialLedgerState;
+  currentStage: EditorialLedgerStageName | null;
+  attempt: number;
+  maxAttempts: number;
+  worker: { id: string; host: string | null; pid: number | null } | null;
+  lease: { token: string; generation: number; acquiredAt: string; expiresAt: string; heartbeatAt: string } | null;
+  createdAt: string;
+  updatedAt: string;
+  startedAt: string | null;
+  endedAt: string | null;
+  articleDeadlineAt: string | null;
+  lastProgressAt: string;
+  progress: string | null;
+  cancelRequested: boolean;
+  pauseRequested: boolean;
+  archivedAt: string | null;
+  error: { classification: string; message: string } | null;
+  usage: { modelCalls: number; inputTokens: number; outputTokens: number; usd: number };
+  stages: EditorialLedgerStage[];
+  checkpoints: Array<{ at: string; stage: EditorialLedgerStageName | null; ref: string; hash: string | null }>;
+  publication: { key: string; state: 'publishing' | 'published' | 'rejected'; url: string | null; at: string } | null;
+  revision: number;
+  deadlines: { stageMs: number; articleMs: number };
+}
+export interface EditorialLedgerPage { items: EditorialLedgerJob[]; total: number; limit: number; skip: number }
+export interface EditorialLedgerBulkResult {
+  action: string;
+  succeeded: number;
+  failed: number;
+  results: Array<{ jobId: string; ok: boolean; state?: string; error?: string }>;
+}
+
+/** M11-E2: today's attempts and their outcome; attempts and publications are counted separately. */export interface EditorialToday {
   generated: number;
   published: number;
   ready: number;
@@ -94,7 +143,15 @@ export interface EditorialPostSummary {
 export interface EditorialSearchConsole {
   enabled: boolean;
   windowDays: number;
-  lastRun: { status: string; message: string | null; startedAt: string; finishedAt?: string; inspected: number; skipped: number } | null;
+  lastRun: {
+    status: string; message: string | null; startedAt: string; finishedAt?: string; inspected: number; skipped: number;
+    pageRows?: number; queryRows?: number;
+    skipReasons?: Array<{ url: string; reason: 'fresh-inspected' | 'fresh-indexed' | 'inspection-limit' | 'no-slug' }>;
+    diagnostics?: {
+      property: { date: number; page: number; query: number; available: boolean; errors: string[] };
+      guides: { pageRows: number; queryRows: number; state: 'ok' | 'zero-for-guides' | 'unavailable' };
+    };
+  } | null;
   baseline: { days: number; complete: boolean };
   guides: Array<{
     slug: string;
@@ -267,6 +324,13 @@ export class AdminEditorialService {
       .pipe(map((resp) => resp.data));
   }
 
+  /** Read-only Search Console synchronization; returns 202 while a run is already in progress. */
+  runSearchConsole(): Observable<{ running: boolean; started: boolean }> {
+    return this.http
+      .post<ApiResponse<{ running: boolean; started: boolean }>>(`${this.baseUrl}/search-console/run`, {})
+      .pipe(map((resp) => resp.data));
+  }
+
   getPost(id: string): Observable<EditorialPostDetail> {
     return this.http
       .get<ApiResponse<EditorialPostDetail>>(`${this.baseUrl}/posts/${encodeURIComponent(id)}`)
@@ -351,6 +415,38 @@ export class AdminEditorialService {
 
   rejectPost(id: string, reason: string): Observable<{ rejected: boolean; id: string }> {
     return this.http.post<ApiResponse<{ rejected: boolean; id: string }>>(`${this.baseUrl}/posts/${encodeURIComponent(id)}/reject`, { reason }).pipe(map((resp) => resp.data));
+  }
+
+  /** M14-B: durable job ledger. Filters are server-side; pagination never loads the whole history. */
+  getLedger(query: { states?: string; q?: string; archived?: boolean; stale?: boolean; limit?: number; skip?: number } = {}): Observable<EditorialLedgerPage> {
+    const params = new URLSearchParams();
+    if (query.states) params.set('states', query.states);
+    if (query.q) params.set('q', query.q);
+    if (query.archived !== undefined) params.set('archived', query.archived ? '1' : '0');
+    if (query.stale) params.set('stale', '1');
+    if (query.limit) params.set('limit', String(query.limit));
+    if (query.skip) params.set('skip', String(query.skip));
+    const suffix = params.toString();
+    return this.http.get<ApiResponse<EditorialLedgerPage>>(`${this.baseUrl}/ledger${suffix ? `?${suffix}` : ''}`).pipe(map((resp) => resp.data));
+  }
+
+  getLedgerJob(jobId: string): Observable<EditorialLedgerJob> {
+    return this.http.get<ApiResponse<EditorialLedgerJob>>(`${this.baseUrl}/ledger/${encodeURIComponent(jobId)}`).pipe(map((resp) => resp.data));
+  }
+
+  ledgerAction(jobId: string, action: 'pause' | 'resume' | 'cancel' | 'retry' | 'recover' | 'archive' | 'delete', body: { reason?: string; force?: boolean } = {}): Observable<EditorialLedgerJob | { deleted: true; jobId: string }> {
+    return this.http.post<ApiResponse<EditorialLedgerJob | { deleted: true; jobId: string }>>(
+      `${this.baseUrl}/ledger/${encodeURIComponent(jobId)}/${action}`, body,
+    ).pipe(map((resp) => resp.data));
+  }
+
+  ledgerBulk(action: 'pause' | 'resume' | 'cancel' | 'retry' | 'recover' | 'archive' | 'delete', jobIds: string[], reason = ''): Observable<EditorialLedgerBulkResult> {
+    return this.http.post<ApiResponse<EditorialLedgerBulkResult>>(`${this.baseUrl}/ledger/bulk`, { action, jobIds, reason }).pipe(map((resp) => resp.data));
+  }
+
+  /** Reconcile every expired worker lease in one read-only-safe sweep. */
+  recoverStaleLedger(): Observable<{ recovered: Array<{ jobId: string; state: string }>; count: number }> {
+    return this.http.post<ApiResponse<{ recovered: Array<{ jobId: string; state: string }>; count: number }>>(`${this.baseUrl}/ledger/recover-stale`, {}).pipe(map((resp) => resp.data));
   }
 
   runnerProcess(action: 'start' | 'stop' | 'restart'): Observable<EditorialRunnerProcess> {

@@ -15,10 +15,22 @@ import type { IStorageRepository } from '../../domain/repositories/IStorageRepos
 import { EditorialMediaRejected, storeEditorialCover } from '../../infrastructure/storage/EditorialMediaStore';
 import { generatedImageFindings } from '../../application/services/EditorialImages';
 import { editorialCoverPreview } from '../middlewares/editorialMediaGate';
-import { searchConsoleOverview } from '../../application/services/SearchConsoleMonitor';
+import { runSearchConsoleMonitor, searchConsoleOverview } from '../../application/services/SearchConsoleMonitor';
 import { EditorialGenerationService } from '../../application/services/EditorialGenerationService';
 import { EditorialRunnerService } from '../../application/services/EditorialRunnerService';
 import { EditorialProvidersService } from '../../application/services/EditorialProvidersService';
+import {
+  EditorialJobLedger,
+  ERROR_CLASSES,
+  ErrorClass,
+  JOB_KINDS,
+  JOB_STATES,
+  JobKind,
+  JobState,
+  LedgerQuery,
+  STAGE_NAMES,
+  StageName,
+} from '../../application/services/EditorialJobLedger';
 
 /**
  * M11-C Admin supervision of the AI editorial pipeline (/v2/admin/editorial, admin role enforced by the router).
@@ -31,6 +43,8 @@ const settings = () => db().collection<{ _id: string; paused?: boolean; pausedAt
 const audit = () => db().collection('editorial_audit');
 const jobs = () => db().collection('editorial_jobs');
 const DAY = 864e5;
+/** One Search Console run at a time: a second click reports the live run instead of stacking API calls. */
+let searchConsoleRun: Promise<unknown> | null = null;
 
 /**
  * M11-D: AI articles per day (pipeline runs and policy publications). Recommended 3: a steady cadence of
@@ -68,10 +82,40 @@ const actor = (req: Request) => {
 };
 const usdOf = (p?: EditorialProvenance) => p?.cost?.usd ?? 0;
 
+const MAX_BULK = 50;
+const asJobState = (value: unknown): JobState | undefined => JOB_STATES.includes(value as JobState) ? value as JobState : undefined;
+const asStage = (value: unknown): StageName => {
+  if (!STAGE_NAMES.includes(value as StageName)) throw new ValidationError('Invalid stage', [{ field: 'stage', message: STAGE_NAMES.join(', '), value }]);
+  return value as StageName;
+};
+const asErrorClass = (value: unknown): ErrorClass => ERROR_CLASSES.includes(value as ErrorClass) ? value as ErrorClass : 'unknown';
+const asError = (value: unknown): { classification: ErrorClass; message: string } | undefined => {
+  if (!value || typeof value !== 'object') return undefined;
+  const row = value as { classification?: unknown; message?: unknown };
+  return { classification: asErrorClass(row.classification), message: String(row.message ?? '').slice(0, 500) };
+};
+const asUsage = (value: unknown) => {
+  const row = (value ?? {}) as Record<string, unknown>;
+  const number = (v: unknown) => Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : 0;
+  return { modelCalls: number(row.modelCalls), inputTokens: number(row.inputTokens), outputTokens: number(row.outputTokens), usd: number(row.usd) };
+};
+const leaseCredentials = (req: Request) => ({
+  token: String(req.body?.token ?? ''),
+  generation: Number(req.body?.generation),
+});
+const requireLease = (req: Request) => {
+  const { token, generation } = leaseCredentials(req);
+  if (!/^[0-9a-f-]{36}$/i.test(token) || !Number.isInteger(generation) || generation < 1) {
+    throw new ValidationError('A live lease token and generation are required', [{ field: 'token', message: 'claim the job first', value: token ? 'present' : 'missing' }]);
+  }
+  return { token, generation };
+};
+
 export class EditorialOpsController {
   private readonly generation = new EditorialGenerationService();
   private readonly runnerProcess = new EditorialRunnerService();
   private readonly providers = new EditorialProvidersService();
+  private readonly ledger = new EditorialJobLedger();
 
   constructor(private readonly storage: IStorageRepository) {}
 
@@ -365,6 +409,17 @@ export class EditorialOpsController {
     res.status(201).json(successResponse({ jobId: job.jobId }));
   };
 
+  /** Kick a read-only Search Console synchronization; the run itself is bounded and one at a time. */
+  searchConsoleRun = async (req: Request, res: Response): Promise<void> => {
+    if (searchConsoleRun) {
+      res.status(202).json(successResponse({ running: true, started: false }));
+      return;
+    }
+    searchConsoleRun = runSearchConsoleMonitor().catch(() => null).finally(() => { searchConsoleRun = null; });
+    await audit().insertOne({ at: new Date(), action: 'search-console-run', by: actor(req) });
+    res.status(202).json(successResponse({ running: true, started: true }));
+  };
+
   providerHealth = async (req: Request, res: Response): Promise<void> => {
     // Automatic on page load; an explicit ?refresh=1 bypasses the 60 s cache after a credential change.
     res.json(successResponse(await this.providers.check(req.query.refresh === '1')));
@@ -451,5 +506,172 @@ export class EditorialOpsController {
 
   runnerCycle = async (req: Request, res: Response): Promise<void> => {
     res.status(201).json(successResponse(await this.generation.reportCycle(req.body)));
+  };
+
+  // ---------------------------------------------------------------------------------------------------------------
+  // M14-B: durable job ledger. Admin reads/actions and the runner's own lease-guarded writes.
+
+  ledgerList = async (req: Request, res: Response): Promise<void> => {
+    const rawStates = String(req.query.states ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+    const states = rawStates.map((value) => {
+      const state = asJobState(value);
+      if (!state) throw new ValidationError('Invalid state filter', [{ field: 'states', message: JOB_STATES.join(', '), value }]);
+      return state;
+    });
+    const rawKind = String(req.query.kind ?? '').trim();
+    if (rawKind && !JOB_KINDS.includes(rawKind as JobKind)) throw new ValidationError('Invalid kind filter', []);
+    const archived = req.query.archived === '1' ? true : req.query.archived === '0' ? false : undefined;
+    const query: LedgerQuery = {
+      states: states.length ? states : undefined,
+      kind: rawKind ? rawKind as JobKind : undefined,
+      q: String(req.query.q ?? '').slice(0, 80) || undefined,
+      archived,
+      staleOnly: req.query.stale === '1',
+      limit: Number(req.query.limit) || undefined,
+      skip: Number(req.query.skip) || undefined,
+    };
+    res.json(successResponse(await this.ledger.list(query)));
+  };
+
+  ledgerGet = async (req: Request, res: Response): Promise<void> => {
+    res.json(successResponse(await this.ledger.get(String(req.params.jobId))));
+  };
+
+  ledgerAction = async (req: Request, res: Response): Promise<void> => {
+    const jobId = String(req.params.jobId);
+    const action = String(req.params.action);
+    const by = actor(req);
+    if (action === 'delete') {
+      await this.ledger.deleteMetadata(jobId);
+      await audit().insertOne({ at: new Date(), action: 'editorial-ledger-delete', by, jobId });
+      res.json(successResponse({ deleted: true, jobId }));
+      return;
+    }
+    let job;
+    switch (action) {
+      case 'pause': job = await this.ledger.pause(jobId, by); break;
+      case 'resume': job = await this.ledger.resume(jobId, by); break;
+      case 'cancel': job = await this.ledger.cancel(jobId, by, String(req.body?.reason ?? '')); break;
+      case 'retry': job = await this.ledger.retry(jobId, by); break;
+      case 'recover': job = await this.ledger.recover(jobId, req.body?.force === true); break;
+      case 'archive': job = await this.ledger.archive(jobId, by); break;
+      default: throw new ValidationError('Invalid ledger action', [{ field: 'action', message: 'pause, resume, cancel, retry, recover, archive or delete', value: action }]);
+    }
+    await audit().insertOne({ at: new Date(), action: `editorial-ledger-${action}`, by, jobId, to: job.state });
+    res.json(successResponse(job));
+  };
+
+  /** Reconcile every expired lease at once: requeue or dead-letter, never a live lease. */
+  ledgerRecoverStale = async (req: Request, res: Response): Promise<void> => {
+    const recovered = await this.ledger.recoverStale();
+    await audit().insertOne({ at: new Date(), action: 'editorial-ledger-recover-stale', by: actor(req), recovered: recovered.length });
+    res.json(successResponse({ recovered: recovered.map((job) => ({ jobId: job.jobId, state: job.state })), count: recovered.length }));
+  };
+
+  /** Bulk operations return one result per job: a mixed selection is expected, not an all-or-nothing failure. */
+  ledgerBulk = async (req: Request, res: Response): Promise<void> => {
+    const action = String(req.body?.action ?? '');
+    if (!['pause', 'resume', 'cancel', 'retry', 'recover', 'archive', 'delete'].includes(action)) {
+      throw new ValidationError('Invalid bulk action', [{ field: 'action', message: 'pause, resume, cancel, retry, recover, archive or delete', value: action }]);
+    }
+    const ids: string[] = [...new Set<string>((Array.isArray(req.body?.jobIds) ? req.body.jobIds : []).map((id: unknown) => String(id)).filter(Boolean))];
+    if (!ids.length || ids.length > MAX_BULK) throw new ValidationError(`Select between 1 and ${MAX_BULK} jobs`, []);
+    const by = actor(req);
+    const reason = String(req.body?.reason ?? '');
+    const results: Array<{ jobId: string; ok: boolean; state?: string; error?: string }> = [];
+    for (const jobId of ids) {
+      try {
+        if (action === 'delete') {
+          await this.ledger.deleteMetadata(jobId);
+          results.push({ jobId, ok: true, state: 'deleted' });
+        } else {
+          const job = action === 'cancel' ? await this.ledger.cancel(jobId, by, reason)
+            : action === 'recover' ? await this.ledger.recover(jobId, req.body?.force === true)
+              : action === 'pause' ? await this.ledger.pause(jobId, by)
+                : action === 'resume' ? await this.ledger.resume(jobId, by)
+                  : action === 'retry' ? await this.ledger.retry(jobId, by)
+                    : await this.ledger.archive(jobId, by);
+          results.push({ jobId, ok: true, state: job.state });
+        }
+      } catch (error) {
+        results.push({ jobId, ok: false, error: error instanceof Error ? error.message : String(error) });
+      }
+    }
+    await audit().insertOne({ at: new Date(), action: `editorial-ledger-bulk-${action}`, by, total: ids.length, failed: results.filter((r) => !r.ok).length });
+    res.json(successResponse({ action, results, succeeded: results.filter((r) => r.ok).length, failed: results.filter((r) => !r.ok).length }));
+  };
+
+  ledgerRegister = async (req: Request, res: Response): Promise<void> => {
+    const b = req.body ?? {};
+    const job = await this.ledger.register({
+      jobId: String(b.jobId ?? ''),
+      slug: String(b.slug ?? ''),
+      kind: JOB_KINDS.includes(b.kind as JobKind) ? b.kind as JobKind : 'article',
+      maxAttempts: Number.isInteger(b.maxAttempts) ? Number(b.maxAttempts) : undefined,
+      stageMs: Number(b.stageMs) || undefined,
+      articleMs: Number(b.articleMs) || undefined,
+      providerModels: Array.isArray(b.providerModels) ? b.providerModels : [],
+      createdBy: 'runner',
+    });
+    res.status(201).json(successResponse(job));
+  };
+
+  ledgerClaim = async (req: Request, res: Response): Promise<void> => {
+    const b = req.body ?? {};
+    const id = String(b.worker?.id ?? '').trim().slice(0, 120);
+    if (!id) throw new ValidationError('worker.id is required', []);
+    const job = await this.ledger.claim(String(req.params.jobId), {
+      id, host: typeof b.worker?.host === 'string' ? b.worker.host.slice(0, 120) : null,
+      pid: Number.isInteger(b.worker?.pid) ? b.worker.pid : null,
+    }, Number(b.leaseMs) || undefined);
+    res.json(successResponse(job));
+  };
+
+  ledgerHeartbeat = async (req: Request, res: Response): Promise<void> => {
+    const { token, generation } = requireLease(req);
+    res.json(successResponse(await this.ledger.heartbeat(String(req.params.jobId), token, generation, String(req.body?.progress ?? '') || undefined, Number(req.body?.leaseMs) || undefined)));
+  };
+
+  ledgerStageStart = async (req: Request, res: Response): Promise<void> => {
+    const { token, generation } = requireLease(req);
+    const name = asStage(req.body?.name);
+    res.json(successResponse(await this.ledger.startStage(String(req.params.jobId), token, generation, name, String(req.body?.detail ?? '') || undefined)));
+  };
+
+  ledgerStageFinish = async (req: Request, res: Response): Promise<void> => {
+    const { token, generation } = requireLease(req);
+    const name = asStage(req.body?.name);
+    const state = req.body?.state;
+    if (!['completed', 'failed', 'skipped', 'cancelled'].includes(state)) throw new ValidationError('Invalid stage state', []);
+    res.json(successResponse(await this.ledger.finishStage(String(req.params.jobId), token, generation, name, state, asError(req.body?.error), String(req.body?.detail ?? '') || undefined)));
+  };
+
+  ledgerCheckpoint = async (req: Request, res: Response): Promise<void> => {
+    const { token, generation } = requireLease(req);
+    const stage = req.body?.stage === undefined || req.body?.stage === null ? null : asStage(req.body.stage);
+    res.json(successResponse(await this.ledger.checkpoint(String(req.params.jobId), token, generation, { stage, ref: String(req.body?.ref ?? ''), hash: req.body?.hash == null ? null : String(req.body.hash) })));
+  };
+
+  ledgerFinish = async (req: Request, res: Response): Promise<void> => {
+    const { token, generation } = requireLease(req);
+    const state = req.body?.state;
+    if (!['completed', 'failed', 'cancelled', 'blocked', 'paused'].includes(state)) throw new ValidationError('Invalid terminal state', []);
+    res.json(successResponse(await this.ledger.finish(String(req.params.jobId), token, generation, state, asError(req.body?.error), asUsage(req.body?.usage))));
+  };
+
+  ledgerPublication = async (req: Request, res: Response): Promise<void> => {
+    const { token, generation } = requireLease(req);
+    const phase = req.body?.phase;
+    if (phase === 'begin') {
+      res.json(successResponse(await this.ledger.beginPublication(String(req.params.jobId), token, generation, String(req.body?.key ?? ''), req.body?.url == null ? null : String(req.body.url))));
+      return;
+    }
+    if (phase === 'finish') {
+      const state = req.body?.state;
+      if (state !== 'published' && state !== 'rejected') throw new ValidationError('Invalid publication state', []);
+      res.json(successResponse(await this.ledger.finishPublication(String(req.params.jobId), token, generation, state, req.body?.url == null ? null : String(req.body.url))));
+      return;
+    }
+    throw new ValidationError('Publication phase must be begin or finish', []);
   };
 }

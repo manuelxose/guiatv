@@ -47,7 +47,7 @@ test.after(() => server.close());
 function cycle(dir, env = {}, command = 'cycle', target = []) {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, ['scripts/editorial-agents.mjs', command, ...target, '--report', base, '--site', base, '--out', join(dir, 'out')], {
-      env: { ...process.env, EDITORIAL_SPEND_DIR: dir, EDITORIAL_REVIEW_KEY: '', AUCTORIO_EDITORIAL_REVIEW_KEY: '', ANTHROPIC_BASE_URL: base, ANTHROPIC_API_KEY: 'test', ANTHROPIC_AUTH_TOKEN: '', EDITORIAL_BUDGET: 'unlimited', ...env },
+      env: { ...process.env, EDITORIAL_SPEND_DIR: dir, EDITORIAL_REVIEW_KEY: '', AUCTORIO_EDITORIAL_REVIEW_KEY: '', ANTHROPIC_BASE_URL: base, ANTHROPIC_API_KEY: 'test', ANTHROPIC_AUTH_TOKEN: '', EDITORIAL_BUDGET: 'unlimited', EDITORIAL_JOB_LEDGER: 'off', ...env },
     });
     let output = '';
     child.stdout.on('data', (d) => (output += d));

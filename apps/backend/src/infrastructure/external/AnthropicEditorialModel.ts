@@ -3,6 +3,8 @@ import { ModelCallFailed, type EditorialModel, type ModelCall, type ModelResult 
 
 const MAX_OUTPUT_TOKENS = 32000;
 const MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
+/** The writer's actual article text is far below this; the cap only stops a runaway text stream. */
+const MAX_TEXT_BYTES = 1 * 1024 * 1024;
 
 export interface AnthropicEditorialModelOptions {
   apiKey?: string;
@@ -70,6 +72,7 @@ export class AnthropicEditorialModel implements EditorialModel {
   }
 
   async call(request: ModelCall): Promise<ModelResult> {
+    request.signal?.throwIfAborted();
     if (request.provider !== this.provider) throw new Error(`${request.role}: routed to ${request.provider}, not ${this.provider}`);
     const webSearches = Math.min(request.webSearches ?? 0, this.maxWebSearches ?? Number.POSITIVE_INFINITY);
     const research = webSearches > 0;
@@ -83,10 +86,14 @@ export class AnthropicEditorialModel implements EditorialModel {
     const usage = { input_tokens: 0, output_tokens: 0 };
     let searches = 0;
     // Every failure after a billed turn carries what was billed, so the ledger can charge it.
-    const fail = (message: string) => new ModelCallFailed(`${request.role}: ${message}`, usage, searches);
+    const fail = (message: string, unresolved = false) => new ModelCallFailed(`${request.role}: ${message}`, usage, searches, undefined, unresolved);
+    // One absolute deadline per call, not per paused turn: four resumed turns must not each get the full budget.
+    const callDeadline = Date.now() + this.timeoutMs;
 
     // Server tools can pause a long turn; resume it a bounded number of times.
     for (let turn = 0; turn < 4; turn++) {
+      const remaining = callDeadline - Date.now();
+      if (remaining <= 0) throw fail(`model request exceeded ${this.timeoutMs} ms`, true);
       const thinkingMode = this.thinking?.(request.role);
       const stream = this.client.messages.stream({
         model: `${this.modelPrefix}${request.model}`,
@@ -105,24 +112,39 @@ export class AnthropicEditorialModel implements EditorialModel {
       });
       // A provider that streams an unbounded tool result must not consume the worker's memory.
       let streamBytes = 0;
+      let textBytes = 0;
       let tooLarge = false;
       let timedOut = false;
+      let cancelled = false;
+      const abortStream = () => {
+        try { (stream as unknown as { abort: () => void }).abort(); } catch { /* already finished */ }
+      };
       if (typeof (stream as { on?: unknown }).on === 'function') {
         (stream as unknown as { on: (event: string, cb: (event: unknown) => void) => void }).on('streamEvent', (event) => {
           streamBytes += Buffer.byteLength(JSON.stringify(event));
-          if (streamBytes > MAX_RESPONSE_BYTES) { tooLarge = true; (stream as unknown as { abort: () => void }).abort(); }
+          const delta = (event as { delta?: { text?: unknown } }).delta;
+          if (typeof delta?.text === 'string') textBytes += Buffer.byteLength(delta.text);
+          if (streamBytes > MAX_RESPONSE_BYTES || textBytes > MAX_TEXT_BYTES) { tooLarge = true; abortStream(); }
         });
       }
+      const abort = () => { cancelled = true; abortStream(); };
+      if (request.signal?.aborted) abort();
+      request.signal?.addEventListener('abort', abort, { once: true });
       // The SDK timeout only covers response headers; a streamed body needs its own wall-clock deadline.
-      const deadline = setTimeout(() => { timedOut = true; (stream as unknown as { abort: () => void }).abort(); }, this.timeoutMs);
+      const deadline = setTimeout(() => { timedOut = true; abortStream(); }, Math.max(1, remaining));
+      deadline.unref?.();
       const message = await stream.finalMessage().catch((error: unknown) => {
-        // Streamed tokens are billed even when the client aborts: leave the spend unresolved rather than zero.
-        if (tooLarge) throw new Error(`${request.role}: response exceeded ${MAX_RESPONSE_BYTES} bytes`);
-        if (timedOut) throw new Error(`${request.role}: model request exceeded ${this.timeoutMs} ms`);
+        // Streamed tokens are billed even when the client aborts: charge what is known and keep the rest unresolved.
+        if (cancelled) throw fail('cancelled', true);
+        if (tooLarge) throw fail('response exceeded the byte cap', true);
+        if (timedOut) throw fail(`model request exceeded ${this.timeoutMs} ms`, true);
         // An HTTP error response is not billed; a stream cut mid-answer may be, so it stays unresolved.
         if (error instanceof Anthropic.APIError && typeof error.status === 'number') throw fail(error.message);
         throw error;
-      }).finally(() => clearTimeout(deadline));
+      }).finally(() => {
+        clearTimeout(deadline);
+        request.signal?.removeEventListener('abort', abort);
+      });
 
       usage.input_tokens += message.usage.input_tokens + (message.usage.cache_creation_input_tokens ?? 0) + (message.usage.cache_read_input_tokens ?? 0);
       usage.output_tokens += message.usage.output_tokens;

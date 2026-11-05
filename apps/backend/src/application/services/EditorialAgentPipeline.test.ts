@@ -168,3 +168,33 @@ test('draft shape: prompt-mode JSON is checked before any gate reads its fields'
   assert.deepEqual(draftShapeProblems({}), ['falta title', 'falta excerpt', 'falta metaTitle', 'falta metaDescription', 'falta markdown', 'falta distinctValue']);
   assert.deepEqual(draftShapeProblems({ title: 't', excerpt: 'e', metaTitle: 'm', metaDescription: 'd', markdown: 'x', distinctValue: { readerBenefit: 'r', claimIds: [] } }), []);
 });
+
+test('M14-B: the pipeline reports its real stages and respects the job abort signal', async () => {
+  const controller = new AbortController();
+  const events: string[] = [];
+  const lifecycle = {
+    async start() {
+      return {
+        signal: controller.signal,
+        async stage(event: { name: string; phase: string }) { events.push(`${event.phase}:${event.name}`); },
+      };
+    },
+    async finish() { /* the runner closes the lease after publication */ },
+  };
+  const m = scripted({ research: [research], evidence: [{ conflicts: [] }], editorial: [draft()], critic: [pass] });
+  const run = await runEditorialJob(topic, deps(m.model, { lifecycle }));
+  assert.equal(run.state, 'approved-by-policy');
+  const started = events.filter((e) => e.startsWith('start:')).map((e) => e.slice(6));
+  assert.deepEqual([...new Set(started)], [
+    'source-retrieval', 'research-synthesis', 'evidence-validation', 'article-drafting',
+    'seo-enrichment', 'publication-eligibility', 'quality-evaluation',
+  ]);
+
+  const aborted = new AbortController();
+  aborted.abort();
+  const blocked = await runEditorialJob(topic, deps(scripted({}).model, {
+    lifecycle: { async start() { return { signal: aborted.signal }; }, async finish() { /* no lease */ } },
+  }));
+  assert.equal(blocked.state, 'blocked');
+  assert.match(blocked.reason!, /abort|cancel/i);
+});

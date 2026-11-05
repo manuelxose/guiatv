@@ -24,6 +24,7 @@ export const createAdminEditorialRoutes = (controller: EditorialOpsController, a
   router.post('/policy/resume', strictRateLimit, humanEditorialReviewGuard, asyncHandler(controller.resume));
   router.post('/policy/daily-limit', strictRateLimit, humanEditorialReviewGuard, asyncHandler(controller.setDailyLimit));
   router.get('/providers', asyncHandler(controller.providerHealth));
+  router.post('/search-console/run', strictRateLimit, asyncHandler(controller.searchConsoleRun));
   router.get('/generation/settings', asyncHandler(controller.generationSettings));
   router.put('/generation/settings', strictRateLimit, asyncHandler(controller.updateGenerationSettings));
   router.post('/generation/requests', strictRateLimit, asyncHandler(controller.createGenerationRequest));
@@ -43,6 +44,20 @@ export const createAdminEditorialRoutes = (controller: EditorialOpsController, a
   router.post('/generation/runner/requests/:id/finish', asyncHandler(controller.finishGenerationRequest));
   router.post('/generation/runner/cycles', asyncHandler(controller.runnerCycle));
   router.post('/jobs', asyncHandler(controller.recordJob));
+  // M14-B durable job ledger. Runner writes are lease-guarded inside the ledger; admin actions are audited.
+  router.get('/ledger', asyncHandler(controller.ledgerList));
+  router.post('/ledger/bulk', strictRateLimit, asyncHandler(controller.ledgerBulk));
+  router.post('/ledger/recover-stale', strictRateLimit, asyncHandler(controller.ledgerRecoverStale));
+  router.post('/ledger/register', asyncHandler(controller.ledgerRegister));
+  router.post('/ledger/:jobId/claim', asyncHandler(controller.ledgerClaim));
+  router.post('/ledger/:jobId/heartbeat', asyncHandler(controller.ledgerHeartbeat));
+  router.post('/ledger/:jobId/stage/start', asyncHandler(controller.ledgerStageStart));
+  router.post('/ledger/:jobId/stage/finish', asyncHandler(controller.ledgerStageFinish));
+  router.post('/ledger/:jobId/checkpoint', asyncHandler(controller.ledgerCheckpoint));
+  router.post('/ledger/:jobId/finish', asyncHandler(controller.ledgerFinish));
+  router.post('/ledger/:jobId/publication', asyncHandler(controller.ledgerPublication));
+  router.get('/ledger/:jobId', asyncHandler(controller.ledgerGet));
+  router.post('/ledger/:jobId/:action', strictRateLimit, asyncHandler(controller.ledgerAction));
   router.post(
     '/media/:sha256',
     express.raw({ type: ['image/png', 'image/jpeg', 'image/webp'], limit: '10mb' }),

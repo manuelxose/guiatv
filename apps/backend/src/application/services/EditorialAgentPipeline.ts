@@ -31,6 +31,7 @@ import {
 } from './EditorialEvidence';
 import { EditorialFinding, evaluateEditorialQuality, policyGateFailures } from './EditorialReviewPolicy';
 import { coverAsset, coverRequest, ImageModel, imageProblems, ImageRoute } from './EditorialImages';
+import type { ErrorClass, StageName } from './EditorialJobLedger';
 
 /**
  * M11-B editorial workflow: research → evidence → editorial → SEO → independent critic → publisher gates.
@@ -123,6 +124,8 @@ export interface ModelCall {
   /** Allow up to N web searches (research only). */
   webSearches?: number;
   webSearchDomains?: string[];
+  /** M14-B: a job cancellation or article deadline aborts the in-flight provider stream, not only the next call. */
+  signal?: AbortSignal;
 }
 export interface ModelResult {
   json: unknown;
@@ -145,7 +148,14 @@ export interface EditorialModel {
 
 /** A failed call whose billed usage is known; any other error leaves the job's spend unresolved. */
 export class ModelCallFailed extends Error {
-  constructor(message: string, readonly usage: ModelResult['usage'], readonly searches = 0, readonly usageBreakdown?: ReportedModelUsage[]) { super(message); }
+  constructor(
+    message: string,
+    readonly usage: ModelResult['usage'],
+    readonly searches = 0,
+    readonly usageBreakdown?: ReportedModelUsage[],
+    /** Streamed tokens can be billed even when the client aborts: charge the known part and keep it unresolved. */
+    readonly unresolved = false,
+  ) { super(message); }
 }
 
 export interface EditorialTopic {
@@ -168,6 +178,27 @@ export interface EditorialTopic {
   linkTargets?: Array<{ path: string; label: string }>;
 }
 
+export interface EditorialJobStageEvent {
+  name: StageName;
+  phase: 'start' | 'finish';
+  status?: 'completed' | 'failed' | 'skipped' | 'cancelled';
+  detail?: string;
+  error?: { classification: ErrorClass; message: string };
+}
+
+/** A live job session: the runner implements it over the durable ledger; tests can pass none. */
+export interface EditorialJobSession {
+  signal: AbortSignal;
+  stage?(event: EditorialJobStageEvent): Promise<void>;
+  checkpoint?(checkpoint: { stage: StageName | null; ref: string; hash: string | null }): Promise<void>;
+}
+
+export interface EditorialJobLifecycle {
+  start(topic: EditorialTopic): Promise<EditorialJobSession | void>;
+  /** Records the final run on the session. The runner closes the lease after publication, not here. */
+  finish(session: EditorialJobSession | void, run: EditorialRun): Promise<void>;
+}
+
 export interface EditorialDeps {
   /** One adapter answering every primary route (replay, tests)… */
   model?: EditorialModel;
@@ -187,6 +218,8 @@ export interface EditorialDeps {
   now?: () => Date;
   /** EDITORIAL_PIPELINE_SIGNING_KEY: without it the provenance is unsigned and only a person can approve it. */
   signingKey?: string;
+  /** M14-B: durable job/stage telemetry, lease heartbeat and cancellation. Optional so tests and replay stay pure. */
+  lifecycle?: EditorialJobLifecycle;
 }
 
 export interface CmsDraft {
@@ -358,6 +391,13 @@ export function draftShapeProblems(value: unknown): string[] {
   return missing.map((key) => `falta ${key}`);
 }
 
+/** SEO answers in prompt mode can be valid JSON with missing fields; never interpolate `undefined` into the draft. */
+export function metadataShapeProblems(value: unknown, required: string[] = ['title', 'excerpt', 'metaTitle', 'metaDescription']): string[] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return ['no es un objeto'];
+  const d = value as Record<string, unknown>;
+  return required.filter((key) => typeof d[key] !== 'string' || !String(d[key]).trim()).map((key) => `falta ${key}`);
+}
+
 export function metadataProblems(d: { title: string; metaTitle: string; metaDescription: string; excerpt?: string }, slug: string, taken: Set<string>): string[] {
   const out: string[] = [];
   if (d.title.length < 20 || d.title.length > 75) out.push(`título de ${d.title.length} caracteres (20-75)`);
@@ -385,18 +425,22 @@ export async function runEditorialJob(topic: EditorialTopic, deps: EditorialDeps
   const run: EditorialRun = { slug: topic.slug, state: 'draft', findings: [], cost: ledger.summary };
   const table = deps.routes ?? DEFAULT_ROUTES;
   let chosen: Chosen;
+  let session: EditorialJobSession | void = undefined;
+  let signal: AbortSignal | undefined;
   const ask = async <T>(role: EditorialRole, system: string, prompt: string, schema: Record<string, unknown>, webSearches?: number): Promise<T> => {
     const { route: { provider, model, effort }, model: adapter } = chosen[role];
+    signal?.throwIfAborted();
     // Research with server tools may resume up to 4 paused turns (AnthropicEditorialModel), each up to the output cap.
     ledger.assertHeadroom(model, (adapter.maxOutputTokens ?? 0) * (webSearches ? 4 : 1));
     let result: ModelResult;
     try {
-      result = await adapter.call({ role, provider, model, effort, system, prompt, schema, webSearches, webSearchDomains: webSearches ? [...new Set((topic.seedUrls ?? []).map((url) => new URL(url).hostname))] : undefined });
+      result = await adapter.call({ role, provider, model, effort, system, prompt, schema, webSearches, webSearchDomains: webSearches ? [...new Set((topic.seedUrls ?? []).map((url) => new URL(url).hostname))] : undefined, signal });
     } catch (error) {
       // A failed call can still be billed: charge what is known, otherwise the batch keeps the whole allowance.
       if (error instanceof ModelCallFailed) {
         if (error.usageBreakdown) ledger.chargeReported(role, error.usageBreakdown);
         else ledger.charge(role, model, error.usage, error.searches);
+        if (error.unresolved) ledger.summary.unresolved = true;
       }
       else ledger.summary.unresolved = true;
       throw error;
@@ -412,6 +456,21 @@ export async function runEditorialJob(topic: EditorialTopic, deps: EditorialDeps
       : Object.fromEntries(ROLES.map((role) => [role, { route: table[role][0], model: deps.model! }])) as Chosen;
     // Provenance names every provider that answered, so a mixed route cannot pass as a single live one.
     const backend = [...new Set(ROLES.map((role) => chosen[role].model.provider))].sort().join('+');
+    session = await deps.lifecycle?.start(topic);
+    signal = session?.signal;
+    const stage = async <T>(name: StageName, work: () => Promise<T>, detail?: string): Promise<T> => {
+      signal?.throwIfAborted();
+      await session?.stage?.({ name, phase: 'start', detail });
+      try {
+        const value = await work();
+        await session?.stage?.({ name, phase: 'finish', status: 'completed', detail });
+        return value;
+      } catch (error) {
+        const cancelled = Boolean(signal?.aborted);
+        await session?.stage?.({ name, phase: 'finish', status: cancelled ? 'cancelled' : 'failed', error: { classification: cancelled ? 'cancelled' : 'unknown', message: error instanceof Error ? error.message : String(error) } });
+        throw error;
+      }
+    };
     // Internal data first: the research agent may only quote what GuíaTV actually serves.
     const snapshots = new Map<string, string>();
     const retrieval = new Map<string, { retrievedAt?: string; contentHash?: string; httpStatus: number }>();
@@ -423,12 +482,14 @@ export async function runEditorialJob(topic: EditorialTopic, deps: EditorialDeps
       if (ok) snapshots.set(id, res.text);
       retrieval.set(id, { httpStatus: res.status, ...(ok ? { retrievedAt: now().toISOString(), contentHash: hashText(res.text) } : {}) });
     };
-    for (const s of topic.internalSources) await fetchOnce(s.id, s.url);
-    const internalText = topic.internalSources.filter((s) => snapshots.has(s.id))
-      .map((s) => `### ${s.id} ${s.url}\n${clip(snapshots.get(s.id)!, 6000)}`).join('\n\n');
     // M11-E: seed pages are read here, not left to server tools a gateway may not run; publisher = host, never 'GuíaTV'.
     const seeds = (topic.seedUrls ?? []).map((url, i) => ({ id: `s${i + 1}`, url, publisher: new URL(url).hostname.replace(/^www\./, '') }));
-    for (const s of seeds) await fetchOnce(s.id, s.url.split('#')[0]);
+    await stage('source-retrieval', async () => {
+      for (const s of topic.internalSources) await fetchOnce(s.id, s.url);
+      for (const s of seeds) await fetchOnce(s.id, s.url.split('#')[0]);
+    }, 'fuentes internas y semillas');
+    const internalText = topic.internalSources.filter((s) => snapshots.has(s.id))
+      .map((s) => `### ${s.id} ${s.url}\n${clip(snapshots.get(s.id)!, 6000)}`).join('\n\n');
     // A text fragment (#:~:text=…) points the prompt at the right part of a long page; quotes are still checked against all of it.
     const from = (s: { id: string; url: string }) => {
       const f = /#:~:text=([^&,]+)/.exec(s.url);
@@ -455,7 +516,7 @@ Si un dato no aparece literal en una fuente consultada, no lo incluyas. Ids de a
         RESEARCH_SCHEMA, 5);
     };
     let research: ResearchAnswer | undefined;
-    while (researchCalls < limits.maxResearchCalls && !research?.claims?.length) research = await doResearch();
+    while (researchCalls < limits.maxResearchCalls && !research?.claims?.length) research = await stage('research-synthesis', () => doResearch());
     if (!research?.claims?.length) return { ...run, state: 'blocked', reason: 'la investigación no devolvió afirmaciones' };
 
     const fixedIds = new Set([...topic.internalSources, ...seeds].map((s) => s.id));
@@ -473,7 +534,7 @@ Si un dato no aparece literal en una fuente consultada, no lo incluyas. Ids de a
       return list.filter((s) => snapshots.has(s.id)).map((s) => ({ ...s, kind: sourceKindFor(s.url), ...retrieval.get(s.id) }));
     };
     // 2. Evidence: deterministic quote verification, then a conflict review that can only demote.
-    const assess = async (draftBundle: EvidenceBundle): Promise<EvidenceBundle> => {
+    const assess = async (draftBundle: EvidenceBundle): Promise<EvidenceBundle> => stage('evidence-validation', async () => {
       const checked = verifyBundle(draftBundle, snapshots);
       const supported = checked.claims.filter((c) => c.status === 'supported');
       if (supported.length < 2) return checked;
@@ -483,7 +544,7 @@ Si un dato no aparece literal en una fuente consultada, no lo incluyas. Ids de a
         CONFLICT_SCHEMA);
       const known = new Set(supported.map((c) => c.id));
       return verifyBundle({ ...checked, conflicts: [...checked.conflicts, ...review.conflicts.filter((c) => c.claimIds.some((id) => known.has(id)))] }, snapshots);
-    };
+    });
     let bundle = await assess({
       topic: topic.topic, intent: topic.intent, researchQuestions: research.researchQuestions, createdAt: now().toISOString(), conflicts: [],
       sources: retrieved(sources),
@@ -548,19 +609,20 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
       };
       return { provenance, cms };
     };
-    const repairMetadata = async (d: Draft, problems: string[]): Promise<Draft> => ({
-      ...d,
-      ...await ask<{ excerpt: string; metaTitle: string; metaDescription: string }>('seo',
+    const repairMetadata = async (d: Draft, problems: string[]): Promise<Draft> => {
+      const fixed = await stage('seo-enrichment', () => ask<{ title: string; excerpt: string; metaTitle: string; metaDescription: string }>('seo',
         'Eres el agente SEO. Reescribes el resumen y los metadatos de un artículo. Solo puedes usar cifras, fechas y números que aparezcan escritos igual en el texto del artículo; si dudas, quita la cifra. Sin añadir datos, sin palabras clave repetidas.',
         `Problemas: ${problems.join('; ')}\nLímites: metaTitle 15-60 caracteres, metaDescription 70-160.\nTexto del artículo:\n${clip(stripClaimMarkers(d.markdown), 8000)}\n\nResumen: ${d.excerpt}\nmetaTitle: ${d.metaTitle}\nmetaDescription: ${d.metaDescription}`,
-        META_REPAIR_SCHEMA),
-    });
+        META_REPAIR_SCHEMA));
+      // A prompt-mode answer can omit a field; an unchanged draft is safer than `# undefined` in the H1.
+      return metadataShapeProblems(fixed, ['excerpt', 'metaTitle', 'metaDescription']).length ? d : { ...d, ...fixed };
+    };
     let shapeError = '';
     for (let loop = 0; loop <= limits.maxReviewLoops; loop++) {
       ledger.count('draftAttempts');
-      let draft = await ask<Draft>('editorial', writerSystem,
+      let draft = await stage('article-drafting', () => ask<Draft>('editorial', writerSystem,
         `Tema: ${topic.topic}\nIntención: ${topic.intent}\n\nSolo puedes usar estas afirmaciones verificadas (no hace falta usarlas todas: elige las que responden a la intención):\n${claimDigest(usable)}\n\n${writerRules()}${feedback ? `\n\nBorrador anterior:\n${previous}\n\nCorrige estos problemas de la revisión anterior con el menor cambio posible y conserva el resto tal cual. Un dato que no esté entre las afirmaciones verificadas se elimina o se sustituye por uno verificado:\n${feedback}` : ''}`,
-        DRAFT_SCHEMA);
+        DRAFT_SCHEMA));
 
       const shape = chosen.editorial.model.structuredOutput === 'prompt' ? draftShapeProblems(draft) : [];
       if (shape.length) {
@@ -574,11 +636,15 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
 
       const metaIssues = metadataProblems(draft, topic.slug, taken);
       if (metaIssues.length) {
-        const fixed = await ask<{ title: string; metaTitle: string; metaDescription: string }>('seo',
+        const fixed = await stage('seo-enrichment', () => ask<{ title: string; metaTitle: string; metaDescription: string }>('seo',
           'Eres el agente SEO. Ajustas metadatos a los límites sin añadir datos nuevos, sin palabras clave repetidas y sin titulares sensacionalistas.',
           `Problemas: ${metaIssues.join('; ')}\nTítulo: ${draft.title}\nmetaTitle: ${draft.metaTitle}\nmetaDescription: ${draft.metaDescription}\nResumen del artículo: ${draft.excerpt}`,
-          META_SCHEMA);
-        draft = { ...draft, ...fixed, markdown: draft.markdown.replace(/^# .*$/m, `# ${fixed.title}`) };
+          META_SCHEMA));
+        if (!metadataShapeProblems(fixed, ['title', 'metaTitle', 'metaDescription']).length) {
+          draft = { ...draft, ...fixed, markdown: draft.markdown.replace(/^# .*$/m, `# ${fixed.title}`) };
+        }
+      } else if (loop === 0) {
+        await stage('seo-enrichment', async () => undefined, 'metadatos dentro de los límites');
       }
 
       // M11-E2b: the deterministic gates run BEFORE the critic. Mechanical defects are fixed with the smallest edit
@@ -587,7 +653,7 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
       let repaired: RevisionRecord['repaired'];
       for (let fix = 0; fix < MAX_GATE_FIXES; fix++) {
         const { provenance: unreviewed, cms: candidate } = assemble(draft, now());
-        const gate = (await publisherFindings(candidate, unreviewed, deps, taken, now(), topic.linkTargets, topic.length)).filter((f) => f.severity === 'block' && !/^critic-/.test(f.code));
+        const gate = (await stage('publication-eligibility', () => publisherFindings(candidate, unreviewed, deps, taken, now(), topic.linkTargets, topic.length))).filter((f) => f.severity === 'block' && !/^critic-/.test(f.code));
         if (!gate.length || !gate.every((f) => WRITER_FIXABLE.has(f.code))) break;
         gateFixes++;
         if (gate.every((f) => f.code === 'metadata-figure-not-in-claims' && !/^title:/.test(f.message))) {
@@ -600,7 +666,8 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
           `Tema: ${topic.topic}\n\nAfirmaciones verificadas:\n${claimDigest(usable)}\n\n${writerRules()}\n\nBorrador:\n${draft.markdown}\n\nResumen: ${draft.excerpt}\nmetaTitle: ${draft.metaTitle}\nmetaDescription: ${draft.metaDescription}\n\nEl control automático ha encontrado estos defectos. Corrige solo esas frases o campos, con el menor cambio posible, y devuelve todo lo demás exactamente igual:\n${gate.map((f) => `- ${f.code}: ${f.message}`).join('\n')}`,
           DRAFT_SCHEMA);
         const editedShape = chosen.editorial.model.structuredOutput === 'prompt' ? draftShapeProblems(edited) : [];
-        if (editedShape.length) throw new Error(`respuesta del redactor no válida: ${editedShape.join(', ')}`);
+        // Keep the previous valid draft: an invalid mechanical fix must not throw away a mostly paid job.
+        if (editedShape.length) break;
         if (hashText(edited.markdown) === hashText(draft.markdown) && edited.excerpt === draft.excerpt && edited.metaTitle === draft.metaTitle && edited.metaDescription === draft.metaDescription) break;
         draft = edited;
       }
@@ -609,20 +676,20 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
       const bundleHash = hashBundle(bundle);
       const draftHash = hashText(draft.markdown);
 
-      const answer = await ask<{ verdict: CriticReview['verdict']; issues: CriticReview['issues'] }>('critic',
+      const answer = await stage('quality-evaluation', () => ask<{ verdict: CriticReview['verdict']; issues: CriticReview['issues'] }>('critic',
         `Eres el crítico independiente. No escribiste este texto. Lo contrastas solo con el paquete de evidencias.\n${EDITORIAL_RUBRIC}\n${CRITIC_SEVERITY}`,
         `Intención del lector: ${topic.intent}\n\nAfirmaciones verificadas:\n${claimDigest(usable)}\n\nAfirmaciones descartadas:\n${bundle.claims.filter((c) => c.status !== 'supported').map((c) => `- ${c.id} (${c.status}): ${c.text}`).join('\n') || '(ninguna)'}
 ${run.blockedCandidates?.length ? `\nUn candidato anterior de este artículo se bloqueó por falta de evidencias. Comprueba que este borrador resuelve esos problemas; si no, vuelve a bloquearlo:\n${run.blockedCandidates.flatMap((b) => b.critic.issues).map((i) => `- (${i.severity}) ${i.message}`).join('\n')}\n` : ''}
 Resumen: ${draft.excerpt}\nmetaTitle: ${draft.metaTitle}\nmetaDescription: ${draft.metaDescription}\n(El resumen y los metadatos se publican con el texto: revísalos con el mismo criterio.)
 Valor diferencial que declara el redactor: «${draft.distinctValue?.readerBenefit ?? '(ninguno)'}» (afirmaciones: ${draft.distinctValue?.claimIds?.join(', ') || 'ninguna'}). Compruébalo contra el texto y esas afirmaciones: si es genérico, si el texto no lo cumple, si solo resume o parafrasea una fuente, si los datos propios o los enlaces de GuíaTV no tienen relación con la intención, o si un horario se presenta como permanente, señala un problema high.\n\nBorrador:\n${draft.markdown}`,
-        CRITIC_SCHEMA);
+        CRITIC_SCHEMA));
       const critic: CriticReview = { model: chosen.critic.route.model, verdict: criticVerdict(answer), modelVerdict: answer.verdict, issues: answer.issues, bundleHash, draftHash, reviewedAt: now().toISOString() };
       const verdict = critic;
 
       const { provenance, cms } = assemble(draft, verifiedOn, critic);
       if (deps.signingKey) provenance.signature = signProvenance(provenance, deps.signingKey);
       // The excerpt and metadata are reviewed and signed with the text (metadataHash), so nothing rewrites them after this.
-      let findings = await publisherFindings(cms, provenance, deps, taken, verifiedOn, topic.linkTargets, topic.length);
+      let findings = await stage('publication-eligibility', () => publisherFindings(cms, provenance, deps, taken, verifiedOn, topic.linkTargets, topic.length));
       Object.assign(run, { draft: cms, provenance, findings, value: measureValue(draft.markdown, bundle) });
       const blocking = findings.filter((f) => f.severity === 'block');
       const revision: RevisionRecord = { attempt: loop, draftHash, verdict: verdict.verdict, issues: verdict.issues.length, blocking: blocking.map((f) => f.code), action: 'pass', gateFixes, ...(repaired ? { repaired } : {}) };
@@ -652,7 +719,7 @@ Valor diferencial que declara el redactor: «${draft.distinctValue?.readerBenefi
         // Only a text that passed gets a cover, so a rejected draft never spends on images.
         if (await addCover(run, cms, provenance, topic, deps, ledger, verifiedOn)) {
           if (deps.signingKey) provenance.signature = signProvenance(provenance, deps.signingKey);
-          findings = run.findings = await publisherFindings(cms, provenance, deps, taken, verifiedOn, topic.linkTargets, topic.length);
+          findings = run.findings = await stage('publication-eligibility', () => publisherFindings(cms, provenance, deps, taken, verifiedOn, topic.linkTargets, topic.length));
         }
         const pending = policyGateFailures(findings);
         return finish(run, pending.length ? 'verified' : 'approved-by-policy', pending.length ? `requiere confirmación: ${pending.map((f) => f.code).join(', ')}` : undefined);
@@ -677,6 +744,9 @@ Valor diferencial que declara el redactor: «${draft.distinctValue?.readerBenefi
     if (error instanceof EditorialBudgetExceeded) return finish(run, 'blocked', `límite: ${error.message}`);
     // A refusal, truncation or network error holds this article; the batch and its ledger survive.
     return finish(run, 'blocked', `error: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    // The runner closes the lease after publication; this only records the run on the session.
+    try { await deps.lifecycle?.finish(session, run); } catch { /* the lease expires and recovery reconciles it */ }
   }
 }
 

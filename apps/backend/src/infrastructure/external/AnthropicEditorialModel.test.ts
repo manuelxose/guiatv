@@ -66,3 +66,11 @@ test('M11-D: a failed call reports the usage it was billed; a broken stream does
   const unknown = await new AnthropicEditorialModel({ client: cut }).call(call()).catch((e) => e);
   assert.ok(!(unknown instanceof ModelCallFailed));
 });
+
+test('M14-B: an already-aborted job signal never opens a provider stream', async () => {
+  const controller = new AbortController();
+  controller.abort();
+  const f = fake([reply('end_turn', '{}')]);
+  await assert.rejects(new AnthropicEditorialModel({ client: f.client }).call(call({ signal: controller.signal })), /abort|cancel/i);
+  assert.equal(f.sent.length, 0);
+});

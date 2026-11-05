@@ -10,6 +10,7 @@ import {
 } from '../../../../services/admin-editorial.service';
 import { AdminConfirmDialogComponent } from '../../components/admin-confirm-dialog/admin-confirm-dialog.component';
 import { AdminStatusBadgeComponent } from '../../components/admin-status-badge/admin-status-badge.component';
+import { AdminJobLedgerComponent } from './job-ledger/admin-job-ledger.component';
 import { DiffLine, PIPELINE_STAGES, PipelineStage, RUN_STEPS, STATE_BADGE, STATE_LABELS, diffLines, gateDetails, postStage, queueStage } from './editorial-status';
 import { EditorialPostSummary, EditorialQueueActionName, EditorialQueueItem } from '../../../../services/admin-editorial.service';
 import { interval } from 'rxjs';
@@ -43,7 +44,7 @@ const emptyTopic = (): EditorialGenerationTopic => ({
 @Component({
   selector: 'app-admin-editorial-section',
   standalone: true,
-  imports: [CommonModule, FormsModule, A11yModule, AdminStatusBadgeComponent, AdminConfirmDialogComponent],
+  imports: [CommonModule, FormsModule, A11yModule, AdminStatusBadgeComponent, AdminConfirmDialogComponent, AdminJobLedgerComponent],
   templateUrl: './admin-editorial-section.component.html',
   styleUrl: './admin-editorial-section.component.scss',
 })
@@ -59,8 +60,8 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
   readonly severities: EditorialSeverity[] = ['block', 'warn', 'human'];
   readonly severityLabels: Record<EditorialSeverity, string> = { block: 'Bloqueante', warn: 'Aviso', human: 'Revisión humana' };
   readonly stateLabels = STATE_LABELS;
-  readonly tabs = ['pipeline', 'topics', 'review', 'runs', 'generate', 'settings', 'search'] as const;
-  readonly tabLabels: Record<typeof this.tabs[number], string> = { pipeline: 'Pipeline', topics: 'Temas', review: 'Revisión', runs: 'Ejecuciones', generate: 'Generar', settings: 'Configuración', search: 'Search Console' };
+  readonly tabs = ['pipeline', 'topics', 'review', 'runs', 'ledger', 'generate', 'settings', 'search'] as const;
+  readonly tabLabels: Record<typeof this.tabs[number], string> = { pipeline: 'Pipeline', topics: 'Temas', review: 'Revisión', runs: 'Ejecuciones', ledger: 'Trabajos', generate: 'Generar', settings: 'Configuración', search: 'Search Console' };
   readonly stages = PIPELINE_STAGES;
   activeTab: typeof this.tabs[number] = 'pipeline';
   emergencyOpen = false;
@@ -128,6 +129,7 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
   providers: EditorialProviderHealth | null = null;
   providersLoading = false;
   providersError = '';
+  gscBusy = false;
   readonly providerStateLabels: Record<EditorialProviderState, string> = {
     connected: 'Conectado', unauthorized: 'Credencial rechazada', unreachable: 'Sin conexión',
     error: 'Error del proveedor', 'not-configured': 'Sin credencial',
@@ -140,6 +142,31 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
     this.loadProviders();
     // Live view: poll while the tab is visible; silent so the page does not flash a loading state.
     interval(15000).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => { if (!document.hidden && !this.loading) this.refresh(true); });
+  }
+
+  searchConsoleLabel(reason: string): string {
+    return {
+      'fresh-inspected': 'Inspeccionada en las últimas 24 h',
+      'fresh-indexed': 'Indexada y revisada hace menos de 7 días',
+      'inspection-limit': 'Límite de inspecciones de esta ejecución',
+      'no-slug': 'Sin slug público',
+    }[reason] ?? reason;
+  }
+
+  runSearchConsole(): void {
+    if (this.gscBusy) return;
+    this.gscBusy = true;
+    this.error = '';
+    this.service.runSearchConsole().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (result) => {
+        this.gscBusy = false;
+        this.notice = result.started
+          ? 'Sincronización de Search Console iniciada; los datos aparecerán al terminar.'
+          : 'Ya hay una sincronización en curso.';
+        setTimeout(() => { if (!document.hidden) this.refresh(true); }, 8000);
+      },
+      error: (e) => { this.gscBusy = false; this.error = errorMessage(e, 'No se pudo iniciar la sincronización'); },
+    });
   }
 
   loadProviders(refresh = false): void {
