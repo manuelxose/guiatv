@@ -1,5 +1,7 @@
-import { ChangeDetectionStrategy, Component, HostListener, inject, OnInit } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { afterNextRender, ChangeDetectionStrategy, Component, ElementRef, HostListener, inject, OnInit, viewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { filter } from 'rxjs';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { sv2Link } from '../sports-v2.paths';
 import { SportsStore } from '../state/sports-store';
 import { Sv2IconComponent } from '../ui/icon';
@@ -25,6 +27,24 @@ import { Sv2TopNavigationComponent } from './top-navigation';
 export class Sv2AppShellComponent implements OnInit {
   protected readonly store = inject(SportsStore);
   protected readonly mobileItems = NAV_ITEMS.filter((i) => i.mobile);
+  private readonly main = viewChild.required<ElementRef<HTMLElement>>('main');
+
+  private readonly router = inject(Router);
+  private lastPath = '';
+
+  constructor() {
+    // Follows come from localStorage: read them after hydration so server and client markup match.
+    afterNextRender(() => this.store.restoreFollows());
+    this.router
+      .events.pipe(filter((e) => e instanceof NavigationEnd), takeUntilDestroyed())
+      .subscribe(() => {
+        // Query-only changes (tabs, filters, typing) replace the URL and must not count as history.
+        const path = this.router.url.split('?')[0];
+        if (path !== this.lastPath) this.store.navigations.update((n) => n + 1);
+        this.lastPath = path;
+        this.main().nativeElement.scrollTo?.({ top: 0 }); // <main> is the scroller, not the window
+      });
+  }
 
   ngOnInit(): void {
     void this.store.load();

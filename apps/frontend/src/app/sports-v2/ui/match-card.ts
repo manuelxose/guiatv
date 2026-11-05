@@ -13,7 +13,7 @@ import { Sv2TeamIdentityComponent } from './team-identity';
   imports: [Sv2TeamIdentityComponent, Sv2ScoreDisplayComponent, Sv2StatusIndicatorComponent, Sv2IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <button type="button" class="body" [attr.aria-pressed]="selected()" [attr.aria-label]="aria()" (click)="matchSelect.emit(match().slug)">
+    <button type="button" class="body" [attr.aria-current]="selected() ? 'true' : null" [attr.aria-label]="aria()" (click)="matchSelect.emit(match().slug)">
       <span class="meta">
         <span class="comp">{{ competitionName() }}</span>
         <app-sv2-status-indicator [status]="match().status" />
@@ -43,7 +43,7 @@ import { Sv2TeamIdentityComponent } from './team-identity';
     .body { all: unset; box-sizing: border-box; display: grid; gap: 12px; width: 100%; padding: 12px 14px; border-radius: var(--sv2-r-md); background: var(--sv2-surface-2); border: 1px solid var(--sv2-border); cursor: pointer; transition: background var(--sv2-dur) var(--sv2-ease), border-color var(--sv2-dur) var(--sv2-ease); }
     .body:hover { background: var(--sv2-surface-3); }
     .body:focus-visible { outline: 2px solid var(--sv2-focus); outline-offset: 2px; }
-    .body[aria-pressed='true'] { border-color: var(--sv2-accent); }
+    .body[aria-current='true'] { border-color: var(--sv2-accent); }
     .meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-right: 36px; }
     .comp { font-size: var(--sv2-fs-xs); color: var(--sv2-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }

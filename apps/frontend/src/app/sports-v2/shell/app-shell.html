@@ -1,16 +1,23 @@
-<div class="shell" [class.collapsed]="store.sidebarCollapsed()" [class.ctx-open]="store.contextOpen()">
+<div class="shell" [class.collapsed]="store.sidebarCollapsed()" [class.ctx-open]="store.contextOpen()" [class.expanded]="store.matchPageOpen()">
   <a class="skip" href="#sv2-main">Saltar al contenido</a>
 
   <header class="top"><app-sv2-top-navigation /></header>
 
   <aside class="side panel" aria-label="Mi fútbol"><app-sv2-sidebar-navigation /></aside>
 
-  <main id="sv2-main" class="main panel" tabindex="-1"><router-outlet /></main>
+  <main id="sv2-main" #main class="main panel" tabindex="-1">
+    @if (store.isDemo) {
+      <p class="demo" role="note"><b>Datos de demostración.</b> Equipos, marcadores, noticias y canales son ficticios y no reflejan partidos reales.</p>
+    }
+    <router-outlet />
+  </main>
 
-  @if (store.contextOpen()) {
-    <button type="button" class="backdrop" (click)="store.contextOpen.set(false)" aria-label="Cerrar Match Center"></button>
+  @if (!store.matchPageOpen()) {
+    @if (store.contextOpen()) {
+      <button type="button" class="backdrop" (click)="store.contextOpen.set(false)" aria-label="Cerrar Match Center"></button>
+    }
+    <aside class="ctx panel" [class.open]="store.contextOpen()" aria-labelledby="sv2-ctx-title"><app-sv2-context-panel /></aside>
   }
-  <aside class="ctx panel" [class.open]="store.contextOpen()" aria-labelledby="sv2-ctx-title"><app-sv2-context-panel /></aside>
 
   <div class="track"><app-sv2-live-tracker-shell /></div>
 

@@ -141,3 +141,45 @@
 @media (prefers-reduced-motion: reduce) {
   .ctx { transition: none; }
 }
+
+.demo {
+  margin: 0 0 16px;
+  padding: 8px 12px;
+  border-radius: var(--sv2-r-sm);
+  background: color-mix(in srgb, var(--sv2-postponed) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sv2-postponed) 40%, transparent);
+  color: var(--sv2-text);
+  font-size: var(--sv2-fs-xs);
+}
+
+// Full-page Match Center: the contextual sidebar steps aside.
+@media (min-width: 1200px) {
+  .shell.expanded {
+    grid-template-columns: var(--sv2-sidebar-w) minmax(0, 1fr);
+    grid-template-areas: 'top top' 'side main' 'track track';
+    &.collapsed {
+      grid-template-columns: var(--sv2-sidebar-w-collapsed) minmax(0, 1fr);
+    }
+  }
+}
+
+// Mobile Match Center is a dedicated full-screen view: no top bar, no tab bar, no frame.
+@media (max-width: 767px) {
+  .shell.expanded {
+    padding: 0;
+    gap: 0;
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas: 'main' 'track';
+    .top,
+    .tabbar {
+      display: none;
+    }
+    .main {
+      border-radius: 0;
+      border: 0;
+    }
+    .track {
+      padding: 8px;
+    }
+  }
+}

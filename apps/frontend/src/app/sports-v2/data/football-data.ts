@@ -1,25 +1,28 @@
-import { Injectable } from '@angular/core';
+import { Injectable, InjectionToken, inject } from '@angular/core';
+import { dayKey } from '../domain/calendar';
 import { SportsSnapshot } from '../domain/models';
-import { DEMO_COMPETITIONS, DEMO_MATCHES, DEMO_NEWS, DEMO_TEAMS } from './demo-fixtures';
+import { buildDemoSnapshot } from './demo-fixtures';
+
+/** Injectable clock so day navigation and tests are deterministic. */
+export const SPORTS_NOW = new InjectionToken<() => Date>('SPORTS_NOW', { providedIn: 'root', factory: () => () => new Date() });
 
 /**
  * Data port. UI and state depend only on this contract.
- * M02 swaps the provider for an HTTP adapter against the existing public API;
- * nothing above this file changes.
+ * M03 swaps the provider for an HTTP adapter against the real API; nothing above this file changes.
  */
 export abstract class FootballData {
+  /** `demo` adapters serve fictional data and make the shell say so. */
+  abstract readonly source: 'demo' | 'live';
   abstract load(): Promise<SportsSnapshot>;
 }
 
-/** Demo adapter (M01). Clearly isolated: it only serves fictional fixtures. */
+/** Demo adapter: fictional fixtures only, for local development and automated tests. */
 @Injectable()
 export class DemoFootballData extends FootballData {
+  readonly source = 'demo' as const;
+  private readonly now = inject(SPORTS_NOW);
+
   load(): Promise<SportsSnapshot> {
-    return Promise.resolve({
-      teams: DEMO_TEAMS,
-      competitions: DEMO_COMPETITIONS,
-      matches: DEMO_MATCHES,
-      news: DEMO_NEWS,
-    });
+    return Promise.resolve(buildDemoSnapshot(dayKey(this.now())));
   }
 }

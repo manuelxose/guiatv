@@ -15,6 +15,7 @@ import { MatchStatus } from '../domain/models';
   styles: `
     :host { display: inline-flex; align-items: baseline; gap: .35em; font-weight: 700; font-variant-numeric: tabular-nums; font-size: var(--sv2-score-size, var(--sv2-fs-lg)); line-height: 1; }
     :host(.dim) .n { color: var(--sv2-text-muted); }
+    .n { display: inline-block; min-width: 1.2ch; text-align: center; }
     .sep { color: var(--sv2-text-faint); }
     .vs { font-size: var(--sv2-fs-sm); font-weight: 600; color: var(--sv2-text-faint); }
   `,

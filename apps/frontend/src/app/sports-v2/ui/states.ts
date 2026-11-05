@@ -1,23 +1,32 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-sv2-empty-state',
   standalone: true,
+  imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p class="t">{{ title() }}</p>
     @if (hint()) {
       <p class="h">{{ hint() }}</p>
     }
+    @if (actionLabel() && actionLink()) {
+      <a class="act" [routerLink]="actionLink()">{{ actionLabel() }}</a>
+    }
   `,
   styles: `
     :host { display: block; padding: 24px 16px; text-align: center; border: 1px dashed var(--sv2-border-strong); border-radius: var(--sv2-r-md); }
     p { margin: 0; } .t { font-weight: 600; } .h { margin-top: 4px; font-size: var(--sv2-fs-sm); color: var(--sv2-text-muted); }
+    .act { display: inline-flex; align-items: center; min-height: 40px; margin-top: 12px; padding: 0 16px; border-radius: 999px; background: var(--sv2-accent); color: var(--sv2-accent-ink); font-weight: 700; font-size: var(--sv2-fs-sm); text-decoration: none; }
+    .act:focus-visible { outline: 2px solid var(--sv2-focus); outline-offset: 2px; }
   `,
 })
 export class Sv2EmptyStateComponent {
   readonly title = input.required<string>();
   readonly hint = input<string>();
+  readonly actionLabel = input<string>();
+  readonly actionLink = input<readonly string[]>();
 }
 
 @Component({

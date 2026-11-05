@@ -52,6 +52,8 @@ import { NAV_ITEMS } from './nav-items';
               <app-sv2-icon name="star" /><span class="label">{{ comp.name }}</span>
             </a>
           </li>
+        } @empty {
+          <li class="empty label">Márcalas desde su página.</li>
         }
       </ul>
     </nav>
