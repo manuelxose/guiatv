@@ -147,6 +147,39 @@ test('M11-B CMS: evidence gate, policy approval, versioning and rollback', { ski
     await BlogPostModel.updateOne({ _id: id }, { status: 'draft', reviewState: 'unreviewed', $unset: { reviewedBy: 1 } });
     const third = await aiPost('el-padrino-tercero');
     assert.match(String((await call(controller.approveByPolicy, { params: { id: third } })).error), /limit reached/);
+
+    // The database can commit a publication even when its acknowledgement is lost.
+    process.env.EDITORIAL_POLICY_DAILY_LIMIT = '10';
+    const uncertainId = await aiPost('el-padrino-respuesta-perdida');
+    const save = (controller as any).saveUnchanged.bind(controller);
+    let invalidations = 0;
+    (controller as any).qualityFindings = async () => [];
+    (controller as any).invalidatePublicReads = async () => { invalidations++; };
+    (controller as any).saveUnchanged = async (post: unknown) => { await save(post); throw new Error('save acknowledgement lost'); };
+    try {
+      assert.match(String((await call(controller.approveByPolicy, { params: { id: uncertainId } })).error), /acknowledgement lost/);
+    } finally {
+      delete (controller as any).qualityFindings;
+      delete (controller as any).saveUnchanged;
+      delete (controller as any).invalidatePublicReads;
+    }
+    const uncertain = (await BlogPostModel.findById(uncertainId).lean())!;
+    assert.equal(uncertain.status, 'publish');
+    assert.equal(await BlogPostModel.db.collection('editorial_policy_approvals').countDocuments({ postId: uncertain._id }), 1);
+    assert.equal(invalidations, 1);
+
+    const unknownId = await aiPost('el-padrino-error-de-red');
+    (controller as any).qualityFindings = async () => [];
+    (controller as any).saveUnchanged = async () => { throw new Error('network error'); };
+    try {
+      assert.match(String((await call(controller.approveByPolicy, { params: { id: unknownId } })).error), /network error/);
+    } finally {
+      delete (controller as any).qualityFindings;
+      delete (controller as any).saveUnchanged;
+    }
+    const unknown = (await BlogPostModel.findById(unknownId).lean())!;
+    assert.equal(unknown.status, 'draft');
+    assert.equal(await BlogPostModel.db.collection('editorial_policy_approvals').countDocuments({ postId: unknown._id }), 1, 'unknown results are retained conservatively');
   } finally {
     process.env = env;
     await mongoose.connection.dropDatabase();
