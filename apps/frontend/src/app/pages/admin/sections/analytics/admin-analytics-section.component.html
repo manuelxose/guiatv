@@ -189,8 +189,8 @@
           <p *ngIf="liveIdleCountUncertain" role="status">El servidor anterior puede incluir sesiones inactivas en el total; la lista y el mapa filtran las sesiones de la muestra.</p>
           <p *ngIf="activeNow !== null">Las ubicaciones por IP son aproximadas; si solo se conoce el país, se muestra su centro.</p>
           <p *ngIf="overview?.geographyCollectionEnabled === false">La configuración de privacidad del almacenamiento desactiva los datos geográficos.</p>
-          <p *ngIf="overview?.geographyConfigured === false">La fuente geográfica no está configurada; las sesiones nuevas no tendrán ubicación.</p>
-          <p *ngIf="overview?.geographyConfigured && overview?.geographyDetailConfigured === false">La fuente de ciudad y coordenadas no está configurada; se utilizará el centro del país cuando esté disponible.</p>
+          <p *ngIf="overview?.geographyConfigured === false">No hay base de datos GeoIP cargada: las sesiones nuevas no tendrán ubicación (consulta Diagnóstico).</p>
+          <p *ngIf="overview?.geographyConfigured && overview?.geographyDetailConfigured === false">Solo se conoce el país de las sesiones nuevas; se utilizará su centro.</p>
           <p *ngIf="liveError" role="alert">No se han podido actualizar las sesiones. <span *ngIf="liveUpdatedAt">Se muestra la última respuesta de las {{ liveUpdatedAt | date:'shortTime' }}.</span></p>
         </div>
       </div>
@@ -377,7 +377,7 @@
       <p *ngIf="overviewLoading" class="text-sm text-[var(--portal-text-soft)]" role="status">Cargando datos geográficos…</p>
       <p *ngIf="overviewError" class="text-sm text-[var(--portal-text)]" role="alert">No se han podido cargar los datos geográficos.</p>
       <ng-container *ngIf="overview && !overviewLoading && !overviewError">
-        <p *ngIf="!overview.geographyConfigured" class="text-sm text-[var(--portal-text)] mb-4" role="status">La fuente geográfica no está configurada. Las nuevas sesiones se mostrarán como desconocidas hasta que se configure un proxy confiable.</p>
+        <p *ngIf="!overview.geographyConfigured" class="text-sm text-[var(--portal-text)] mb-4" role="status">No hay base de datos GeoIP cargada: las sesiones nuevas aparecerán como desconocidas (consulta Diagnóstico). Las sesiones ya registradas sin ubicación no se recalculan.</p>
         <p *ngIf="!overview.geography" class="text-sm text-[var(--portal-text)] mb-4" role="status">El almacenamiento activo no proporciona datos geográficos para este informe.</p>
         <p *ngIf="overview.geography && !overview.geography.length" class="text-sm text-[var(--portal-text-muted)]">No hay datos para este periodo.</p>
         <ng-container *ngIf="overview.geography?.length">
@@ -453,13 +453,14 @@
             </table>
           </div>
           <p *ngIf="!d.ingest" class="text-sm text-[var(--portal-text-soft)]">El backend no expone métricas de ingesta.</p>
-          <h5 class="font-semibold text-[var(--portal-text)] mt-4 mb-1">GeoIP local (MaxMind)</h5>
+          <h5 class="font-semibold text-[var(--portal-text)] mt-4 mb-1">GeoIP local</h5>
           <p *ngIf="d.ingest?.geoip as geo" class="text-sm text-[var(--portal-text-soft)]">
-            <ng-container *ngIf="!geo.enabled">Desactivado (ANALYTICS_GEOIP_ENABLED). Las sesiones se guardan sin ubicación salvo cabeceras de un proxy de confianza.</ng-container>
+            <ng-container *ngIf="!geo.enabled">Desactivado (ANALYTICS_GEOIP_ENABLED=false). Las sesiones se guardan sin ubicación salvo el país que indica Cloudflare.</ng-container>
             <ng-container *ngIf="geo.enabled">
-              Ciudad: {{ geo.city.loaded ? geo.city.version : 'no cargada' }}<span *ngIf="geo.city.error"> ({{ geo.city.error }})</span> ·
-              ASN: {{ geo.asn.loaded ? geo.asn.version : 'no cargada' }}<span *ngIf="geo.asn.error"> ({{ geo.asn.error }})</span> ·
-              {{ geo.located | number }} de {{ geo.lookups | number }} consultas con ubicación. La ubicación por IP es aproximada (radio de precisión incluido) y no detecta VPN.
+              Ciudad: {{ geo.city.loaded ? geo.city.version : 'no cargada' }}<span *ngIf="geo.city.error && !geo.city.loaded"> (sin fichero: el despliegue lo descarga; o ejecuta <code>systemctl start guiatv-geoip-update</code>)</span> ·
+              ASN: {{ geo.asn.loaded ? geo.asn.version : 'no cargada' }} ·
+              {{ geo.located | number }} de {{ geo.lookups | number }} consultas con ubicación. La ubicación por IP es aproximada y no detecta VPN.
+              <span *ngIf="geo.city.source === 'dbip' || geo.asn.source === 'dbip'" class="block mt-1"><a href="https://db-ip.com" target="_blank" rel="noopener">IP Geolocation by DB-IP</a> (CC BY 4.0).</span>
             </ng-container>
           </p>
           <p class="text-xs text-[var(--portal-text-faint)] mt-2">Actualizado {{ d.generatedAt | date:'mediumTime' }}. Valores del proceso actual (se reinician con cada despliegue).</p>
@@ -513,7 +514,7 @@
             <table class="ga-table">
               <thead><tr><th scope="col">IP o rango</th><th scope="col">Etiqueta</th><th scope="col">Añadida</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
               <tbody><tr *ngFor="let entry of manualExclusions">
-                <td><code>{{ entry.value }}</code></td>
+                <td><code>{{ entry.value }}</code><span *ngIf="entry.cloudflare" class="ga-detail excl-warning">Es una dirección de Cloudflare, no tuya: se guardó antes de que el panel leyera la IP real detrás de Cloudflare. Quítala.</span></td>
                 <td>{{ entry.label || '—' }}</td>
                 <td>{{ entry.createdAt ? (entry.createdAt | date:'short') : '—' }}<span *ngIf="entry.createdBy" class="ga-detail">{{ entry.createdBy }}</span></td>
                 <td class="ga-num"><button type="button" class="excl-remove" [disabled]="exclusionBusy" (click)="removeExclusion(entry.id, entry.value)">Quitar</button></td>

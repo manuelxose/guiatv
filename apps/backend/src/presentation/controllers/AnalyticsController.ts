@@ -5,7 +5,8 @@ import { successResponse } from '../../shared/types/ApiResponse';
 import { ValidationError } from '../../shared/errors';
 import { analyticsExclusions } from '../../infrastructure/repositories/analyticsExclusions';
 import { AuthenticatedRequest } from '../middlewares/authGuard';
-import { analyticsClientIp, isTrustedAnalyticsProxy } from './analyticsClientIp';
+import { isTrustedAnalyticsProxy, resolveAnalyticsClient } from './analyticsClientIp';
+import { cloudflareRanges } from '../../infrastructure/analytics/cloudflareIps';
 import { anonymizeIp, canonicalIp } from '../../infrastructure/analytics/ipPrivacy';
 import { LIVE_IDLE_LIMIT_SECONDS } from '../../infrastructure/repositories/analyticsActivity';
 import { TelemetryIngestService } from '../../application/services/analytics/TelemetryIngestService';
@@ -114,7 +115,7 @@ export class AnalyticsController {
   private enqueue(req: Request, batch: NormalizedBatch): boolean {
     if (!this.ingest) return false;
     const client = this.getClientInfo(req);
-    const geo = this.getGeography(req);
+    const geo = this.getGeography(req, client.viaCloudflare);
     return this.ingest.accept(batch, {
       ip: client.ip,
       userAgent: client.userAgent || undefined,
@@ -264,8 +265,9 @@ export class AnalyticsController {
       topPages: overview.topPages.slice(0, 200).map((page) => ({ ...page, label: labels.get(page.path) })),
       store: this.storeKind,
       geoipEnabled: this.flags.get().geoipEnabled,
-      geographyConfigured: Boolean((process.env.ANALYTICS_GEO_TRUSTED_PROXIES || '').split(',').some((ip) => ip.trim())) || this.flags.get().geoipEnabled,
-      geographyDetailConfigured: Boolean((process.env.ANALYTICS_GEO_DETAIL_TRUSTED_PROXIES || '').split(',').some((ip) => ip.trim())) || this.flags.get().geoipEnabled,
+      // "Configured" means new sessions can actually be located: a loaded GeoIP database or a trusted proxy.
+      geographyConfigured: Boolean((process.env.ANALYTICS_GEO_TRUSTED_PROXIES || '').split(',').some((ip) => ip.trim())) || Boolean(this.ingest?.geoAvailable()),
+      geographyDetailConfigured: Boolean((process.env.ANALYTICS_GEO_DETAIL_TRUSTED_PROXIES || '').split(',').some((ip) => ip.trim())) || Boolean(this.ingest?.geoAvailable()),
     } }));
   }
 
@@ -363,6 +365,7 @@ export class AnalyticsController {
 
   private getClientInfo(req: Request): {
     ip: string;
+    viaCloudflare: boolean;
     userAgent: string;
     language: string | undefined;
     referrer: string | undefined;
@@ -370,11 +373,14 @@ export class AnalyticsController {
     // Default trusted proxy = the local nginx (loopback): ports 3000/4000 are closed to the outside, so a loopback
     // peer is nginx, which appends the real peer to X-Forwarded-For. Without this default every visitor resolved to
     // 127.0.0.1 — an always-excluded address — and analytics silently counted nothing.
+    // Behind nginx, Cloudflare's edge ranges are trusted too: otherwise every visitor would be an edge address
+    // (located at Cloudflare's data centre, shared by thousands of people, and "exclude my IP" would exclude them all).
     const trusted = process.env.ANALYTICS_TRUSTED_PROXIES?.trim() || '127.0.0.1,::1';
-    const ip = analyticsClientIp(req.socket.remoteAddress, req.get('X-Forwarded-For'), trusted);
+    const { ip, viaRange } = resolveAnalyticsClient(req.socket.remoteAddress, req.get('X-Forwarded-For'), trusted, cloudflareRanges());
 
     return {
       ip,
+      viaCloudflare: viaRange,
       userAgent: String(req.headers['user-agent'] || ''),
       language: typeof req.headers['accept-language'] === 'string'
         ? req.headers['accept-language'].split(',')[0]
@@ -385,12 +391,17 @@ export class AnalyticsController {
     };
   }
 
-  private getGeography(req: Request): { country?: string; region?: string; city?: string; latitude?: number; longitude?: number } {
-    if (!isTrustedAnalyticsProxy(req.socket.remoteAddress, process.env.ANALYTICS_GEO_TRUSTED_PROXIES || '')) return {};
+  /**
+   * Location headers from Cloudflare, used only when local GeoIP has no answer. The country header is believed when
+   * the request came through Cloudflare's edge (it always sets it) or from a configured trusted proxy; region, city
+   * and coordinates need ANALYTICS_GEO_DETAIL_TRUSTED_PROXIES (they exist only with Cloudflare's location transform).
+   */
+  private getGeography(req: Request, viaCloudflare = false): { country?: string; region?: string; city?: string; latitude?: number; longitude?: number } {
+    if (!viaCloudflare && !isTrustedAnalyticsProxy(req.socket.remoteAddress, process.env.ANALYTICS_GEO_TRUSTED_PROXIES || '')) return {};
     const country = req.get('CF-IPCountry');
-    const region = req.get('CF-Region-Code');
-    const validCountry = country && /^[A-Z]{2}$/.test(country) && country !== 'XX' ? country : undefined;
+    const validCountry = country && /^[A-Z]{2}$/.test(country) && country !== 'XX' && country !== 'T1' ? country : undefined;
     const detailTrusted = isTrustedAnalyticsProxy(req.socket.remoteAddress, process.env.ANALYTICS_GEO_DETAIL_TRUSTED_PROXIES || '');
+    const region = detailTrusted || isTrustedAnalyticsProxy(req.socket.remoteAddress, process.env.ANALYTICS_GEO_TRUSTED_PROXIES || '') ? req.get('CF-Region-Code') : undefined;
     const rawCity = detailTrusted ? req.get('CF-IPCity') : undefined;
     const city = validCountry && rawCity && rawCity.length <= 100 && !/[\x00-\x1f\x7f]/.test(rawCity) ? rawCity.trim() || undefined : undefined;
     const lat = detailTrusted ? req.get('CF-IPLatitude') : undefined;

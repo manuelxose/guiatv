@@ -99,7 +99,7 @@ export interface AdminAnalyticsDiagnostics {
     invalidBatches: number;
     droppedWhileDisabled: number;
     storageAvailable: boolean | null;
-    geoip: { enabled: boolean; city: { loaded: boolean; version: string | null; error: string | null }; asn: { loaded: boolean; version: string | null; error: string | null }; lookups: number; located: number };
+    geoip: { enabled: boolean; city: { loaded: boolean; version: string | null; source?: string | null; error: string | null }; asn: { loaded: boolean; version: string | null; source?: string | null; error: string | null }; lookups: number; located: number };
   } | null;
   generatedAt: string;
 }
@@ -116,6 +116,8 @@ export type AdminGa4Demographics =
   | { available: false; reason: string; message: string };
 
 export interface AdminAnalyticsExclusion {
+  /** Covers Cloudflare edge addresses (saved before the visitor address was read behind Cloudflare): not a visitor. */
+  cloudflare?: boolean;
   id?: string;
   value: string;
   label?: string;

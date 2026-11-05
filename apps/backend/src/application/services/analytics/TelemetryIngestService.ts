@@ -67,6 +67,11 @@ export class TelemetryIngestService {
     this.disabledDrops++;
   }
 
+  /** Local GeoIP can locate new sessions (a city database is loaded). */
+  geoAvailable(): boolean {
+    return this.geoip.available();
+  }
+
   diagnostics(): Record<string, unknown> {
     return { queue: this.queue.metrics(), rejectedEvents: this.rejectedEvents, invalidBatches: this.invalidBatches, droppedWhileDisabled: this.disabledDrops, storageAvailable: this.repository.isAvailable?.() ?? null, geoip: this.geoip.status() };
   }

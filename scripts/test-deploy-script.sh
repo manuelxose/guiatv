@@ -58,6 +58,8 @@ case "${*: -1}" in */tendencias) echo 503; exit 0 ;; esac
 case "${*: -1}" in */programacion-tv/guia-canales|*/canales/*_*|*/editorial) echo 301 ;; *) echo 200 ;; esac
 EOF
 chmod +x "${T}/bin/"*
+export SYSTEMD_UNIT_DIR="${T}/units" GEOIP_DIR="${T}/geoip"
+mkdir -p "${SYSTEMD_UNIT_DIR}"
 export PATH="${T}/bin:${PATH}" APP_DIR="${SRV}" DEPLOY_ALLOW_NON_ROOT=1 SYSTEMCTL_LOG="${T}/systemctl.log" FAIL_FLAG="${T}/fail" FAIL_RELEASE=none COLD_FLAG="${T}/cold" SMOKE_RETRY_DELAY=0 NPM_LOG="${T}/npm.log" DEPLOY_LOCK_FILE="${T}/deploy.lock" BUILD_MIN_AVAILABLE_MB=1 OPS_POLL_DELAY=0
 : >"${SYSTEMCTL_LOG}"
 
@@ -238,5 +240,23 @@ grep -q "rolling back" "${T}/ci2.log" && grep -q "Remote deploy FAILED" "${T}/ci
 rm -f "${FAIL_FLAG}"; export FAIL_RELEASE=none
 bash "${ROOT}/scripts/deploy-ssh.sh" "${sha2}" "${sum2}" >"${T}/ci3.log" 2>&1 || { cat "${T}/ci3.log"; fail "a healthy CI deploy must exit 0"; }
 [ "$(readlink -f "${SRV}/current")" != "${live}" ] || fail "the healthy CI deploy did not publish"
+
+# --- 9. GeoIP: the update timer is installed and enabled, and a first database is fetched only while none exists ---
+mkdir -p "${T}/work/infra/systemd"
+cp "${ROOT}/infra/systemd/guiatv-geoip-update.service" "${ROOT}/infra/systemd/guiatv-geoip-update.timer" "${T}/work/infra/systemd/"
+(cd "${T}/work" && git pull -q --rebase origin main && echo geo >f && git add -A && git commit -qm "geoip units" && git push -q origin main)
+: >"${SYSTEMCTL_LOG}"
+unset SHA_DIR
+bash "${ROOT}/deploy-guiatv.sh" >"${T}/run9.log" 2>&1 || { cat "${T}/run9.log"; fail "deploy with GeoIP units must succeed"; }
+cmp -s "${ROOT}/infra/systemd/guiatv-geoip-update.timer" "${SYSTEMD_UNIT_DIR}/guiatv-geoip-update.timer" || fail "GeoIP timer not installed"
+grep -q "enable --now guiatv-geoip-update.timer" "${SYSTEMCTL_LOG}" || fail "GeoIP timer not enabled"
+grep -q "start guiatv-geoip-update.service" "${SYSTEMCTL_LOG}" || fail "no first GeoIP download while no database exists"
+grep -q "GeoIP: database installed" "${T}/run9.log" || fail "first GeoIP download not reported"
+[ "$(grep -n "start guiatv-geoip-update.service" "${SYSTEMCTL_LOG}" | head -1 | cut -d: -f1)" -lt "$(grep -n "restart guiatv-api" "${SYSTEMCTL_LOG}" | head -1 | cut -d: -f1)" ] || fail "the API must restart after the GeoIP database is in place"
+mkdir -p "${GEOIP_DIR}" && touch "${GEOIP_DIR}/dbip-city-lite.mmdb"
+(cd "${T}/work" && echo geo2 >f && git commit -qam "runtime change 2" && git push -q origin main)
+: >"${SYSTEMCTL_LOG}"
+bash "${ROOT}/deploy-guiatv.sh" >"${T}/run10b.log" 2>&1 || { cat "${T}/run10b.log"; fail "second deploy must succeed"; }
+! grep -q "start guiatv-geoip-update.service" "${SYSTEMCTL_LOG}" || fail "GeoIP download repeated although a database exists"
 
 echo "deploy script checks passed"

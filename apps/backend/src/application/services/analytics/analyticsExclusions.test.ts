@@ -54,6 +54,10 @@ test('exclusions: loopback, this server\'s addresses and env are built in; manua
   await assert.rejects(service.add('81.2.69.5/24', undefined, 'x'), /ya está excluida/);
   await assert.rejects(service.add('10.0.0.0/4', undefined, 'x'), /demasiado amplio/);
   await assert.rejects(service.add('nope', undefined, 'x'), /no válido/);
+  // Cloudflare edge addresses carry every visitor's traffic: never excludable.
+  await assert.rejects(service.add('172.68.10.20', undefined, 'x'), /Cloudflare/);
+  await assert.rejects(service.add('2a06:98c0:3600::103', undefined, 'x'), /Cloudflare/);
+  await assert.rejects(service.add('104.0.0.0/8', undefined, 'x'), /Cloudflare/, 'a range containing Cloudflare is refused too');
   const list = await service.list();
   assert.deepEqual(new Set(list.map((e) => e.source)), new Set(['loopback', 'server', 'env', 'manual']));
   assert.equal(service.matching('81.2.69.142')[0].label, 'Oficina');
@@ -110,6 +114,9 @@ test('exclusion endpoints: admin only, "mine" uses the requester address, valida
     const listed = (await (await call('admin')).json()) as any;
     assert.equal(listed.data.you.ip, '81.2.69.142');
     assert.equal(listed.data.you.excludedBy[0].label, 'Mi IP (administración)');
+    // Through Cloudflare: nginx appends the edge address after the visitor address Cloudflare wrote.
+    const viaCf = await fetch(base, { headers: { Authorization: 'Bearer admin', 'x-forwarded-for': '83.40.1.1, 172.68.10.20' } });
+    assert.equal(((await viaCf.json()) as any).data.you.ip, '83.40.1.1');
     assert.equal((await call('admin', 'POST', { value: 'garbage' })).status, 400);
     const id = listed.data.entries.find((e: any) => e.source === 'manual').id;
     assert.equal((await call('admin', 'DELETE', undefined, `/${id}`)).status, 200);

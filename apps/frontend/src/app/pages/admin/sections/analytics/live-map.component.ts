@@ -46,7 +46,7 @@ export function markerBounds(points: LiveMapMarker[]): [[number, number], [numbe
         <span>Tamaño = sesiones; pulsa un punto para el detalle.</span>
       </div>
       <p *ngIf="!markers.length && !mapError" class="map-empty" role="status">Ninguna sesión conectada tiene ubicación en este momento.</p>
-      <p *ngIf="mapError" role="alert" class="map-error">No se ha podido cargar el mapa base (OpenFreeMap). Las tablas siguen mostrando las ubicaciones.</p>
+      <p *ngIf="mapError" role="alert" class="map-error">No se ha podido cargar el mapa base (OpenFreeMap). Las tablas siguen mostrando las ubicaciones.<span *ngIf="mapErrorDetail" class="map-error__detail"> Detalle: {{ mapErrorDetail }}</span></p>
     </div>
   `,
   styles: [`
@@ -55,6 +55,7 @@ export function markerBounds(points: LiveMapMarker[]): [[number, number], [numbe
     .map-empty, .map-error { margin: 0; padding: .45rem .7rem; border-radius: var(--radius-sm); background: var(--portal-surface); color: var(--portal-text); font-size: .8125rem; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
     /* Legend and messages sit on the map's top-left corner: the activity card covers its bottom-left. */
     .map-overlay { position: absolute; z-index: 2; top: .75rem; left: .75rem; max-width: min(28rem, calc(100% - 5rem)); display: grid; gap: .4rem; }
+    .map-error__detail { display: block; margin-top: .2rem; color: var(--portal-text-soft); font-size: .75rem; overflow-wrap: anywhere; }
     .map-legend { display: flex; flex-wrap: wrap; gap: .35rem 1rem; padding: .45rem .7rem; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--portal-surface) 92%, transparent); color: var(--portal-text-soft); font-size: .78rem; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
     .map-legend span { display: inline-flex; align-items: center; gap: .4rem; }
     .map-legend__dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.2); }
@@ -68,10 +69,13 @@ export class LiveMapComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() markers: LiveMapMarker[] = [];
   @ViewChild('container') container!: ElementRef<HTMLElement>;
   public mapError = false;
+  /** First error reported by the map before its style loaded (shown so a failure can be diagnosed from the panel). */
+  public mapErrorDetail = '';
   private map?: MapLibreMap;
   private maplibre?: typeof import('maplibre-gl');
   private renderedMarkers: Marker[] = [];
   private destroyed = false;
+  private loadTimer?: ReturnType<typeof setTimeout>;
   /** Key set of the last fitted view: the map only re-frames when the set of places changes, not on every poll. */
   private framedKeys = '';
 
@@ -83,13 +87,29 @@ export class LiveMapComponent implements AfterViewInit, OnChanges, OnDestroy {
       const maplibre = await import('maplibre-gl');
       if (this.destroyed) return;
       this.maplibre = maplibre;
-      maplibre.setWorkerUrl(new URL('assets/maplibre/maplibre-gl-worker.mjs', document.baseURI).href);
+      // `.js`, not `.mjs`: the worker is an ES module and some nginx builds serve `.mjs` with a non-JavaScript type,
+      // which browsers refuse for module workers (the map then never loads). See scripts/copy-maplibre-worker.mjs.
+      const worker = new URL('assets/maplibre/maplibre-gl-worker.js', document.baseURI);
+      worker.searchParams.set('v', maplibre.getVersion?.() || '');
+      maplibre.setWorkerUrl(worker.href);
       this.map = new maplibre.Map({ container: this.container.nativeElement, style: 'https://tiles.openfreemap.org/styles/positron', center: [-3.7, 40.4], zoom: 3.6, renderWorldCopies: false });
       this.map.addControl(new maplibre.NavigationControl(), 'top-right');
       this.map.addControl(new maplibre.FullscreenControl(), 'top-right');
-      this.map.on('error', () => { if (!this.map?.isStyleLoaded()) this.mapError = true; });
+      this.map.on('error', (event: { error?: { message?: string } }) => {
+        if (this.map?.isStyleLoaded()) return; // a missing tile after loading is not a failed map
+        this.mapError = true;
+        if (!this.mapErrorDetail) this.mapErrorDetail = String(event?.error?.message || '').slice(0, 160);
+      });
+      // A worker that cannot start reports nothing to the map: give up visibly instead of a silent grey box.
+      this.loadTimer = setTimeout(() => {
+        if (this.destroyed || this.map?.isStyleLoaded()) return;
+        this.mapError = true;
+        if (!this.mapErrorDetail) this.mapErrorDetail = 'el mapa no terminó de cargar en 20 s';
+      }, 20_000);
       this.map.on('load', () => {
+        clearTimeout(this.loadTimer);
         this.mapError = false;
+        this.mapErrorDetail = '';
         for (const layer of this.map!.getStyle().layers) {
           if (layer.type === 'symbol' && layer.source === 'openmaptiles' && layer['source-layer'] === 'place') {
             this.map!.setLayoutProperty(layer.id, 'text-field', ['coalesce', ['get', 'name:es'], ['get', 'name:latin'], ['get', 'name']]);
@@ -97,13 +117,14 @@ export class LiveMapComponent implements AfterViewInit, OnChanges, OnDestroy {
         }
         this.renderMarkers();
       });
-    } catch {
+    } catch (error) {
       this.mapError = true;
+      this.mapErrorDetail = String((error as Error)?.message || '').slice(0, 160);
     }
   }
 
   ngOnChanges(): void { this.renderMarkers(); }
-  ngOnDestroy(): void { this.destroyed = true; this.map?.remove(); }
+  ngOnDestroy(): void { this.destroyed = true; clearTimeout(this.loadTimer); this.map?.remove(); }
 
   private renderMarkers(): void {
     if (!this.map || !this.maplibre) return;

@@ -284,3 +284,52 @@ Backend 874/914 pass with 0 failures and 40 skipped; frontend 439/439; ops 40/40
   * release `20261105004452` active; every smoke check and all ten SSR warm-ups answered 200
 * **Production verification still open:** this session cannot reach `guiaprogramaciontv.com`. The owner runs the checks in §6 (config, banner before consent, 202 on `/collect`, Diagnóstico).
 * **Prevention:** `deploy-guiatv.sh` now restores the committed `package-lock.json` after `npm install`. `scripts/test-deploy-script.sh` adds a case where the npm stub rewrites the lockfile, as npm did on the VPS. It fails on the old script ("npm's lockfile rewrite left the checkout dirty") and passes with the fix.
+
+## 11. ANALYTICS-09 — production fixes after the first live review (2026-11-05)
+
+The owner's screenshots of the live panel (after #177, release `20261105022104`) showed four faults:
+
+1. The base map never loaded ("No se ha podido cargar el mapa base").
+2. GeoIP was off and no source was configured, so every session was "Ubicación desconocida".
+3. The admin's own session counted as a connected session.
+4. Implicit in the setup: visitor addresses were Cloudflare edge addresses.
+
+* **Map (fixed and reproduced):**
+  * Cause: MapLibre 6's worker is an ES module, loaded with `new Worker(url, { type: 'module' })`. Browsers refuse module workers that are not served with a JavaScript MIME type, and nginx builds whose `mime.types` lacks `.mjs` serve `/assets/maplibre/maplibre-gl-worker.mjs` as `application/octet-stream`.
+  * Reproduced with a local server that serves `.mjs` like that, in Chromium with MapLibre's real files: "Worker failed to load".
+  * Fix: the build copies the self-contained worker as `assets/maplibre/maplibre-gl-worker.js` (`apps/frontend/scripts/copy-maplibre-worker.mjs`, run by `prebuild`/`prebuild:ssr`/`prestart`). It fails the build if `maplibre-gl-shared.mjs` ever stops being empty.
+  * With the built `.js` file the same harness reports `loaded`.
+  * The panel now shows the map's first error and gives up visibly after 20 s.
+  * Not verified against production here: the domain is unreachable from this environment. The nginx `.mjs` MIME type is the inferred cause.
+* **GeoIP without accounts:**
+  * `GeoIpService` is on by default (`ANALYTICS_GEOIP_ENABLED=false` turns it off).
+  * It uses the first existing file of `GeoLite2-City.mmdb` → `dbip-city-lite.mmdb` (same for ASN). The source (`maxmind | dbip`) follows the database type.
+  * DB-IP Lite records (no region code, no accuracy radius) are handled.
+  * `scripts/geoip-update.sh` downloads DB-IP Lite City + ASN (CC BY 4.0, monthly, no account) when no MaxMind credentials exist:
+    * the current month, falling back to the previous one;
+    * gzip integrity and the `.mmdb` metadata marker are checked;
+    * the file is replaced atomically and `.prev` kept;
+    * a corrupt or HTML download keeps the current file.
+  * Deploy (`ensure_geoip`, never fatal):
+    * installs and enables `guiatv-geoip-update.{service,timer}` (now `DynamicUser`, optional credentials file);
+    * while no database exists, runs the update once before restarting the API.
+  * The panel shows "IP Geolocation by DB-IP" when DB-IP data is used.
+  * "Fuente geográfica configurada" now means a database is actually loaded (or a trusted proxy is set), not that a flag is on.
+  * Memory: the city file is read into memory, roughly 130 MB for DB-IP City Lite.
+* **Behind Cloudflare:**
+  * nginx sees an edge address and appends it after the visitor address Cloudflare wrote. The analytics walk stopped at the edge, so every visitor was located at a Cloudflare data centre, shared an address with thousands of people, and "Excluir mi IP" excluded an edge.
+  * Cloudflare's published ranges are now trusted hops behind nginx (`ANALYTICS_TRUST_CLOUDFLARE=false` to disable; `ANALYTICS_CLOUDFLARE_RANGES` to replace the list). A Cloudflare address as the socket peer is never trusted.
+  * `CF-IPCountry` is believed only when the walk crossed a Cloudflare hop.
+  * The exclusions endpoint refuses addresses or ranges that overlap Cloudflare.
+  * Existing rules that do are flagged in the panel for removal.
+* **Admin's own session:** the Valkey store never removed excluded sessions from the live list (Mongo filtered them). Now:
+  * an excluded session is never added to it (start or heartbeat);
+  * `markExcludedSession` removes it;
+  * the list skips sessions flagged excluded.
+* **Tests:**
+  * backend: 883 pass, 0 fail, 41 skipped (Mongo-only, run in CI), local Valkey;
+  * ops: 41/41;
+  * deploy sandbox: new case 9 (GeoIP units installed and enabled, first download before the API restart, not repeated);
+  * Karma analytics specs: 21/21;
+  * production `build:ssr` passes.
+* **Out of scope, noted:** Express `trust proxy` is `1`, so `req.ip` (rate limiting) is the Cloudflare edge for every visitor behind Cloudflare.

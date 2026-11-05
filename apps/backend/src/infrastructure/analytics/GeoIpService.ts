@@ -4,10 +4,12 @@ import { logger } from '../../shared/utils/logger';
 import { canonicalIp, isPrivateOrLocalIp } from './ipPrivacy';
 
 /**
- * Local MaxMind GeoLite2 City + ASN enrichment (IPv4 and IPv6). No network call per event: the `.mmdb` files are
- * read from disk at start-up with async I/O and lookups are in-memory tree walks (microseconds).
- * Files are installed and refreshed by `scripts/geoip-update.sh` (systemd timer, license key outside the repo);
- * this service re-opens them when their modification time changes (checked every 6 h, unref'd timer).
+ * Local City + ASN enrichment (IPv4 and IPv6) from `.mmdb` files: MaxMind GeoLite2 when a license key is configured,
+ * otherwise DB-IP Lite (CC BY 4.0, downloadable without an account; same file format and record layout). No network
+ * call per event: the files are read from disk at start-up with async I/O and lookups are in-memory tree walks.
+ * Files are installed and refreshed by `scripts/geoip-update.sh` (systemd timer; the deploy installs it and fetches a
+ * first copy); this service re-opens them when their modification time changes (checked every 6 h, unref'd timer).
+ * On by default; `ANALYTICS_GEOIP_ENABLED=false` turns it off.
  *
  * The result is approximate by nature and says so: `geoStatus`, `accuracyRadiusKm` and the database build are kept
  * with every record. It never claims a precise position, an identity, or anything about the person (age, gender…).
@@ -17,7 +19,7 @@ export type GeoStatus = 'located' | 'country_only' | 'unknown' | 'private' | 'in
 
 export interface GeoResult {
   geoStatus: GeoStatus;
-  geoSource?: 'maxmind' | 'proxy_header';
+  geoSource?: 'maxmind' | 'dbip' | 'proxy_header';
   country?: string;
   region?: string;
   regionName?: string;
@@ -49,6 +51,8 @@ interface AsnRecord {
 }
 
 interface DbState<T> {
+  /** Candidate files, in order of preference (MaxMind, then DB-IP); the first one that exists is used. */
+  paths: string[];
   path: string;
   reader: MmdbReader<T> | null;
   mtimeMs: number;
@@ -57,6 +61,20 @@ interface DbState<T> {
 }
 
 const RELOAD_CHECK_MS = 6 * 60 * 60_000;
+const GEOIP_DIR = '/var/lib/GeoIP';
+
+function candidates(override: string | undefined, maxmind: string, dbip: string): string[] {
+  return override ? [override] : [`${GEOIP_DIR}/${maxmind}`, `${GEOIP_DIR}/${dbip}`];
+}
+
+/** On unless explicitly disabled. */
+export function geoipEnabledFromEnv(env: NodeJS.ProcessEnv = process.env): boolean {
+  return (env.ANALYTICS_GEOIP_ENABLED || '').toLowerCase() !== 'false';
+}
+
+function sourceOf(databaseType?: string): 'maxmind' | 'dbip' {
+  return /^(GeoLite2|GeoIP2)/i.test(databaseType || '') ? 'maxmind' : 'dbip';
+}
 
 function pickName(names?: Record<string, string>): string | undefined {
   const name = names?.es || names?.en;
@@ -71,15 +89,16 @@ export class GeoIpService {
   private located = 0;
 
   constructor(
-    private readonly options: { enabled: boolean; cityPath?: string; asnPath?: string } = {
-      enabled: process.env.ANALYTICS_GEOIP_ENABLED === 'true',
-      cityPath: process.env.ANALYTICS_GEOIP_CITY_DB || '/var/lib/GeoIP/GeoLite2-City.mmdb',
-      asnPath: process.env.ANALYTICS_GEOIP_ASN_DB || '/var/lib/GeoIP/GeoLite2-ASN.mmdb',
+    private readonly options: { enabled: boolean; cityPath?: string | string[]; asnPath?: string | string[] } = {
+      enabled: geoipEnabledFromEnv(),
+      cityPath: candidates(process.env.ANALYTICS_GEOIP_CITY_DB, 'GeoLite2-City.mmdb', 'dbip-city-lite.mmdb'),
+      asnPath: candidates(process.env.ANALYTICS_GEOIP_ASN_DB, 'GeoLite2-ASN.mmdb', 'dbip-asn-lite.mmdb'),
     },
     private readonly openReader: <T>(buffer: Buffer) => MmdbReader<T> = defaultOpenReader
   ) {
-    this.city = { path: options.cityPath || '', reader: null, mtimeMs: 0 };
-    this.asn = { path: options.asnPath || '', reader: null, mtimeMs: 0 };
+    const list = (value?: string | string[]) => (Array.isArray(value) ? value : value ? [value] : []).filter(Boolean);
+    this.city = { paths: list(options.cityPath), path: '', reader: null, mtimeMs: 0 };
+    this.asn = { paths: list(options.asnPath), path: '', reader: null, mtimeMs: 0 };
   }
 
   /** Non-blocking for the caller's request path: call it once at start-up without awaiting. */
@@ -108,7 +127,7 @@ export class GeoIpService {
     if (isPrivateOrLocalIp(ip)) return { geoStatus: 'private' };
     if (!this.city.reader && !this.asn.reader) return { geoStatus: 'unavailable' };
     this.lookups++;
-    const result: GeoResult = { geoStatus: 'unknown', geoSource: 'maxmind', geoDb: [this.city.version, this.asn.version].filter(Boolean).join(' + ') || undefined };
+    const result: GeoResult = { geoStatus: 'unknown', geoSource: sourceOf(this.city.reader?.metadata.databaseType ?? this.asn.reader?.metadata.databaseType), geoDb: [this.city.version, this.asn.version].filter(Boolean).join(' + ') || undefined };
     try {
       const city = this.city.reader?.get(ip);
       if (city) {
@@ -146,17 +165,37 @@ export class GeoIpService {
     return result;
   }
 
+  /** A city database is loaded: new sessions get a location. */
+  available(): boolean {
+    return this.options.enabled && Boolean(this.city.reader);
+  }
+
   status(): Record<string, unknown> {
-    const describe = (db: DbState<unknown>) => ({ loaded: Boolean(db.reader), version: db.version || null, error: db.error || null });
+    const describe = (db: DbState<unknown>) => ({ loaded: Boolean(db.reader), version: db.version || null, source: db.reader ? sourceOf(db.reader.metadata.databaseType) : null, error: db.error || null });
     return { enabled: this.options.enabled, city: describe(this.city), asn: describe(this.asn), lookups: this.lookups, located: this.located };
   }
 
+  /** First candidate that exists (a MaxMind file installed later takes over from DB-IP at the next check). */
+  private async pick(paths: string[]): Promise<{ path: string; mtimeMs: number }> {
+    let lastError: unknown;
+    for (const path of paths) {
+      try {
+        return { path, mtimeMs: (await fs.stat(path)).mtimeMs };
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error('no database file');
+  }
+
   private async load<T>(db: DbState<T>, onlyIfChanged = false): Promise<void> {
-    if (!db.path) return;
+    if (!db.paths.length) return;
     try {
-      const stat = await fs.stat(db.path);
-      if (onlyIfChanged && db.reader && stat.mtimeMs === db.mtimeMs) return;
-      const buffer = await fs.readFile(db.path);
+      const { path, mtimeMs } = await this.pick(db.paths);
+      if (onlyIfChanged && db.reader && path === db.path && mtimeMs === db.mtimeMs) return;
+      const stat = { mtimeMs };
+      const buffer = await fs.readFile(path);
+      db.path = path;
       const reader = this.openReader<T>(buffer);
       db.reader = reader;
       db.mtimeMs = stat.mtimeMs;
@@ -166,7 +205,7 @@ export class GeoIpService {
     } catch (error) {
       // Keep the previous reader if a refresh fails (e.g. a half-written file); report the error.
       db.error = error instanceof Error ? error.message.slice(0, 200) : 'unknown error';
-      if (!db.reader) logger.warn('[Analytics] GeoIP database unavailable; sessions are stored without location', { path: db.path, error: db.error });
+      if (!db.reader) logger.warn('[Analytics] GeoIP database unavailable; sessions are stored without location', { paths: db.paths, error: db.error });
     }
   }
 }

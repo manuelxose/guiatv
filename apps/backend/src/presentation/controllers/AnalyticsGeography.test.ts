@@ -61,3 +61,26 @@ test('geography accepts headers only from a configured socket and rejects unknow
     else process.env.ANALYTICS_GEO_DETAIL_TRUSTED_PROXIES = previousDetail;
   }
 });
+
+test('geography: the Cloudflare country header is believed only when the request came through a Cloudflare edge', async () => {
+  const sessions: any[] = [];
+  const repository = {
+    startSession: async (session: unknown) => { sessions.push(session); },
+    createEvents: async () => {}, createEvent: async () => {}, heartbeatSession: async () => null, endSession: async () => null,
+  };
+  const ingest = new TelemetryIngestService(repository as never, new GeoIpService({ enabled: false }));
+  const controller = new AnalyticsController({} as never, ingest, new TelemetryFlagSource({}, () => false));
+  const response = { set() { return this; }, status() { return this; }, json() { return this; }, end() { return this; } };
+  let n = 0;
+  const request = (forwarded: string) => ({
+    body: { v: 1, sessionId: `cf-session-${++n}-xxxx`, anonId: 'anon-xxxx-1', session: {} }, socket: { remoteAddress: '127.0.0.1' }, headers: {},
+    get: (header: string) => ({ 'X-Forwarded-For': forwarded, 'CF-IPCountry': 'ES', 'CF-IPCity': 'Vigo' } as Record<string, string>)[header],
+  });
+  await controller.collect(request('83.40.1.1, 172.68.10.20') as never, response as never);
+  await controller.collect(request('172.68.10.20, 198.51.100.9') as never, response as never);
+  await ingest.queue.drain();
+  assert.equal(sessions[0].country, 'ES');
+  assert.equal(sessions[0].city, undefined, 'city needs the detail setting');
+  assert.equal(sessions[0].ip, '83.40.1.0', 'the visitor prefix, not the edge');
+  assert.equal(sessions[1].country, undefined, 'forged header sent straight to the origin');
+});

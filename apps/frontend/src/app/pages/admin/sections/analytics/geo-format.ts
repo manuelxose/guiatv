@@ -84,7 +84,9 @@ export function providerLabel(item: GeoFields): string {
 }
 
 export function geoSourceLabel(source?: string): string {
-  return source === 'maxmind' ? 'MaxMind GeoLite2 (local)' : source === 'proxy_header' ? 'Cabeceras del proxy de confianza' : 'No registrada';
+  if (source === 'maxmind') return 'MaxMind GeoLite2 (local)';
+  if (source === 'dbip') return 'DB-IP Lite (local) · IP Geolocation by DB-IP';
+  return source === 'proxy_header' ? 'Cabeceras de Cloudflare' : 'No registrada';
 }
 
 /** Share of a total as a rounded percentage with one decimal ("12,5 %"), or "—" when the total is 0. */

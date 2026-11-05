@@ -669,7 +669,7 @@ export class Container {
     this.dependencies.set('editorialOpsController', new EditorialOpsController(this.get('storageRepository')));
 
     // Analytics ingestion: bounded in-process queue + off-path enrichment (GeoIP opens its files asynchronously and
-    // only when ANALYTICS_GEOIP_ENABLED=true; a missing database leaves sessions unlocated, never fails start-up).
+    // unless ANALYTICS_GEOIP_ENABLED=false; a missing database leaves sessions unlocated, never fails start-up).
     const { GeoIpService } = await import('../infrastructure/analytics/GeoIpService');
     const { TelemetryIngestService } = await import('../application/services/analytics/TelemetryIngestService');
     const { PathLabelResolver } = await import('../application/services/analytics/pathLabels');

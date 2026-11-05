@@ -138,7 +138,7 @@ describe('Analytics geography', () => {
     service.getOverview.and.returnValue(of({ ...overview, geographyConfigured: false }));
     fixture.componentInstance.selectRange(24);
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('La fuente geográfica no está configurada');
+    expect(fixture.nativeElement.textContent).toContain('No hay base de datos GeoIP cargada');
     fixture.destroy();
   });
 
@@ -346,6 +346,12 @@ describe('Analytics geography', () => {
     expect(service.addExclusion).toHaveBeenCalledWith({ mine: true, label: undefined });
     expect(element.textContent).toContain('Excluida (Mi IP (administración))');
     expect(element.querySelector('.excl-remove')).not.toBeNull();
+    expect(element.textContent).not.toContain('Es una dirección de Cloudflare');
+    // A rule saved while the panel still read Cloudflare's edge address is flagged for removal.
+    entries = [...entries, { id: 'b'.repeat(24), value: '172.68.10.20', label: 'Mi IP (administración)', source: 'manual', cloudflare: true }];
+    fixture.componentInstance.loadExclusions();
+    fixture.detectChanges();
+    expect(element.textContent).toContain('Es una dirección de Cloudflare');
     fixture.componentInstance.addExclusion('bad', '');
     fixture.detectChanges();
     expect(element.textContent).toContain('Dirección IP o rango CIDR no válido');

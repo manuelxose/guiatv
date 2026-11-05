@@ -65,7 +65,8 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
   async markExcludedSession(sessionId: string): Promise<void> {
     if (!this.canUse()) throw new Error('Valkey no está disponible para excluir la sesión');
     const key = this.realtimeSessionKey(sessionId);
-    await this.client.multi().hSet(key, { excluded: '1' }).expire(key, this.ttlSeconds).exec();
+    // Out of the live list as well (connected sessions, map), not only out of the realtime pages.
+    await this.client.multi().hSet(key, { excluded: '1' }).expire(key, this.ttlSeconds).hSet(this.sessionKey(sessionId), { sessionId, excluded: '1' }).expire(this.sessionKey(sessionId), this.ttlSeconds).zRem(this.liveKey, sessionId).exec();
   }
 
   async getRealtimePages(to: Date): Promise<AnalyticsRealtimePages | null> {
@@ -232,7 +233,8 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
 
     pipeline.hSet(sessionKey, this.buildSessionMap(payload));
     pipeline.expire(sessionKey, this.ttlSeconds);
-    if (isLongIdle(payload.metadata)) pipeline.zRem(this.liveKey, payload.sessionId);
+    // Excluded traffic (administrators, excluded IPs) is never a connected session.
+    if (payload.excluded || isLongIdle(payload.metadata)) pipeline.zRem(this.liveKey, payload.sessionId);
     else pipeline.zAdd(this.liveKey, [{ score: nowMs, value: payload.sessionId }]);
     if (!payload.excluded && !existedBeforeIndex) {
       pipeline.incr(this.sessionCountKey(day));
@@ -265,7 +267,8 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
 
     const nowMs = payload.lastSeenAt.getTime();
     const sessionKey = this.sessionKey(payload.sessionId);
-    const storedMetadata = payload.metadata ? undefined : this.safeJsonParse<Record<string, any>>(await this.client.hGet(sessionKey, 'metadata'));
+    const [storedMetadataRaw, excludedFlag] = await this.client.hmGet(sessionKey, ['metadata', 'excluded']);
+    const storedMetadata = payload.metadata ? undefined : this.safeJsonParse<Record<string, any>>(storedMetadataRaw ?? undefined);
     // Activity-only heartbeats keep the device/utm metadata written at session start.
     const metadata = payload.metadata ?? (payload.activity ? { ...(storedMetadata || {}), activity: payload.activity } : undefined);
     const activityMetadata = metadata ?? storedMetadata;
@@ -284,7 +287,7 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
     pipeline.hSet(sessionKey, updateMap);
     if (payload.resume) pipeline.hDel(sessionKey, ['endedAt', 'endReason']);
     pipeline.expire(sessionKey, this.ttlSeconds);
-    if (isLongIdle(activityMetadata)) pipeline.zRem(this.liveKey, payload.sessionId);
+    if (excludedFlag === '1' || isLongIdle(activityMetadata)) pipeline.zRem(this.liveKey, payload.sessionId);
     else pipeline.zAdd(this.liveKey, [{ score: nowMs, value: payload.sessionId }]);
     await pipeline.exec();
 
@@ -440,6 +443,7 @@ export class ValkeyAnalyticsRepository implements IAnalyticsRepository {
     const sessions: AnalyticsSessionRecord[] = [];
     results.forEach((result, index) => {
       const normalized = this.normalizeHashReply(result);
+      if (normalized?.excluded === '1') return; // written before it was known to be excluded
       const parsed = this.parseSessionMap(normalized, sessionIds[index]);
       if (parsed) sessions.push(parsed);
     });
