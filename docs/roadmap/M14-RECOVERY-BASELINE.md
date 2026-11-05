@@ -14,13 +14,18 @@ Status: **incomplete; do not deploy as a recovery release**. Observation on 2026
 - A discovery request was finished even when its claim failed, allowing one runner to complete another runner's request. The runner now finishes only requests it successfully claimed; a process test covers a competing claim.
 - Manual backlog counts were derived from only the latest 50 records. Counts now query all queued and running requests. A MongoDB regression exercises more than 50 records.
 - Discovery failures were represented as no eligible topics and a successful process exit. The runner changes report discovery errors; see the associated tests for the actual covered cases.
+- A failed publication save could have committed while its acknowledgement was lost; deleting its approval ledger row could then undercount the rolling limit. An ambiguous result now retains the row and triggers best-effort cache invalidation. A definite optimistic-concurrency conflict still releases the row. Ambiguous failures before a write conservatively retain a slot and require reconciliation.
+- New manual requests record claim and terminal timestamps and the number of claims observed after instrumentation. Legacy attempts remain unknown; these fields are not leases.
+- The active release lacked the configured runner script. The publisher now packages the runner and maintenance data. Release and runner tests run against a loopback service and compiled backend; they do not verify the deployed artifact or host dependencies.
 
 ## Outstanding blockers
 
 - Manual requests have no durable owner lease or publication fencing. Do not automatically requeue running requests until stale workers are prevented from completing or publishing and successful publication can be reconciled.
 - Production MongoDB is standalone: `hello` reports no replica set, and a read inside a transaction failed with `IllegalOperation` (20). A transaction-based recovery design requires a separately validated topology migration. A lease check before publication alone cannot fence a worker whose lease expires before the post is saved.
 - The local runner lock is not distributed and its age-based recovery may steal a live process's lock. PID existence is insufficient proof of ownership or health.
+- Run evidence defaults inside each release. A deployment can make the previous release's evidence invisible or remove it during pruning; safe quiescence, migration and handover remain required before deployment. A proposed migration was rejected because it raced writers and pruning.
 - The owner requires subscription OAuth, not API billing. An isolated Claude Code subscription login and a minimal text response succeeded without gateway credentials; this does not establish an equivalent editorial adapter, web-research controls, provenance, or unattended reliability. The existing pipeline uses the Messages SDK. No production provider configuration was changed.
+- A separate isolated Claude Code search succeeded but involved an additional model whose usage must be tracked separately. The installed production CLI is older than the documented `onFailure: block` hook guarantee needed for fail-closed tool quotas; the agent harness was not replaced.
 - No end-to-end editorial publication, crash recovery, concurrent cap proof, deploy handover or sustained operating window has been verified. No production queues were purged or modified.
 - Deploy only through the established artifact workflow after reviewing and validating a complete recovery design. Roll back using the existing release procedure in `RUNBOOK.md`; do not delete queue records as a rollback.
 
