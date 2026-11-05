@@ -39,6 +39,6 @@ import { usePageTitle } from './page-title';
 export class Sv2CompetitionsPageComponent {
   protected readonly store = inject(SportsStore);
   constructor() {
-    usePageTitle(() => 'Competiciones');
+    usePageTitle(() => 'Competiciones', 'Ligas, copas y torneos de fútbol: partidos, resultados y clasificación de cada competición.');
   }
 }

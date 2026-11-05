@@ -49,6 +49,6 @@ export class Sv2NewsPageComponent {
   protected readonly rest = computed(() => this.filtered().filter((n) => n !== this.lead()));
 
   constructor() {
-    usePageTitle(() => 'Noticias');
+    usePageTitle(() => 'Noticias', 'Guías y noticias de fútbol de Guía TV, sobre equipos y competiciones.');
   }
 }

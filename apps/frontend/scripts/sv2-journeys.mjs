@@ -6,8 +6,8 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 
 const base = process.argv[2] ?? 'http://localhost:4210';
 const API = 'https://guiaprogramaciontv.com/v2/sports/football';
-const out = new URL('../../../docs/sports-v2/evidence/m03/', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
-mkdirSync(out, { recursive: true });
+const out = new URL('../../../docs/sports-v2/evidence/m04/journeys-', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+mkdirSync(out.replace(/journeys-$/, ''), { recursive: true });
 const report = { checks: [], consoleErrors: [], hydrationErrors: [] };
 const check = (name, ok, detail = '') => { report.checks.push({ name, ok: !!ok, detail }); console.log(ok ? 'PASS' : 'FAIL', name, detail); };
 
@@ -26,7 +26,7 @@ for (const [tz, label] of [['Europe/Madrid', 'madrid'], ['Asia/Tokyo', 'tokyo']]
   const page = await ctx.newPage();
   page.on('response', (r) => { if (r.status() >= 400 && r.url().includes('/v2/')) report.consoleErrors.push(`${label}: ${r.status()} ${r.url()}`); });
   page.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) report.consoleErrors.push(`${label}: ${m.text()}`); if (/NG0[45]\d\d|hydrat/i.test(m.text())) report.hydrationErrors.push(`${label}: ${m.text()}`); });
-  await page.goto(`${base}/laboratorio/futbol/partido/${upcoming.slug}`, { waitUntil: 'networkidle' });
+  await page.goto(`${base}/deportes/futbol/partido/${upcoming.slug}`, { waitUntil: 'networkidle' });
   const text = await page.locator('main').innerText();
   const expectedTime = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: tz }).format(kickoff);
   check(`timezone ${label}: kickoff shown as ${expectedTime}`, text.includes(`· ${expectedTime} ·`), text.match(/·\s\d\d:\d\d\s·[^\n]*/)?.[0]);
@@ -49,7 +49,7 @@ for (const [tz, label] of [['Europe/Madrid', 'madrid'], ['Asia/Tokyo', 'tokyo']]
     return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, data: { matches: [{ ...upcoming, status: 'live', minute: null, score: { home: goals, away: 0 }, lastUpdatedAt: new Date().toISOString() }] } }) });
   });
   await page.clock.install({ time: kickoff - 5 * 60_000 }); // five minutes before a real kickoff
-  await page.goto(`${base}/laboratorio/futbol/en-directo`, { waitUntil: 'networkidle' });
+  await page.goto(`${base}/deportes/futbol/en-directo`, { waitUntil: 'networkidle' });
   await page.clock.runFor(31_000);
   await page.waitForTimeout(500);
   const body = () => page.locator('main').innerText();
@@ -77,20 +77,23 @@ for (const [tz, label] of [['Europe/Madrid', 'madrid'], ['Asia/Tokyo', 'tokyo']]
 {
   const ctx = await browser.newContext({ locale: 'es-ES', viewport: { width: 1440, height: 900 } });
   const page = await ctx.newPage();
-  await page.goto(`${base}/laboratorio/futbol`, { waitUntil: 'networkidle' });
-  await page.getByRole('combobox', { name: 'Buscar fútbol' }).fill(upcoming.homeTeam.name.slice(0, 5));
+  await page.goto(`${base}/deportes/futbol`, { waitUntil: 'load' });
+  await page.waitForTimeout(1500);
+  await page.getByRole('combobox', { name: 'Buscar en Guía TV' }).fill(upcoming.homeTeam.name.slice(0, 5));
   await page.waitForSelector('[role=option]');
   const hits = await page.locator('[role=option]').allInnerTexts();
   check('search: groups real results', hits.length > 1, hits.slice(0, 3).join(' | ').replace(/\s+/g, ' '));
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await page.waitForURL(/futbol\/(equipos|competiciones|partido|noticias)\//, { timeout: 5000 }).catch(() => undefined);
-  check('search: keyboard selection navigates to a semantic URL', /\/laboratorio\/futbol\/(equipos|competiciones|partido|noticias)\/[a-z0-9-]+$/.test(page.url()), page.url());
-  await page.goto(`${base}/laboratorio/futbol/equipos/${upcoming.homeTeam.slug}`, { waitUntil: 'networkidle' });
+  check('search: keyboard selection navigates to a semantic URL', /\/deportes\/futbol\/(equipos|competiciones|partido|noticias)\/[a-z0-9-]+$/.test(page.url()), page.url());
+  await page.goto(`${base}/deportes/futbol/equipos/${upcoming.homeTeam.slug}`, { waitUntil: 'load' });
   await page.getByRole('button', { name: new RegExp(`^Seguir ${upcoming.homeTeam.name}`) }).first().click();
-  await page.reload({ waitUntil: 'networkidle' });
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForTimeout(1500);
   check('favourites: followed team survives a reload', (await page.getByRole('button', { name: new RegExp(`^Dejar de seguir ${upcoming.homeTeam.name}`) }).count()) > 0);
-  await page.goto(`${base}/laboratorio/futbol`, { waitUntil: 'networkidle' });
+  await page.goto(`${base}/deportes/futbol`, { waitUntil: 'load' });
+  await page.waitForTimeout(1500);
   const homeText = await page.locator('main').innerText();
   check('favourites: home personalises "Mis equipos"', homeText.includes(upcoming.homeTeam.name) && !homeText.includes('Sigue a tus equipos'));
   await page.screenshot({ path: `${out}home-personalised.png` });

@@ -100,7 +100,7 @@ const KIND = { league: 'Liga', cup: 'Copa', international: 'Internacional' } as 
             }
           </div>
         } @else {
-          <app-sv2-empty-state title="No encontramos esta competición" hint="Puede que el enlace sea antiguo." actionLabel="Ver competiciones" [actionLink]="listLink" />
+          <app-sv2-empty-state page title="No encontramos esta competición" hint="Puede que el enlace sea antiguo." actionLabel="Ver competiciones" [actionLink]="listLink" />
         }
       }
       @default { <app-sv2-loading-skeleton [count]="3" /> }
@@ -118,7 +118,7 @@ const KIND = { league: 'Liga', cup: 'Copa', international: 'Internacional' } as 
     [role='tabpanel']:focus-visible { outline: 2px solid var(--sv2-focus); outline-offset: 4px; border-radius: var(--sv2-r-sm); }
     h2 { margin: 0 0 12px; font-size: var(--sv2-fs-lg); letter-spacing: -.01em; }
     section { min-width: 0; }
-    .more { display: inline-block; margin-top: 12px; color: var(--sv2-text); font-size: var(--sv2-fs-sm); font-weight: 600; }
+    .more { display: inline-flex; align-items: center; min-block-size: 24px; margin-top: 12px; color: var(--sv2-text); font-size: var(--sv2-fs-sm); font-weight: 600; }
     .news { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
     .teams { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
     .teams li { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 64px; padding: 8px 12px; border-radius: var(--sv2-r-md); background: var(--sv2-surface-2); border: 1px solid var(--sv2-border); }

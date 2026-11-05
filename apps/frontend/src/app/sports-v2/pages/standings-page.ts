@@ -38,7 +38,7 @@ import { Sv2StandingsTableComponent } from './standings-table';
               <app-sv2-empty-state [title]="c.name + ' no tiene clasificación'" hint="Elige otra competición o consulta sus partidos." actionLabel="Ver la competición" [actionLink]="compLink()" />
             }
           } @else {
-            <app-sv2-empty-state title="No encontramos esta competición" actionLabel="Ver clasificaciones" [actionLink]="base" />
+            <app-sv2-empty-state page title="No encontramos esta competición" actionLabel="Ver clasificaciones" [actionLink]="base" />
           }
         } @else {
           <app-sv2-empty-state title="Aún no hay clasificaciones" hint="Se mostrarán cuando las competiciones publiquen su tabla." />
@@ -55,7 +55,7 @@ import { Sv2StandingsTableComponent } from './standings-table';
     nav { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
     nav a { flex: none; display: inline-flex; align-items: center; min-height: 36px; padding: 0 16px; border-radius: 999px; background: var(--sv2-surface-2); color: var(--sv2-text); font-size: var(--sv2-fs-sm); font-weight: 600; text-decoration: none; }
     nav a:hover { background: var(--sv2-surface-3); } nav a.on { background: var(--sv2-text); color: var(--sv2-bg); }
-    .more { display: inline-block; margin-top: 12px; color: var(--sv2-text); font-size: var(--sv2-fs-sm); font-weight: 600; }
+    .more { display: inline-flex; align-items: center; min-block-size: 24px; margin-top: 12px; color: var(--sv2-text); font-size: var(--sv2-fs-sm); font-weight: 600; }
     a:focus-visible { outline: 2px solid var(--sv2-focus); outline-offset: 2px; }
   `,
 })

@@ -110,7 +110,7 @@ test('internal links are rewritten to the destination the site redirects to', ()
     canonicalizeInternalLinks(html),
     '<a href="/guias/precios-plataformas-streaming-espana">a</a>' +
       '<a href="/guias/donde-ver-laliga-2026-27-espana#x">b</a>' +
-      "<a href='/deportes/futbol/partidos-hoy?filter=live'>c</a>" +
+      "<a href='/deportes/futbol/en-directo'>c</a>" +
       '<a href="/programacion-tv/en-directo">d</a>' +
       '<a href="/guias/rankings">e</a><a href="/guias/categoria/series">f</a>' +
       '<a href="/programacion-tv/guia-canales-extra">g</a><a href="https://otra.web/editorial/x">h</a>'
@@ -120,7 +120,8 @@ test('internal links are rewritten to the destination the site redirects to', ()
   assert.equal(canonicalInternalPath('/editorial/categoria/rankings'), '/guias/rankings');
   assert.equal(canonicalInternalPath('/guias/categoria/rankings?p=2'), '/guias/rankings?p=2');
   assert.equal(canonicalInternalPath('/deportes/futbol/noticias/derbi'), '/guias/derbi');
-  assert.equal(canonicalInternalPath('/deportes/futbol/en-directo?x=1#top'), '/deportes/futbol/partidos-hoy?filter=live#top');
+  // /deportes/futbol/en-directo is a real page of the football section, not a legacy alias.
+  assert.equal(canonicalInternalPath('/deportes/futbol/en-directo?x=1#top'), '/deportes/futbol/en-directo?x=1#top');
   // Paths the routes do not match in full are left alone.
   assert.equal(canonicalInternalPath('/editorial/a/b'), '/editorial/a/b');
   const untouched = '<a data-href="/blog/x" href="//cdn.example/editorial/x">x</a>';
@@ -130,7 +131,7 @@ test('internal links are rewritten to the destination the site redirects to', ()
 test('the rewrite table matches the redirects the frontend actually serves', () => {
   // dist/application/services -> apps/frontend
   const frontend = resolve(__dirname, '../../../../frontend');
-  const routes = ['src/app/app.routes.ts', 'src/app/blog/blog.routes.ts', 'src/app/features/football/football.routes.ts', 'scripts/ssr-server.mjs']
+  const routes = ['src/app/app.routes.ts', 'src/app/blog/blog.routes.ts', 'scripts/ssr-server.mjs']
     .map((file) => readFileSync(resolve(frontend, file), 'utf8'))
     .join('\n');
   for (const rule of [
@@ -139,7 +140,6 @@ test('the rewrite table matches the redirects the frontend actually serves', () 
     "path: 'blog/:slug', redirectTo: 'guias/:slug'",
     "path: 'blog/top10', redirectTo: 'guias/rankings'",
     "path: 'categoria/rankings', redirectTo: '/guias/rankings'",
-    "path: 'en-directo', redirectTo: () => '/deportes/futbol/partidos-hoy?filter=live'",
     "app.get('/deportes/futbol/noticias/:slug', (req, res) => movedTo(req, res, guidePath(req.params.slug)))",
     "app.get(['/editorial/rankings', '/blog/top10'], (req, res) => movedTo(req, res, '/guias/rankings'))",
   ]) assert.ok(routes.includes(rule), rule);

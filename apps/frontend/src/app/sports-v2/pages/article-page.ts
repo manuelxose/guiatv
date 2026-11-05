@@ -54,7 +54,7 @@ import { breadcrumbs, SPORTS_SITE_URL, sv2Path, useNotFound, useSeo } from './se
         } @else if (store.resolving()) {
           <app-sv2-loading-skeleton [count]="3" />
         } @else {
-          <app-sv2-empty-state title="No encontramos esta noticia" hint="Puede que el enlace sea antiguo." actionLabel="Ver noticias" [actionLink]="newsLink" />
+          <app-sv2-empty-state page title="No encontramos esta noticia" hint="Puede que el enlace sea antiguo." actionLabel="Ver noticias" [actionLink]="newsLink" />
         }
       }
       @default { <app-sv2-loading-skeleton [count]="3" /> }

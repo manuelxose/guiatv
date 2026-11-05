@@ -6,7 +6,7 @@ import { SPORTS_V2_BASE } from '../sports-v2.paths';
 /** Public origin used for canonical and structured-data URLs. */
 export const SPORTS_SITE_URL = new InjectionToken<string>('SPORTS_SITE_URL', { providedIn: 'root', factory: () => 'https://guiaprogramaciontv.com' });
 
-export const TITLE_SUFFIX = ' · Fútbol (vista previa) - Guía TV';
+export const TITLE_SUFFIX = ' · Fútbol - Guía TV';
 
 export interface Sv2Seo {
   readonly title: string;
@@ -16,6 +16,8 @@ export interface Sv2Seo {
   /** Absolute site path owned by another system (editorial articles live in the CMS). Overrides `segments`. */
   readonly canonicalPath?: string;
   readonly jsonLd?: readonly object[];
+  /** Internal search and personal pages: `noindex, follow` (meta + X-Robots-Tag on the server render). */
+  readonly noindex?: boolean;
 }
 
 export const sv2Path = (segments: readonly string[] = []): string => [SPORTS_V2_BASE, ...segments].join('/');
@@ -28,6 +30,7 @@ export function useSeo(input: () => Sv2Seo | null): void {
   const meta = inject(Meta);
   const doc = inject(DOCUMENT);
   const site = inject(SPORTS_SITE_URL);
+  const response = inject(RESPONSE_INIT, { optional: true });
 
   effect(() => {
     const seo = input();
@@ -39,6 +42,10 @@ export function useSeo(input: () => Sv2Seo | null): void {
     meta.updateTag({ property: 'og:title', content: seo.title });
     if (hasPath) meta.updateTag({ property: 'og:url', content: url });
     meta.updateTag({ property: 'og:type', content: 'website' });
+    if (seo.noindex) {
+      meta.updateTag({ name: 'robots', content: 'noindex, follow' });
+      if (response) response.headers = { ...response.headers, 'X-Robots-Tag': 'noindex, follow' };
+    }
     if (seo.description) meta.updateTag({ property: 'og:description', content: seo.description });
 
     let link = doc.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');

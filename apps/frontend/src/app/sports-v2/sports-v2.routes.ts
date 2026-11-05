@@ -6,19 +6,19 @@ import { BrowserFollowStorage, FollowStorage } from './data/follow-storage';
 import { SportsStore } from './state/sports-store';
 import { Sv2Viewport } from './state/viewport';
 
-// Preview surface: must never be indexed or inherit the legacy consumer shell.
-const PREVIEW = { robots: 'noindex, nofollow', layout: 'minimal-shell' } as const;
-const TITLE = (name: string) => `${name} · Fútbol (vista previa) - Guía TV`;
+// Full-screen football app: does not inherit the consumer portal shell. Indexing is decided per page (seo.ts).
+const SHELL = { layout: 'minimal-shell' } as const;
+const TITLE = (name: string) => `${name} · Fútbol - Guía TV`;
 
-/** Lazy route tree mounted at SPORTS_V2_BASE by app.routes.ts. Tests pass the demo adapter. */
+/** Lazy route tree mounted at SPORTS_V2_BASE (/deportes/futbol) by app.routes.ts. Tests pass the demo adapter. */
 export const sportsV2Routes = (data: Type<FootballData> = HttpFootballData): Routes => [
   {
     path: '',
     loadComponent: () => import('./shell/app-shell').then((m) => m.Sv2AppShellComponent),
     providers: [{ provide: FootballData, useClass: data }, { provide: FollowStorage, useClass: BrowserFollowStorage }, Sv2Viewport, SportsStore],
-    data: PREVIEW,
+    data: SHELL,
     children: [
-      { path: '', pathMatch: 'full', loadComponent: () => import('./pages/home-page').then((m) => m.Sv2HomePageComponent), title: 'Fútbol (vista previa) - Guía TV' },
+      { path: '', pathMatch: 'full', loadComponent: () => import('./pages/home-page').then((m) => m.Sv2HomePageComponent), title: 'Fútbol hoy: partidos, resultados y dónde verlos - Guía TV' },
       { path: 'en-directo', loadComponent: () => import('./pages/live-page').then((m) => m.Sv2LivePageComponent), title: TITLE('En directo') },
       { path: 'partidos', loadComponent: () => import('./pages/fixtures-page').then((m) => m.Sv2FixturesPageComponent), title: TITLE('Partidos'), data: { mode: 'fixtures' } },
       { path: 'resultados', loadComponent: () => import('./pages/fixtures-page').then((m) => m.Sv2FixturesPageComponent), title: TITLE('Resultados'), data: { mode: 'results' } },

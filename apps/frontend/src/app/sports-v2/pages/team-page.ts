@@ -87,7 +87,7 @@ import { Sv2StandingsTableComponent } from './standings-table';
             </section>
           }
         } @else {
-          <app-sv2-empty-state title="No encontramos este equipo" hint="Puede que el enlace sea antiguo." actionLabel="Ver competiciones" [actionLink]="listLink" />
+          <app-sv2-empty-state page title="No encontramos este equipo" hint="Puede que el enlace sea antiguo." actionLabel="Ver competiciones" [actionLink]="listLink" />
         }
       }
       @default { <app-sv2-loading-skeleton [count]="3" /> }
