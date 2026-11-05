@@ -12,7 +12,7 @@ import { hostname } from 'node:os';
 
 const TERMINAL = new Set(['completed', 'failed', 'cancelled', 'blocked', 'paused']);
 
-function classify(reason, abortReason) {
+export function classify(reason, abortReason) {
   const text = String(reason ?? '').toLowerCase();
   if (abortReason === 'cancelled' || /cancel|abort/.test(text)) return 'cancelled';
   if (abortReason === 'deadline' || abortReason === 'stage-deadline' || /deadline|plazo|tiempo m[áa]ximo/.test(text)) return 'deadline-exceeded';

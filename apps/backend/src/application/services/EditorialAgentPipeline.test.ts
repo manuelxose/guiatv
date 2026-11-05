@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { draftShapeProblems, EditorialModel, ModelCallFailed, runEditorialBatch, runEditorialJob } from './EditorialAgentPipeline';
+import { briefProblems, draftShapeProblems, EditorialModel, ModelCallFailed, runEditorialBatch, runEditorialJob } from './EditorialAgentPipeline';
 import { DEFAULT_EDITORIAL_LIMITS, evaluateEvidence } from './EditorialEvidence';
-import { deps, draft, GOOD, NOW, pass, research, scripted, topic } from './EditorialAgentPipeline.fixtures';
+import { deps, draft, GOOD, LONG, NOW, pass, research, scripted, topic } from './EditorialAgentPipeline.fixtures';
 
 test('pipeline records each reported model even if the call fails after spending', async () => {
   const m = scripted({ research: [research] });
@@ -197,4 +197,40 @@ test('M14-B: the pipeline reports its real stages and respects the job abort sig
   }));
   assert.equal(blocked.state, 'blocked');
   assert.match(blocked.reason!, /abort|cancel/i);
+});
+
+test('M14-R brief y presupuesto: el planificador produce un brief validado, el redactor recibe el presupuesto por sección y un plan no viable no redacta', async () => {
+  const plan = {
+    viable: true,
+    searchIntent: 'saber qué ver esta semana', angle: 'guía con el horario y el valor de la película',
+    title: 'El Padrino en La 2 esta semana', audience: 'quien busca qué ver en abierto', centralQuestion: '¿Merece la pena verla en abierto?',
+    supportingQuestions: ['¿Cuándo?'], entities: ['La 2'], keyFigures: ['22:00'], primarySources: ['g1'], independentSources: ['p1'],
+    sections: [
+      { heading: 'Qué emite La 2 esta semana', wordBudget: 300, claims: ['c1', 'c4'] },
+      { heading: 'Por qué verla en abierto', wordBudget: 500, claims: ['c2', 'c3'] },
+    ],
+    distinctValue: { readerBenefit: 'Une el pase de La 2 con el palmarés verificado en dos editores para decidir si verla en abierto.', claimIds: ['c1', 'c3'] },
+    evidenceGaps: [],
+  };
+  // Validación determinista: el presupuesto por sección debe sumar dentro del rango configurado.
+  assert.deepEqual(briefProblems(plan, { min: 600, max: 900 }), []);
+  assert.ok(briefProblems({ ...plan, sections: [{ heading: 'x', wordBudget: 100 }] }, { min: 600, max: 900 }).some((p) => p.includes('presupuesto total')));
+  assert.ok(briefProblems({ ...plan, viable: false }, { min: 600, max: 900 }).some((p) => p.includes('motivo')));
+
+  // Integración: con longitud configurada, el planificador corre antes de redactar y su reparto llega al redactor.
+  const m = scripted({ research: [research], evidence: [{ conflicts: [] }], planner: [plan], editorial: [draft(LONG)], critic: [pass] });
+  const run = await runEditorialJob({ ...topic, length: { min: 60, max: 900 } }, deps(m.model), { ...DEFAULT_EDITORIAL_LIMITS, maxReviewLoops: 0 });
+  assert.equal(m.calls.some((c) => c.role === 'planner'), true, 'el planificador se ejecuta antes de redactar');
+  const writer = m.calls.find((c) => c.role === 'editorial')!;
+  assert.match(writer.prompt, /Qué emite La 2 esta semana: 300 palabras/);
+  assert.match(writer.prompt, /Por qué verla en abierto: 500 palabras/);
+  assert.match(writer.prompt, /Ángulo: guía con el horario/);
+  assert.doesNotMatch(run.reason ?? '', /plan inválido|plan descarta/);
+
+  // Un plan que descarta el tema rechaza sin gastar un ciclo de redacción.
+  const notViable = scripted({ research: [research], evidence: [{ conflicts: [] }], planner: [{ ...plan, viable: false, reason: 'una sola entidad editora' }], editorial: [draft()], critic: [pass] });
+  const rejected = await runEditorialJob({ ...topic, length: { min: 600, max: 900 } }, deps(notViable.model), { ...DEFAULT_EDITORIAL_LIMITS, maxReviewLoops: 0 });
+  assert.equal(rejected.state, 'blocked');
+  assert.match(rejected.reason!, /plan descarta/);
+  assert.equal(notViable.calls.some((c) => c.role === 'editorial'), false, 'no se redacta si el plan descarta el tema');
 });

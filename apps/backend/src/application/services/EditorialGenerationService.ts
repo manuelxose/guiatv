@@ -66,7 +66,9 @@ const runner = () => db().collection<{ _id: string; lastSeenAt?: Date; version?:
 const queue = () => db().collection<{ _id: string; items?: any[]; updatedAt?: Date }>('editorial_queue_snapshot');
 
 export const DEFAULT_GENERATION_SETTINGS: EditorialGenerationSettings = {
-  enabled: true,
+  // M14-R fail-closed: un despliegue sin ajustes persistidos no puede publicar por omisión. El operador
+  // activa la generación explícitamente desde el Admin; la publicación sigue sujeta a la parada de emergencia.
+  enabled: false,
   scheduleHours: 3,
   topicsPerCycle: 1,
   categories: [...TOPIC_CATEGORIES],
@@ -143,6 +145,18 @@ function validTopic(value: unknown): EditorialGenerationTopic {
     contentType: enumValue(input.contentType, EDITORIAL_CONTENT_TYPES, 'guide'),
     length: enumValue(input.length, Object.keys(EDITORIAL_LENGTHS) as EditorialLength[], 'medium'),
   };
+}
+
+export type RunnerStartMode = 'automatic' | 'manual';
+
+/**
+ * M14-R: puerta fail-closed del arranque del runner. Un arranque automático (programado) exige el
+ * interruptor persistido `enabled`; un arranque manual es una acción explícita de un operador y siempre
+ * se permite — se audita aparte y no modifica `enabled` ni la política de publicación.
+ */
+export function runnerStartAllowed(settings: { enabled: boolean }, mode: RunnerStartMode): { allowed: boolean; reason: string | null } {
+  if (mode === 'manual') return { allowed: true, reason: null };
+  return settings.enabled === true ? { allowed: true, reason: null } : { allowed: false, reason: 'generation-disabled' };
 }
 
 export class EditorialGenerationService {
