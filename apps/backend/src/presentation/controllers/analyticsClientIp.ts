@@ -1,4 +1,5 @@
 import { isIP } from 'node:net';
+import { IpRule, ipMatchesRule } from '../../infrastructure/analytics/ipPrivacy';
 
 function normalizeIp(ip: string): string {
   const kind = isIP(ip);
@@ -17,17 +18,29 @@ export function isTrustedAnalyticsProxy(remoteAddress: string | undefined, trust
  * neither a forged address nor garbage in the header can change the result (garbage used to discard the whole
  * chain and fall back to the proxy's own, always-excluded loopback address).
  */
-export function analyticsClientIp(remoteAddress: string | undefined, forwarded: string | undefined, trustedProxies: string): string {
+export function analyticsClientIp(remoteAddress: string | undefined, forwarded: string | undefined, trustedProxies: string, trustedRanges: IpRule[] = []): string {
+  return resolveAnalyticsClient(remoteAddress, forwarded, trustedProxies, trustedRanges).ip;
+}
+
+/**
+ * Same walk, also telling whether it went through a trusted range (Cloudflare's edge): only then are the headers
+ * that edge adds (CF-IPCountry) known to come from it. Ranges are trusted only behind an exact trusted proxy (nginx),
+ * never as the socket peer: a direct connection from a Cloudflare address is not a reason to believe its header.
+ */
+export function resolveAnalyticsClient(remoteAddress: string | undefined, forwarded: string | undefined, trustedProxies: string, trustedRanges: IpRule[] = []): { ip: string; viaRange: boolean } {
   const remote = remoteAddress || 'unknown';
   const trusted = new Set(trustedProxies.split(',').map((ip) => normalizeIp(ip.trim())).filter(Boolean));
-  if (!trusted.has(normalizeIp(remote)) || !forwarded) return remote;
+  if (!trusted.has(normalizeIp(remote)) || !forwarded) return { ip: remote, viaRange: false };
+  const isTrusted = (hop: string) => trusted.has(normalizeIp(hop)) || trustedRanges.some((rule) => ipMatchesRule(hop, rule));
   const chain = forwarded.split(',').map((ip) => ip.trim());
   let candidate = remote;
+  let viaRange = false;
   for (let index = chain.length - 1; index >= 0; index--) {
     const hop = chain[index];
-    if (!isIP(hop)) return candidate; // written by an untrusted party: keep the last trustworthy hop
+    if (!isIP(hop)) return { ip: candidate, viaRange }; // written by an untrusted party: keep the last trustworthy hop
     candidate = hop;
-    if (!trusted.has(normalizeIp(hop))) return hop;
+    if (!isTrusted(hop)) return { ip: hop, viaRange };
+    if (!trusted.has(normalizeIp(hop))) viaRange = true;
   }
-  return candidate;
+  return { ip: candidate, viaRange };
 }

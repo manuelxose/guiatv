@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import { copyFileSync, mkdtempSync, rmSync, writeFileSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { GeoIpService } from './GeoIpService';
+import { GeoIpService, geoipEnabledFromEnv } from './GeoIpService';
 import { anonymizeIp, canonicalIp, isPrivateOrLocalIp, excludedIpSet } from './ipPrivacy';
-import { analyticsClientIp } from '../../presentation/controllers/analyticsClientIp';
+import { analyticsClientIp, resolveAnalyticsClient } from '../../presentation/controllers/analyticsClientIp';
+import { cloudflareRanges, isCloudflareIp } from './cloudflareIps';
 import { Ga4ReportingService, parseBreakdown } from './Ga4ReportingService';
 
 // MaxMind's official test databases (MaxMind-DB repository, test-data/, MIT licence; see test-fixtures/geoip).
@@ -43,6 +44,24 @@ test('client IP: forwarded chain is trusted only from configured proxies (nginx 
   assert.equal(analyticsClientIp('127.0.0.1', 'evil, <script>', '127.0.0.1'), '127.0.0.1');
   // IPv6 client through the proxy.
   assert.equal(analyticsClientIp('::ffff:127.0.0.1', '2001:218::1', '127.0.0.1'), '2001:218::1');
+});
+
+test('client IP behind Cloudflare: the edge hop is skipped only behind nginx, never trusted as the socket peer', () => {
+  const cf = cloudflareRanges({});
+  assert.ok(isCloudflareIp('172.68.10.20', cf));
+  assert.ok(isCloudflareIp('2606:4700:10::ac43:1', cf));
+  assert.ok(!isCloudflareIp('83.40.1.1', cf));
+  // visitor, Cloudflare edge (appended by nginx) -> visitor
+  assert.deepEqual(resolveAnalyticsClient('127.0.0.1', '83.40.1.1, 172.68.10.20', '127.0.0.1', cf), { ip: '83.40.1.1', viaRange: true });
+  // forged left part is still never reached past the visitor Cloudflare wrote
+  assert.equal(analyticsClientIp('127.0.0.1', '6.6.6.6, 83.40.1.1, 172.68.10.20', '127.0.0.1', cf), '83.40.1.1');
+  // straight to the origin with a forged header: nginx appends the real peer, which is not Cloudflare
+  assert.deepEqual(resolveAnalyticsClient('127.0.0.1', '172.68.10.20, 198.51.100.9', '127.0.0.1', cf), { ip: '198.51.100.9', viaRange: false });
+  // a Cloudflare address as the socket peer is not trusted (only nginx is)
+  assert.equal(analyticsClientIp('172.68.10.20', '83.40.1.1', '127.0.0.1', cf), '172.68.10.20');
+  // switch
+  assert.deepEqual(cloudflareRanges({ ANALYTICS_TRUST_CLOUDFLARE: 'false' }), []);
+  assert.equal(analyticsClientIp('127.0.0.1', '83.40.1.1, 172.68.10.20', '127.0.0.1', cloudflareRanges({ ANALYTICS_TRUST_CLOUDFLARE: 'false' })), '172.68.10.20');
 });
 
 test('GeoIP: IPv4/IPv6 city + ASN, explicit uncertainty, private/malformed/unknown addresses', async () => {
@@ -107,6 +126,44 @@ test('GeoIP: disabled, missing database, corrupt refresh keeps the previous read
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('GeoIP: on by default, MaxMind preferred over DB-IP Lite, DB-IP records (no region code, no radius) understood', async () => {
+  assert.equal(geoipEnabledFromEnv({}), true);
+  assert.equal(geoipEnabledFromEnv({ ANALYTICS_GEOIP_ENABLED: 'false' }), false);
+  // First candidate missing: the next one is used, and the source follows the database type.
+  const fallback = new GeoIpService({ enabled: true, cityPath: ['/nonexistent/GeoLite2-City.mmdb', CITY], asnPath: [] });
+  await fallback.init();
+  fallback.stop();
+  assert.equal(fallback.available(), true);
+  assert.equal(fallback.lookup('81.2.69.142').geoSource, 'maxmind');
+
+  const dir = mkdtempSync(join(tmpdir(), 'geoip-dbip-'));
+  try {
+    const city = join(dir, 'dbip-city-lite.mmdb');
+    writeFileSync(city, 'stub');
+    const dbipReader = {
+      metadata: { databaseType: 'DBIP-City-Lite', buildEpoch: new Date('2026-11-01T00:00:00Z') },
+      get: (ip: string) => (ip === '83.40.1.1' ? { country: { iso_code: 'ES' }, subdivisions: [{ names: { en: 'Galicia' } }], city: { names: { en: 'Vigo' } }, location: { latitude: 42.2406, longitude: -8.7207 } } : null),
+    };
+    const geo = new GeoIpService({ enabled: true, cityPath: ['/nonexistent/GeoLite2-City.mmdb', city], asnPath: [] }, (() => dbipReader) as never);
+    await geo.init();
+    geo.stop();
+    const vigo = geo.lookup('83.40.1.1');
+    assert.equal(vigo.geoStatus, 'located');
+    assert.equal(vigo.geoSource, 'dbip');
+    assert.equal(vigo.city, 'Vigo');
+    assert.equal(vigo.region, undefined);
+    assert.equal(vigo.regionName, 'Galicia');
+    assert.equal(vigo.accuracyRadiusKm, undefined);
+    assert.equal(vigo.latitude, 42.2);
+    assert.match(vigo.geoDb || '', /^DBIP-City-Lite 2026-11-01$/);
+    assert.equal((geo.status() as { city: { source: string } }).city.source, 'dbip');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+  const off = new GeoIpService({ enabled: false });
+  assert.equal(off.available(), false);
 });
 
 test('GeoIP lookups are cheap enough for the ingestion loop (no per-event I/O)', async () => {

@@ -251,6 +251,31 @@ cd "${APP_DIR}"
 
 # npm can rewrite the tracked lockfile during an install (another npm version, `dev`/`devOptional` flags, engine
 # fields). The server never commits, so the committed lockfile is always the right one.
+# Local GeoIP for analytics: installs/refreshes the update timer and, while no database exists yet, fetches one
+# (DB-IP Lite without MaxMind credentials). Never fatal: analytics keep working without location.
+ensure_geoip() {
+  [ "${GEOIP_AUTO_SETUP:-1}" = "1" ] || return 0
+  local unit_dir="${SYSTEMD_UNIT_DIR:-/etc/systemd/system}" geoip_dir="${GEOIP_DIR:-/var/lib/GeoIP}" changed=0 unit
+  [ -d "${unit_dir}" ] || return 0
+  for unit in guiatv-geoip-update.service guiatv-geoip-update.timer; do
+    [ -f "infra/systemd/${unit}" ] || return 0
+    if ! cmp -s "infra/systemd/${unit}" "${unit_dir}/${unit}"; then
+      install -m 0644 "infra/systemd/${unit}" "${unit_dir}/${unit}" && changed=1 || { echo "WARN: GeoIP: could not install ${unit}"; return 0; }
+    fi
+  done
+  [ "${changed}" = "1" ] && systemctl daemon-reload
+  systemctl enable --now guiatv-geoip-update.timer >/dev/null 2>&1 || echo "WARN: GeoIP: could not enable the update timer"
+  if ! compgen -G "${geoip_dir}/*.mmdb" >/dev/null; then
+    echo "GeoIP: no database yet; downloading one (analytics locations)"
+    if timeout "${GEOIP_FIRST_FETCH_TIMEOUT:-300}" systemctl start guiatv-geoip-update.service; then
+      echo "GeoIP: database installed"
+    else
+      echo "WARN: GeoIP: first download failed; sessions stay without location (journalctl -u guiatv-geoip-update)"
+    fi
+  fi
+  return 0
+}
+
 restore_lockfile() {
   if git ls-files --error-unmatch package-lock.json >/dev/null 2>&1 && ! git diff --quiet -- package-lock.json; then
     echo "npm rewrote package-lock.json; restoring the committed lockfile"
@@ -360,6 +385,7 @@ if [ "${BOOTSTRAP_DB:-0}" = "1" ]; then
   npm run db:bootstrap
 fi
 
+ensure_geoip
 systemctl daemon-reload
 systemctl restart guiatv-api
 wait_http "http://127.0.0.1:${API_PORT}/v2/health"

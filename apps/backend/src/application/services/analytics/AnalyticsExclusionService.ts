@@ -1,5 +1,6 @@
 import { networkInterfaces } from 'node:os';
 import { IpRule, canonicalIp, ipMatchesRule, parseIpRule } from '../../../infrastructure/analytics/ipPrivacy';
+import { cloudflareRanges } from '../../../infrastructure/analytics/cloudflareIps';
 
 export interface ExclusionEntry {
   id?: string;
@@ -9,6 +10,19 @@ export interface ExclusionEntry {
   createdBy?: string;
   /** manual = admin panel; env = ANALYTICS_EXCLUDED_IPS; server = this host's own addresses; loopback. */
   source: 'manual' | 'env' | 'server' | 'loopback';
+  /** The rule covers Cloudflare edge addresses (saved before the visitor address was read behind Cloudflare). */
+  cloudflare?: boolean;
+}
+
+/** Two rules overlap when one contains the other's base address. */
+function overlaps(a: IpRule, b: IpRule): boolean {
+  if (a.version !== b.version) return false;
+  const text = (rule: IpRule) => rule.value.split('/')[0];
+  return ipMatchesRule(text(a), b) || ipMatchesRule(text(b), a);
+}
+
+function coversCloudflare(rule: IpRule): boolean {
+  return cloudflareRanges().some((range) => overlaps(rule, range));
 }
 
 export interface ExclusionStore {
@@ -64,7 +78,7 @@ export class AnalyticsExclusionService {
 
   async list(): Promise<ExclusionEntry[]> {
     await this.refresh(true);
-    return [...this.builtIn(), ...this.manual].map(({ rule: _rule, ...entry }) => entry);
+    return [...this.builtIn(), ...this.manual].map(({ rule, ...entry }) => (coversCloudflare(rule) ? { ...entry, cloudflare: true } : entry));
   }
 
   /** Synchronous check for the ingestion loop; triggers a background refresh when the cache is stale. */
@@ -84,6 +98,7 @@ export class AnalyticsExclusionService {
     const rule = parseIpRule(value);
     if (!rule) throw new ExclusionError('Dirección IP o rango CIDR no válido (ej.: 203.0.113.7, 203.0.113.0/24, 2001:db8::/48).');
     if (rule.prefix < (rule.version === 4 ? 8 : 16)) throw new ExclusionError('El rango es demasiado amplio (mínimo /8 en IPv4 y /16 en IPv6).');
+    if (coversCloudflare(rule)) throw new ExclusionError('Esa dirección es de Cloudflare (el proxy por el que llegan todas las visitas): excluirla dejaría fuera a muchos visitantes.');
     await this.refresh(true);
     if (this.manual.some((entry) => entry.value === rule.value)) throw new ExclusionError('Esa dirección ya está excluida.');
     if (this.manual.length >= MAX_MANUAL) throw new ExclusionError(`Máximo ${MAX_MANUAL} exclusiones.`);

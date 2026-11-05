@@ -45,6 +45,16 @@ test('Valkey: per-session events beyond the global log cap, idempotent eventIds,
 
     const live = await repo.getLiveSessions(90, 50);
     assert.equal(live.find((session) => session.sessionId === 'old-session')?.ip, '2001:db8:85a3::');
+    // Excluded sessions are never connected sessions: not at start, not after a heartbeat, not once marked later.
+    assert.equal(live.some((session) => session.sessionId === 'admin-session'), false);
+    await repo.heartbeatSession({ sessionId: 'admin-session', lastSeenAt: new Date() });
+    await repo.startSession({ sessionId: 'later-admin', anonId: 'anon-later', startedAt: now, lastSeenAt: now, excluded: false });
+    const liveCount = await repo.countLiveSessions(90);
+    await repo.markExcludedSession('later-admin');
+    await repo.heartbeatSession({ sessionId: 'later-admin', lastSeenAt: new Date() });
+    const liveAfter = await repo.getLiveSessions(90, 50);
+    assert.equal(liveAfter.some((session) => session.sessionId === 'admin-session' || session.sessionId === 'later-admin'), false);
+    assert.equal(await repo.countLiveSessions(90), liveCount - 1);
 
     // Activity-only heartbeat keeps the start metadata; resume reopens an ended session.
     await repo.startSession({ sessionId: 'meta', anonId: 'anon-meta', startedAt: now, lastSeenAt: now, metadata: { device: { type: 'mobile' } } });

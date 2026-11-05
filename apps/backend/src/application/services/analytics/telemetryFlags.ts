@@ -8,7 +8,7 @@ import { existsSync } from 'node:fs';
  *       `X-Telemetry-Disabled: 1`), and `/config` tells browsers to stop and remove their identifiers.
  *   ANALYTICS_GA4_ENABLED=true          load GA4 (after consent) — off by default (progressive rollout)
  *   ANALYTICS_GA4_MEASUREMENT_ID=G-…    GA4 property (default: the frontend's environment value)
- *   ANALYTICS_GEOIP_ENABLED=true        local MaxMind enrichment (needs the .mmdb files, see GeoIpService)
+ *   ANALYTICS_GEOIP_ENABLED=false       turns local GeoIP enrichment off (on by default; needs the .mmdb files, see GeoIpService)
  */
 export interface TelemetryFlags {
   ingestEnabled: boolean;
@@ -47,7 +47,7 @@ export class TelemetryFlagSource {
       killed,
       ga4Enabled: !killed && this.env.ANALYTICS_GA4_ENABLED === 'true',
       ga4MeasurementId: MEASUREMENT_ID.test(id) ? id : undefined,
-      geoipEnabled: this.env.ANALYTICS_GEOIP_ENABLED === 'true',
+      geoipEnabled: (this.env.ANALYTICS_GEOIP_ENABLED || '').toLowerCase() !== 'false',
     };
     this.cached = { at, flags };
     return flags;
