@@ -3,11 +3,12 @@ import { Router, RouterLink } from '@angular/router';
 import { KIND_LABEL, SearchHit, SportsStore } from '../state/sports-store';
 import { sv2Link } from '../sports-v2.paths';
 import { Sv2IconComponent } from '../ui/icon';
+import { Sv2SiteNavComponent } from './site-nav';
 
 @Component({
   selector: 'app-sv2-top-navigation',
   standalone: true,
-  imports: [RouterLink, Sv2IconComponent],
+  imports: [RouterLink, Sv2IconComponent, Sv2SiteNavComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <button type="button" class="ib sidebar-toggle" (click)="store.toggleSidebar()" [attr.aria-pressed]="store.sidebarCollapsed()" aria-label="Contraer o expandir Mi fútbol">
@@ -17,6 +18,8 @@ import { Sv2IconComponent } from '../ui/icon';
       <span class="mark" aria-hidden="true"><app-sv2-icon name="trophy" /></span>
       <span class="word">GuíaTV <b>Sports</b></span>
     </a>
+
+    <app-sv2-site-nav />
 
     <form class="search" role="search" (submit)="$event.preventDefault(); submit()" (focusout)="focusOut($event)">
       <app-sv2-icon name="search" />
@@ -28,8 +31,8 @@ import { Sv2IconComponent } from '../ui/icon';
         aria-autocomplete="list"
         enterkeyhint="search"
         autocomplete="off"
-        placeholder="Buscar equipos, competiciones, partidos"
-        aria-label="Buscar fútbol"
+        placeholder="Buscar fútbol, programas, películas y series"
+        aria-label="Buscar en Guía TV"
         aria-controls="sv2-search-results"
         [attr.aria-expanded]="open()"
         [attr.aria-activedescendant]="activeId()"
@@ -43,7 +46,7 @@ import { Sv2IconComponent } from '../ui/icon';
         <ul id="sv2-search-results" class="hits" role="listbox" aria-label="Resultados de búsqueda" (mousedown)="$event.preventDefault()">
           @for (hit of hits(); track hit.kind + hit.label + $index; let i = $index) {
             <li role="presentation">
-              <a role="option" tabindex="-1" [id]="'sv2-hit-' + i" [attr.aria-selected]="active() === i" [class.on]="active() === i" [routerLink]="link(hit.link)" (click)="close()">
+              <a role="option" tabindex="-1" [id]="'sv2-hit-' + i" [attr.aria-selected]="active() === i" [class.on]="active() === i" [routerLink]="link(hit)" (click)="close()">
                 <span class="kind">{{ kind(hit) }}</span><span class="lbl">{{ hit.label }}</span><span class="det">{{ hit.detail }}</span>
               </a>
             </li>
@@ -117,8 +120,8 @@ export class Sv2TopNavigationComponent {
     return this.active() === this.hits().length ? 'sv2-hit-all' : `sv2-hit-${this.active()}`;
   });
 
-  protected link(segments: readonly string[]): string[] {
-    return sv2Link(...segments);
+  protected link(hit: SearchHit): string | string[] {
+    return hit.path ?? sv2Link(...hit.link);
   }
   protected kind(hit: SearchHit): string {
     return KIND_LABEL[hit.kind];
@@ -152,6 +155,6 @@ export class Sv2TopNavigationComponent {
     if (query.length < 2) return;
     const hit = this.active() >= 0 && this.active() < this.hits().length ? this.hits()[this.active()] : null;
     this.close();
-    void (hit ? this.router.navigate(sv2Link(...hit.link)) : this.router.navigate(this.searchLink, { queryParams: { q: query } }));
+    void (hit ? (hit.path ? this.router.navigateByUrl(hit.path) : this.router.navigate(sv2Link(...hit.link))) : this.router.navigate(this.searchLink, { queryParams: { q: query } }));
   }
 }

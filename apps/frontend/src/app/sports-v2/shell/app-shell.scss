@@ -34,7 +34,8 @@
   }
 }
 
-.top { grid-area: top; }
+// Above the panels, so the search dropdown is never covered by the sidebar or the Match Center.
+.top { grid-area: top; position: relative; z-index: 45; }
 .main { grid-area: main; overflow-y: auto; padding: 16px; outline: none; }
 .track { grid-area: track; }
 .side { grid-area: side; display: none; overflow: hidden; }
@@ -128,6 +129,7 @@
   }
   .ctx {
     grid-area: ctx;
+    z-index: auto; // grid items honour z-index: keep the header (and its search dropdown) above this panel
     position: static;
     width: auto;
     transform: none;

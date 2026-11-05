@@ -129,6 +129,18 @@ describe('HttpFootballData', () => {
     expect(part.competitions?.[0].slug).toBe('primera-division');
   });
 
+  it('maps site-wide search to in-app paths only', async () => {
+    const p = data.searchSite('hormiguero');
+    const req = http.expectOne((r) => r.url === '/v2/discovery/search');
+    expect(req.request.params.get('q')).toBe('hormiguero');
+    req.flush(ok({ items: [
+      { title: 'El Hormiguero', detailPath: '/programacion-tv/programa/x', channel: { name: 'Antena 3' } },
+      { title: 'Sin ruta' },
+      { title: 'Externo', detailPath: 'https://evil.example/x' },
+    ] }));
+    expect(await p).toEqual([{ title: 'El Hormiguero', meta: 'Antena 3', path: '/programacion-tv/programa/x' }]);
+  });
+
   it('returns null for an unknown article', async () => {
     const p = data.article('nope');
     const req = answer('/news', ok({ news: [] }));

@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, InjectionToken, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { addDays, dayKey } from '../domain/calendar';
-import { Match, NewsItem, SportsSnapshot } from '../domain/models';
+import { Match, NewsItem, SiteResult, SportsSnapshot } from '../domain/models';
 import { FootballData, SPORTS_NOW } from './football-data';
 import {
   ApiCompetition, ApiMatch, ApiNews, ApiStandingRow, ApiTeam, RelationIndex,
@@ -12,9 +12,14 @@ import {
 /** Same-origin on both platforms: the server routes it to the internal API (see ApiConfigService). */
 export const SPORTS_API_BASE = new InjectionToken<string>('SPORTS_API_BASE', { providedIn: 'root', factory: () => '/v2/sports/football' });
 
+/** Site-wide API root (catalogue and programme search live outside the football BFF). */
+export const SPORTS_SITE_API_BASE = new InjectionToken<string>('SPORTS_SITE_API_BASE', { providedIn: 'root', factory: () => '/v2' });
+
 /** football-data.org allows at most a 10-day range; this is 9 days apart. */
 export const WINDOW_BACK = 4;
 export const WINDOW_AHEAD = 5;
+
+const CONTENT_LABEL: Record<string, string> = { movie: 'Película', series: 'Serie', program: 'Programa' };
 
 const EMPTY: SportsSnapshot = { teams: [], competitions: [], matches: [], standings: [], news: [] };
 
@@ -28,15 +33,16 @@ export class HttpFootballData extends FootballData {
   private readonly http = inject(HttpClient);
   private readonly base = inject(SPORTS_API_BASE);
   private readonly now = inject(SPORTS_NOW);
+  private readonly siteBase = inject(SPORTS_SITE_API_BASE);
   private readonly inflight = new Map<string, Promise<unknown>>();
   private relations?: RelationIndex;
 
   /** Identical concurrent requests share one round trip. */
-  private get<T>(path: string, params: Record<string, string> = {}): Promise<T> {
-    const key = `${path}?${new URLSearchParams(params).toString()}`;
+  private get<T>(path: string, params: Record<string, string> = {}, base = this.base): Promise<T> {
+    const key = `${base}${path}?${new URLSearchParams(params).toString()}`;
     let p = this.inflight.get(key) as Promise<T> | undefined;
     if (!p) {
-      p = firstValueFrom(this.http.get<Envelope<T>>(`${this.base}${path}`, { params })).then((r) => r.data).finally(() => this.inflight.delete(key));
+      p = firstValueFrom(this.http.get<Envelope<T>>(`${base}${path}`, { params })).then((r) => r.data).finally(() => this.inflight.delete(key));
       this.inflight.set(key, p);
     }
     return p;
@@ -88,6 +94,12 @@ export class HttpFootballData extends FootballData {
 
   override async searchNews(query: string): Promise<readonly NewsItem[]> {
     return (await this.get<{ news: ApiNews[] }>('/news', { q: query, limit: '6' })).news.map((n) => mapNews(n, this.relations));
+  }
+
+  override async searchSite(query: string): Promise<readonly SiteResult[]> {
+    const { items } = await this.get<{ items?: Array<{ title: string; detailPath?: string; channel?: { name?: string }; primaryPlatforms?: string[]; contentType?: string }> }>('/discovery/search', { q: query, limit: '5' }, this.siteBase);
+    // Only in-app detail pages: an item without a stable path cannot be linked honestly.
+    return (items ?? []).filter((i) => i.detailPath?.startsWith('/')).map((i) => ({ title: i.title, meta: i.channel?.name || i.primaryPlatforms?.slice(0, 2).join(' · ') || CONTENT_LABEL[i.contentType ?? ''] || '', path: i.detailPath as string }));
   }
 
   override async article(slug: string): Promise<NewsItem | null> {

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars -- the optional port methods default to "nothing more to offer" */
 import { Injectable, InjectionToken, inject } from '@angular/core';
 import { dayKey } from '../domain/calendar';
-import { Match, NewsItem, SportsSnapshot } from '../domain/models';
+import { Match, NewsItem, SiteResult, SportsSnapshot } from '../domain/models';
 import { buildDemoSnapshot } from './demo-fixtures';
 
 /** Injectable clock so day navigation and tests are deterministic. */
@@ -38,6 +38,10 @@ export abstract class FootballData {
     return Promise.resolve({});
   }
   searchNews(_query: string): Promise<readonly NewsItem[]> {
+    return Promise.resolve([]);
+  }
+  /** Site-wide search (programmes, films, series), the same source as the main Guía TV search box. */
+  searchSite(_query: string): Promise<readonly SiteResult[]> {
     return Promise.resolve([]);
   }
   /** One article with its full body. */

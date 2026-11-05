@@ -122,3 +122,11 @@ export interface SportsSnapshot {
   readonly standings: readonly Standings[];
   readonly news: readonly NewsItem[];
 }
+
+/** A result from the rest of Guía TV (programmes, films, series) found by the site-wide search. */
+export interface SiteResult {
+  readonly title: string;
+  readonly meta: string;
+  /** Absolute in-app path (never an external URL). */
+  readonly path: string;
+}

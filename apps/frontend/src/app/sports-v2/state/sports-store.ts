@@ -13,10 +13,12 @@ import { Sv2Viewport } from './viewport';
 export type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
 export interface SearchHit {
-  readonly kind: 'team' | 'competition' | 'match' | 'news';
+  readonly kind: 'team' | 'competition' | 'match' | 'news' | 'site';
   readonly label: string;
   readonly detail: string;
   readonly link: readonly string[];
+  /** Absolute in-app path for results that live outside Sports (site-wide search). */
+  readonly path?: string;
 }
 
 export interface SearchGroups {
@@ -24,6 +26,8 @@ export interface SearchGroups {
   readonly competitions: readonly SearchHit[];
   readonly matches: readonly SearchHit[];
   readonly news: readonly SearchHit[];
+  /** Programmes, films and series from the site-wide search. */
+  readonly site: readonly SearchHit[];
   readonly total: number;
 }
 
@@ -34,13 +38,13 @@ export interface NewsFilter {
 }
 
 const EMPTY: SportsSnapshot = { teams: [], competitions: [], matches: [], standings: [], news: [] };
-const NO_SEARCH: SearchGroups = { teams: [], competitions: [], matches: [], news: [], total: 0 };
+const NO_SEARCH: SearchGroups = { teams: [], competitions: [], matches: [], news: [], site: [], total: 0 };
 const MAX_TRACKED = 3;
 const byKickoff = (a: Match, b: Match) => Date.parse(a.kickoff) - Date.parse(b.kickoff);
 const byNewest = (a: NewsItem, b: NewsItem) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt);
 const toggle = (list: readonly string[], slug: string): readonly string[] => (list.includes(slug) ? list.filter((s) => s !== slug) : [...list, slug]);
 
-export const KIND_LABEL: Record<SearchHit['kind'], string> = { team: 'Equipo', competition: 'Competición', match: 'Partido', news: 'Noticia' };
+export const KIND_LABEL: Record<SearchHit['kind'], string> = { team: 'Equipo', competition: 'Competición', match: 'Partido', news: 'Noticia', site: 'Guía TV' };
 
 /** Single source of UI state for the sports shell. Provided at the shell route, so it dies with it. */
 @Injectable()
@@ -157,10 +161,15 @@ export class SportsStore {
   });
 
   readonly searchGroups = computed(() => this.search(this.query()));
+  /** Dropdown list: football first, with room kept for up to three site-wide results. */
   readonly searchHits = computed<readonly SearchHit[]>(() => {
     const g = this.searchGroups();
-    return [...g.teams, ...g.competitions, ...g.matches, ...g.news].slice(0, 8);
+    const site = g.site.slice(0, 3);
+    return [...g.teams, ...g.competitions, ...g.matches, ...g.news].slice(0, 8 - site.length).concat(site);
   });
+  private readonly siteHits = signal<{ q: string; hits: readonly SearchHit[] }>({ q: '', hits: [] });
+  private remoteSeq = 0;
+  private remoteTimer: ReturnType<typeof setTimeout> | null = null;
 
   team(slug: string): Team | undefined {
     return this.teamIndex().get(slug);
@@ -223,7 +232,8 @@ export class SportsStore {
     const matches = ranked([...this.matches()].sort(byKickoff), (m) => `${this.team(m.homeSlug)?.name} ${this.team(m.awaySlug)?.name} ${this.competition(m.competitionSlug)?.name}`)
       .map<SearchHit>((m) => ({ kind: 'match', label: `${this.team(m.homeSlug)?.name ?? ''} - ${this.team(m.awaySlug)?.name ?? ''}`, detail: `${this.competition(m.competitionSlug)?.name ?? ''} · ${shortDay(dayKey(m.kickoff))}`, link: ['partido', m.slug] }));
     const news = ranked(this.news(), (n) => `${n.title} ${n.summary}`).map<SearchHit>((n) => ({ kind: 'news', label: n.title, detail: n.kicker, link: ['noticias', n.slug] }));
-    return { teams, competitions, matches, news, total: teams.length + competitions.length + matches.length + news.length };
+    const site = this.siteHits().q === rawQuery.trim() ? this.siteHits().hits : [];
+    return { teams, competitions, matches, news, site, total: teams.length + competitions.length + matches.length + news.length + site.length };
   }
 
   async load(): Promise<void> {
@@ -304,15 +314,8 @@ export class SportsStore {
       this.zone.set(displayZone());
       this.today.set(dayKey(this.now()));
     }
-    // News search: debounced, only the latest query may land.
-    effect((onCleanup) => {
-      const q = this.query().trim();
-      if (q.length < 3) return;
-      const t = setTimeout(() => {
-        this.data.searchNews(q).then((items) => this.query().trim() === q && items.length && this.merge({ news: items })).catch(() => undefined);
-      }, 300);
-      onCleanup(() => clearTimeout(t));
-    }, { injector: this.injector });
+    effect(() => this.searchRemote(this.query()), { injector: this.injector });
+    this.destroyRef.onDestroy(() => this.remoteTimer && clearTimeout(this.remoteTimer));
     if (!this.data.polls) return;
     this.poller = new LivePoller(
       {
@@ -332,6 +335,24 @@ export class SportsStore {
     );
     this.poller.start();
     this.destroyRef.onDestroy(() => this.poller?.stop());
+  }
+
+  /**
+   * Debounced (300 ms, latest wins) lookups beyond the loaded data: published football news and the site-wide
+   * search (programmes, films, series), so one box searches the whole app. Browser only; failures are silent.
+   */
+  searchRemote(raw: string): void {
+    if (this.remoteTimer) clearTimeout(this.remoteTimer);
+    const q = raw.trim();
+    if (this.isDemo || q.length < 2) return;
+    this.remoteTimer = setTimeout(() => {
+      const id = ++this.remoteSeq; // an older response must never overwrite a newer query's results
+      if (q.length >= 3) this.data.searchNews(q).then((items) => items.length && this.merge({ news: items })).catch(() => undefined);
+      this.data
+        .searchSite(q)
+        .then((items) => id === this.remoteSeq && this.siteHits.set({ q, hits: items.map<SearchHit>((i) => ({ kind: 'site', label: i.title, detail: i.meta, link: [], path: i.path })) }))
+        .catch(() => undefined);
+    }, 300);
   }
 
   /** Manual retry after polling stopped. */

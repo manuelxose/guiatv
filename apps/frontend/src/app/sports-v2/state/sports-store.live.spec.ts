@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { FootballData, SPORTS_NOW } from '../data/football-data';
 import { FollowStorage, MemoryFollowStorage } from '../data/follow-storage';
-import { Match, NewsItem, SportsSnapshot } from '../domain/models';
+import { Match, NewsItem, SiteResult, SportsSnapshot } from '../domain/models';
 import { SportsStore, rank } from './sports-store';
 import { Sv2Viewport } from './viewport';
 
@@ -25,11 +25,15 @@ class FakeData extends FootballData {
   calls: string[] = [];
   detail = new Map<string, Match>();
   remoteNews: NewsItem[] = [];
+  site: SiteResult[] = [];
+  siteCalls: string[] = [];
+  siteFail = false;
   load() { return Promise.resolve(this.snapshot); }
   override liveUpdates() { this.calls.push('live'); return this.fail ? Promise.reject(new Error('down')) : Promise.resolve(this.live); }
   override match(slug: string) { this.calls.push(`match:${slug}`); const m = this.detail.get(slug); return Promise.resolve(m ? { matches: [m] } : {}); }
   override competition(slug: string) { this.calls.push(`comp:${slug}`); return Promise.resolve({ standings: [{ competitionSlug: slug, rows: [] }] }); }
   override searchNews() { return Promise.resolve(this.remoteNews); }
+  override searchSite(q: string) { this.siteCalls.push(q); return this.siteFail ? Promise.reject(new Error('x')) : Promise.resolve(this.site); }
 }
 
 describe('SportsStore with live data', () => {
@@ -105,6 +109,58 @@ describe('SportsStore with live data', () => {
 
     it('never fabricates a result for an unknown query', () => {
       expect(store.search('zzzzzz').total).toBe(0);
+    });
+  });
+
+  describe('site-wide search', () => {
+    beforeEach(() => jasmine.clock().install());
+    afterEach(() => jasmine.clock().uninstall());
+    const settle = async () => { jasmine.clock().tick(300); await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); };
+
+    it('adds programmes and films from the rest of the app to the same results, linking to in-app paths', async () => {
+      data.site = [{ title: 'El Hormiguero', meta: 'Antena 3', path: '/programacion-tv/programa/el-hormiguero' }];
+      store.searchRemote('hormiguero');
+      await settle();
+      const g = store.search('hormiguero');
+      expect(g.site).toEqual([jasmine.objectContaining({ kind: 'site', label: 'El Hormiguero', detail: 'Antena 3', path: '/programacion-tv/programa/el-hormiguero' })]);
+      expect(g.total).toBe(1);
+    });
+
+    it('debounces: only the last query reaches the API', async () => {
+      store.searchRemote('re'); store.searchRemote('rea'); store.searchRemote('real');
+      await settle();
+      expect(data.siteCalls).toEqual(['real']);
+    });
+
+    it('does not show results that belong to a previous query', async () => {
+      data.site = [{ title: 'Real', meta: '', path: '/x' }];
+      store.searchRemote('real');
+      await settle();
+      expect(store.search('betis').site).toEqual([]);
+    });
+
+    it('keeps football working when the site search fails', async () => {
+      data.siteFail = true;
+      store.searchRemote('real');
+      await settle();
+      expect(store.search('real').teams.length).toBe(3);
+      expect(store.search('real').site).toEqual([]);
+    });
+
+    it('keeps room for site results in the dropdown', async () => {
+      data.site = [1, 2, 3, 4].map((n) => ({ title: 'Real ' + n, meta: '', path: '/p/' + n }));
+      store.query.set('real');
+      store.searchRemote('real');
+      await settle();
+      const hits = store.searchHits();
+      expect(hits.length).toBe(8);
+      expect(hits.filter((h) => h.kind === 'site').length).toBe(3);
+    });
+
+    it('does nothing for one letter', async () => {
+      store.searchRemote('r');
+      await settle();
+      expect(data.siteCalls).toEqual([]);
     });
   });
 

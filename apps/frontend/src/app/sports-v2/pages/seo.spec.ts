@@ -20,6 +20,9 @@ describe('sports-v2 SEO', () => {
   const canonical = () => doc().head.querySelector('link[rel="canonical"]')?.getAttribute('href');
   const ld = () => doc().getElementById('sv2-jsonld')?.textContent;
 
+  // Other specs in the suite may leave a canonical link in the shared document head.
+  beforeEach(() => document.head.querySelectorAll('link[rel="canonical"]').forEach((l) => l.remove()));
+
   afterEach(() => {
     seo.set(null);
     missing.set(false);

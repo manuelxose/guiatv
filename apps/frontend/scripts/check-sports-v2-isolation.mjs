@@ -13,6 +13,8 @@ for (const file of walk(v2).filter((f) => /\.(ts|scss|html)$/.test(f))) {
   const src = readFileSync(file, 'utf8');
   for (const [, spec] of src.matchAll(importRe)) {
     if (/^(@angular\/|rxjs)/.test(spec)) continue;
+    // Shared navigation contract (pure data: where each Guía TV section lives). The only legacy file v2 may read.
+    if (file.endsWith('site-nav.ts') && spec === '../../config/portal-navigation.config') continue;
     if (spec.startsWith('.')) {
       const target = resolve(file, '..', spec);
       if (target.startsWith(v2)) continue;
