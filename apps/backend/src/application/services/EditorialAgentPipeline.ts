@@ -570,6 +570,7 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
         previous = '';
         continue;
       }
+      shapeError = '';
 
       const metaIssues = metadataProblems(draft, topic.slug, taken);
       if (metaIssues.length) {
@@ -598,6 +599,8 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
         const edited = await ask<Draft>('editorial', writerSystem,
           `Tema: ${topic.topic}\n\nAfirmaciones verificadas:\n${claimDigest(usable)}\n\n${writerRules()}\n\nBorrador:\n${draft.markdown}\n\nResumen: ${draft.excerpt}\nmetaTitle: ${draft.metaTitle}\nmetaDescription: ${draft.metaDescription}\n\nEl control automático ha encontrado estos defectos. Corrige solo esas frases o campos, con el menor cambio posible, y devuelve todo lo demás exactamente igual:\n${gate.map((f) => `- ${f.code}: ${f.message}`).join('\n')}`,
           DRAFT_SCHEMA);
+        const editedShape = chosen.editorial.model.structuredOutput === 'prompt' ? draftShapeProblems(edited) : [];
+        if (editedShape.length) throw new Error(`respuesta del redactor no válida: ${editedShape.join(', ')}`);
         if (hashText(edited.markdown) === hashText(draft.markdown) && edited.excerpt === draft.excerpt && edited.metaTitle === draft.metaTitle && edited.metaDescription === draft.metaDescription) break;
         draft = edited;
       }

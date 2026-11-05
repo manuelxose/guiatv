@@ -40,6 +40,7 @@ export class AnthropicEditorialModel implements EditorialModel {
   readonly webSearch = true;
   readonly maxOutputTokens: number;
   readonly maxWebSearches: number | undefined;
+  private readonly timeoutMs: number;
   private readonly thinking: ((role: ModelCall['role']) => 'enabled' | 'disabled' | undefined) | undefined;
   private readonly client: Pick<Anthropic, 'messages'>;
   /** Gateway model namespace (e.g. `cc/` for the owner's subscription gateway); routes, prices and provenance keep the canonical id. */
@@ -64,6 +65,7 @@ export class AnthropicEditorialModel implements EditorialModel {
     this.structuredOutput = options.structuredOutput ?? 'json_schema';
     this.maxWebSearches = options.maxWebSearches;
     this.thinking = options.thinking;
+    this.timeoutMs = timeoutMs;
     this.maxOutputTokens = options.maxOutputTokens ?? MAX_OUTPUT_TOKENS;
   }
 
@@ -104,18 +106,23 @@ export class AnthropicEditorialModel implements EditorialModel {
       // A provider that streams an unbounded tool result must not consume the worker's memory.
       let streamBytes = 0;
       let tooLarge = false;
+      let timedOut = false;
       if (typeof (stream as { on?: unknown }).on === 'function') {
         (stream as unknown as { on: (event: string, cb: (event: unknown) => void) => void }).on('streamEvent', (event) => {
           streamBytes += Buffer.byteLength(JSON.stringify(event));
           if (streamBytes > MAX_RESPONSE_BYTES) { tooLarge = true; (stream as unknown as { abort: () => void }).abort(); }
         });
       }
+      // The SDK timeout only covers response headers; a streamed body needs its own wall-clock deadline.
+      const deadline = setTimeout(() => { timedOut = true; (stream as unknown as { abort: () => void }).abort(); }, this.timeoutMs);
       const message = await stream.finalMessage().catch((error: unknown) => {
-        if (tooLarge) throw fail(`response exceeded ${MAX_RESPONSE_BYTES} bytes`);
+        // Streamed tokens are billed even when the client aborts: leave the spend unresolved rather than zero.
+        if (tooLarge) throw new Error(`${request.role}: response exceeded ${MAX_RESPONSE_BYTES} bytes`);
+        if (timedOut) throw new Error(`${request.role}: model request exceeded ${this.timeoutMs} ms`);
         // An HTTP error response is not billed; a stream cut mid-answer may be, so it stays unresolved.
         if (error instanceof Anthropic.APIError && typeof error.status === 'number') throw fail(error.message);
         throw error;
-      });
+      }).finally(() => clearTimeout(deadline));
 
       usage.input_tokens += message.usage.input_tokens + (message.usage.cache_creation_input_tokens ?? 0) + (message.usage.cache_read_input_tokens ?? 0);
       usage.output_tokens += message.usage.output_tokens;
