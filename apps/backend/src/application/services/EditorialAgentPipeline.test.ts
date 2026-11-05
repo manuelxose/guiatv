@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { EditorialModel, ModelCallFailed, runEditorialBatch, runEditorialJob } from './EditorialAgentPipeline';
+import { draftShapeProblems, EditorialModel, ModelCallFailed, runEditorialBatch, runEditorialJob } from './EditorialAgentPipeline';
 import { DEFAULT_EDITORIAL_LIMITS, evaluateEvidence } from './EditorialEvidence';
 import { deps, draft, GOOD, NOW, pass, research, scripted, topic } from './EditorialAgentPipeline.fixtures';
 
@@ -162,4 +162,9 @@ test('review M1: a model error holds that article only; the batch and its ledger
   const runs = await runEditorialBatch([topic, { ...topic, slug: `${topic.slug}-2` }], deps(flaky));
   assert.deepEqual(runs.map((r) => [r.state, r.reason]), [['blocked', 'error: refused'], ['blocked', 'error: refused']]);
   assert.equal(runs[0].cost.entries.length, 2, 'research and evidence calls stay on the ledger');
+});
+
+test('draft shape: prompt-mode JSON is checked before any gate reads its fields', () => {
+  assert.deepEqual(draftShapeProblems({}), ['falta title', 'falta excerpt', 'falta metaTitle', 'falta metaDescription', 'falta markdown', 'falta distinctValue']);
+  assert.deepEqual(draftShapeProblems({ title: 't', excerpt: 'e', metaTitle: 'm', metaDescription: 'd', markdown: 'x', distinctValue: { readerBenefit: 'r', claimIds: [] } }), []);
 });

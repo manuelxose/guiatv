@@ -347,6 +347,15 @@ const claimDigest = (claims: EvidenceClaim[]) =>
 
 // ---- metadata rules (deterministic SEO) ----------------------------------------------------------
 
+export function draftShapeProblems(value: unknown): string[] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return ['no es un objeto'];
+  const d = value as Record<string, unknown>;
+  const missing = ['title', 'excerpt', 'metaTitle', 'metaDescription', 'markdown'].filter((key) => typeof d[key] !== 'string');
+  const distinct = d.distinctValue as Record<string, unknown> | undefined;
+  if (!distinct || typeof distinct !== 'object' || typeof distinct.readerBenefit !== 'string' || !Array.isArray(distinct.claimIds)) missing.push('distinctValue');
+  return missing.map((key) => `falta ${key}`);
+}
+
 export function metadataProblems(d: { title: string; metaTitle: string; metaDescription: string; excerpt?: string }, slug: string, taken: Set<string>): string[] {
   const out: string[] = [];
   if (d.title.length < 20 || d.title.length > 75) out.push(`título de ${d.title.length} caracteres (20-75)`);
@@ -544,11 +553,21 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
         `Problemas: ${problems.join('; ')}\nLímites: metaTitle 15-60 caracteres, metaDescription 70-160.\nTexto del artículo:\n${clip(stripClaimMarkers(d.markdown), 8000)}\n\nResumen: ${d.excerpt}\nmetaTitle: ${d.metaTitle}\nmetaDescription: ${d.metaDescription}`,
         META_REPAIR_SCHEMA),
     });
+    let shapeError = '';
     for (let loop = 0; loop <= limits.maxReviewLoops; loop++) {
       ledger.count('draftAttempts');
       let draft = await ask<Draft>('editorial', writerSystem,
         `Tema: ${topic.topic}\nIntención: ${topic.intent}\n\nSolo puedes usar estas afirmaciones verificadas (no hace falta usarlas todas: elige las que responden a la intención):\n${claimDigest(usable)}\n\n${writerRules()}${feedback ? `\n\nBorrador anterior:\n${previous}\n\nCorrige estos problemas de la revisión anterior con el menor cambio posible y conserva el resto tal cual. Un dato que no esté entre las afirmaciones verificadas se elimina o se sustituye por uno verificado:\n${feedback}` : ''}`,
         DRAFT_SCHEMA);
+
+      const shape = draftShapeProblems(draft);
+      if (shape.length) {
+        // Prompt-mode providers can answer with valid JSON that does not match the schema; retry with the defect.
+        shapeError = `respuesta del redactor no válida: ${shape.join(', ')}`;
+        feedback = `Tu respuesta anterior no cumplió el esquema (${shape.join(', ')}). Devuelve un único objeto JSON con las claves y tipos exigidos; no añadas texto fuera del bloque.`;
+        previous = '';
+        continue;
+      }
 
       const metaIssues = metadataProblems(draft, topic.slug, taken);
       if (metaIssues.length) {
@@ -648,7 +667,7 @@ Valor diferencial que declara el redactor: «${draft.distinctValue?.readerBenefi
         await reResearch(gaps.join('\n'));
       } else revision.action = 'rewrite';
     }
-    return finish(run, 'blocked', `agotados los ciclos de revisión (${limits.maxReviewLoops})`);
+    return finish(run, 'blocked', shapeError || `agotados los ciclos de revisión (${limits.maxReviewLoops})`);
   } catch (error) {
     if (error instanceof EditorialBudgetExceeded) return finish(run, 'blocked', `límite: ${error.message}`);
     // A refusal, truncation or network error holds this article; the batch and its ledger survive.
