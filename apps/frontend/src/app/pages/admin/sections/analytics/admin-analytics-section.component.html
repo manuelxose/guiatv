@@ -1,5 +1,5 @@
 <section class="space-y-8">
-  <div *ngIf="error" class="bg-[var(--spotify-negative)]/10 border border-[var(--spotify-negative)]/30 text-[var(--spotify-negative)] px-4 py-3 rounded-2xl">
+  <div *ngIf="error" class="a-alert" role="alert">
     {{ error }}
   </div>
 
@@ -8,11 +8,10 @@
       <p *ngIf="lastUpdated && activeItem !== 'pages'" class="text-sm text-[var(--portal-text-soft)]">Última respuesta recibida: {{ lastUpdated | date:'short' }}</p>
     </div>
     <div class="flex flex-wrap items-center gap-2">
-      <div *ngIf="!['live', 'pages', 'diagnostics', 'exclusions'].includes(activeItem)" class="flex items-center gap-2 rounded-full border border-[var(--portal-border)] bg-[var(--portal-surface)] px-2 py-1">
+      <div *ngIf="!['live', 'pages', 'diagnostics', 'exclusions'].includes(activeItem)" class="a-seg" role="group" aria-label="Periodo">
         <button
           *ngFor="let range of ranges"
-          class="px-3 py-1.5 rounded-full text-xs transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-          [ngClass]="rangeHours === range.value ? 'bg-[var(--spotify-negative)]/20 text-[var(--spotify-negative)]' : 'text-[var(--portal-text-soft)] hover:text-[var(--portal-text)]'"
+          class="a-seg__btn" [class.a-seg__btn--on]="rangeHours === range.value"
           (click)="selectRange(range.value)"
           type="button"
           [attr.aria-pressed]="rangeHours === range.value"
@@ -22,7 +21,7 @@
       </div>
       <button
         type="button"
-        class="px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text)] hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+        class="a-btn"
         (click)="exportCsv()"
         [disabled]="activeItem === 'exclusions' || activeItem === 'diagnostics' || (['overview', 'geography'].includes(activeItem) && (overviewLoading || overviewError || !overview)) || (activeItem === 'geography' && !overview?.geography) || (activeItem === 'pages' && (!realtimePages || realtimePagesError))"
       >
@@ -33,11 +32,10 @@
 
   <div *ngIf="activeItem === 'events'" class="flex flex-wrap items-center justify-between gap-3">
     <p *ngIf="eventSessionId" class="text-sm">Eventos de la sesión {{ eventSessionId.slice(0, 8) }} <button type="button" class="overview-link" (click)="clearSessionEventsFilter()">Mostrar todas las sesiones</button></p>
-    <div class="flex flex-wrap items-center gap-2">
+    <div class="a-seg" role="group" aria-label="Tipo de evento">
       <button
         *ngFor="let filter of eventFilters"
-        class="px-3 py-1.5 rounded-full text-xs border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
-        [ngClass]="eventFilter === filter.type ? 'bg-[var(--portal-surface-strong)] border-[var(--portal-border-strong)] text-[var(--portal-text)]' : 'border-[var(--portal-border)] text-[var(--portal-text-soft)] hover:text-[var(--portal-text)]'"
+        class="a-seg__btn" [class.a-seg__btn--on]="eventFilter === filter.type"
         (click)="selectEventFilter(filter.type)"
         type="button"
         [attr.aria-pressed]="eventFilter === filter.type"
@@ -52,18 +50,16 @@
       <div *ngIf="overviewLoading" class="overview-status" role="status">Cargando informe panorámico…</div>
       <div *ngIf="overviewError" class="overview-status" role="alert">No se ha podido cargar el informe. Selecciona un periodo para volver a intentarlo.</div>
       <ng-container *ngIf="overview && !overviewLoading && !overviewError">
-        <h4 class="overview-title">Informe panorámico</h4>
-        <p *ngIf="overview.aggregateLimitations" class="overview-status" role="status">Este almacenamiento utiliza agregados por día: los bordes del periodo pueden incluir horas adicionales, los visitantes únicos son una estimación y las exclusiones históricas no se pueden verificar. Los desgloses por página y referente incluyen otros eventos además de las vistas.</p>
+        <h4 class="overview-title">Informe panorámico <app-info-tip label="el informe" text="Solo se miden las visitas de quien acepta las cookies de análisis, por lo que las cifras son menores que las de Search Console. Los datos se guardan agregados por día (UTC): los bordes del periodo pueden incluir horas adicionales, los visitantes únicos son una estimación y las exclusiones históricas no se pueden verificar."></app-info-tip></h4>
         <div class="overview-metrics" aria-label="Indicadores del periodo seleccionado">
-          <div><span>Visitantes únicos</span><strong>{{ overview.uniqueVisitors | number }}</strong><small>Identificadores anónimos</small></div>
-          <div><span>Sesiones</span><strong>{{ overview.totalSessions | number }}</strong><small>Iniciadas en el periodo</small></div>
-          <div><span>Duración media de sesión</span><strong>{{ formatDuration(overview.avgSessionDurationSec) }}</strong><small>Sesiones finalizadas en el periodo</small></div>
-          <div><span>Vistas de página</span><strong>{{ overview.totalPageViews | number }}</strong><small>Eventos de vista de página</small></div>
+          <div><span>Visitantes únicos <app-info-tip label="visitantes únicos" text="Identificadores anónimos distintos en el periodo. Es una estimación."></app-info-tip></span><strong>{{ overview.uniqueVisitors | number }}</strong></div>
+          <div><span>Sesiones <app-info-tip label="sesiones" text="Sesiones iniciadas en el periodo, de visitantes que aceptaron las cookies de análisis. Una sesión termina tras 30 minutos sin actividad."></app-info-tip></span><strong>{{ overview.totalSessions | number }}</strong></div>
+          <div><span>Duración media de sesión <app-info-tip label="duración media" text="Tiempo medio desde que empieza la sesión hasta que se cierra la página, en las sesiones finalizadas en el periodo. Incluye el tiempo con la pestaña abierta en segundo plano."></app-info-tip></span><strong>{{ formatDuration(overview.avgSessionDurationSec) }}</strong></div>
+          <div><span>Vistas de página <app-info-tip label="vistas de página" text="Número de eventos de vista de página registrados en el periodo."></app-info-tip></span><strong>{{ overview.totalPageViews | number }}</strong></div>
         </div>
         <div class="overview-grid">
           <section class="overview-card overview-card--pages">
-            <h5>Páginas principales</h5>
-            <p>{{ overview.aggregateLimitations ? 'Rutas con más eventos en los días incluidos.' : 'Rutas con más vistas durante el periodo seleccionado.' }}</p>
+            <h5>Páginas principales <app-info-tip label="páginas principales" text="Rutas con más eventos en los días incluidos. Cuenta también eventos que no son vistas de página."></app-info-tip></h5>
             <div class="overview-table-wrap">
               <table class="ga-table"><thead><tr><th scope="col">Página</th><th scope="col" class="ga-num">{{ overview.aggregateLimitations ? 'Eventos' : 'Vistas' }}</th><th scope="col" class="ga-num">% del total</th></tr></thead>
                 <tbody><tr *ngFor="let page of overview.topPages.slice(0, 8)"><td [attr.title]="page.path"><span class="ga-label">{{ page.label || page.path }}</span><span class="ga-bar" aria-hidden="true"><span [style.width]="fmt.barWidth(page.count, overviewPageMax)"></span></span></td><td class="ga-num">{{ page.count | number }}</td><td class="ga-num">{{ fmt.share(page.count, overview.totalPageViews) }}</td></tr></tbody>
@@ -73,8 +69,7 @@
             <button type="button" class="overview-link" (click)="selectTab('pages')">Ver páginas <span aria-hidden="true">→</span></button>
           </section>
           <section class="overview-card">
-            <h5>Procedencia</h5>
-            <p>{{ overview.aggregateLimitations ? 'Referentes registrados en eventos de los días incluidos.' : 'Referentes registrados en eventos de vista de página.' }}</p>
+            <h5>Procedencia <app-info-tip label="procedencia" text="Sitios desde los que llegan los visitantes (referente), contados en los eventos de los días incluidos."></app-info-tip></h5>
             <div class="overview-table-wrap">
               <table class="ga-table"><thead><tr><th scope="col">Referente</th><th scope="col" class="ga-num">{{ overview.aggregateLimitations ? 'Eventos' : 'Vistas' }}</th></tr></thead>
                 <tbody><tr *ngFor="let ref of overview.topReferrers.slice(0, 8)"><td><span class="ga-label">{{ ref.referrer }}</span><span class="ga-bar" aria-hidden="true"><span [style.width]="fmt.barWidth(ref.count, overviewReferrerMax)"></span></span></td><td class="ga-num">{{ ref.count | number }}</td></tr></tbody>
@@ -83,8 +78,7 @@
             <p *ngIf="!overview.topReferrers.length" class="overview-empty">No hay referentes disponibles para este periodo.</p>
           </section>
           <section class="overview-card overview-card--trend">
-            <h5>Sesiones por día</h5>
-            <p>Sesiones iniciadas en cada fecha del periodo.</p>
+            <h5>Sesiones por día <app-info-tip label="sesiones por día" text="Sesiones iniciadas en cada fecha (UTC) del periodo."></app-info-tip></h5>
             <div *ngIf="overview.sessionsByDay.length" class="overview-bars" role="list" aria-label="Sesiones por día">
               <div *ngFor="let day of overview.sessionsByDay" class="overview-bar-row" role="listitem">
                 <span>{{ day.date }}</span><span class="overview-bar-track" aria-hidden="true"><span [style.width]="getDayBarWidth(day.count)"></span></span><strong>{{ day.count | number }}</strong>
@@ -93,8 +87,7 @@
             <p *ngIf="!overview.sessionsByDay.length" class="overview-empty">No hay sesiones para este periodo.</p>
           </section>
           <section class="overview-card">
-            <h5>Ubicación de las sesiones</h5>
-            <p>Países de las sesiones del periodo (ubicación aproximada por IP).</p>
+            <h5>Ubicación de las sesiones <app-info-tip label="ubicación" text="Países de las sesiones del periodo. La ubicación es aproximada y se deduce de la IP."></app-info-tip></h5>
             <div *ngIf="overview.geography?.length" class="overview-table-wrap">
               <table class="ga-table"><thead><tr><th scope="col">País</th><th scope="col" class="ga-num">Sesiones</th><th scope="col" class="ga-num">%</th></tr></thead>
                 <tbody><tr *ngFor="let place of overviewCountries"><td><span *ngIf="place.flag" class="ga-flag" aria-hidden="true">{{ place.flag }}</span>{{ place.name }}</td><td class="ga-num">{{ place.count | number }}</td><td class="ga-num">{{ fmt.share(place.count, overview.totalSessions) }}</td></tr></tbody>
@@ -105,19 +98,17 @@
             <button type="button" class="overview-link" (click)="selectTab('geography')">Ver geografía <span aria-hidden="true">→</span></button>
           </section>
           <section class="overview-card">
-            <h5>Actividad en tiempo real</h5>
-            <p>Sesiones activas durante los últimos 90 segundos.</p>
+            <h5>Actividad en tiempo real <app-info-tip label="actividad en tiempo real" text="Sesiones con actividad durante los últimos 90 segundos."></app-info-tip></h5>
             <strong class="overview-live-number">{{ liveError || liveLoading || activeNow === null ? '—' : activeNow }}</strong>
             <p *ngIf="liveError">No se han podido cargar las sesiones activas.</p>
             <button type="button" class="overview-link" (click)="selectTab('live')">Ver tiempo real <span aria-hidden="true">→</span></button>
           </section>
         </div>
-        <p class="overview-note">Los usuarios nuevos, el tiempo de interacción y el total de eventos aún no están disponibles en este informe.</p>
       </ng-container>
     </div>
 
     <div *ngSwitchCase="'pages'" class="page-report">
-      <h4 class="overview-title">Páginas en tiempo real</h4>
+      <h4 class="overview-title">Páginas en tiempo real <app-info-tip label="páginas en tiempo real" text="Últimos 30 minutos. Un usuario activo es un identificador anónimo con al menos un evento; por página, el evento debe incluir esa ruta."></app-info-tip></h4>
       <p *ngIf="realtimePagesLoading" class="overview-status" role="status">Cargando datos de páginas…</p>
       <div *ngIf="realtimePagesError" class="overview-status" role="alert">
         <p>{{ realtimePagesError }}</p>
@@ -135,23 +126,26 @@
       <p *ngIf="realtimePagesError && !realtimePages && fallbackEventsError" class="overview-status">Tampoco se ha podido recuperar la muestra de eventos.</p>
       <ng-container *ngIf="realtimePages as report">
         <p *ngIf="report.partial" class="overview-status" role="status">Datos parciales: el registro fiable comenzó {{ report.coverageStartedAt | date:'short' }}, hay eventos sin indexar o la cobertura de algunas sesiones no puede verificarse. Las sesiones sin datos suficientes no se incluyen.</p>
-        <p class="overview-note">Últimos 30 minutos: {{ report.from | date:'shortTime' }}–{{ report.to | date:'shortTime' }}. Un usuario activo es un identificador anónimo con al menos un evento; por página, el evento debe incluir esa ruta.</p>
         <div class="page-report__summary">
           <div><span>Usuarios activos</span><strong>{{ report.activeUsers | number }}</strong><small>Últimos 30 minutos</small></div>
           <div><span>Vistas de página</span><strong>{{ report.pageViews | number }}</strong><small>Últimos 30 minutos</small></div>
         </div>
         <section class="overview-card page-report__trend">
-          <h5>Usuarios activos por minuto</h5>
-          <p>Identificadores distintos que generaron al menos un evento en cada intervalo de un minuto. Desplázate para ver los 30 minutos.</p>
-          <div class="overview-bars" role="list" tabindex="0" aria-label="Usuarios activos por minuto, lista desplazable">
-            <div *ngFor="let minute of report.minutes; trackBy: trackByMinute" class="overview-bar-row" role="listitem">
-              <span>{{ minute.from | date:'shortTime' }}</span><span class="overview-bar-track" aria-hidden="true"><span [style.width]="getMinuteBarWidth(minute.users)"></span></span><strong>{{ minute.users | number }}</strong>
-            </div>
+          <h5>Usuarios activos por minuto <app-info-tip label="usuarios activos por minuto" text="Identificadores distintos que generaron al menos un evento en cada intervalo de un minuto, durante los últimos 30 minutos."></app-info-tip></h5>
+          <div *ngIf="report.minutes.length" class="minute-chart">
+            <span class="minute-chart__max" aria-hidden="true">{{ minuteMax | number }}</span>
+            <svg class="minute-chart__plot" [attr.viewBox]="'0 0 ' + report.minutes.length * 10 + ' 100'" preserveAspectRatio="none" role="img" [attr.aria-label]="'Usuarios activos por minuto, máximo ' + minuteMax">
+              <line x1="0" y1="100" [attr.x2]="report.minutes.length * 10" y2="100" class="minute-chart__axis" />
+              <rect *ngFor="let minute of report.minutes; let i = index; trackBy: trackByMinute" [attr.x]="i * 10 + 1" [attr.width]="8" [attr.y]="100 - getMinuteBarHeight(minute.users)" [attr.height]="getMinuteBarHeight(minute.users)" rx="1">
+                <title>{{ minute.from | date:'shortTime' }} · {{ minute.users | number }} usuarios</title>
+              </rect>
+            </svg>
+            <span class="minute-chart__from" aria-hidden="true">{{ report.minutes[0].from | date:'shortTime' }}</span>
+            <span class="minute-chart__to" aria-hidden="true">{{ report.minutes[report.minutes.length - 1].from | date:'shortTime' }}</span>
           </div>
         </section>
         <section class="overview-card page-report__table">
-          <h5>Rutas de página en los últimos 30 minutos</h5>
-          <p>Usuarios con eventos asociados a cada ruta y vistas de página registradas.</p>
+          <h5>Rutas de página en los últimos 30 minutos <app-info-tip label="rutas de página" text="Usuarios con eventos asociados a cada ruta y vistas de página registradas."></app-info-tip></h5>
           <div class="page-report__toolbar"><label class="page-report__search">Buscar página <input #pageQuery type="search" [value]="pageSearch" (input)="searchPages(pageQuery.value)" placeholder="Buscar por ruta"></label><span aria-live="polite">{{ filteredPages.length | number }} rutas</span></div>
           <div *ngIf="filteredPages.length" class="overview-table-wrap page-report__scroll" tabindex="0" role="region" aria-label="Tabla de rutas de página; desplazar para ver más">
             <table class="page-report__data">
@@ -177,50 +171,44 @@
       <div class="live-map" aria-labelledby="live-map-title">
         <app-live-map [markers]="liveMarkers"></app-live-map>
         <div class="live-map__content">
-          <p class="live-map__eyebrow">Tiempo real · últimos 90 segundos</p>
-          <h4 id="live-map-title">Actividad en este momento</h4>
+          <h4 id="live-map-title" class="live-map__eyebrow"><span class="live-dot" aria-hidden="true"></span>En directo <app-info-tip label="actividad en directo" text="Sesiones con señal en los últimos 90 segundos. El mapa y las tablas muestran hasta 50 sesiones. Las ubicaciones por IP son aproximadas; si solo se conoce el país, se muestra su centro."></app-info-tip></h4>
           <div class="live-map__metric" aria-live="polite">
-            <span>Sesiones conectadas</span>
             <strong *ngIf="activeNow !== null">{{ activeNow }}</strong>
+            <span *ngIf="activeNow !== null">sesiones conectadas</span>
             <span *ngIf="liveLoading">Cargando…</span>
             <span *ngIf="liveError && activeNow === null">No disponible</span>
           </div>
-          <p *ngIf="activeNow !== null">Mapa y tablas basados en {{ liveSessions.length }} sesiones mostradas (máximo 50). Sin punto en el mapa: {{ liveUnmapped }}.</p>
-          <p *ngIf="liveIdleCountUncertain" role="status">El servidor anterior puede incluir sesiones inactivas en el total; la lista y el mapa filtran las sesiones de la muestra.</p>
-          <p *ngIf="activeNow !== null">Las ubicaciones por IP son aproximadas; si solo se conoce el país, se muestra su centro.</p>
-          <p *ngIf="overview?.geographyCollectionEnabled === false">La configuración de privacidad del almacenamiento desactiva los datos geográficos.</p>
-          <p *ngIf="overview?.geographyConfigured === false">No hay base de datos GeoIP cargada: las sesiones nuevas no tendrán ubicación (consulta Diagnóstico).</p>
-          <p *ngIf="overview?.geographyConfigured && overview?.geographyDetailConfigured === false">Solo se conoce el país de las sesiones nuevas; se utilizará su centro.</p>
-          <p *ngIf="liveError" role="alert">No se han podido actualizar las sesiones. <span *ngIf="liveUpdatedAt">Se muestra la última respuesta de las {{ liveUpdatedAt | date:'shortTime' }}.</span></p>
+          <p *ngIf="activeNow !== null && liveUnmapped > 0" class="live-map__meta">{{ liveSessions.length }} sesiones mostradas · Sin punto en el mapa: {{ liveUnmapped }}</p>
+          <p *ngIf="liveIdleCountUncertain" class="live-map__warn" role="status">El total puede incluir sesiones inactivas.</p>
+          <p *ngIf="overview?.geographyCollectionEnabled === false" class="live-map__warn">Los datos geográficos están desactivados por privacidad.</p>
+          <p *ngIf="overview?.geographyConfigured === false" class="live-map__warn">Sin base GeoIP: las sesiones nuevas no tendrán ubicación (ver Diagnóstico).</p>
+          <p *ngIf="overview?.geographyConfigured && overview?.geographyDetailConfigured === false" class="live-map__warn">Solo se conoce el país: se usa su centro.</p>
+          <p *ngIf="liveError" class="live-map__warn" role="alert">No se han podido actualizar las sesiones. <span *ngIf="liveUpdatedAt">Última respuesta: {{ liveUpdatedAt | date:'shortTime' }}.</span></p>
         </div>
       </div>
       <div *ngIf="activeNow !== null" class="live-summary">
         <section class="live-summary__card" aria-labelledby="live-pages-title">
-          <h5 id="live-pages-title">Páginas activas</h5>
-          <p class="live-summary__hint">Sesiones mostradas por página actual</p>
-          <p *ngIf="!livePageCounts.length">No hay sesiones activas.</p>
-          <table *ngIf="livePageCounts.length"><thead><tr><th scope="col">Página</th><th scope="col">Sesiones</th></tr></thead><tbody><tr *ngFor="let page of livePageCounts"><td>{{ page.label }}</td><td>{{ page.count }}</td></tr></tbody></table>
+          <h5 id="live-pages-title">Páginas activas <app-info-tip label="páginas activas" text="Sesiones mostradas por página actual."></app-info-tip></h5>
+          <p *ngIf="!livePageCounts.length" class="a-empty">No hay sesiones activas.</p>
+          <table *ngIf="livePageCounts.length" class="a-table"><thead><tr><th scope="col">Página</th><th scope="col" class="a-num">Sesiones</th></tr></thead><tbody><tr *ngFor="let page of livePageCounts"><td>{{ page.label }}</td><td class="a-num">{{ page.count }}</td></tr></tbody></table>
         </section>
         <section class="live-summary__card" aria-labelledby="live-sources-title">
-          <h5 id="live-sources-title">Procedencia</h5>
-          <p class="live-summary__hint">Sesiones mostradas por referente</p>
-          <p *ngIf="!liveSourceCounts.length">No hay sesiones activas.</p>
-          <table *ngIf="liveSourceCounts.length"><thead><tr><th scope="col">Referente</th><th scope="col">Sesiones</th></tr></thead><tbody><tr *ngFor="let source of liveSourceCounts"><td>{{ source.label }}</td><td>{{ source.count }}</td></tr></tbody></table>
+          <h5 id="live-sources-title">Procedencia <app-info-tip label="procedencia" text="Sesiones mostradas por referente."></app-info-tip></h5>
+          <p *ngIf="!liveSourceCounts.length" class="a-empty">No hay sesiones activas.</p>
+          <table *ngIf="liveSourceCounts.length" class="a-table"><thead><tr><th scope="col">Referente</th><th scope="col" class="a-num">Sesiones</th></tr></thead><tbody><tr *ngFor="let source of liveSourceCounts"><td>{{ source.label }}</td><td class="a-num">{{ source.count }}</td></tr></tbody></table>
         </section>
         <section class="live-summary__card" aria-labelledby="live-country-title">
-          <h5 id="live-country-title">Ubicación</h5>
-          <p class="live-summary__hint">País de las sesiones mostradas, de más a menos</p>
-          <p *ngIf="!liveSessions.length">No hay sesiones activas.</p>
+          <h5 id="live-country-title">Ubicación <app-info-tip label="ubicación" text="País de las sesiones mostradas, de más a menos."></app-info-tip></h5>
+          <p *ngIf="!liveSessions.length" class="a-empty">No hay sesiones activas.</p>
           <table *ngIf="liveSessions.length" class="ga-table"><thead><tr><th scope="col">País</th><th scope="col" class="ga-num">Sesiones</th><th scope="col" class="ga-num">%</th></tr></thead><tbody><tr *ngFor="let country of liveCountryRows"><td><span *ngIf="country.flag" class="ga-flag" aria-hidden="true">{{ country.flag }}</span>{{ country.name }}</td><td class="ga-num">{{ country.count }}</td><td class="ga-num">{{ fmt.share(country.count, liveSessions.length) }}</td></tr></tbody></table>
         </section>
       </div>
       <section class="session-panel" aria-labelledby="sessions-title">
         <div class="session-panel__header">
-          <div><h4 id="sessions-title">Sesiones conectadas</h4><p>Hasta 50 sesiones con señal en los últimos 90 segundos. Se ocultan las que llevan al menos cinco minutos sin interacción registrada.</p></div>
-          <span>{{ liveSessions.length }} mostradas</span>
+          <h4 id="sessions-title">Sesiones conectadas <app-info-tip label="sesiones conectadas" text="Hasta 50 sesiones con señal en los últimos 90 segundos. Se ocultan las que llevan al menos cinco minutos sin interacción registrada. Los rastreadores identificados se señalan en la lista y siguen incluidos en los totales."></app-info-tip></h4>
+          <span class="a-meta">{{ liveSessions.length }} mostradas</span>
         </div>
         <p *ngIf="overview?.aggregateLimitations" class="session-panel__notice" role="status">Las exclusiones de IP y de administradores no están verificadas en las sesiones en tiempo real de este almacenamiento.</p>
-        <p class="session-panel__notice">Los rastreadores identificados se señalan en la lista y siguen incluidos en los totales.</p>
         <div *ngIf="activeNow !== null && liveSessions.length" class="session-filters" role="search" aria-label="Filtrar sesiones mostradas">
           <label>Buscar sesión <input #sessionQuery type="search" [value]="sessionSearch" placeholder="Ruta, ubicación o navegador" (input)="filterLiveSessions(sessionQuery.value, sessionType.value)"></label>
           <label>Tipo <select #sessionType [value]="sessionKind" (change)="filterLiveSessions(sessionQuery.value, sessionType.value)"><option value="all">Todas</option><option value="crawler">Rastreadores identificados</option><option value="other">Sin identificar como rastreador</option></select></label>
@@ -276,92 +264,75 @@
     </div>
 
     <div *ngSwitchCase="'events'" class="space-y-6">
-      <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h4 class="text-lg font-semibold text-[var(--portal-text)]">Eventos recientes</h4>
-          <span class="text-xs text-[var(--portal-text-muted)]">{{ recentEvents.length }} eventos mostrados</span>
-        </div>
+      <div class="a-card">
+        <header class="a-card__head"><h4>Eventos recientes</h4><span class="a-meta">{{ recentEvents.length }} eventos mostrados</span></header>
         <p *ngIf="eventsError" role="alert">No se han podido cargar los eventos recientes.</p>
-        <div *ngIf="eventsLoading" class="space-y-3 animate-pulse">
-          <div class="h-14 rounded-2xl bg-[var(--portal-surface)] border border-[var(--portal-border)]"></div>
-          <div class="h-14 rounded-2xl bg-[var(--portal-surface)] border border-[var(--portal-border)]"></div>
-          <div class="h-14 rounded-2xl bg-[var(--portal-surface)] border border-[var(--portal-border)]"></div>
+        <div *ngIf="eventsLoading" class="a-list" aria-hidden="true">
+          <div class="a-skeleton"></div>
+          <div class="a-skeleton"></div>
+          <div class="a-skeleton"></div>
         </div>
-        <div *ngIf="!eventsLoading && !eventsError && recentEvents.length === 0" class="text-sm text-[var(--portal-text-muted)] py-6 text-center">
+        <div *ngIf="!eventsLoading && !eventsError && recentEvents.length === 0" class="a-empty">
           No hay eventos para los filtros seleccionados.
         </div>
-        <div *ngIf="!eventsLoading && !eventsError && recentEvents.length" class="space-y-3 max-h-[520px] overflow-auto pr-1">
+        <div *ngIf="!eventsLoading && !eventsError && recentEvents.length" class="a-list">
           <div
             *ngFor="let event of recentEvents; trackBy: trackByEvent"
-            class="p-4 rounded-2xl bg-[var(--portal-surface)] border border-[var(--portal-border)]"
+            class="a-row"
           >
-            <p class="text-[var(--portal-text)] text-sm font-medium">{{ event.pathLabel || event.path || event.name || event.type }}</p>
-            <p class="text-xs text-[var(--portal-text-muted)]">
-              {{ event.type }} | {{ event.occurredAt | date: 'shortTime' }} | {{ event.sessionId.slice(0, 8) }}
-            </p>
+            <span class="a-row__main">{{ event.pathLabel || event.path || event.name || event.type }}</span>
+            <span class="a-row__meta"><span class="a-tag">{{ event.type }}</span> {{ event.occurredAt | date: 'shortTime' }} · {{ event.sessionId.slice(0, 8) }}</span>
           </div>
         </div>
       </div>
     </div>
 
     <div *ngSwitchCase="'journeys'" class="space-y-6">
-      <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div>
-            <h4 class="text-lg font-semibold text-[var(--portal-text)]">User journeys</h4>
-            <p class="text-xs text-[var(--portal-text-muted)]">
-              Most common 3-step page paths from the last 7 days ({{ journeysSessionsAnalyzed }} sessions analyzed).
-            </p>
-          </div>
+      <div class="a-card">
+        <header class="a-card__head"><h4>Recorridos de usuario <app-info-tip label="recorridos" text="Rutas de 3 páginas más habituales en el periodo seleccionado."></app-info-tip></h4><span class="a-meta">{{ journeysSessionsAnalyzed }} sesiones analizadas</span></header>
+        <div *ngIf="!journeysLoaded" class="a-list" aria-hidden="true">
+          <div class="a-skeleton"></div>
+          <div class="a-skeleton"></div>
         </div>
-        <div *ngIf="!journeysLoaded" class="space-y-3 animate-pulse">
-          <div class="h-14 rounded-2xl bg-[var(--portal-surface)] border border-[var(--portal-border)]"></div>
-          <div class="h-14 rounded-2xl bg-[var(--portal-surface)] border border-[var(--portal-border)]"></div>
+        <div *ngIf="journeysLoaded && journeys.length === 0" class="a-empty">
+          Todavía no hay recorridos registrados.
         </div>
-        <div *ngIf="journeysLoaded && journeys.length === 0" class="text-sm text-[var(--portal-text-muted)] py-6 text-center">
-          No journeys recorded yet.
-        </div>
-        <div *ngIf="journeys.length" class="space-y-3 max-h-[520px] overflow-auto pr-1">
+        <div *ngIf="journeys.length" class="a-list">
           <div
             *ngFor="let journey of journeys"
-            class="flex items-center justify-between gap-4 p-4 rounded-2xl bg-[var(--portal-surface)] border border-[var(--portal-border)]"
+            class="a-row a-row--split"
           >
-            <span class="text-sm text-[var(--portal-text)] break-all">{{ (journey.labels || journey.steps).join(' → ') }}</span>
-            <span class="text-xs text-[var(--portal-text-soft)] whitespace-nowrap">{{ journey.count }} sessions</span>
+            <span class="a-row__main">{{ (journey.labels || journey.steps).join(' → ') }}</span>
+            <span class="a-row__meta">{{ journey.count }} sesiones</span>
           </div>
         </div>
       </div>
     </div>
 
     <div *ngSwitchCase="'retention'" class="space-y-6">
-      <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6">
-        <div class="mb-4">
-          <h4 class="text-lg font-semibold text-[var(--portal-text)]">Cohortes semanales de retención</h4>
-          <p class="text-xs text-[var(--portal-text-muted)]">
-            Usuarios registrados en cada semana que siguen activos en semanas posteriores. Estas cohortes no son sesiones de Analytics ni aplican sus exclusiones. «-» indica que la semana aún no ha transcurrido.
-          </p>
+      <div class="a-card">
+        <header class="a-card__head"><h4>Cohortes semanales de retención <app-info-tip label="retención" text="Usuarios registrados en cada semana que siguen activos en semanas posteriores. Estas cohortes no son sesiones de Analytics ni aplican sus exclusiones. «—» indica que la semana aún no ha transcurrido."></app-info-tip></h4></header>
+        <div *ngIf="!retentionLoaded" class="a-list" aria-hidden="true">
+          <div class="a-skeleton"></div>
+          <div class="a-skeleton"></div>
         </div>
-        <div *ngIf="!retentionLoaded" class="space-y-3 animate-pulse">
-          <div class="h-14 rounded-2xl bg-[var(--portal-surface)] border border-[var(--portal-border)]"></div>
-          <div class="h-14 rounded-2xl bg-[var(--portal-surface)] border border-[var(--portal-border)]"></div>
-        </div>
-        <div *ngIf="retentionLoaded && retentionCohorts.length === 0" class="text-sm text-[var(--portal-text-muted)] py-6 text-center">
+        <div *ngIf="retentionLoaded && retentionCohorts.length === 0" class="a-empty">
           No hay cohortes disponibles.
         </div>
-        <div *ngIf="retentionCohorts.length" class="overflow-auto max-h-[520px] border border-[var(--portal-border)] rounded-2xl">
-          <table class="min-w-[720px] w-full text-sm text-left">
-            <thead class="sticky top-0 bg-[var(--portal-surface)] text-[11px] uppercase text-[var(--portal-text-muted)]">
+        <div *ngIf="retentionCohorts.length" class="a-table-wrap" tabindex="0" role="region" aria-label="Cohortes de retención; desplazar para ver más">
+          <table class="a-table a-table--sticky" style="min-width: 720px">
+            <thead>
               <tr>
-                <th class="px-4 py-3">Cohorte</th>
-                <th class="px-4 py-3">Usuarios</th>
-                <th *ngFor="let week of retentionCohorts[0]?.weeks; let i = index" class="px-4 py-3">W{{ i }}</th>
+                <th scope="col">Cohorte</th>
+                <th scope="col" class="a-num">Usuarios</th>
+                <th scope="col" class="a-num" *ngFor="let week of retentionCohorts[0]?.weeks; let i = index">S{{ i }}</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-[var(--portal-border)]">
-              <tr *ngFor="let cohort of retentionCohorts" class="hover:bg-[var(--portal-surface)]">
-                <td class="px-4 py-4 text-[var(--portal-text)]">{{ cohort.cohort }}</td>
-                <td class="px-4 py-4 text-[var(--portal-text-soft)]">{{ cohort.size }}</td>
-                <td *ngFor="let week of cohort.weeks" class="px-4 py-4 text-[var(--portal-text-soft)]">
+            <tbody>
+              <tr *ngFor="let cohort of retentionCohorts">
+                <th scope="row">{{ cohort.cohort }}</th>
+                <td class="a-num">{{ cohort.size }}</td>
+                <td class="a-num" *ngFor="let week of cohort.weeks" [class.a-num--muted]="week === null">
                   {{ week === null ? '—' : (week | number: '1.0-0') + '%' }}
                 </td>
               </tr>
@@ -371,9 +342,8 @@
       </div>
     </div>
 
-    <div *ngSwitchCase="'geography'" class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6">
-      <h4 class="text-lg font-semibold text-[var(--portal-text)]">Ubicación de las sesiones</h4>
-      <p class="text-sm text-[var(--portal-text-soft)] mb-4">País, región y ciudad aproximados (por IP) de las sesiones del periodo seleccionado. Las ubicaciones no disponibles aparecen como desconocidas.</p>
+    <div *ngSwitchCase="'geography'" class="a-card">
+      <h4 class="text-lg font-semibold text-[var(--portal-text)] mb-4">Ubicación de las sesiones <app-info-tip label="ubicación" text="País, región y ciudad aproximados (por IP) de las sesiones del periodo seleccionado. Las ubicaciones no disponibles aparecen como desconocidas."></app-info-tip></h4>
       <p *ngIf="overviewLoading" class="text-sm text-[var(--portal-text-soft)]" role="status">Cargando datos geográficos…</p>
       <p *ngIf="overviewError" class="text-sm text-[var(--portal-text)]" role="alert">No se han podido cargar los datos geográficos.</p>
       <ng-container *ngIf="overview && !overviewLoading && !overviewError">
@@ -403,7 +373,7 @@
             </div>
             <span class="text-sm text-[var(--portal-text-soft)]">{{ geoRows.length | number }} filas · {{ geoTotal | number }} sesiones</span>
           </div>
-          <div class="overflow-x-auto" tabindex="0" role="region" aria-label="Tabla de sesiones por ubicación">
+          <div class="a-table-wrap" tabindex="0" role="region" aria-label="Tabla de sesiones por ubicación">
             <table class="ga-table ga-table--full">
               <caption class="sr-only">Sesiones por {{ geoView === 'country' ? 'país' : geoView === 'region' ? 'región' : 'ciudad' }} durante el periodo seleccionado</caption>
               <thead><tr>
@@ -426,71 +396,63 @@
       </ng-container>
     </div>
     <div *ngSwitchCase="'diagnostics'" class="space-y-6 analytics-diagnostics">
-      <section class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6" aria-labelledby="diag-ingest-title">
-        <h4 id="diag-ingest-title" class="text-lg font-semibold text-[var(--portal-text)] mb-3">Ingesta propia</h4>
-        <p *ngIf="diagnosticsError" class="text-sm text-[var(--spotify-warning)]" role="alert">{{ diagnosticsError }}</p>
-        <p *ngIf="!diagnostics && !diagnosticsError" class="text-sm text-[var(--portal-text-soft)]">Cargando diagnóstico…</p>
+      <section class="a-card" aria-labelledby="diag-ingest-title">
+        <header class="a-card__head"><h4 id="diag-ingest-title">Ingesta propia <app-info-tip label="ingesta propia" text="Métricas medidas desde el último arranque del proceso: se reinician con cada despliegue."></app-info-tip></h4><span *ngIf="diagnostics" class="a-meta">Actualizado {{ diagnostics.generatedAt | date:'mediumTime' }}</span></header>
+        <p *ngIf="diagnosticsError" class="a-alert" role="alert">{{ diagnosticsError }}</p>
+        <p *ngIf="!diagnostics && !diagnosticsError" class="a-empty" role="status">Cargando diagnóstico…</p>
         <ng-container *ngIf="diagnostics as d">
-          <p class="text-sm text-[var(--portal-text-soft)] mb-3">
-            Almacenamiento: <strong>{{ d.store }}</strong> ·
-            {{ d.ingest?.storageAvailable === false ? 'no disponible' : 'disponible' }} ·
-            Recogida: <strong>{{ d.flags.ingestEnabled ? 'activa' : 'desactivada (interruptor de emergencia)' }}</strong> ·
-            Endpoints antiguos: {{ d.flags.legacyEndpoints === 'accept' ? 'aceptados' : 'descartados' }}
-          </p>
-          <div *ngIf="d.ingest as ingest" class="overflow-x-auto" tabindex="0" role="region" aria-label="Métricas de la cola de ingesta">
-            <table class="w-full text-sm text-left">
-              <caption class="sr-only">Métricas medidas desde el último arranque del proceso</caption>
-              <tbody>
-                <tr><th scope="row" class="py-1 pr-4">En cola (lotes / eventos)</th><td>{{ ingest.queue.depth | number }} / {{ ingest.queue.depthEvents | number }}</td></tr>
-                <tr><th scope="row" class="py-1 pr-4">Aceptados (lotes / eventos)</th><td>{{ ingest.queue.accepted | number }} / {{ ingest.queue.acceptedEvents | number }}</td></tr>
-                <tr><th scope="row" class="py-1 pr-4">Persistidos (lotes / eventos)</th><td>{{ ingest.queue.processed | number }} / {{ ingest.queue.processedEvents | number }}</td></tr>
-                <tr><th scope="row" class="py-1 pr-4">Rechazados por cola llena</th><td>{{ ingest.queue.rejectedFull | number }}</td></tr>
-                <tr><th scope="row" class="py-1 pr-4">Descartados tras reintentos (eventos)</th><td>{{ ingest.queue.droppedEventsAfterRetries | number }}</td></tr>
-                <tr><th scope="row" class="py-1 pr-4">Lotes o eventos no válidos</th><td>{{ ingest.invalidBatches | number }} / {{ ingest.rejectedEvents | number }}</td></tr>
-                <tr><th scope="row" class="py-1 pr-4">Retraso de persistencia (último / máximo)</th><td>{{ ingest.queue.lastLagMs | number }} ms / {{ ingest.queue.maxLagMs | number }} ms</td></tr>
-                <tr *ngIf="ingest.queue.lastError"><th scope="row" class="py-1 pr-4">Último error</th><td>{{ ingest.queue.lastError }} ({{ ingest.queue.lastErrorAt | date:'short' }})</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <p *ngIf="!d.ingest" class="text-sm text-[var(--portal-text-soft)]">El backend no expone métricas de ingesta.</p>
-          <h5 class="font-semibold text-[var(--portal-text)] mt-4 mb-1">GeoIP local</h5>
-          <p *ngIf="d.ingest?.geoip as geo" class="text-sm text-[var(--portal-text-soft)]">
-            <ng-container *ngIf="!geo.enabled">Desactivado (ANALYTICS_GEOIP_ENABLED=false). Las sesiones se guardan sin ubicación salvo el país que indica Cloudflare.</ng-container>
-            <ng-container *ngIf="geo.enabled">
-              Ciudad: {{ geo.city.loaded ? geo.city.version : 'no cargada' }}<span *ngIf="geo.city.error && !geo.city.loaded"> (sin fichero: el despliegue lo descarga; o ejecuta <code>systemctl start guiatv-geoip-update</code>)</span> ·
-              ASN: {{ geo.asn.loaded ? geo.asn.version : 'no cargada' }} ·
-              {{ geo.located | number }} de {{ geo.lookups | number }} consultas con ubicación. La ubicación por IP es aproximada y no detecta VPN.
-              <span *ngIf="geo.city.source === 'dbip' || geo.asn.source === 'dbip'" class="block mt-1"><a href="https://db-ip.com" target="_blank" rel="noopener">IP Geolocation by DB-IP</a> (CC BY 4.0).</span>
-            </ng-container>
-          </p>
-          <p class="text-xs text-[var(--portal-text-faint)] mt-2">Actualizado {{ d.generatedAt | date:'mediumTime' }}. Valores del proceso actual (se reinician con cada despliegue).</p>
+          <ul class="diag-status" aria-label="Estado general">
+            <li><span class="diag-dot" [ngClass]="d.ingest?.storageAvailable === false ? 'diag-dot--bad' : 'diag-dot--ok'" aria-hidden="true"></span><span class="diag-status__label">Almacenamiento</span><strong>{{ d.store }}</strong><small>{{ d.ingest?.storageAvailable === false ? 'no disponible' : 'disponible' }}</small></li>
+            <li><span class="diag-dot" [ngClass]="d.flags.ingestEnabled ? 'diag-dot--ok' : 'diag-dot--bad'" aria-hidden="true"></span><span class="diag-status__label">Recogida</span><strong>{{ d.flags.ingestEnabled ? 'Activa' : 'Desactivada' }}</strong><small *ngIf="!d.flags.ingestEnabled">interruptor de emergencia</small></li>
+            <li><span class="diag-dot diag-dot--idle" aria-hidden="true"></span><span class="diag-status__label">Endpoints antiguos</span><strong>{{ d.flags.legacyEndpoints === 'accept' ? 'Aceptados' : 'Descartados' }}</strong></li>
+          </ul>
+          <ng-container *ngIf="d.ingest as ingest">
+            <dl class="diag-kpis" aria-label="Métricas de la cola de ingesta">
+              <div><dt>En cola</dt><dd>{{ ingest.queue.depth | number }} <small>lotes</small></dd><dd class="diag-kpis__sub">{{ ingest.queue.depthEvents | number }} eventos</dd></div>
+              <div><dt>Aceptados</dt><dd>{{ ingest.queue.accepted | number }} <small>lotes</small></dd><dd class="diag-kpis__sub">{{ ingest.queue.acceptedEvents | number }} eventos</dd></div>
+              <div><dt>Persistidos</dt><dd>{{ ingest.queue.processed | number }} <small>lotes</small></dd><dd class="diag-kpis__sub">{{ ingest.queue.processedEvents | number }} eventos</dd></div>
+              <div [class.diag-kpis__bad]="ingest.queue.rejectedFull > 0"><dt>Rechazados por cola llena</dt><dd>{{ ingest.queue.rejectedFull | number }}</dd></div>
+              <div [class.diag-kpis__bad]="ingest.queue.droppedEventsAfterRetries > 0"><dt>Descartados tras reintentos</dt><dd>{{ ingest.queue.droppedEventsAfterRetries | number }} <small>eventos</small></dd></div>
+              <div><dt>No válidos</dt><dd>{{ ingest.invalidBatches | number }} <small>lotes</small></dd><dd class="diag-kpis__sub">{{ ingest.rejectedEvents | number }} eventos</dd></div>
+              <div><dt>Retraso de persistencia</dt><dd>{{ ingest.queue.lastLagMs | number }} <small>ms último</small></dd><dd class="diag-kpis__sub">{{ ingest.queue.maxLagMs | number }} ms máximo</dd></div>
+            </dl>
+            <p *ngIf="ingest.queue.lastError" class="a-alert" role="alert">Último error: {{ ingest.queue.lastError }} ({{ ingest.queue.lastErrorAt | date:'short' }})</p>
+          </ng-container>
+          <p *ngIf="!d.ingest" class="a-empty">El backend no expone métricas de ingesta.</p>
         </ng-container>
       </section>
-      <section class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6" aria-labelledby="diag-ga4-title">
-        <h4 id="diag-ga4-title" class="text-lg font-semibold text-[var(--portal-text)] mb-1">Demografía agregada (Google Analytics 4)</h4>
-        <p class="text-xs text-[var(--portal-text-soft)] mb-3">Solo datos agregados que GA4 calcula con Google Signals. No se infiere edad, sexo ni intereses de ninguna persona ni de su IP.</p>
-        <p *ngIf="ga4Error" class="text-sm text-[var(--spotify-warning)]" role="alert">{{ ga4Error }}</p>
-        <p *ngIf="!ga4Demographics && !ga4Error" class="text-sm text-[var(--portal-text-soft)]">Cargando…</p>
+      <section *ngIf="diagnostics?.ingest?.geoip as geo" class="a-card" aria-labelledby="diag-geo-title">
+        <header class="a-card__head"><h4 id="diag-geo-title">GeoIP local <app-info-tip label="GeoIP" text="La ubicación por IP es aproximada y no detecta VPN. Si está desactivado (ANALYTICS_GEOIP_ENABLED=false), las sesiones se guardan sin ubicación salvo el país que indica Cloudflare."></app-info-tip></h4><span class="a-badge" [ngClass]="geo.enabled ? 'a-badge--ok' : ''">{{ geo.enabled ? 'Activo' : 'Desactivado' }}</span></header>
+        <dl *ngIf="geo.enabled" class="diag-kpis" aria-label="Estado de las bases GeoIP">
+          <div [class.diag-kpis__bad]="!geo.city.loaded"><dt>Base de ciudades</dt><dd>{{ geo.city.loaded ? geo.city.version : 'No cargada' }}</dd><dd *ngIf="geo.city.error && !geo.city.loaded" class="diag-kpis__sub">Sin fichero: el despliegue lo descarga, o ejecuta <code>systemctl start guiatv-geoip-update</code></dd></div>
+          <div [class.diag-kpis__bad]="!geo.asn.loaded"><dt>Base de redes (ASN)</dt><dd>{{ geo.asn.loaded ? geo.asn.version : 'No cargada' }}</dd></div>
+          <div><dt>Consultas con ubicación</dt><dd>{{ geo.located | number }} <small>de {{ geo.lookups | number }}</small></dd></div>
+        </dl>
+        <p *ngIf="geo.city.source === 'dbip' || geo.asn.source === 'dbip'" class="a-meta"><a href="https://db-ip.com" target="_blank" rel="noopener">IP Geolocation by DB-IP</a> (CC BY 4.0)</p>
+      </section>
+      <section class="a-card" aria-labelledby="diag-ga4-title">
+        <header class="a-card__head"><h4 id="diag-ga4-title">Demografía agregada (Google Analytics 4) <app-info-tip label="demografía" text="Solo datos agregados que GA4 calcula con Google Signals. No se infiere edad, sexo ni intereses de ninguna persona ni de su IP."></app-info-tip></h4></header>
+        <p *ngIf="ga4Error" class="a-alert" role="alert">{{ ga4Error }}</p>
+        <p *ngIf="!ga4Demographics && !ga4Error" class="a-empty" role="status">Cargando…</p>
         <ng-container *ngIf="ga4Demographics as ga4">
-          <p *ngIf="!ga4.available" class="text-sm text-[var(--portal-text-soft)]">No disponible: {{ $any(ga4).message }}</p>
-          <div *ngIf="ga4.available" class="grid gap-4 md:grid-cols-3">
-            <div *ngFor="let breakdown of $any(ga4).breakdowns" class="min-w-0">
-              <h5 class="font-semibold text-[var(--portal-text)] mb-1">{{ ga4DimensionLabels[breakdown.dimension] || breakdown.dimension }}</h5>
-              <p *ngIf="!breakdown.rows.length || breakdown.thresholded" class="text-xs text-[var(--portal-text-soft)] mb-1">Datos insuficientes o protegidos por los umbrales de GA4.</p>
-              <ul *ngIf="breakdown.rows.length" class="text-sm space-y-1">
-                <li *ngFor="let row of breakdown.rows.slice(0, 8)" class="flex justify-between gap-2"><span class="truncate">{{ row.value }}</span><span>{{ ga4Share(row, breakdown.totalUsers) }} %</span></li>
+          <p *ngIf="!ga4.available" class="a-empty">No disponible: {{ $any(ga4).message }}</p>
+          <div *ngIf="ga4.available" class="diag-demo">
+            <section *ngFor="let breakdown of $any(ga4).breakdowns" class="diag-demo__block">
+              <h5>{{ ga4DimensionLabels[breakdown.dimension] || breakdown.dimension }}</h5>
+              <p *ngIf="!breakdown.rows.length || breakdown.thresholded" class="a-meta">Datos insuficientes o protegidos por los umbrales de GA4.</p>
+              <ul *ngIf="breakdown.rows.length" class="diag-bars">
+                <li *ngFor="let row of breakdown.rows.slice(0, 8)"><span class="diag-bars__label">{{ row.value }}</span><span class="diag-bars__track" aria-hidden="true"><span [style.width.%]="ga4Share(row, breakdown.totalUsers)"></span></span><strong>{{ ga4Share(row, breakdown.totalUsers) }} %</strong></li>
               </ul>
-            </div>
+            </section>
           </div>
-          <p *ngIf="ga4.available" class="text-xs text-[var(--portal-text-faint)] mt-2">Últimos {{ $any(ga4).days }} días · propiedad {{ $any(ga4).propertyId }} · {{ $any(ga4).cached ? 'en caché' : 'consultado' }} {{ $any(ga4).generatedAt | date:'short' }}</p>
+          <p *ngIf="ga4.available" class="a-meta">Últimos {{ $any(ga4).days }} días · propiedad {{ $any(ga4).propertyId }} · {{ $any(ga4).cached ? 'en caché' : 'consultado' }} {{ $any(ga4).generatedAt | date:'short' }}</p>
         </ng-container>
       </section>
     </div>
     <div *ngSwitchCase="'exclusions'" class="space-y-6 analytics-exclusions">
-      <section class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6" aria-labelledby="excl-title">
-        <h4 id="excl-title" class="text-lg font-semibold text-[var(--portal-text)] mb-1">Direcciones excluidas de Analytics</h4>
-        <p class="text-sm text-[var(--portal-text-soft)] mb-4">El tráfico de estas IPs o rangos no cuenta en ningún informe (sesiones, páginas, tiempo real, geografía). Se aplica desde el momento en que se añade: los datos anteriores solo guardan la IP recortada y no se pueden volver a evaluar. Las cuentas de administración ya se excluyen solas al navegar con sesión iniciada.</p>
-        <p *ngIf="exclusionsError" class="text-sm text-[var(--spotify-warning)]" role="alert">{{ exclusionsError }}</p>
+      <section class="a-card" aria-labelledby="excl-title">
+        <header class="a-card__head"><h4 id="excl-title">Direcciones excluidas de Analytics <app-info-tip label="exclusiones" text="El tráfico de estas IPs o rangos no cuenta en ningún informe (sesiones, páginas, tiempo real, geografía). Se aplica desde el momento en que se añade: los datos anteriores solo guardan la IP recortada y no se pueden volver a evaluar. Las cuentas de administración ya se excluyen solas al navegar con sesión iniciada."></app-info-tip></h4></header>
+        <p *ngIf="exclusionsError" class="a-alert" role="alert">{{ exclusionsError }}</p>
         <p *ngIf="!exclusions && !exclusionsError" class="text-sm text-[var(--portal-text-soft)]" role="status">Cargando…</p>
         <ng-container *ngIf="exclusions as ex">
           <div class="excl-you">
@@ -507,10 +469,10 @@
             <label>Etiqueta (opcional) <input #exclLabel type="text" placeholder="Oficina, servidor de pruebas…" maxlength="80"></label>
             <button type="submit" class="excl-btn" [disabled]="exclusionBusy">Excluir</button>
           </form>
-          <p *ngIf="exclusionFormError" class="text-sm text-[var(--spotify-warning)]" role="alert">{{ exclusionFormError }}</p>
-          <h5 class="font-semibold text-[var(--portal-text)] mt-6 mb-2">Añadidas en el panel</h5>
+          <p *ngIf="exclusionFormError" class="a-alert" role="alert">{{ exclusionFormError }}</p>
+          <h5 class="a-subhead">Añadidas en el panel</h5>
           <p *ngIf="!manualExclusions.length" class="text-sm text-[var(--portal-text-soft)]">Todavía no hay exclusiones manuales.</p>
-          <div *ngIf="manualExclusions.length" class="overflow-x-auto" tabindex="0" role="region" aria-label="Exclusiones añadidas en el panel">
+          <div *ngIf="manualExclusions.length" class="a-table-wrap" tabindex="0" role="region" aria-label="Exclusiones añadidas en el panel">
             <table class="ga-table">
               <thead><tr><th scope="col">IP o rango</th><th scope="col">Etiqueta</th><th scope="col">Añadida</th><th scope="col"><span class="sr-only">Acciones</span></th></tr></thead>
               <tbody><tr *ngFor="let entry of manualExclusions">
@@ -521,9 +483,8 @@
               </tr></tbody>
             </table>
           </div>
-          <h5 class="font-semibold text-[var(--portal-text)] mt-6 mb-2">Automáticas</h5>
-          <p class="text-sm text-[var(--portal-text-soft)] mb-2">Siempre excluidas; no se pueden quitar desde aquí.</p>
-          <div class="overflow-x-auto" tabindex="0" role="region" aria-label="Exclusiones automáticas">
+          <h5 class="a-subhead">Automáticas <app-info-tip label="exclusiones automáticas" text="Siempre excluidas; no se pueden quitar desde aquí."></app-info-tip></h5>
+          <div class="a-table-wrap" tabindex="0" role="region" aria-label="Exclusiones automáticas">
             <table class="ga-table">
               <thead><tr><th scope="col">IP o rango</th><th scope="col">Origen</th></tr></thead>
               <tbody><tr *ngFor="let entry of automaticExclusions"><td><code>{{ entry.value }}</code></td><td>{{ exclusionSourceLabels[entry.source] || entry.source }}</td></tr></tbody>
@@ -532,9 +493,8 @@
         </ng-container>
       </section>
     </div>
-    <div *ngSwitchDefault class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-8">
-      <h4 class="text-xl font-semibold text-[var(--portal-text)] mb-2">This view is ready for build-out.</h4>
-      <p class="text-[var(--portal-text-soft)] text-sm">Define the data model and permissions to unlock this section.</p>
+    <div *ngSwitchDefault class="a-card">
+      <p class="a-empty">Esta vista todavía no está disponible.</p>
     </div>
   </ng-container>
 </section>

@@ -43,9 +43,7 @@ export function markerBounds(points: LiveMapMarker[]): [[number, number], [numbe
       <div class="map-legend">
         <span><i class="map-legend__dot map-legend__dot--ip" aria-hidden="true"></i>Ciudad aproximada (IP)</span>
         <span><i class="map-legend__dot map-legend__dot--country" aria-hidden="true"></i>Solo país (centro)</span>
-        <span>Tamaño = sesiones; pulsa un punto para el detalle.</span>
       </div>
-      <p *ngIf="!markers.length && !mapError" class="map-empty" role="status">Ninguna sesión conectada tiene ubicación en este momento.</p>
       <p *ngIf="mapError" role="alert" class="map-error">No se ha podido cargar el mapa base (OpenFreeMap). Las tablas siguen mostrando las ubicaciones.<span *ngIf="mapErrorDetail" class="map-error__detail"> Detalle: {{ mapErrorDetail }}</span></p>
     </div>
   `,

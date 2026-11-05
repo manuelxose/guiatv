@@ -4,7 +4,7 @@
       <div class="flex items-start gap-3 min-w-0">
         <button
           data-admin-sidebar-trigger
-          class="lg:hidden h-10 w-10 shrink-0 rounded-xl bg-[var(--portal-surface)] border border-[var(--portal-border)] text-[var(--portal-text)] flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+          class="lg:hidden h-10 w-10 shrink-0 rounded-[var(--radius-sm)] bg-[var(--portal-surface)] border border-[var(--portal-border)] text-[var(--portal-text)] flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
           (click)="onToggleSidebar()"
           type="button"
           aria-label="Open navigation"
@@ -32,7 +32,7 @@
 
       <div class="flex flex-wrap items-center gap-3">
         <span
-          class="text-[10px] px-2 py-1 rounded-full border shrink-0"
+          class="text-[10px] px-2 py-1 rounded-[var(--radius-sm)] border shrink-0"
           [ngClass]="environmentLabel === 'Production' ? 'border-[var(--spotify-negative)]/40 text-[var(--spotify-negative)] bg-[var(--spotify-negative)]/10' : 'border-[var(--accent-discover)]/40 text-[var(--accent-discover)] bg-[var(--accent-discover)]/10'"
         >
           {{ environmentLabel }}
@@ -49,7 +49,7 @@
 
         <a
           [routerLink]="['/']"
-          class="px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text-soft)] hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)] whitespace-nowrap"
+          class="px-3 py-2 rounded-[var(--radius-sm)] border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text-soft)] hover:text-[var(--portal-text)] hover:border-[var(--portal-border-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)] whitespace-nowrap"
         >
           Back to GuíaTV
         </a>

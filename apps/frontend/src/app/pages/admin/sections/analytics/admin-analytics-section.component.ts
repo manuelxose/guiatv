@@ -28,10 +28,14 @@ import {
   AdminRetentionCohort,
   AdminUsersService,
 } from '../../../../services/admin-users.service';
+import { InfoTipComponent } from '../../../../components/info-tip/info-tip.component';
 import { WORLD_MAP } from './world-map';
 import { countryMarker } from './map-marker';
 import { LiveMapComponent, LiveMapMarker } from './live-map.component';
 import { barWidth, countryFlag, countryName, geoSourceLabel, geoStatusLabel, locationLabel, locationPrecision, providerLabel, regionLabel, share } from './geo-format';
+
+const TODAY = 0;
+const YESTERDAY = -1;
 
 /** One row of a GA-style location table. */
 export interface GeoRow {
@@ -46,7 +50,7 @@ export interface GeoRow {
 @Component({
   selector: 'app-admin-analytics-section',
   standalone: true,
-  imports: [CommonModule, LiveMapComponent],
+  imports: [CommonModule, LiveMapComponent, InfoTipComponent],
   templateUrl: './admin-analytics-section.component.html',
   styleUrls: ['./admin-analytics-section.component.scss'],
 })
@@ -68,11 +72,14 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
   public eventsLoading = true;
   public eventsError = false;
 
-  public rangeHours = 24;
+  /** Selected range: TODAY / YESTERDAY (calendar days, UTC like the stored daily counters) or a rolling number of hours. */
+  public rangeHours = 168;
+  // Retention is ANALYTICS_TTL_DAYS=14, so nothing longer than 14 days is offered.
   public readonly ranges = [
-    { label: '24h', value: 24 },
-    { label: '7d', value: 168 },
-    { label: '30d', value: 720 },
+    { label: 'Hoy', value: TODAY },
+    { label: 'Ayer', value: YESTERDAY },
+    { label: 'Últimos 7 días', value: 168 },
+    { label: 'Últimos 14 días', value: 336 },
   ];
 
   public eventFilter: string | undefined = undefined;
@@ -142,7 +149,7 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
     this.subs.add(interval(10000).subscribe(() => this.loadLive()));
     this.subs.add(interval(10000).subscribe(() => { if (this.activeItem === 'pages') this.loadRealtimePages(); }));
     this.subs.add(interval(30000).subscribe(() => this.loadEvents()));
-    this.subs.add(interval(60000).subscribe(() => this.loadOverview()));
+    this.subs.add(interval(60000).subscribe(() => this.loadOverview(true)));
   }
 
   ngOnDestroy(): void {
@@ -416,9 +423,13 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
     return `${pct}%`;
   }
 
-  getMinuteBarWidth(count: number): string {
-    const max = Math.max(1, ...(this.realtimePages?.minutes.map((minute) => minute.users) || []));
-    return `${count ? Math.max(2, Math.round(count / max * 100)) : 0}%`;
+  get minuteMax(): number {
+    return Math.max(1, ...(this.realtimePages?.minutes.map((minute) => minute.users) || []));
+  }
+
+  /** Column height in the 0-100 viewBox of the per-minute chart. */
+  getMinuteBarHeight(count: number): number {
+    return count ? Math.max(2, Math.round(count / this.minuteMax * 100)) : 0;
   }
 
   getDeviceSummary(session: AdminAnalyticsLiveSession): string {
@@ -521,7 +532,7 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
   }
 
   private loadJourneys(): void {
-    this.analyticsService.getJourneys(Math.ceil(this.rangeHours / 24)).subscribe({
+    this.analyticsService.getJourneys(Math.max(1, Math.ceil(this.rangeSpan().hours / 24))).subscribe({
       next: (result) => {
         this.journeys = result.journeys;
         this.journeysSessionsAnalyzed = result.sessionsAnalyzed;
@@ -549,11 +560,24 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
     });
   }
 
-  private loadOverview(): void {
+  /** Hours back from now to the start of the range, and how long ago it ended (0 = now). */
+  private rangeSpan(): { hours: number; endedHoursAgo: number } {
+    if (this.rangeHours > 0) return { hours: this.rangeHours, endedHoursAgo: 0 };
+    const now = new Date();
+    const sinceMidnight = (now.getTime() - Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())) / 3600000;
+    if (this.rangeHours === TODAY) return { hours: Math.max(sinceMidnight, 1 / 60), endedHoursAgo: 0 };
+    // Yesterday ends 1 ms before today's midnight so the daily bucket of today is not included.
+    return { hours: sinceMidnight + 24, endedHoursAgo: sinceMidnight + 1 / 3600000 };
+  }
+
+  private loadOverview(background = false): void {
     this.overviewRequest?.unsubscribe();
-    this.overviewLoading = true;
+    // A background refresh keeps the report on screen; showing the loading state would tear it down every minute.
+    this.overviewLoading = !background || !this.overview;
     this.overviewError = false;
-    this.overviewRequest = this.analyticsService.getOverview(this.rangeHours).subscribe({
+    const { hours, endedHoursAgo } = this.rangeSpan();
+    const request = endedHoursAgo ? this.analyticsService.getOverview(hours, endedHoursAgo) : this.analyticsService.getOverview(hours);
+    this.overviewRequest = request.subscribe({
       next: (overview) => {
         this.overview = overview;
         this.geographyCounts = {};
@@ -629,7 +653,7 @@ export class AdminAnalyticsSectionComponent implements OnInit, OnChanges, OnDest
 
   private loadEvents(): void {
     this.eventsRequest?.unsubscribe();
-    this.eventsRequest = this.analyticsService.getRecentEvents(40, this.eventFilter, this.eventSessionId, this.rangeHours).subscribe({
+    this.eventsRequest = this.analyticsService.getRecentEvents(40, this.eventFilter, this.eventSessionId, this.rangeSpan().hours).subscribe({
       next: (events) => {
         this.recentEvents = events;
         this.eventsLoading = false;
