@@ -29,7 +29,7 @@ test('deepseek model: server-owned provider, search without the unsupported web_
   const result = await model.call(call());
   assert.deepEqual(result.json, { claims: [] });
   assert.equal(f.sent[0].model, 'deepseek-flash');
-  assert.deepEqual(f.sent[0].tools.map((t: any) => t.type), ['web_search_20260209']);
+  assert.deepEqual(f.sent[0].tools.map((t: any) => `${t.type}:${t.max_uses}`), ['web_search_20260209:2']);
   assert.equal(f.sent[0].max_tokens, 32000);
   // DeepSeek ignores output_config.format; the schema must travel in the prompt and be parsed from a fence.
   assert.deepEqual(f.sent[0].output_config, { effort: 'high' });
@@ -43,6 +43,16 @@ test('deepseek model: non-research roles get the schema in the prompt, not in ou
   assert.deepEqual(result.json, { verdict: 'pass', issues: [] });
   assert.deepEqual(f.sent[0].output_config, { effort: 'high' });
   assert.match(f.sent[0].messages[0].content, /```json/);
+});
+
+test('deepseek model: an unbounded stream is aborted instead of consuming the worker', async () => {
+  const client = { messages: { stream: () => ({
+    on: (event: string, cb: (event: unknown) => void) => { if (event === 'streamEvent') cb({ type: 'content_block_delta', delta: { text: 'x'.repeat(9 * 1024 * 1024) } }); },
+    abort: () => undefined,
+    finalMessage: async () => { throw new Error('aborted'); },
+  }) } } as unknown as Pick<Anthropic, 'messages'>;
+  const model = new DeepSeekEditorialModel({ apiKey: 'test-key', client });
+  await assert.rejects(model.call(call()), /response exceeded/);
 });
 
 test('deepseek model: refuses a route for another provider and a missing credential', async () => {

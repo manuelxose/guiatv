@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { ModelCallFailed, type EditorialModel, type ModelCall, type ModelResult } from '../../application/services/EditorialAgentPipeline';
 
 const MAX_OUTPUT_TOKENS = 32000;
+const MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
 
 export interface AnthropicEditorialModelOptions {
   apiKey?: string;
@@ -18,6 +19,10 @@ export interface AnthropicEditorialModelOptions {
   webFetch?: boolean;
   /** DeepSeek accepts only `effort` in output_config, so the schema is requested in the prompt instead. */
   structuredOutput?: 'json_schema' | 'prompt';
+  /** Hard per-request timeout. A provider that streams forever must fail the job, not own the worker. */
+  timeoutMs?: number;
+  /** Provider-specific cap on server-side searches (DeepSeek returns much larger result blocks). */
+  maxWebSearches?: number;
 }
 
 /**
@@ -30,6 +35,7 @@ export class AnthropicEditorialModel implements EditorialModel {
   readonly provider: string;
   readonly webSearch = true;
   readonly maxOutputTokens = MAX_OUTPUT_TOKENS;
+  readonly maxWebSearches: number | undefined;
   private readonly client: Pick<Anthropic, 'messages'>;
   /** Gateway model namespace (e.g. `cc/` for the owner's subscription gateway); routes, prices and provenance keep the canonical id. */
   private readonly modelPrefix: string;
@@ -38,21 +44,26 @@ export class AnthropicEditorialModel implements EditorialModel {
 
   constructor(options: AnthropicEditorialModelOptions = {}) {
     this.provider = options.provider ?? 'anthropic';
+    const timeoutMs = options.timeoutMs ?? (Number(process.env.EDITORIAL_MODEL_TIMEOUT_MS) || 300_000);
+    if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 10_000 || timeoutMs > 900_000) throw new Error('invalid model request timeout');
     // Zero-arg resolution (ANTHROPIC_API_KEY, auth token, `ant auth login` profile) unless a key is injected.
     this.client = options.client ?? new Anthropic({
       ...(options.apiKey ? { apiKey: options.apiKey } : {}),
       ...(options.authToken !== undefined ? { authToken: options.authToken } : {}),
       ...(options.baseURL ? { baseURL: options.baseURL } : {}),
+      timeout: timeoutMs,
       maxRetries: options.maxRetries ?? 1,
     });
     this.modelPrefix = options.modelPrefix ?? process.env.ANTHROPIC_MODEL_PREFIX ?? '';
     this.webFetch = options.webFetch ?? true;
     this.structuredOutput = options.structuredOutput ?? 'json_schema';
+    this.maxWebSearches = options.maxWebSearches;
   }
 
   async call(request: ModelCall): Promise<ModelResult> {
     if (request.provider !== this.provider) throw new Error(`${request.role}: routed to ${request.provider}, not ${this.provider}`);
-    const research = Boolean(request.webSearches);
+    const webSearches = Math.min(request.webSearches ?? 0, this.maxWebSearches ?? Number.POSITIVE_INFINITY);
+    const research = webSearches > 0;
     const promptSchema = research || this.structuredOutput === 'prompt';
     const messages: Anthropic.MessageParam[] = [{
       role: 'user',
@@ -67,7 +78,7 @@ export class AnthropicEditorialModel implements EditorialModel {
 
     // Server tools can pause a long turn; resume it a bounded number of times.
     for (let turn = 0; turn < 4; turn++) {
-      const message = await this.client.messages.stream({
+      const stream = this.client.messages.stream({
         model: `${this.modelPrefix}${request.model}`,
         max_tokens: MAX_OUTPUT_TOKENS,
         system: request.system,
@@ -75,11 +86,22 @@ export class AnthropicEditorialModel implements EditorialModel {
         output_config: promptSchema ? { effort: request.effort } : { effort: request.effort, format: { type: 'json_schema', schema: request.schema } },
         ...(research
           ? { tools: [
-            { type: 'web_search_20260209', name: 'web_search', max_uses: request.webSearches },
-            ...(this.webFetch ? [{ type: 'web_fetch_20260209', name: 'web_fetch', max_uses: request.webSearches! * 2 }] : []),
+            { type: 'web_search_20260209', name: 'web_search', max_uses: webSearches },
+            ...(this.webFetch ? [{ type: 'web_fetch_20260209', name: 'web_fetch', max_uses: webSearches * 2 }] : []),
           ] as Anthropic.ToolUnion[] }
           : {}),
-      }).finalMessage().catch((error: unknown) => {
+      });
+      // A provider that streams an unbounded tool result must not consume the worker's memory.
+      let streamBytes = 0;
+      let tooLarge = false;
+      if (typeof (stream as { on?: unknown }).on === 'function') {
+        (stream as unknown as { on: (event: string, cb: (event: unknown) => void) => void }).on('streamEvent', (event) => {
+          streamBytes += Buffer.byteLength(JSON.stringify(event));
+          if (streamBytes > MAX_RESPONSE_BYTES) { tooLarge = true; (stream as unknown as { abort: () => void }).abort(); }
+        });
+      }
+      const message = await stream.finalMessage().catch((error: unknown) => {
+        if (tooLarge) throw fail(`response exceeded ${MAX_RESPONSE_BYTES} bytes`);
         // An HTTP error response is not billed; a stream cut mid-answer may be, so it stays unresolved.
         if (error instanceof Anthropic.APIError && typeof error.status === 'number') throw fail(error.message);
         throw error;

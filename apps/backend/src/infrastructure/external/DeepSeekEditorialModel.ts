@@ -10,6 +10,7 @@ export interface DeepSeekEditorialModelOptions {
   maxRetries?: number;
   client?: Pick<Anthropic, 'messages'>;
   modelPrefix?: string;
+  timeoutMs?: number;
 }
 
 /**
@@ -33,6 +34,8 @@ export class DeepSeekEditorialModel extends AnthropicEditorialModel {
       modelPrefix: options.modelPrefix ?? '',
       webFetch: false,
       structuredOutput: 'prompt',
+      maxWebSearches: 2,
+      timeoutMs: options.timeoutMs ?? 300_000,
     });
   }
 }
