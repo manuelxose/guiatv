@@ -436,8 +436,13 @@ export function mapLedgerJob(job: LedgerJob): FlowView {
   if (raw === 'queued' && attempt > 0) execution = 'retrying';
 
   const pubState = text(job.publication?.state);
+  // T1c: los jobs de mantenimiento y descubrimiento no publican; su publicación se lee de blog_posts.
   const publication: DimensionField<PublicationState> =
-    pubState === null ? 'unpublished' : mapByTable(pubState, LEDGER_PUBLICATION_STATE_TO_PUBLICATION);
+    kind === 'maintenance' || kind === 'discovery'
+      ? NO_DATA
+      : pubState === null
+        ? 'unpublished'
+        : mapByTable(pubState, LEDGER_PUBLICATION_STATE_TO_PUBLICATION);
 
   // Editorial: publicado implica aprobado; si no, se deriva de la etapa actual.
   let editorial: DimensionField<EditorialState>;
