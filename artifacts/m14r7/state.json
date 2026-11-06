@@ -1,19 +1,19 @@
 {
-  "startedAt": "2026-11-06T13:22:57.111Z",
+  "startedAt": "2026-11-06T13:31:55.275Z",
   "services": [
     {
       "name": "mongod",
-      "pid": 584,
+      "pid": 53000,
       "alive": true
     },
     {
       "name": "backend",
-      "pid": 46756,
+      "pid": 24280,
       "alive": true
     },
     {
       "name": "ssr",
-      "pid": 22772,
+      "pid": 43808,
       "alive": true
     }
   ],

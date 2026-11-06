@@ -10,15 +10,15 @@
   "services": [
     {
       "name": "mongod",
-      "pid": 584
+      "pid": 53000
     },
     {
       "name": "backend",
-      "pid": 46756
+      "pid": 24280
     },
     {
       "name": "ssr",
-      "pid": 22772
+      "pid": 43808
     }
   ],
   "seed": {
@@ -30,7 +30,7 @@
     "approvals": 4
   },
   "checks": {
-    "checkedAt": "2026-11-06T13:22:57.112Z",
+    "checkedAt": "2026-11-06T13:31:55.276Z",
     "data": {
       "queueItems": 22,
       "queueByState": {
@@ -48,7 +48,7 @@
     "http": {
       "apiHealth": {
         "status": 200,
-        "body": "{\"success\":true,\"data\":{\"status\":\"healthy\",\"timestamp\":\"2026-11-06T13:22:57.125Z\",\"uptime\":\"7s\",\"version\":\"2.0.0\",\"realtime\":{\"activeSockets\":0,\"onlineUsers\":0,"
+        "body": "{\"success\":true,\"data\":{\"status\":\"healthy\",\"timestamp\":\"2026-11-06T13:31:55.288Z\",\"uptime\":\"10s\",\"version\":\"2.0.0\",\"realtime\":{\"activeSockets\":0,\"onlineUsers\":0"
       }
     },
     "ok": true
