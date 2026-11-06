@@ -7,13 +7,23 @@
  *   los gates, el límite diario y la parada de emergencia.
  * - Repetir la operación con la misma clave de idempotencia no publica dos veces
  *   ni registra un segundo evento.
- * - Si el artículo no es elegible se devuelven los bloqueos NOMBRADOS, en español.
+ * - Si el artículo no es elegible se devuelven los bloqueos NOMBRADOS, en español,
+ *   conservando el motivo CONCRETO que aportó el gateway (p. ej. falta el bundle
+ *   de evidencia o falta el borrador firmado) y añadiendo un subcódigo estable
+ *   para que la UI no tenga que interpretar el texto.
  */
 
 import { ConflictError, ValidationError } from '../../shared/errors';
 
 export interface PublicationBlocker {
+  /** Código del gate (contrato existente: `editorial`, `review`, `policy-paused`…). */
   code: string;
+  /**
+   * Subcódigo estable con el motivo concreto dentro de un gate. Hoy se usa para
+   * la procedencia editorial incompleta: `editorial-provenance`, `editorial-bundle`
+   * o `editorial-draft`.
+   */
+  subCode?: string;
   message: string;
 }
 
@@ -31,7 +41,7 @@ export class PublicationNotEligibleError extends ConflictError {
   constructor(readonly eligibility: PublicationEligibility) {
     super(
       `El artículo no es elegible para publicación: ${eligibility.blockers
-        .map((blocker) => `${blocker.code} (${blocker.message})`)
+        .map((blocker) => `${blocker.subCode ?? blocker.code} (${blocker.message})`)
         .join('; ')}`
     );
   }
@@ -65,7 +75,11 @@ export interface FlowAuditPort {
   insert(row: Record<string, unknown>): Promise<void>;
 }
 
-/** Mensajes españoles por código de gate; el código original viaja siempre. */
+/**
+ * Mensajes españoles de respaldo por código de gate. Solo se usan cuando el
+ * gateway no aportó un mensaje propio (o cuando su mensaje está en inglés, que es
+ * el caso de `review`: los gates de calidad heredados redactan en inglés).
+ */
 const BLOCKER_MESSAGES: Record<string, string> = {
   editorial: 'El artículo no tiene la procedencia editorial del pipeline que exige la publicación por política.',
   review: 'El artículo no supera la revisión editorial de calidad.',
@@ -77,10 +91,45 @@ const BLOCKER_MESSAGES: Record<string, string> = {
   'already-published': 'El artículo ya está publicado.',
 };
 
-const spanishBlocker = (blocker: PublicationBlocker): PublicationBlocker => ({
-  code: blocker.code,
-  message: BLOCKER_MESSAGES[blocker.code] ?? `No supera el gate «${blocker.code}»: ${blocker.message}`,
-});
+/**
+ * Gates cuyo mensaje llega en inglés desde los gates de calidad heredados: se
+ * traducen con el mapa. El resto conserva el texto específico del gateway.
+ */
+const TRANSLATED_CODES: ReadonlySet<string> = new Set(['review']);
+
+/**
+ * Subcódigos del gate `editorial`. El gateway ya identifica qué falta; aquí se
+ * publica como subcódigo estable para que la UI muestre el motivo sin parsear
+ * texto. El orden importa: primero la procedencia ausente y luego cada pieza.
+ */
+const PROVENANCE_SUBCODES: ReadonlyArray<{ pattern: RegExp; subCode: string }> = [
+  { pattern: /procedencia del pipeline editorial|ai-assisted con procedencia/i, subCode: 'editorial-provenance' },
+  { pattern: /bundle de evidencia/i, subCode: 'editorial-bundle' },
+  { pattern: /draftMarkdown|borrador firmado/i, subCode: 'editorial-draft' },
+];
+
+/** Subcódigo estable del motivo de procedencia, o `null` si el mensaje no lo detalla. */
+export function provenanceSubCode(message: string): string | null {
+  for (const entry of PROVENANCE_SUBCODES) {
+    if (entry.pattern.test(message)) return entry.subCode;
+  }
+  return null;
+}
+
+/**
+ * Bloqueo listo para la API: conserva el código de gate, mantiene el mensaje
+ * específico del gateway y añade el subcódigo del motivo. El texto genérico solo
+ * aparece cuando el gateway no aportó nada (o cuando su mensaje está en inglés).
+ */
+const spanishBlocker = (blocker: PublicationBlocker): PublicationBlocker => {
+  const specific = String(blocker.message ?? '').trim();
+  const translated = TRANSLATED_CODES.has(blocker.code);
+  const message = translated
+    ? BLOCKER_MESSAGES[blocker.code] ?? (specific || `No supera el gate «${blocker.code}».`)
+    : specific || BLOCKER_MESSAGES[blocker.code] || `No supera el gate «${blocker.code}».`;
+  const subCode = blocker.subCode ?? (blocker.code === 'editorial' ? provenanceSubCode(message) : null);
+  return { code: blocker.code, ...(subCode ? { subCode } : {}), message };
+};
 
 export interface PublicationNowResult {
   postId: string;
