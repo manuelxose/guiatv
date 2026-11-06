@@ -219,6 +219,9 @@ function requireTerminal(job: JobLedgerRecord): void {
   if (!TERMINAL_STATES.has(job.state)) throw new ConflictError(`Job is ${job.state}; only a terminal job can be archived or deleted`);
 }
 
+/** MongoDB refuses a duplicate unique-key write with code 11000 (E11000); the memory repository mimics it. */
+const isDuplicateKeyError = (error: unknown): boolean => (error as { code?: number } | null)?.code === 11000;
+
 export function createJob(input: RegisterJobInput, now: Date): JobLedgerRecord {
   const jobId = text(input.jobId, 160);
   const slug = text(input.slug, 120);
@@ -483,7 +486,16 @@ export class EditorialJobLedger {
       if (duplicate.publication?.state === 'published') throw new ConflictError(`Publication already completed by job ${duplicate.jobId}`);
       if (duplicate.publication?.state === 'publishing') throw new ConflictError(`Publication already in progress by job ${duplicate.jobId}`);
     }
-    return this.save(beginPublication(current, token, generation, key, url, this.clock()));
+    const next = beginPublication(current, token, generation, key, url, this.clock());
+    try { return await this.save(next); }
+    catch (error) {
+      if (!isDuplicateKeyError(error)) throw error;
+      // The pre-check above is a read; a concurrent begin with the same key wins the race at the unique
+      // publicationKey index, so the loser is reported as a conflict (409), never as an unknown error.
+      const winner = await this.repo.getByPublicationKey(key);
+      if (winner && winner.jobId !== jobId) throw new ConflictError(`Publication already in progress by job ${winner.jobId}`);
+      throw new ConflictError('The job changed while this request ran; read it again');
+    }
   }
   async finishPublication(jobId: string, token: string, generation: number, state: 'published' | 'rejected', url: string | null): Promise<JobLedgerRecord> {
     const current = await this.required(jobId);

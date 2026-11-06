@@ -196,6 +196,39 @@ test('a completed publication key cannot be reused by another job', async () => 
   );
 });
 
+test('a publication key lost at the unique index in a race is a conflict, not an unknown error', async () => {
+  // Reproduces the M14-R6 reliability finding F1: two jobs reach beginPublication with the same key at once.
+  // The pre-check is a read, so the loser can only be stopped by the unique publicationKey index (E11000).
+  class RacingLedger extends MemoryLedger {
+    private raced = false;
+    override async getByPublicationKey(key: string): Promise<JobLedgerRecord | null> {
+      // The first lookup misses (both requests read before either writes); later lookups see the winner.
+      if (!this.raced) { this.raced = true; return null; }
+      return super.getByPublicationKey(key);
+    }
+    override async replace(job: JobLedgerRecord): Promise<boolean> {
+      const winner = await super.getByPublicationKey(job.publicationKey ?? '');
+      if (job.publication?.state === 'publishing' && winner && winner.jobId !== job.jobId) {
+        throw Object.assign(new Error('E11000 duplicate key error collection: editorial_job_ledger index: publicationKey_1'), { code: 11000 });
+      }
+      return super.replace(job);
+    }
+  }
+  const repo = new RacingLedger();
+  const now = new Date('2026-11-05T18:00:00.000Z');
+  const service = new EditorialJobLedger(repo, () => now);
+  await service.register({ jobId: 'race-a', slug: 'guia-race', stageMs: 60_000, articleMs: 600_000 });
+  await service.register({ jobId: 'race-b', slug: 'guia-race', stageMs: 60_000, articleMs: 600_000 });
+  const a = await service.claim('race-a', worker);
+  const b = await service.claim('race-b', worker);
+  await service.beginPublication('race-a', a.lease!.token, a.lease!.generation, 'guia-race:hash', null);
+  await assert.rejects(
+    () => service.beginPublication('race-b', b.lease!.token, b.lease!.generation, 'guia-race:hash', null),
+    (error: Error & { message: string }) => error.message.includes('already in progress') && !/E11000/.test(error.message),
+  );
+  assert.equal((await service.get('race-b')).publicationKey, null);
+});
+
 test('ledger listing filters state, text and stale leases, and recovers stale work', async () => {
   const b = bed();
   await b.service.register({ jobId: 'job-m', slug: 'guia-uno', kind: 'article', stageMs: 60_000, articleMs: 600_000 });
