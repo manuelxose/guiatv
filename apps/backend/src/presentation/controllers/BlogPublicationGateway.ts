@@ -7,8 +7,9 @@
  *   parada de emergencia se vuelven a ejecutar dentro de esa ruta. Aquí no se
  *   escribe ningún camino de publicación nuevo.
  * - La ELEGIBILIDAD es informativa: evalúa los mismos gates exportados para poder
- *   devolver los bloqueos nombrados sin publicar. Aunque se quedara corta, la
- *   publicación real vuelve a comprobarlo todo antes de escribir.
+ *   devolver los bloqueos nombrados sin publicar. Una procedencia incompleta
+ *   (editorial sin bundle de evidencia o sin borrador firmado) se informa como
+ *   bloqueo nombrado, nunca como excepción: esos gates no se pueden evaluar.
  */
 
 import type { Request, Response, NextFunction } from 'express';
@@ -40,7 +41,44 @@ type EvidencePost = Parameters<typeof evaluateEvidence>[0];
 type QualityPost = Parameters<typeof evaluateEditorialQuality>[0];
 type ImagePost = Parameters<typeof generatedImageFindings>[0];
 
+/** Subconjunto del estado de política que decide la elegibilidad (inyectable en pruebas). */
+export interface PublicationPolicyState {
+  envEnabled: boolean;
+  paused: boolean;
+  activated: boolean;
+  pausedReason?: string | null;
+}
+
 const text = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
+
+/**
+ * Bloqueos por procedencia incompleta. `evaluateEvidence` re-deriva el paquete con
+ * `assessBundle(bundle)` y el borrador firmado con `markerIds(draftMarkdown)`:
+ * sin esos datos lanzaría una excepción, así que aquí se convierten en bloqueos
+ * nombrados y se omite su evaluación.
+ */
+export function provenanceBlockers(editorial: unknown): PublicationBlocker[] {
+  if (!editorial || typeof editorial !== 'object') {
+    return [{ code: 'editorial', message: 'La publicación por política exige procedencia del pipeline editorial.' }];
+  }
+  const value = editorial as { bundle?: unknown; draftMarkdown?: unknown };
+  const blockers: PublicationBlocker[] = [];
+  if (!value.bundle || typeof value.bundle !== 'object') {
+    blockers.push({
+      code: 'editorial',
+      message:
+        'La procedencia editorial está incompleta: falta el bundle de evidencia (fuentes y afirmaciones). No se puede evaluar la evidencia y el artículo no es elegible para publicación por política.',
+    });
+  }
+  if (typeof value.draftMarkdown !== 'string' || !value.draftMarkdown.trim()) {
+    blockers.push({
+      code: 'editorial',
+      message:
+        'La procedencia editorial está incompleta: falta el borrador firmado (draftMarkdown) que se revisó. Sin él no se puede comprobar que lo publicado sea lo verificado.',
+    });
+  }
+  return blockers;
+}
 
 /** Respuesta capturada de un handler Express, para poder invocarlo como función. */
 interface CapturedResponse {
@@ -51,6 +89,7 @@ interface CapturedResponse {
 /**
  * Invoca un handler de Express ya existente y devuelve su cuerpo JSON. Es el
  * mismo patrón con el que las pruebas del repositorio llaman a los controladores.
+ * Resuelve tanto si el handler responde (escribe en `res`) como si llama a `next`.
  */
 async function invokeHandler(
   handler: (req: Request, res: Response, next: NextFunction) => Promise<void>,
@@ -75,14 +114,21 @@ async function invokeHandler(
     },
   } as unknown as Response;
   const failure = await new Promise<unknown>((resolve) => {
-    void Promise.resolve(handler(req, res, (error: unknown) => resolve(error))).catch((error: unknown) => resolve(error));
+    Promise.resolve()
+      .then(() => handler(req, res, (error: unknown) => resolve(error)))
+      .then(() => resolve(null))
+      .catch((error: unknown) => resolve(error));
   });
   if (failure) throw failure;
   return captured;
 }
 
 export class BlogPublicationGateway implements PublicationGateway {
-  constructor(private readonly blog: BlogController) {}
+  constructor(
+    private readonly blog: BlogController,
+    /** Estado de política inyectable: en producción, el estado persistido real. */
+    private readonly policy: () => Promise<PublicationPolicyState> = editorialPolicyState
+  ) {}
 
   /** Gates reales evaluados sin publicar; siempre devuelve bloqueos nombrados. */
   async eligibility(postId: string): Promise<PublicationEligibility> {
@@ -90,7 +136,7 @@ export class BlogPublicationGateway implements PublicationGateway {
     const post = id ? await BlogPostModel.findById(id).lean().exec().catch(() => null) : null;
     if (!post) throw postNotFound(id);
 
-    const policy = await editorialPolicyState();
+    const policy = await this.policy();
     const blockers: PublicationBlocker[] = [];
     const alreadyPublished = post.status === 'publish';
     if (alreadyPublished) blockers.push({ code: 'already-published', message: 'El artículo ya está publicado.' });
@@ -105,12 +151,17 @@ export class BlogPublicationGateway implements PublicationGateway {
         message: 'La publicación por política exige un artículo ai-assisted con procedencia del pipeline.',
       });
     } else {
+      // T7-LOW-1: una procedencia a medias se informa, nunca revienta en un 500.
+      const incomplete = provenanceBlockers(editorial);
+      blockers.push(...incomplete);
       const plain = post as unknown as ApprovablePost & EvidencePost & QualityPost & ImagePost;
-      for (const finding of provenanceSignatureFindings(editorial, process.env.EDITORIAL_PIPELINE_SIGNING_KEY)) {
-        blockers.push({ code: 'editorial', message: finding.message });
+      if (!incomplete.length) {
+        for (const finding of provenanceSignatureFindings(editorial, process.env.EDITORIAL_PIPELINE_SIGNING_KEY)) {
+          blockers.push({ code: 'editorial', message: finding.message });
+        }
+        const providerProblem = policyProviderProblem(editorial);
+        if (providerProblem) blockers.push({ code: 'editorial', message: `Procedencia no firmada o proveedor no válido (${providerProblem}).` });
       }
-      const providerProblem = policyProviderProblem(editorial);
-      if (providerProblem) blockers.push({ code: 'editorial', message: `Procedencia no firmada o proveedor no válido (${providerProblem}).` });
       try {
         assertEditorialPostCanBeApproved(plain);
       } catch (error) {
@@ -121,7 +172,8 @@ export class BlogPublicationGateway implements PublicationGateway {
         BlogPostModel.find({ _id: { $ne: post._id }, $nor: [PUBLIC_EDITORIAL_FILTER] }).select({ slug: 1 }).lean().exec(),
       ]);
       const findings = [
-        ...evaluateEvidence(plain, editorial),
+        // Sin bundle ni borrador firmado no hay evidencia que evaluar (y el gate lanzaría).
+        ...(incomplete.length ? [] : evaluateEvidence(plain, editorial)),
         ...generatedImageFindings(plain),
         ...evaluateEditorialQuality(plain, {
           others: publicPosts.map((other) => ({ slug: String(other.slug), content: other.content })),
