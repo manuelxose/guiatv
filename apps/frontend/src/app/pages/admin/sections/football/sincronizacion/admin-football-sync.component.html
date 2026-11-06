@@ -1,50 +1,79 @@
 <div class="space-y-6">
-  <div *ngIf="error" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative)]">
+  <div *ngIf="unauthorized" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative)]">
     {{ error }}
   </div>
 
-  <p *ngIf="loading && !state" class="text-sm text-[var(--portal-text-muted)]">Cargando sincronización…</p>
+  <div *ngIf="!unauthorized && error" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative)]">
+    <p class="mb-2">{{ error }}</p>
+    <button type="button" class="px-3 py-2 text-xs rounded-xl border border-[var(--portal-border)] text-[var(--portal-text)]" (click)="load()">Reintentar</button>
+  </div>
 
-  <ng-container *ngIf="state">
+  <p *ngIf="loading && !status" class="text-sm text-[var(--portal-text-muted)]">Cargando sincronización…</p>
+
+  <ng-container *ngIf="status">
     <div class="flex flex-wrap items-start justify-between gap-4">
       <div class="grid gap-3 sm:grid-cols-2 text-sm flex-1 min-w-0">
         <div class="min-w-0">
-          <p class="text-xs text-[var(--portal-text-muted)]">Última sincronización correcta</p>
-          <p class="text-[var(--portal-text)]">{{ state.lastSuccessfulSync ? (state.lastSuccessfulSync | date:'medium') : 'Sin sincronización correcta registrada' }}</p>
+          <p class="text-xs text-[var(--portal-text-muted)]">Ingesta</p>
+          <p class="text-[var(--portal-text)]">{{ status.enabled ? 'Habilitada' : 'Deshabilitada' }}</p>
         </div>
         <div class="min-w-0">
-          <p class="text-xs text-[var(--portal-text-muted)]">Último fallo</p>
-          <p class="text-[var(--portal-text)]">{{ state.lastFailedSync ? (state.lastFailedSync | date:'medium') : 'Sin fallos registrados' }}</p>
+          <p class="text-xs text-[var(--portal-text-muted)]">Cuota consumida</p>
+          <p class="text-[var(--portal-text)]">{{ numberLabel(status.quota.consumed, status.quota.state) }}</p>
         </div>
       </div>
-      <button type="button" [disabled]="refreshing" class="px-4 py-2 rounded-xl border border-[var(--spotify-warning)]/40 text-[var(--spotify-warning)] disabled:opacity-40" (click)="refresh()">
-        {{ refreshing ? 'Encolando…' : 'Sincronizar ahora' }}
+      <button type="button" [disabled]="syncing" class="px-4 py-2 rounded-xl border border-[var(--spotify-warning)]/40 text-[var(--spotify-warning)] disabled:opacity-40" (click)="syncNow()">
+        {{ syncing ? 'Encolando…' : 'Sincronizar ahora' }}
       </button>
     </div>
 
-    <p *ngIf="actionMessage" class="text-sm text-[var(--portal-text-soft)]">{{ actionMessage }}</p>
+    <div *ngIf="syncResult || syncMessage || syncError" class="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-surface)] p-4 text-sm">
+      <div *ngIf="syncResult" class="flex items-center gap-3">
+        <app-admin-status-badge [status]="syncResult.status" [label]="syncStatusLabel()"></app-admin-status-badge>
+        <span class="text-[var(--portal-text-soft)]">Operación {{ syncResult.id }}</span>
+      </div>
+      <p *ngIf="syncMessage" class="mt-2 text-[var(--portal-text)]">{{ syncMessage }}</p>
+      <p *ngIf="syncError" class="mt-2 text-[var(--spotify-negative)]">{{ syncError }}</p>
+    </div>
+
+    <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6">
+      <h4 class="text-lg font-semibold text-[var(--portal-text)]">Última ejecución de ingesta</h4>
+      <div *ngIf="status.lastRun" class="mt-4 grid gap-3 sm:grid-cols-3 text-sm">
+        <div class="min-w-0">
+          <p class="text-xs text-[var(--portal-text-muted)]">Inicio</p>
+          <p class="text-[var(--portal-text)]">{{ status.lastRun.startedAt | date:'medium' }}</p>
+        </div>
+        <div class="min-w-0">
+          <p class="text-xs text-[var(--portal-text-muted)]">Resultado</p>
+          <p class="text-[var(--portal-text)]">{{ outcomeLabel(status.lastRun.outcome) }}</p>
+        </div>
+        <div class="min-w-0">
+          <p class="text-xs text-[var(--portal-text-muted)]">Peticiones</p>
+          <p class="text-[var(--portal-text)]">{{ numberLabel(status.lastRun.requestsUsed, status.lastRun.requestsUsedState) }}</p>
+        </div>
+      </div>
+      <p *ngIf="!status.lastRun" class="mt-3 text-sm text-[var(--portal-text-muted)]">Aún no se ha ejecutado ninguna ingesta.</p>
+    </div>
 
     <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl overflow-x-auto">
       <table class="w-full text-sm">
         <thead class="text-left text-[var(--portal-text-muted)]">
           <tr>
-            <th class="p-4">Trabajo</th>
-            <th>Estado</th>
-            <th>Encolado</th>
-            <th>Completado</th>
-            <th>Error</th>
+            <th class="p-4">Proveedor</th>
+            <th>Salud</th>
+            <th>Fallos consecutivos</th>
+            <th>Cuota hoy</th>
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let job of state.jobs" class="border-t border-[var(--portal-border)]">
-            <td class="p-4 text-[var(--portal-text)]">{{ job.type }}</td>
-            <td><app-admin-status-badge [status]="job.status"></app-admin-status-badge></td>
-            <td class="text-[var(--portal-text-soft)]">{{ job.queuedAt ? (job.queuedAt | date:'short') : '—' }}</td>
-            <td class="text-[var(--portal-text-soft)]">{{ job.completedAt ? (job.completedAt | date:'short') : '—' }}</td>
-            <td class="text-[var(--portal-text-soft)]">{{ job.errorSummary || '—' }}</td>
+          <tr *ngFor="let provider of status.providers" class="border-t border-[var(--portal-border)]">
+            <td class="p-4 text-[var(--portal-text)]">{{ provider.provider }}</td>
+            <td><app-admin-status-badge [status]="healthStatus(provider.health)" [label]="healthLabel(provider.health)"></app-admin-status-badge></td>
+            <td class="text-[var(--portal-text-soft)]">{{ numberLabel(provider.consecutiveFailures, provider.consecutiveFailuresState) }}</td>
+            <td class="text-[var(--portal-text-soft)]">{{ numberLabel(provider.quotaConsumedToday, provider.quotaConsumedTodayState) }}</td>
           </tr>
-          <tr *ngIf="!state.jobs.length">
-            <td colspan="5" class="p-4 text-[var(--portal-text-muted)]">No hay trabajos de fútbol registrados.</td>
+          <tr *ngIf="!status.providers.length">
+            <td colspan="4" class="p-4 text-[var(--portal-text-muted)]">No hay proveedores registrados.</td>
           </tr>
         </tbody>
       </table>

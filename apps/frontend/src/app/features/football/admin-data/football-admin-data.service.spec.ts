@@ -1,234 +1,103 @@
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { firstValueFrom, of } from 'rxjs';
-import { AdminOperationsService } from '@app/services/admin-operations.service';
+import { firstValueFrom } from 'rxjs';
 import { FootballAdminDataService } from './football-admin-data.service';
 import {
+  AdminApiError,
+  AVAILABILITY_LABELS,
   broadcastAvailabilityLabel,
-  COVERAGE_LABELS,
-  deriveCoverageState,
-  isProviderApproved,
+  COVERAGE_STATE_LABELS,
+  INGESTION_OUTCOME_LABELS,
+  SYNC_STATUS_LABELS,
 } from './football-admin.models';
 
-describe('FootballAdminDataService', () => {
-  let adminOps: {
-    getFootballOverview: jasmine.Spy;
-    getFootballCompetitions: jasmine.Spy;
-    getFootballTeams: jasmine.Spy;
-    getFootballFixtures: jasmine.Spy;
-    getJobs: jasmine.Spy;
-    refreshFootball: jasmine.Spy;
-  };
+describe('FootballAdminDataService (t7 typed client)', () => {
   let service: FootballAdminDataService;
-
-  const overviewRaw = () => ({
-    generatedAt: '2026-11-06T10:00:00.000Z',
-    provider: { configured: true, state: 'healthy' },
-    activeCompetitions: 3,
-    totalTeams: 40,
-    upcomingFixtures: 12,
-    fixturesMissingBroadcast: 2,
-    broadcastMappings: 8,
-    staleCompetitions: 1,
-    staleTeams: 4,
-    unmappedCompetitions: 1,
-    unmappedTeams: 9,
-    lastSuccessfulSync: '2026-11-06T09:00:00.000Z',
-    lastFailedSync: null,
-  });
-
-  const fresh = () => new Date().toISOString();
-  const stale = () => new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString();
+  let http: HttpTestingController;
 
   beforeEach(() => {
-    adminOps = {
-      getFootballOverview: jasmine.createSpy().and.returnValue(of(overviewRaw())),
-      getFootballCompetitions: jasmine.createSpy().and.returnValue(of({ items: [] })),
-      getFootballTeams: jasmine.createSpy().and.returnValue(of({ items: [] })),
-      getFootballFixtures: jasmine.createSpy().and.returnValue(of({ items: [] })),
-      getJobs: jasmine.createSpy().and.returnValue(of({ items: [] })),
-      refreshFootball: jasmine.createSpy().and.returnValue(of({ id: 'job-1' })),
-    };
     TestBed.configureTestingModule({
-      providers: [{ provide: AdminOperationsService, useValue: adminOps }],
+      imports: [HttpClientTestingModule],
     });
     service = TestBed.inject(FootballAdminDataService);
+    http = TestBed.inject(HttpTestingController);
   });
 
-  describe('pure derivation', () => {
-    it('requires BOTH configured and an approved eligibility — never `configured` alone', () => {
-      expect(isProviderApproved({ configured: true, eligibility: 'approved-limited' })).toBeTrue();
-      expect(isProviderApproved({ configured: true, eligibility: 'approved-verified' })).toBeTrue();
-      expect(isProviderApproved({ configured: true, eligibility: 'blocked' })).toBeFalse();
-      expect(isProviderApproved({ configured: true, eligibility: 'legal-review-required' })).toBeFalse();
-      expect(isProviderApproved({ configured: true, eligibility: 'not-measured' })).toBeFalse();
-      expect(isProviderApproved({ configured: false, eligibility: 'approved-limited' })).toBeFalse();
-      expect(isProviderApproved(null)).toBeFalse();
-      expect(isProviderApproved(undefined)).toBeFalse();
-    });
-
-    it('marks a competition without a provider mapping as "Competicion sin cobertura"', () => {
-      const state = deriveCoverageState(
-        { providerIds: {}, lastUpdatedAt: fresh() },
-        { providerConfigured: true, eligibility: 'approved-limited' }
-      );
-      expect(state).toBe('not-covered');
-      expect(COVERAGE_LABELS['not-covered']).toBe('Competicion sin cobertura');
-    });
-
-    it('renders a configured-but-legally-blocked provider as legally-blocked, never available', () => {
-      const state = deriveCoverageState(
-        { providerIds: { ol: 'bl1' }, lastUpdatedAt: fresh() },
-        { providerConfigured: true, eligibility: 'blocked' }
-      );
-      expect(state).toBe('legally-blocked');
-      expect(state).not.toBe('available');
-    });
-
-    it('renders an unmeasured eligibility as not-yet-measured, never available or covered', () => {
-      const state = deriveCoverageState(
-        { providerIds: { ol: 'bl1' }, lastUpdatedAt: fresh() },
-        { providerConfigured: true, eligibility: 'not-measured' }
-      );
-      expect(state).toBe('not-yet-measured');
-      expect(state).not.toBe('available');
-      expect(state).not.toBe('not-covered');
-    });
-
-    it('distinguishes stale, partial and available for an approved provider', () => {
-      expect(
-        deriveCoverageState({ providerIds: { ol: 'bl1' }, lastUpdatedAt: stale() }, { providerConfigured: true, eligibility: 'approved-limited' })
-      ).toBe('stale');
-      expect(
-        deriveCoverageState({ providerIds: { ol: 'bl1' }, lastUpdatedAt: fresh() }, { providerConfigured: true, eligibility: 'approved-limited' })
-      ).toBe('partial');
-      expect(
-        deriveCoverageState({ providerIds: { ol: 'bl1' }, lastUpdatedAt: fresh() }, { providerConfigured: true, eligibility: 'approved-verified' })
-      ).toBe('available');
-    });
-
-    it('reports a mapped-but-unconfigured provider as temporarily-unavailable', () => {
-      const state = deriveCoverageState(
-        { providerIds: { ol: 'bl1' }, lastUpdatedAt: fresh() },
-        { providerConfigured: false, eligibility: 'approved-limited' }
-      );
-      expect(state).toBe('temporarily-unavailable');
-    });
-
-    it('exposes all nine coverage states with distinct Spanish labels', () => {
-      expect(Object.keys(COVERAGE_LABELS).length).toBe(9);
-      expect(new Set(Object.values(COVERAGE_LABELS)).size).toBe(9);
-      expect(COVERAGE_LABELS['not-yet-measured']).toBe('Aún no medido');
-      expect(COVERAGE_LABELS['legally-blocked']).toBe('Bloqueado legalmente');
-    });
-
-    it('maps every broadcast availability value to a distinct Spanish label', () => {
-      expect(broadcastAvailabilityLabel('tv')).toBe('TV');
-      expect(broadcastAvailabilityLabel('streaming')).toBe('Streaming');
-      expect(broadcastAvailabilityLabel('both')).toBe('TV y streaming');
-    });
+  afterEach(() => {
+    http.verify();
   });
 
-  describe('getOverview', () => {
-    it('normalizes a raw payload into typed numbers and a provider state', async () => {
-      const overview = await firstValueFrom(service.getOverview());
-      expect(overview.activeCompetitions).toBe(3);
-      expect(overview.provider.configured).toBeTrue();
-      expect(overview.provider.state).toBe('healthy');
-      expect(overview.provider.eligibility).toBe('approved-limited');
+  it('decodes the dashboard envelope into the typed DTO', async () => {
+    const promise = firstValueFrom(service.getDashboard());
+    const req = http.expectOne('/v2/sports/football/admin/dashboard');
+    expect(req.request.method).toBe('GET');
+    req.flush({
+      success: true,
+      data: {
+        generatedAt: '2026-11-06T10:00:00.000Z',
+        competitions: 3,
+        teams: 40,
+        snapshots: 120,
+        providers: 1,
+        broadcastMappings: 8,
+        staleSnapshots: 2,
+        openQualityIssues: 0,
+        countsState: 'observed',
+        lastSyncState: 'observed',
+      },
     });
-
-    it('falls back to unconfigured when the backend omits the provider', async () => {
-      adminOps.getFootballOverview.and.returnValue(of({ activeCompetitions: 2 }));
-      const overview = await firstValueFrom(service.getOverview());
-      expect(overview.provider.configured).toBeFalse();
-      expect(overview.provider.state).toBe('unconfigured');
-    });
+    const dashboard = await promise;
+    expect(dashboard.competitions).toBe(3);
+    expect(dashboard.countsState).toBe('observed');
   });
 
-  describe('getCoverage', () => {
-    it('derives hasApprovedProvider and coverage state from eligibility + mapping', async () => {
-      adminOps.getFootballCompetitions.and.returnValue(
-        of({
-          items: [
-            { _id: 'c1', name: 'Bundesliga', providerIds: { ol: 'bl1' }, lastUpdatedAt: fresh() },
-            { _id: 'c2', name: 'Copa sin proveedor', providerIds: {}, lastUpdatedAt: fresh() },
-          ],
-        })
-      );
-      const report = await firstValueFrom(service.getCoverage());
-      expect(report.competitions[0].hasApprovedProvider).toBeTrue();
-      expect(report.competitions[0].state).toBe('partial');
-      expect(report.competitions[1].hasApprovedProvider).toBeFalse();
-      expect(report.competitions[1].state).toBe('not-covered');
-    });
-
-    it('reports a mapped-but-unconfigured provider as temporarily-unavailable', async () => {
-      adminOps.getFootballOverview.and.returnValue(
-        of({ ...overviewRaw(), provider: { configured: false, state: 'unconfigured' } })
-      );
-      adminOps.getFootballCompetitions.and.returnValue(
-        of({ items: [{ _id: 'c1', name: 'Bundesliga', providerIds: { ol: 'bl1' }, lastUpdatedAt: fresh() }] })
-      );
-      const report = await firstValueFrom(service.getCoverage());
-      expect(report.competitions[0].hasApprovedProvider).toBeFalse();
-      expect(report.competitions[0].state).toBe('temporarily-unavailable');
-    });
-
-    it('always includes the twelve-aspect capability matrix', async () => {
-      const report = await firstValueFrom(service.getCoverage());
-      expect(report.matrix.length).toBe(12);
-      expect(report.matrix.every((cell) => cell.state in COVERAGE_LABELS)).toBeTrue();
-      expect(report.matrix.find((cell) => cell.aspect === 'live-minute')?.state).toBe('not-supported');
-      expect(report.matrix.find((cell) => cell.aspect === 'fixtures')?.state).toBe('available');
-    });
+  it('passes match list filters as query params', async () => {
+    const promise = firstValueFrom(service.getMatches({ page: 2, limit: 10, status: 'live', q: 'barca' }));
+    const req = http.expectOne((r) => r.url === '/v2/sports/football/admin/matches');
+    expect(req.request.params.get('page')).toBe('2');
+    expect(req.request.params.get('limit')).toBe('10');
+    expect(req.request.params.get('status')).toBe('live');
+    expect(req.request.params.get('q')).toBe('barca');
+    req.flush({ success: true, data: { page: 2, limit: 10, total: 0, items: [] } });
+    const result = await promise;
+    expect(result.items).toEqual([]);
   });
 
-  describe('getEntities', () => {
-    it('flags unmapped and stale entities from their real fields', async () => {
-      adminOps.getFootballCompetitions.and.returnValue(
-        of({ items: [{ _id: 'c1', name: 'Mapped', providerIds: { ol: 'bl1' }, lastUpdatedAt: fresh() }] })
-      );
-      adminOps.getFootballTeams.and.returnValue(
-        of({ items: [{ _id: 't1', name: 'Unmapped', providerIds: {}, lastUpdatedAt: stale() }] })
-      );
-      const entities = await firstValueFrom(service.getEntities());
-      expect(entities.length).toBe(2);
-      expect(entities[0].mapped).toBeTrue();
-      expect(entities[1].mapped).toBeFalse();
-      expect(entities[1].stale).toBeTrue();
-    });
+  it('POSTs the sync control with the idempotency key and decodes the queued operation', async () => {
+    const promise = firstValueFrom(service.sync('manual.123'));
+    const req = http.expectOne('/v2/sports/football/admin/ingestion/sync');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ idempotencyKey: 'manual.123' });
+    req.flush({ success: true, data: { id: 'op-1', status: 'queued', correlationId: 'manual.123' } });
+    const result = await promise;
+    expect(result.id).toBe('op-1');
+    expect(result.status).toBe('queued');
   });
 
-  describe('getSyncState', () => {
-    it('keeps only football.* jobs and surfaces last sync markers', async () => {
-      adminOps.getJobs.and.returnValue(
-        of({
-          items: [
-            { _id: '1', type: 'football.refresh', status: 'completed', queuedAt: '2026-11-06T09:00:00Z', completedAt: '2026-11-06T09:05:00Z' },
-            { _id: '2', type: 'epg.sync', status: 'failed', queuedAt: '2026-11-06T08:00:00Z', completedAt: '2026-11-06T08:01:00Z' },
-          ],
-        })
-      );
-      const state = await firstValueFrom(service.getSyncState());
-      expect(state.jobs.length).toBe(1);
-      expect(state.jobs[0].type).toBe('football.refresh');
-      expect(state.lastSuccessfulSync).toBe('2026-11-06T09:00:00.000Z');
-    });
+  it('normalizes a 401 into an unauthorized AdminApiError', async () => {
+    const promise = firstValueFrom(service.getDashboard());
+    const req = http.expectOne('/v2/sports/football/admin/dashboard');
+    req.flush(
+      { success: false, error: { code: 'UNAUTHORIZED', message: 'Authorization token missing' } },
+      { status: 401, statusText: 'Unauthorized' }
+    );
+    try {
+      await promise;
+      fail('expected an error');
+    } catch (err) {
+      expect(err instanceof AdminApiError).toBeTrue();
+      expect((err as AdminApiError).kind).toBe('unauthorized');
+      expect((err as AdminApiError).status).toBe(401);
+    }
   });
 
-  describe('getQuality', () => {
-    it('splits entities into stale and unmapped buckets', async () => {
-      adminOps.getFootballCompetitions.and.returnValue(
-        of({
-          items: [
-            { _id: 'c1', name: 'Stale mapped', providerIds: { ol: 'bl1' }, lastUpdatedAt: stale() },
-            { _id: 'c2', name: 'Unmapped fresh', providerIds: {}, lastUpdatedAt: fresh() },
-          ],
-        })
-      );
-      const report = await firstValueFrom(service.getQuality());
-      expect(report.staleEntities.map((e) => e.id)).toEqual(['c1']);
-      expect(report.unmappedEntities.map((e) => e.id)).toEqual(['c2']);
-    });
+  it('exposes Spanish labels for every availability, coverage, outcome and sync status', () => {
+    expect(AVAILABILITY_LABELS['unavailable']).toBe('No disponible');
+    expect(AVAILABILITY_LABELS['not_measured']).toBe('Aún no medido');
+    expect(COVERAGE_STATE_LABELS['competition_not_covered']).toBe('Competición sin cobertura');
+    expect(COVERAGE_STATE_LABELS['provider_supported_no_fixtures']).toBe('Cubierta sin partidos');
+    expect(INGESTION_OUTCOME_LABELS['empty']).toBe('Sin datos');
+    expect(SYNC_STATUS_LABELS['queued']).toBe('Encolada');
+    expect(broadcastAvailabilityLabel('both')).toBe('TV y streaming');
   });
 });

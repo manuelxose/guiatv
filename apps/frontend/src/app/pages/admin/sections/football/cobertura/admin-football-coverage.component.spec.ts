@@ -6,131 +6,72 @@ import { FootballAdminDataService } from '@app/features/football/admin-data/foot
 describe('AdminFootballCoverageComponent', () => {
   let service: { getCoverage: jasmine.Spy };
 
-  const report = (overrides: Record<string, unknown> = {}) => ({
-    provider: { configured: true, state: 'healthy', eligibility: 'approved-limited' },
-    competitions: [],
-    matrix: [],
-    ...overrides,
-  });
-
-  const competition = (overrides: Record<string, unknown> = {}) => ({
-    id: 'c1',
+  const row = (overrides: Record<string, unknown> = {}) => ({
+    competitionSlug: 'laliga',
     name: 'LaLiga',
-    country: 'España',
-    currentSeason: '2026/27',
-    providerIds: {},
-    lastUpdatedAt: new Date().toISOString(),
-    state: 'not-covered',
+    type: 'league',
+    coverageState: 'competition_not_covered',
+    snapshotCount: null,
+    snapshotCountState: 'not_covered',
     ...overrides,
   });
 
   beforeEach(() => {
-    service = { getCoverage: jasmine.createSpy().and.returnValue(of(report())) };
+    service = { getCoverage: jasmine.createSpy().and.returnValue(of({ generatedAt: '2026-11-06T10:00:00.000Z', rows: [] })) };
     TestBed.configureTestingModule({
       imports: [AdminFootballCoverageComponent],
       providers: [{ provide: FootballAdminDataService, useValue: service }],
     });
   });
 
-  it('renders "Competicion sin cobertura" for a competition without an approved provider, and never "no hay partidos hoy"', () => {
-    service.getCoverage.and.returnValue(of(report({ competitions: [competition()] })));
+  it('renders "Competición sin cobertura" for a competition without an eligible provider', () => {
+    service.getCoverage.and.returnValue(of({ generatedAt: 'x', rows: [row()] }));
     const fixture = TestBed.createComponent(AdminFootballCoverageComponent);
     fixture.detectChanges();
     const text = fixture.nativeElement.textContent;
-    expect(text).toContain('Competicion sin cobertura');
-    expect(text).not.toContain('no hay partidos hoy');
+    expect(text).toContain('Competición sin cobertura');
+    expect(text).toContain('Sin cobertura'); // snapshot label for not_covered
     fixture.destroy();
   });
 
-  it('renders "Cobertura parcial" for an approved-limited mapped competition', () => {
+  it('renders "Cubierta" and the observed snapshot count', () => {
     service.getCoverage.and.returnValue(
-      of(report({ competitions: [competition({ providerIds: { ol: 'bl1' }, state: 'partial' })] }))
-    );
-    const fixture = TestBed.createComponent(AdminFootballCoverageComponent);
-    fixture.detectChanges();
-    const text = fixture.nativeElement.textContent;
-    expect(text).toContain('Cobertura parcial');
-    expect(text).not.toContain('Competicion sin cobertura');
-    fixture.destroy();
-  });
-
-  it('renders "Desactualizado" for a mapped but stale competition', () => {
-    service.getCoverage.and.returnValue(
-      of(report({ competitions: [competition({ providerIds: { ol: 'bl1' }, state: 'stale' })] }))
-    );
-    const fixture = TestBed.createComponent(AdminFootballCoverageComponent);
-    fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Desactualizado');
-    fixture.destroy();
-  });
-
-  it('renders "Bloqueado legalmente" for a configured-but-legally-blocked provider, never "Disponible"', () => {
-    service.getCoverage.and.returnValue(
-      of(
-        report({
-          provider: { configured: true, state: 'healthy', eligibility: 'blocked' },
-          competitions: [competition({ providerIds: { ol: 'bl1' }, state: 'legally-blocked' })],
-        })
-      )
+      of({ generatedAt: 'x', rows: [row({ coverageState: 'provider_supported', snapshotCount: 12, snapshotCountState: 'observed' })] })
     );
     const fixture = TestBed.createComponent(AdminFootballCoverageComponent);
     fixture.detectChanges();
     const text = fixture.nativeElement.textContent;
-    expect(text).toContain('Bloqueado legalmente');
-    expect(text).not.toContain('Disponible');
+    expect(text).toContain('Cubierta');
+    expect(text).toContain('12');
     fixture.destroy();
   });
 
-  it('renders "Aún no medido" for an unmeasured state and never "Disponible"', () => {
+  it('renders "Cubierta sin partidos" for a supported competition with no fixtures', () => {
     service.getCoverage.and.returnValue(
-      of(report({ competitions: [competition({ providerIds: { ol: 'bl1' }, state: 'not-yet-measured' })] }))
+      of({ generatedAt: 'x', rows: [row({ coverageState: 'provider_supported_no_fixtures', snapshotCount: 0, snapshotCountState: 'empty' })] })
+    );
+    const fixture = TestBed.createComponent(AdminFootballCoverageComponent);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Cubierta sin partidos');
+    fixture.destroy();
+  });
+
+  it('renders "Proveedor no disponible" and never a snapshot number for an unavailable provider', () => {
+    service.getCoverage.and.returnValue(
+      of({ generatedAt: 'x', rows: [row({ coverageState: 'provider_unavailable', snapshotCount: null, snapshotCountState: 'unavailable' })] })
     );
     const fixture = TestBed.createComponent(AdminFootballCoverageComponent);
     fixture.detectChanges();
     const text = fixture.nativeElement.textContent;
-    expect(text).toContain('Aún no medido');
-    expect(text).not.toContain('Disponible');
-    fixture.destroy();
-  });
-
-  it('renders each coverage-matrix cell with its aspect label and state', () => {
-    service.getCoverage.and.returnValue(
-      of(
-        report({
-          matrix: [
-            { aspect: 'fixtures', state: 'available' },
-            { aspect: 'live-minute', state: 'not-supported' },
-          ],
-        })
-      )
-    );
-    const fixture = TestBed.createComponent(AdminFootballCoverageComponent);
-    fixture.detectChanges();
-    const text = fixture.nativeElement.textContent;
-    expect(text).toContain('Matriz de cobertura por dato');
-    expect(text).toContain('Partidos');
-    expect(text).toContain('Minuto en directo');
-    expect(text).toContain('No soportado');
-    fixture.destroy();
-  });
-
-  it('warns when no provider is approved', () => {
-    service.getCoverage.and.returnValue(
-      of(report({ provider: { configured: false, state: 'unconfigured', eligibility: 'approved-limited' } }))
-    );
-    const fixture = TestBed.createComponent(AdminFootballCoverageComponent);
-    fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('No hay ningún proveedor aprobado');
+    expect(text).toContain('Proveedor no disponible');
+    expect(text).not.toContain('Sin partidos');
     fixture.destroy();
   });
 
   it('shows a distinct empty state when there are no competitions at all', () => {
-    service.getCoverage.and.returnValue(of(report({ competitions: [] })));
     const fixture = TestBed.createComponent(AdminFootballCoverageComponent);
     fixture.detectChanges();
-    const text = fixture.nativeElement.textContent;
-    expect(text).toContain('No hay competiciones registradas');
-    expect(text).not.toContain('Competicion sin cobertura');
+    expect(fixture.nativeElement.textContent).toContain('No hay competiciones registradas.');
     fixture.destroy();
   });
 });

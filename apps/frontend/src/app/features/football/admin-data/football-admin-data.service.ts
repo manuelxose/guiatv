@@ -1,210 +1,154 @@
+import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { combineLatest, map, Observable } from 'rxjs';
-import { AdminOperationsService } from '@app/services/admin-operations.service';
-import { FootballMatchDTO } from '../football.models';
+import { Observable, throwError } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
+import { ApiResponse } from '@app/api/models';
+import { environment } from '../../../../environments/environment';
 import {
-  COVERAGE_STALE_MS,
-  deriveCoverageState,
-  FootballAdminEntity,
-  FootballAdminJob,
-  FootballAdminOverview,
-  FootballAdminProvider,
-  FootballAdminQualityReport,
-  FootballAdminSyncState,
-  FootballCompetitionCoverage,
-  FootballCoverageReport,
-  isProviderApproved,
-  OPENLIGADB_COVERAGE_MATRIX,
-  ProviderEligibility,
+  AdminApiError,
+  FootballAdminMatchDTO,
+  FootballAdminMatchesDTO,
+  FootballAuditDTO,
+  FootballAuditQuery,
+  FootballBroadcastsDTO,
+  FootballCoverageMatrixDTO,
+  FootballDashboardDTO,
+  FootballEntityMappingsDTO,
+  FootballIngestionStatusDTO,
+  FootballMatchListQuery,
+  FootballProviderDetailDTO,
+  FootballProviderSummaryDTO,
+  FootballQualityIssuesDTO,
+  FootballSyncResultDTO,
+  PagedQuery,
 } from './football-admin.models';
 
-interface ListResponse<T> {
-  page?: number;
-  limit?: number;
-  total?: number;
-  items?: T[];
-}
+/** Admin read API base (t7). Same-origin; the BFF routes it to the internal admin controller. */
+const ADMIN_API_BASE = '/v2/sports/football/admin';
+
+/** Query accepted by the entity-mappings and broadcasts list endpoints (page/limit + free-text q). */
+type SearchListQuery = PagedQuery & { q?: string };
 
 /**
- * Rights/eligibility verdicts by provider id, sourced from
- * M06-PROVIDER-ELIGIBILITY.md (captain-authored). Unknown ids
- * stay `not-measured` so they can never read as available. This is the rights
- * input to coverage derivation — not a hardcoded approval flag.
- */
-const PROVIDER_ELIGIBILITY_BY_ID: Record<string, ProviderEligibility> = {
-  openligadb: 'approved-limited',
-  'football-data.org': 'legal-review-required',
-  thesportsdb: 'blocked',
-};
-
-/** The single wired provider (see apps/backend/src/jobs/football/factory.ts). */
-const PROVIDER_ID = 'openligadb';
-
-/**
- * Admin-only football data facade. It wraps the existing `/v2/admin/football/*`
- * endpoints (auth handled by AdminOperationsService) and normalizes/derives the
- * typed shapes the Futbol control center renders. No provider name or approval
- * flag is hardcoded: approval is derived from `provider.configured` plus a
- * non-empty `providerIds` mapping per competition.
+ * Single strongly typed client over the t7 football admin API
+ * (`/v2/sports/football/admin/*`). Every method returns a typed DTO; every
+ * failure is normalized into an {@link AdminApiError} so the eight sections
+ * can render honest unauthorized/validation/unavailable states instead of
+ * a generic error or a fabricated empty array.
+ *
+ * Authentication reuses the real admin session the way AdminOperationsService
+ * does (the `gtv_id_token` from localStorage) — the shared `ANALYTICS_ADMIN_KEY`
+ * is a server secret and is NEVER embedded in the browser bundle.
  */
 @Injectable({ providedIn: 'root' })
 export class FootballAdminDataService {
-  constructor(private readonly adminOps: AdminOperationsService) {}
+  private readonly baseUrl = `${environment.API_BASE_URL}${ADMIN_API_BASE}`;
+  private readonly isBrowser = typeof window !== 'undefined';
 
-  getOverview(): Observable<FootballAdminOverview> {
-    return this.adminOps.getFootballOverview().pipe(map((raw) => this.toOverview(raw)));
+  constructor(private readonly http: HttpClient) {}
+
+  // ── Read endpoints ──────────────────────────────────────────────────────
+
+  getDashboard(): Observable<FootballDashboardDTO> {
+    return this.get<FootballDashboardDTO>('/dashboard');
   }
 
-  getCoverage(): Observable<FootballCoverageReport> {
-    return combineLatest([
-      this.getOverview(),
-      this.adminOps.getFootballCompetitions({ limit: 100 }),
-    ]).pipe(
-      map(([overview, raw]) => {
-        const approved = isProviderApproved(overview.provider);
-        const context = {
-          providerConfigured: overview.provider.configured,
-          eligibility: overview.provider.eligibility,
-        };
-        const competitions = this.items<Record<string, unknown>>(raw).map((item) =>
-          this.toCoverage(item, approved, context)
-        );
-        return { provider: overview.provider, competitions, matrix: OPENLIGADB_COVERAGE_MATRIX };
-      })
-    );
+  getProviders(): Observable<FootballProviderSummaryDTO[]> {
+    return this.get<{ providers: FootballProviderSummaryDTO[] }>('/providers').pipe(map((r) => r.providers));
   }
 
-  getMatches(): Observable<FootballMatchDTO[]> {
-    return this.adminOps.getFootballFixtures({ limit: 100 }).pipe(
-      map((raw) => this.items<FootballMatchDTO>(raw))
-    );
+  getProvider(provider: string): Observable<FootballProviderDetailDTO> {
+    return this.get<FootballProviderDetailDTO>(`/providers/${encodeURIComponent(provider)}`);
   }
 
-  getEntities(): Observable<FootballAdminEntity[]> {
-    return combineLatest([
-      this.adminOps.getFootballCompetitions({ limit: 100 }),
-      this.adminOps.getFootballTeams({ limit: 100 }),
-    ]).pipe(
-      map(([comps, teams]) => {
-        const now = Date.now();
-        return [
-          ...this.items<Record<string, unknown>>(comps).map((item) =>
-            this.toEntity(item, 'competition', now)
-          ),
-          ...this.items<Record<string, unknown>>(teams).map((item) =>
-            this.toEntity(item, 'team', now)
-          ),
-        ];
-      })
-    );
+  getCoverage(): Observable<FootballCoverageMatrixDTO> {
+    return this.get<FootballCoverageMatrixDTO>('/coverage');
   }
 
-  getSyncState(): Observable<FootballAdminSyncState> {
-    return combineLatest([this.getOverview(), this.adminOps.getJobs({ limit: 100 })]).pipe(
-      map(([overview, raw]) => ({
-        provider: overview.provider,
-        lastSuccessfulSync: overview.lastSuccessfulSync,
-        lastFailedSync: overview.lastFailedSync,
-        jobs: this.items<Record<string, unknown>>(raw)
-          .filter((job) => typeof (job as { type?: unknown })?.type === 'string' && ((job as { type: string }).type.startsWith('football.')))
-          .map((job) => this.toJob(job)),
-      }))
-    );
+  getMatches(query: FootballMatchListQuery = {}): Observable<FootballAdminMatchesDTO> {
+    return this.get<FootballAdminMatchesDTO>('/matches', query);
   }
 
-  getQuality(): Observable<FootballAdminQualityReport> {
-    return combineLatest([this.getOverview(), this.getEntities()]).pipe(
-      map(([overview, entities]) => ({
-        overview,
-        staleEntities: entities.filter((entity) => entity.stale),
-        unmappedEntities: entities.filter((entity) => !entity.mapped),
-      }))
-    );
+  getMatch(idOrSlug: string): Observable<FootballAdminMatchDTO> {
+    return this.get<FootballAdminMatchDTO>(`/matches/${encodeURIComponent(idOrSlug)}`);
   }
 
-  refreshFootball(): Observable<unknown> {
-    return this.adminOps.refreshFootball();
+  getEntityMappings(query: SearchListQuery = {}): Observable<FootballEntityMappingsDTO> {
+    return this.get<FootballEntityMappingsDTO>('/entity-mappings', query);
   }
 
-  // ────────────────────────────────────────────────────────────── normalizers
-
-  private items<T>(raw: unknown): T[] {
-    const list = raw as ListResponse<T> | null;
-    return Array.isArray(list?.items) ? (list!.items as T[]) : [];
+  getBroadcasts(query: SearchListQuery = {}): Observable<FootballBroadcastsDTO> {
+    return this.get<FootballBroadcastsDTO>('/broadcasts', query);
   }
 
-  private toOverview(raw: any): FootballAdminOverview {
-    const provider: any = raw?.provider ?? {};
-    return {
-      generatedAt: raw?.generatedAt ?? null,
-      provider: {
-        configured: provider.configured === true,
-        state: this.providerState(provider.state),
-        lastError: provider.lastError ?? null,
-        eligibility: PROVIDER_ELIGIBILITY_BY_ID[PROVIDER_ID] ?? 'not-measured',
-      },
-      activeCompetitions: Number(raw?.activeCompetitions ?? 0),
-      totalTeams: Number(raw?.totalTeams ?? 0),
-      upcomingFixtures: Number(raw?.upcomingFixtures ?? 0),
-      fixturesMissingBroadcast: Number(raw?.fixturesMissingBroadcast ?? 0),
-      broadcastMappings: Number(raw?.broadcastMappings ?? 0),
-      staleCompetitions: Number(raw?.staleCompetitions ?? 0),
-      staleTeams: Number(raw?.staleTeams ?? 0),
-      unmappedCompetitions: Number(raw?.unmappedCompetitions ?? 0),
-      unmappedTeams: Number(raw?.unmappedTeams ?? 0),
-      lastSuccessfulSync: raw?.lastSuccessfulSync ?? null,
-      lastFailedSync: raw?.lastFailedSync ?? null,
-    };
+  getIngestionStatus(): Observable<FootballIngestionStatusDTO> {
+    return this.get<FootballIngestionStatusDTO>('/ingestion/status');
   }
 
-  private providerState(state: unknown): FootballAdminProvider['state'] {
-    return state === 'healthy' || state === 'degraded' || state === 'unconfigured'
-      ? state
-      : 'unconfigured';
+  getQualityIssues(query: PagedQuery = {}): Observable<FootballQualityIssuesDTO> {
+    return this.get<FootballQualityIssuesDTO>('/quality-issues', query);
   }
 
-  private toCoverage(
-    item: Record<string, unknown>,
-    approved: boolean,
-    context: { providerConfigured: boolean; eligibility: ProviderEligibility }
-  ): FootballCompetitionCoverage {
-    const providerIds = (item.providerIds ?? {}) as Record<string, string>;
-    const lastUpdatedAt = String(item.lastUpdatedAt ?? '');
-    return {
-      id: String(item._id ?? item.id ?? ''),
-      name: String(item.name ?? 'Sin nombre'),
-      country: (item.country as string | null) ?? null,
-      currentSeason: (item.currentSeason as string | null) ?? null,
-      providerIds,
-      lastUpdatedAt,
-      hasApprovedProvider: approved && Object.keys(providerIds).length > 0,
-      state: deriveCoverageState({ providerIds, lastUpdatedAt }, context),
-    };
+  getAudit(query: FootballAuditQuery = {}): Observable<FootballAuditDTO> {
+    return this.get<FootballAuditDTO>('/audit', query);
   }
 
-  private toEntity(item: Record<string, unknown>, kind: 'competition' | 'team', now: number): FootballAdminEntity {
-    const providerIds = (item.providerIds ?? {}) as Record<string, string>;
-    const lastUpdatedAt = String(item.lastUpdatedAt ?? '');
-    const updated = Date.parse(lastUpdatedAt);
-    return {
-      id: String(item._id ?? item.id ?? ''),
-      name: String(item.name ?? 'Sin nombre'),
-      kind,
-      mapped: Object.keys(providerIds).length > 0,
-      stale: Number.isFinite(updated) && updated < now - COVERAGE_STALE_MS,
-      lastUpdatedAt,
-      providerIds,
-    };
+  // ── Mutating endpoint ───────────────────────────────────────────────────
+
+  /** Queues a manual sync. Idempotency-keyed: re-POSTing the same key returns the current job state. */
+  sync(idempotencyKey: string): Observable<FootballSyncResultDTO> {
+    return this.post<FootballSyncResultDTO>('/ingestion/sync', { idempotencyKey });
   }
 
-  private toJob(job: Record<string, unknown>): FootballAdminJob {
-    return {
-      id: String(job._id ?? job.id ?? ''),
-      type: String(job.type ?? 'football'),
-      status: String(job.status ?? 'unknown'),
-      queuedAt: (job.queuedAt as string | null) ?? null,
-      completedAt: (job.completedAt as string | null) ?? null,
-      errorSummary: (job.errorSummary as string | null) ?? null,
-    };
+  // ── HTTP plumbing ───────────────────────────────────────────────────────
+
+  private get<T>(path: string, params?: object): Observable<T> {
+    return this.http
+      .get<ApiResponse<T>>(`${this.baseUrl}${path}`, { headers: this.buildHeaders(), params: this.cleanParams(params) })
+      .pipe(map((res) => res.data as T), catchError((err: unknown) => throwError(() => this.toApiError(err))));
+  }
+
+  private post<T>(path: string, body: unknown): Observable<T> {
+    return this.http
+      .post<ApiResponse<T>>(`${this.baseUrl}${path}`, body, { headers: this.buildHeaders() })
+      .pipe(map((res) => res.data as T), catchError((err: unknown) => throwError(() => this.toApiError(err))));
+  }
+
+  private cleanParams(params?: object): HttpParams | undefined {
+    if (!params) return undefined;
+    let result = new HttpParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value === undefined || value === null || value === '') continue;
+      result = result.set(key, String(value));
+    }
+    return result;
+  }
+
+  private toApiError(err: unknown): AdminApiError {
+    const status = err instanceof HttpErrorResponse ? err.status : 0;
+    const body = err instanceof HttpErrorResponse ? (err.error as { error?: { code?: string; message?: string } } | null) : null;
+    const message = body?.error?.message ?? 'La operación no se pudo completar.';
+    const code = body?.error?.code;
+    if (status === 0) return new AdminApiError('network', status, message, code);
+    if (status === 401 || status === 403) return new AdminApiError('unauthorized', status, message, code);
+    if (status === 400) return new AdminApiError('validation', status, message, code);
+    if (status === 404) return new AdminApiError('not_found', status, message, code);
+    return new AdminApiError('unavailable', status, message, code);
+  }
+
+  private buildHeaders(): HttpHeaders {
+    const headers: Record<string, string> = {};
+    const token = this.getToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return new HttpHeaders(headers);
+  }
+
+  private getToken(): string | null {
+    if (!this.isBrowser) return null;
+    try {
+      return localStorage.getItem('gtv_id_token');
+    } catch {
+      return null;
+    }
   }
 }
