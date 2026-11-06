@@ -1,19 +1,19 @@
 {
-  "startedAt": "2026-11-06T13:31:55.275Z",
+  "startedAt": "2026-11-06T13:52:06.453Z",
   "services": [
     {
       "name": "mongod",
-      "pid": 53000,
+      "pid": 46460,
       "alive": true
     },
     {
       "name": "backend",
-      "pid": 24280,
+      "pid": 50920,
       "alive": true
     },
     {
       "name": "ssr",
-      "pid": 43808,
+      "pid": 13836,
       "alive": true
     }
   ],
@@ -24,5 +24,5 @@
     "integrity": 4339
   },
   "db": "guiatv_m14r7",
-  "envFile": "C:\\Users\\Admin\\Documents\\workspace\\guiatv-m14r7-int\\.env.m14r7"
+  "envFile": "C:\\Users\\Admin\\Documents\\workspace\\guiatv-m14r6-fixes\\.env.m14r7"
 }

@@ -73,7 +73,7 @@
     {
       "name": "8a. recuperación individual vía API real + persistida",
       "pass": true,
-      "detail": "HTTP 409 (200=ok, 409=idempotente sin cambios), generation_requests=1"
+      "detail": "HTTP 409 (200=ok, 409=idempotente sin cambios), generation_requests=2"
     },
     {
       "name": "8b. recuperación en lote vía API real (resultado por ítem)",
@@ -83,7 +83,7 @@
     {
       "name": "9a. publicación idempotente E2E (misma clave → sin duplicar)",
       "pass": true,
-      "detail": "HTTP 500/500, reservas=0, published=1"
+      "detail": "HTTP 409/409, reservas=0, published=1"
     },
     {
       "name": "9b. ningún artículo publicado aparece indexado",
