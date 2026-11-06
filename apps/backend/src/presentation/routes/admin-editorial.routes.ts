@@ -26,6 +26,7 @@ export const createAdminEditorialRoutes = (controller: EditorialOpsController, a
   router.get('/providers', asyncHandler(controller.providerHealth));
   router.post('/search-console/run', strictRateLimit, asyncHandler(controller.searchConsoleRun));
   router.post('/search-console/indexing-request', strictRateLimit, asyncHandler(controller.recordIndexingRequest));
+  router.post('/search-console/submit-guide-sitemap', strictRateLimit, asyncHandler(controller.submitGuideSitemap));
   router.get('/generation/settings', asyncHandler(controller.generationSettings));
   router.put('/generation/settings', strictRateLimit, asyncHandler(controller.updateGenerationSettings));
   router.post('/generation/requests', strictRateLimit, asyncHandler(controller.createGenerationRequest));

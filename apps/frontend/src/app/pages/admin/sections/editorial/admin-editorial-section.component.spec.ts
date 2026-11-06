@@ -49,7 +49,7 @@ describe('stage mapping', () => {
 });
 
 describe('Operaciones IA', () => {
-  beforeEach(() => TestBed.configureTestingModule({ imports: [AdminEditorialSectionComponent], providers: [{ provide: AdminEditorialService, useValue: { getOverview: () => of(overview), getProviders: () => of({ checkedAt: new Date().toISOString(), providers: [] }) } }] }));
+  beforeEach(() => TestBed.configureTestingModule({ imports: [AdminEditorialSectionComponent], providers: [{ provide: AdminEditorialService, useValue: { getOverview: () => of(overview), getProviders: () => of({ checkedAt: new Date().toISOString(), providers: [] }), submitGuideSitemap: () => of({ submittedAt: new Date().toISOString() }) } }] }));
 
   it('keeps generation, publication and runner states separate', () => {
     const fixture = TestBed.createComponent(AdminEditorialSectionComponent);
@@ -71,8 +71,12 @@ describe('Operaciones IA', () => {
     expect(rows[0]).toContain('3/28');
     expect(rows[1]).toContain('Discovered - currently not indexed');
     expect(rows[1]).toContain('Sin datos de Google');
-    expect(fixture.nativeElement.textContent).toContain('estado de solicitud desconocido');
-    expect(fixture.nativeElement.textContent).toContain('Una solicitud no garantiza');
+    expect(fixture.nativeElement.textContent).toContain('No es una solicitud individual');
+    const button = fixture.nativeElement.querySelector('.desktop-table tbody tr button');
+    expect(button.textContent).toContain('Solicitar indexación');
+    button.click();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.notice).toContain('Google ha aceptado el sitemap');
   });
 
   it('uses accessible tabs with arrow-key navigation', () => {

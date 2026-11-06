@@ -75,6 +75,18 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     assert.ok(recorded.body.data.recordedAt);
     assert.equal(await mongoose.connection.collection('editorial_audit').countDocuments({ action: 'indexing-request-recorded', slug: 'el-padrino-m11c', by: 'admin-key' }), 1);
     assert.ok((await call(ops.recordIndexingRequest, { body: { slug: 'no-existe' } })).error);
+    const submissions: unknown[] = [];
+    const submitOps = new EditorialOpsController(new LocalStorageRepository(storageDir), async (options) => {
+      submissions.push(options);
+      return { attempted: true, submitted: true, skipped: false };
+    });
+    assert.equal((await call(submitOps.submitGuideSitemap, { body: { slug: 'el-padrino-m11c' } })).code, 200);
+    assert.deepEqual(submissions, [{ enabled: true, sitemapUrl: 'https://guiaprogramaciontv.com/sitemap-blog.xml' }]);
+    assert.equal(await mongoose.connection.collection('editorial_audit').countDocuments({ action: 'guide-sitemap-submitted', slug: 'el-padrino-m11c' }), 1);
+    assert.ok((await call(submitOps.submitGuideSitemap, { body: { slug: 'no-existe' } })).error);
+    const failedOps = new EditorialOpsController(new LocalStorageRepository(storageDir), async () => ({ attempted: true, submitted: false, skipped: false }));
+    assert.ok((await call(failedOps.submitGuideSitemap, { body: { slug: 'el-padrino-m11c' } })).error);
+    assert.equal(await mongoose.connection.collection('editorial_audit').countDocuments({ action: 'guide-sitemap-submitted' }), 1);
     assert.match(String((await call(blog.approveByPolicy, { params: { id } })).error), /already published/);
     await BlogPostModel.updateOne({ _id: id }, { status: 'draft', reviewState: 'unreviewed' });
     assert.match(String((await call(blog.approveByPolicy, { params: { id } })).error), /already published by policy once/);

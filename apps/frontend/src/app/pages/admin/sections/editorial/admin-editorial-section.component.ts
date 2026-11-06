@@ -175,11 +175,16 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
     });
   }
 
-  recordIndexingRequest(slug: string): void {
-    if (!window.confirm('¿Has solicitado la indexación de esta guía en Search Console? Esta marca es manual y no confirma que Google la haya indexado.')) return;
-    this.service.recordIndexingRequest(slug).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.notice = 'Solicitud anotada manualmente.'; this.refresh(true); },
-      error: (e) => { this.error = errorMessage(e, 'No se pudo guardar la anotación'); },
+  indexingBusy = '';
+
+  requestIndexing(slug: string): void {
+    if (this.indexingBusy) return;
+    this.indexingBusy = slug;
+    this.error = '';
+    this.notice = '';
+    this.service.submitGuideSitemap(slug).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => { this.indexingBusy = ''; this.notice = 'Google ha aceptado el sitemap de guías. Esto no garantiza la indexación ni equivale a una solicitud individual.'; },
+      error: (e) => { this.indexingBusy = ''; this.error = errorMessage(e, 'No se pudo enviar el sitemap a Google'); },
     });
   }
 

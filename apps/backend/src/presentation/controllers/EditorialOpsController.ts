@@ -16,6 +16,7 @@ import { EditorialMediaRejected, storeEditorialCover } from '../../infrastructur
 import { generatedImageFindings } from '../../application/services/EditorialImages';
 import { editorialCoverPreview } from '../middlewares/editorialMediaGate';
 import { runSearchConsoleMonitor, searchConsoleOverview } from '../../application/services/SearchConsoleMonitor';
+import { submitSitemapToSearchConsole } from '../../application/services/submitSitemapToSearchConsole';
 import { EditorialGenerationService, runnerStartAllowed, RunnerStartMode } from '../../application/services/EditorialGenerationService';
 import { EditorialRunnerService } from '../../application/services/EditorialRunnerService';
 import { EditorialProvidersService } from '../../application/services/EditorialProvidersService';
@@ -119,7 +120,7 @@ export class EditorialOpsController {
   private readonly providers = new EditorialProvidersService();
   private readonly ledger = new EditorialJobLedger();
 
-  constructor(private readonly storage: IStorageRepository) {}
+  constructor(private readonly storage: IStorageRepository, private readonly submitSitemap = submitSitemapToSearchConsole) {}
 
   /** Cover upload from the runner (raw image body); re-validated here because this is the trust boundary. */
   uploadCover = async (req: Request, res: Response): Promise<void> => {
@@ -418,6 +419,17 @@ export class EditorialOpsController {
     const at = new Date();
     await audit().insertOne({ at, action: 'indexing-request-recorded', postId: String(post._id), slug, by: actor(req) });
     res.json(successResponse({ recordedAt: at }));
+  };
+
+  submitGuideSitemap = async (req: Request, res: Response): Promise<void> => {
+    const slug = String(req.body?.slug || '');
+    const post = await BlogPostModel.findOne({ ...PUBLIC_EDITORIAL_FILTER, slug }).select({ _id: 1 }).lean().exec();
+    if (!post) throw new NotFoundError('Public guide not found');
+    const result = await this.submitSitemap({ enabled: true, sitemapUrl: 'https://guiaprogramaciontv.com/sitemap-blog.xml' });
+    if (!result.submitted) throw new Error('No se pudo enviar el sitemap a Search Console');
+    const at = new Date();
+    await audit().insertOne({ at, action: 'guide-sitemap-submitted', postId: String(post._id), slug, by: actor(req) });
+    res.json(successResponse({ submittedAt: at }));
   };
 
   /** Kick a read-only Search Console synchronization; the run itself is bounded and one at a time. */
