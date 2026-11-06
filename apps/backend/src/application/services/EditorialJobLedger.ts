@@ -168,7 +168,7 @@ export interface JobLedgerRepository {
   /** Atomic compare-and-set on the previous revision. Returns false when another writer won. */
   replace(job: JobLedgerRecord): Promise<boolean>;
   list(query: LedgerQuery, now: Date): Promise<LedgerPage>;
-  remove(jobId: string): Promise<boolean>;
+  remove(jobId: string, revision: number): Promise<boolean>;
 }
 
 const MAX_LIMIT = 100;
@@ -504,12 +504,12 @@ export class EditorialJobLedger {
 
   async list(query: LedgerQuery = {}): Promise<LedgerPage> { return this.repo.list(query, this.clock()); }
 
-  /** Terminal and archived metadata may be deleted; a live or unarchived execution may not. */
+  /** Only terminal metadata without a publication fence may be deleted. */
   async deleteMetadata(jobId: string): Promise<void> {
     const current = await this.required(jobId);
     requireTerminal(current);
-    if (!current.archivedAt) throw new ConflictError('Archive the job before deleting its execution metadata');
-    await this.repo.remove(jobId);
+    if (current.publicationKey) throw new ConflictError('Publication metadata must be retained');
+    if (!await this.repo.remove(jobId, current.revision)) throw new ConflictError('Job changed while deleting; try again');
   }
 
   /** Reconcile every expired lease, oldest first. Used by the admin recovery control and by the runner at boot. */
@@ -578,8 +578,8 @@ export class MongoJobLedgerRepository implements JobLedgerRepository {
     ]);
     return { items: docs.map((doc) => this.strip(doc)), total, limit, skip };
   }
-  async remove(jobId: string): Promise<boolean> {
-    const result = await this.collection().deleteOne({ jobId });
+  async remove(jobId: string, revision: number): Promise<boolean> {
+    const result = await this.collection().deleteOne({ jobId, revision });
     return result.deletedCount === 1;
   }
   private strip(doc: LedgerDocument): JobLedgerRecord {

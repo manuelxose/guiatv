@@ -411,6 +411,15 @@ export class EditorialOpsController {
     res.status(201).json(successResponse({ jobId: job.jobId }));
   };
 
+  recordIndexingRequest = async (req: Request, res: Response): Promise<void> => {
+    const slug = String(req.body?.slug || '');
+    const post = await BlogPostModel.findOne({ ...PUBLIC_EDITORIAL_FILTER, slug }).select({ _id: 1 }).lean().exec();
+    if (!post) throw new NotFoundError('Public guide not found');
+    const at = new Date();
+    await audit().insertOne({ at, action: 'indexing-request-recorded', postId: String(post._id), slug, by: actor(req) });
+    res.json(successResponse({ recordedAt: at }));
+  };
+
   /** Kick a read-only Search Console synchronization; the run itself is bounded and one at a time. */
   searchConsoleRun = async (req: Request, res: Response): Promise<void> => {
     if (searchConsoleRun) {

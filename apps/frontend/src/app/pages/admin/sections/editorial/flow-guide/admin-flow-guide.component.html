@@ -3,10 +3,7 @@
     <div class="fg-heading__text">
       <p class="eyebrow">ADMINISTRACIÓN · EDITORIAL</p>
       <h2>Guía de flujos</h2>
-      <p>
-        Cómo funciona el flujo editorial de principio a fin y, al mismo tiempo, el diagnóstico real del embudo:
-        qué se ha ejecutado, dónde se pierde caudal y qué se puede recuperar sin inventar nada.
-      </p>
+      <p>Entiende cada etapa, comprueba los datos reales y encuentra los temas que necesitan atención.</p>
     </div>
     <button type="button" class="button secondary" (click)="loadGuide()" [disabled]="guideLoading">
       {{ guideLoading ? 'Actualizando…' : 'Actualizar guía' }}
@@ -86,6 +83,8 @@
         </ol>
       </section>
 
+      <details class="fg-disclosure">
+        <summary>Cómo interpretar los estados <span>Seis diferencias importantes</span></summary>
       <section class="fg-block" aria-labelledby="fg-distinctions-title">
         <h3 id="fg-distinctions-title">Las seis distinciones del contrato</h3>
         <p class="fg-intro">
@@ -125,7 +124,10 @@
           </li>
         </ul>
       </section>
+      </details>
 
+      <details class="fg-disclosure">
+        <summary>Leyenda de estados <span>Definiciones y acciones disponibles</span></summary>
       <section class="fg-block" aria-labelledby="fg-legend-title">
         <h3 id="fg-legend-title">Leyenda de estados</h3>
         <p class="fg-intro">
@@ -169,6 +171,9 @@
         </div>
       </section>
 
+      </details>
+      <details class="fg-disclosure">
+        <summary>Ejemplos prácticos <span>Cómo leer situaciones habituales</span></summary>
       <section class="fg-block" aria-labelledby="fg-examples-title">
         <h3 id="fg-examples-title">Ejemplos anclados al sistema</h3>
         <p class="fg-intro">
@@ -193,6 +198,7 @@
           </li>
         </ul>
       </section>
+      </details>
     </ng-container>
   </section>
 
@@ -228,7 +234,12 @@
       aria-labelledby="flow-diag-tab-funnel"
       class="fg-diag"
     >
+      <div class="fg-diagnostic-heading">
+        <div><p class="eyebrow">SEGUIMIENTO EDITORIAL</p><h3>Comprueba el flujo</h3><p>Filtra los datos y abre una etapa para revisar sus registros.</p></div>
+        <button type="button" class="button secondary" (click)="loadFunnel()" [disabled]="funnelLoading">{{ funnelLoading ? 'Consultando…' : 'Actualizar datos' }}</button>
+      </div>
       <form class="fg-filters" (ngSubmit)="applyFilters()" aria-label="Filtros del diagnóstico">
+        <div class="fg-filters__heading"><strong>Filtros</strong><span>Acota el diagnóstico a lo que quieres revisar.</span></div>
         <div class="fg-filter">
           <label for="fg-from">Desde</label>
           <input id="fg-from" type="date" name="from" [(ngModel)]="filters['from']" />
@@ -267,6 +278,9 @@
             <option value="draft">Borrador</option>
           </select>
         </div>
+        <details class="fg-advanced">
+          <summary>Más filtros</summary>
+          <div class="fg-advanced__grid">
         <div class="fg-filter">
           <label for="fg-cycle">Ciclo</label>
           <input id="fg-cycle" name="cycleId" [(ngModel)]="filters['cycleId']" maxlength="120" placeholder="Identificador del ciclo" />
@@ -287,6 +301,8 @@
           <label for="fg-provider">Proveedor</label>
           <input id="fg-provider" name="provider" [(ngModel)]="filters['provider']" maxlength="40" placeholder="p. ej. anthropic" />
         </div>
+          </div>
+        </details>
         <div class="fg-filter-actions">
           <button type="submit" class="button primary" [disabled]="funnelLoading">{{ funnelLoading ? 'Consultando…' : 'Aplicar filtros' }}</button>
           <button type="button" class="button secondary" (click)="clearFilters()" [disabled]="funnelLoading || !hasFilters">Limpiar</button>

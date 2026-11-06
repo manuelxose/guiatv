@@ -275,7 +275,7 @@ export class AdminJobLedgerComponent implements OnInit, OnDestroy {
       case 'retry': return terminal && !job.archivedAt && job.attempt < job.maxAttempts;
       case 'recover': return ['running', 'cancelling'].includes(job.state) && !this.leaseLive(job);
       case 'archive': return terminal && !job.archivedAt;
-      case 'delete': return terminal && Boolean(job.archivedAt);
+      case 'delete': return terminal && !job.publication;
     }
   }
 

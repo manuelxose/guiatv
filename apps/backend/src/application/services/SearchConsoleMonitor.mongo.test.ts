@@ -44,6 +44,20 @@ test('Search Console monitor stores genuine observations only', { skip: !process
       { slug: 'borrador', title: 'C', status: 'draft', reviewState: 'unreviewed' },
     ]);
 
+    await t.test('manual request annotations are separate from Google inspection', async () => {
+      const old = new Date('2026-10-20');
+      const latest = new Date('2026-10-21');
+      const postId = String((await BlogPostModel.findOne({ slug: 'guia-a' }).lean().exec())!._id);
+      await col('editorial_audit').insertMany([
+        { action: 'indexing-request-recorded', postId, at: old },
+        { action: 'indexing-request-recorded', postId, at: latest },
+      ]);
+      const rows = (await searchConsoleOverview(NOW)).guides;
+      assert.equal(rows.find((g) => g.slug === 'guia-a')!.indexingRequestRecordedAt!.getTime(), latest.getTime());
+      assert.equal(rows.find((g) => g.slug === 'guia-b')!.indexingRequestRecordedAt, null);
+      assert.equal(rows.find((g) => g.slug === 'guia-a')!.inspection, null);
+    });
+
     await t.test('missing credentials: recorded, nothing called', async () => {
       await reset();
       const saved = process.env.GOOGLE_APPLICATION_CREDENTIALS;
