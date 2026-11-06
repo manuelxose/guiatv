@@ -73,24 +73,62 @@ export function buildFootballIngestionService(
   const repository = new FootballIngestionRepository();
   const scheduler = new AdaptiveScheduler(DEFAULT_SCHEDULER_CONFIG);
   const plan = resolveCompetitionPlan();
-  const budget = new RequestBudget(
-    {
-      // The default daily budget covers every approved competition. Raise it only
-      // deliberately: OpenLigaDB publishes no rate limit, so this is self-imposed
-      // politeness, not a provider quota.
-      dailyBudget: Number(process.env.OPENLIGADB_DAILY_BUDGET) || 1500,
-      liveReserve: Number(process.env.OPENLIGADB_LIVE_RESERVE) || 300,
-      // M06: the per-run cap bounds ONE tick, and one tick serves every competition
-      // in the plan (one request each). Sizing it below the plan length would starve
-      // the tail competitions on every run; it never widens the daily budget.
-      perRunCap: Number(process.env.OPENLIGADB_PER_RUN_CAP) || Math.max(plan.length, 5),
-      throttleBackoffMs: Number(process.env.OPENLIGADB_THROTTLE_BACKOFF_MS) || 60_000,
-    },
-    { initiallyDisabled: process.env.OPENLIGADB_EMERGENCY_DISABLED === '1' }
-  );
-  // One budget and one lock are shared by every competition in the plan, so the
-  // quota is authoritative across the whole ingestion run rather than per league.
-  const lock = new InMemoryLock();
+  const config = {
+    // The default daily budget covers every approved competition. Raise it only
+    // deliberately: OpenLigaDB publishes no rate limit, so this is self-imposed
+    // politeness, not a provider quota.
+    dailyBudget: Number(process.env.OPENLIGADB_DAILY_BUDGET) || 1500,
+    liveReserve: Number(process.env.OPENLIGADB_LIVE_RESERVE) || 300,
+    // M06: the per-run cap bounds ONE tick, and one tick serves every competition
+    // in the plan (one request each). Sizing it below the plan length would starve
+    // the tail competitions on every run; it never widens the daily budget.
+    perRunCap: Number(process.env.OPENLIGADB_PER_RUN_CAP) || Math.max(plan.length, 5),
+    throttleBackoffMs: Number(process.env.OPENLIGADB_THROTTLE_BACKOFF_MS) || 60_000,
+  };
+
+  // M06-C: the durable, cluster-shared authority is the DEFAULT. The M05
+  // process-local budget and lock remain available only when explicitly asked
+  // for (FOOTBALL_DURABLE_QUOTA=0), so "cluster-safe" describes what actually
+  // runs rather than an unwired library. A single instance still reads and
+  // writes the shared store, which is what makes a second instance safe.
+  // Requires an open connection; without one the durable store cannot be built, so the
+  // factory degrades to the process-local budget rather than throwing at construction.
+  const { mongoose } = require('@/config/mongodb') as typeof import('@/config/mongodb');
+  const connectionReady = mongoose?.connection?.readyState === 1 && Boolean(mongoose.connection.db);
+  const durable = process.env.FOOTBALL_DURABLE_QUOTA !== '0' && connectionReady;
+  let budget: any;
+  let lock: any;
+  if (durable) {
+    const { randomUUID } = require('node:crypto') as typeof import('node:crypto');
+    const { mongoose } = require('@/config/mongodb') as typeof import('@/config/mongodb');
+    const { MongoDurableQuotaStore } = require(
+      '@/infrastructure/sports/persistence/DurableQuotaStore'
+    ) as typeof import('@/infrastructure/sports/persistence/DurableQuotaStore');
+    const { DurableRequestBudget } = require(
+      '@/application/sports/ingestion/RequestBudget'
+    ) as typeof import('@/application/sports/ingestion/RequestBudget');
+    const { MongoLock } = require(
+      '@/application/sports/ingestion/Lock'
+    ) as typeof import('@/application/sports/ingestion/Lock');
+    const db = mongoose.connection.db;
+    if (!db) throw new Error('football ingestion requires an open MongoDB connection');
+    // Native driver collections: MongoLock reads the returned document directly.
+    const store = new MongoDurableQuotaStore(
+      db.collection('football_quota') as any,
+      db.collection('football_ingestion_control') as any
+    );
+    budget = new DurableRequestBudget(config, store, 'openligadb');
+    lock = new MongoLock(db.collection('football_ingestion_locks') as any, `ingestion-${randomUUID()}`);
+    if (process.env.OPENLIGADB_EMERGENCY_DISABLED === '1') {
+      // Durable disable so a restart cannot silently re-enable a stopped provider.
+      void store.setDisabled('openligadb', true);
+    }
+  } else {
+    budget = new RequestBudget(config, {
+      initiallyDisabled: process.env.OPENLIGADB_EMERGENCY_DISABLED === '1',
+    });
+    lock = new InMemoryLock();
+  }
 
   return new FootballIngestionService({
     providerId: 'openligadb',

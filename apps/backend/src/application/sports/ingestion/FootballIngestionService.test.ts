@@ -7,7 +7,7 @@ import {
   computeFieldCoverage,
   countActive,
 } from './FootballIngestionService';
-import { RequestBudget } from './RequestBudget';
+import { IngestionBudgetPort, LocalBudgetAdapter, RequestBudget } from './RequestBudget';
 import { InMemoryLock, LockEntry, LockPort } from './Lock';
 import {
   FootballPersistencePort,
@@ -78,7 +78,7 @@ interface ServiceOptions {
   adapter?: MatchFetcher;
   persistence?: FootballPersistencePort;
   lock?: LockPort;
-  budget?: RequestBudget;
+  budget?: IngestionBudgetPort;
 }
 
 function makeService(opts: ServiceOptions = {}) {
@@ -92,9 +92,11 @@ function makeService(opts: ServiceOptions = {}) {
     lock: opts.lock ?? new InMemoryLock(),
     budget:
       opts.budget ??
-      new RequestBudget(
-        { dailyBudget: 100, liveReserve: 0, perRunCap: 10, throttleBackoffMs: 0 },
-        { clock, resetAt: T0 + 24 * 60 * 60 * 1000 }
+      new LocalBudgetAdapter(
+        new RequestBudget(
+          { dailyBudget: 100, liveReserve: 0, perRunCap: 10, throttleBackoffMs: 0 },
+          { clock, resetAt: T0 + 24 * 60 * 60 * 1000 }
+        )
       ),
     clock,
   });
@@ -189,12 +191,13 @@ test('the emergency disable switch skips the tick without an upstream call', asy
       return [];
     },
   };
-  const budget = new RequestBudget(
+  const rawBudget = new RequestBudget(
     { dailyBudget: 100, liveReserve: 0, perRunCap: 10, throttleBackoffMs: 0 },
     { clock: () => T0, resetAt: T0 + 24 * 60 * 60 * 1000 }
   );
+  const budget = new LocalBudgetAdapter(rawBudget);
   const service = makeService({ adapter, budget });
-  budget.disable();
+  rawBudget.disable();
 
   const result = await service.runTick();
   assert.equal(result.outcome, 'skipped');

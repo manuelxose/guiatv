@@ -27,6 +27,45 @@ export interface BudgetSnapshot {
   quotaResetAt: number;
 }
 
+
+/**
+ * Budget port consumed by the ingestion service (M06).
+ *
+ * Declared Promise-returning so BOTH the M05 process-local RequestBudget and the
+ * M06 durable DurableRequestBudget satisfy it: the sync methods are simply
+ * returned as resolved promises. This is what lets the durable, cluster-shared
+ * authority be wired in without every call site guessing which implementation it
+ * holds - and it prevents the silent failure mode where a durable budget is
+ * constructed but the service keeps calling a sync API that never awaits it.
+ */
+export interface IngestionBudgetPort {
+  isDisabled(): Promise<boolean>;
+  beginRun(now?: number): Promise<void>;
+  tryAcquire(importance: RequestImportance, now?: number): Promise<boolean>;
+  snapshot(now?: number): Promise<BudgetSnapshot>;
+  consumedToday(now?: number): Promise<number>;
+}
+
+/** Adapts the M05 process-local budget to the port. Process-local, NOT cluster-safe. */
+export class LocalBudgetAdapter implements IngestionBudgetPort {
+  constructor(private readonly inner: RequestBudget) {}
+  async isDisabled(): Promise<boolean> {
+    return this.inner.isDisabled();
+  }
+  async beginRun(now?: number): Promise<void> {
+    this.inner.beginRun(now);
+  }
+  async tryAcquire(importance: RequestImportance, now?: number): Promise<boolean> {
+    return this.inner.tryAcquire(importance, now);
+  }
+  async snapshot(now?: number): Promise<BudgetSnapshot> {
+    return this.inner.snapshot(now);
+  }
+  async consumedToday(_now?: number): Promise<number> {
+    return this.inner.consumedToday();
+  }
+}
+
 export class RequestBudget {
   private remaining: number;
   private runConsumed = 0;

@@ -16,7 +16,7 @@
 
 import { FootballMatch } from '@/domain/sports/football/types';
 import { AdaptiveScheduler } from './AdaptiveScheduler';
-import { RequestBudget } from './RequestBudget';
+import { BudgetSnapshot, IngestionBudgetPort } from './RequestBudget';
 import { SingleFlight } from './SingleFlight';
 import { RefreshCoordinator } from './RefreshCoordinator';
 import { GracefulDegradation, refuseEpgOnlyDowngrade } from './GracefulDegradation';
@@ -65,7 +65,7 @@ export interface FootballIngestionServiceOptions {
   adapter: MatchFetcher;
   persistence: FootballPersistencePort;
   lock: LockPort;
-  budget: RequestBudget;
+  budget: IngestionBudgetPort;
   scheduler?: AdaptiveScheduler;
   singleFlight?: SingleFlight;
   coordinator?: RefreshCoordinator<FootballMatch[]>;
@@ -87,13 +87,24 @@ const DEFAULT_MAX_STORED_ERRORS = 10;
 
 let runCounter = 0;
 
+/** Neutral snapshot used before the first tick has measured real quota state. */
+const DEFAULT_BUDGET_SNAPSHOT: BudgetSnapshot = {
+  remaining: 0,
+  reserveRemaining: 0,
+  availableForNormal: 0,
+  runConsumed: 0,
+  throttleUntil: 0,
+  disabled: false,
+  quotaResetAt: 0,
+};
+
 export class FootballIngestionService {
   readonly providerId: string;
   private readonly competitions: readonly IngestionCompetition[];
   private readonly adapter: MatchFetcher;
   private readonly persistence: FootballPersistencePort;
   private readonly lock: LockPort;
-  private readonly budget: RequestBudget;
+  private readonly budget: IngestionBudgetPort;
   private readonly scheduler: AdaptiveScheduler;
   private readonly singleFlight: SingleFlight;
   private readonly coordinator: RefreshCoordinator<FootballMatch[]>;
@@ -106,6 +117,7 @@ export class FootballIngestionService {
   private readonly maxStoredErrors: number;
   private readonly metrics: IngestionMetrics;
 
+  private cachedBudget: BudgetSnapshot | null = null;
   private nextPollIntervalMs: number;
   private consecutiveFailures = 0;
   private circuitOpenUntil = 0;
@@ -133,6 +145,20 @@ export class FootballIngestionService {
     this.maxStoredErrors = options.maxStoredErrors ?? DEFAULT_MAX_STORED_ERRORS;
     this.metrics = options.metrics ?? createIngestionMetrics();
     this.nextPollIntervalMs = this.scheduler.intervalMs('future');
+    // Seed the diagnostics snapshot so reporting quota before the first tick is honest
+    // instead of showing a neutral zero.
+    this.seedBudgetSnapshot();
+  }
+
+  private seedBudgetSnapshot(): void {
+    const pending = this.budget.snapshot(this.clock());
+    if (pending && typeof (pending as Promise<BudgetSnapshot>).then === 'function') {
+      void (pending as Promise<BudgetSnapshot>).then((snap) => {
+        this.cachedBudget = snap;
+      }).catch(() => undefined);
+      return;
+    }
+    this.cachedBudget = pending as unknown as BudgetSnapshot;
   }
 
   async runTick(): Promise<TickResult> {
@@ -151,7 +177,9 @@ export class FootballIngestionService {
 
   diagnostics(): FootballDiagnosticsReport {
     const nowMs = this.clock();
-    const budget = this.budget.snapshot(nowMs);
+    // Uses the snapshot cached at the end of the last tick: diagnostics() stays synchronous
+    // for its existing callers and never issues a database read on the request path.
+    const budget = this.cachedBudget ?? DEFAULT_BUDGET_SNAPSHOT;
     const provider: ProviderDiagnostics = {
       provider: this.providerId,
       health: this.metrics.health,
@@ -195,7 +223,7 @@ export class FootballIngestionService {
     this.metrics.lastRunAt = nowMs;
     const runId = `${this.providerId}-${nowMs}-${runCounter++}`;
 
-    if (this.budget.isDisabled()) {
+    if (await this.budget.isDisabled()) {
       this.metrics.health = 'disabled';
       return { outcome: 'skipped', reason: 'emergency_disabled', requestsUsed: 0, snapshotsWritten: 0 };
     }
@@ -204,7 +232,7 @@ export class FootballIngestionService {
       return { outcome: 'skipped', reason: 'circuit_open', requestsUsed: 0, snapshotsWritten: 0 };
     }
 
-    this.budget.beginRun(nowMs);
+    await this.budget.beginRun(nowMs);
 
     // M06: one tick serves every approved competition under the SAME lock and the
     // SAME budget. Each competition consumes one request from the shared quota; a
@@ -223,7 +251,7 @@ export class FootballIngestionService {
 
     for (const competition of this.competitions) {
       const shortcut = competition.shortcuts[0] ?? '';
-      if (!this.budget.tryAcquire('normal', this.clock())) {
+      if (!(await this.budget.tryAcquire('normal', this.clock()))) {
         budgetRefused = true;
         perCompetition.push({ leagueShortcut: shortcut, season: competition.season, outcome: 'skipped', reason: 'budget_exhausted', requestsUsed: 0, snapshotsWritten: 0 });
         continue;
@@ -293,6 +321,7 @@ export class FootballIngestionService {
       if (this.consecutiveFailures >= this.circuitFailureThreshold) {
         this.circuitOpenUntil = this.clock() + this.circuitOpenMs;
       }
+      this.cachedBudget = await this.budget.snapshot(this.clock());
       await this.persistence.updateSyncState(this.providerId, {
         provider: this.providerId,
         lastErrorAt: new Date(this.clock()).toISOString(),
@@ -316,12 +345,13 @@ export class FootballIngestionService {
     this.consecutiveFailures = 0;
     this.coordinator.publish(allMatches);
 
+    this.cachedBudget = await this.budget.snapshot(this.clock());
     await this.persistence.updateSyncState(this.providerId, {
       provider: this.providerId,
       lastSuccessAt: new Date(this.clock()).toISOString(),
       consecutiveFailures: 0,
-      quotaConsumedToday: this.budget.consumedToday(),
-      quotaResetAt: new Date(this.budget.snapshot().quotaResetAt).toISOString(),
+      quotaConsumedToday: await this.budget.consumedToday(),
+      quotaResetAt: new Date((await this.budget.snapshot()).quotaResetAt).toISOString(),
       circuitState: 'closed',
     });
     await this.recordRun(runId, outcome, requestsUsed, [], nowMs);
