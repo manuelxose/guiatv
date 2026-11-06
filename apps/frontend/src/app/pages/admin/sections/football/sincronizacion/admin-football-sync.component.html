@@ -93,8 +93,8 @@
         <tbody>
           <tr *ngFor="let op of history" class="border-t border-[var(--portal-border)]">
             <td class="p-3 text-[var(--portal-text)]">{{ op.id }}</td>
-            <td><app-admin-status-badge [status]="op.status" [label]="SYNC_STATUS_LABELS[op.status]"></app-admin-status-badge></td>
-            <td class="text-[var(--portal-text-soft)]">{{ numberLabel(op.recordsFetched ?? null, op.recordsFetchedState ?? 'not_measured') }}</td>
+            <td><app-admin-status-badge [status]="op.status" [label]="statusLabel(op.status)"></app-admin-status-badge></td>
+            <td class="text-[var(--portal-text-soft)]">{{ numberLabel(op.recordsFetched ?? null, asAvailabilityState(op.recordsFetchedState)) }}</td>
             <td class="text-[var(--portal-text-soft)]">{{ op.skipReason || '—' }}</td>
           </tr>
           <tr *ngIf="!history.length">
@@ -105,4 +105,5 @@
     </div>
   </ng-container>
 </div>
+
 

@@ -165,7 +165,18 @@ export class SnapshotFootballDataProvider implements FootballDataProvider {
     if (query.date) {
       // A single calendar day: the caller's local day is approximated as a 24h
       // window around the given date, never a fabricated kickoff.
-      const start = new Date(query.date);
+      //
+      // The public API accepts BOTH `YYYY-MM-DD` and the compact `YYYYMMDD` that
+      // the Sports v2 client sends. `new Date('20261126')` is an Invalid Date in
+      // JavaScript, so without normalising it the day filter was silently
+      // dropped and the endpoint answered with matches from ANY date - which is
+      // why a fixture outside the first page (e.g. the Europa League round)
+      // appeared to be missing.
+      const raw = String(query.date).trim();
+      const normalised = /^\d{8}$/.test(raw)
+        ? `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`
+        : raw;
+      const start = new Date(normalised);
       if (!Number.isNaN(start.getTime())) {
         kickoff.$gte = new Date(start).toISOString();
         kickoff.$lte = new Date(start.getTime() + 24 * 60 * 60 * 1000).toISOString();

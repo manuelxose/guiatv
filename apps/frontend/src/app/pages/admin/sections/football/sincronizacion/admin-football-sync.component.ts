@@ -8,6 +8,7 @@ import {
   AvailabilityState,
   FootballIngestionStatusDTO,
   FootballSyncResultDTO,
+  FootballSyncStatus,
   INGESTION_OUTCOME_LABELS,
   isSyncTerminal,
   SYNC_STATUS_LABELS,
@@ -115,6 +116,16 @@ export class AdminFootballSyncComponent implements OnInit, OnDestroy {
     return INGESTION_OUTCOME_LABELS[outcome as keyof typeof INGESTION_OUTCOME_LABELS] ?? outcome;
   }
 
+  /** R1: template-safe label lookup (the constant is not a template member). */
+  statusLabel(status: FootballSyncStatus): string {
+    return SYNC_STATUS_LABELS[status];
+  }
+
+  /** R1: the DTO carries a plain string; coerce to the availability union. */
+  asAvailabilityState(value: string | undefined): AvailabilityState {
+    return (value ?? 'not_measured') as AvailabilityState;
+  }
+
   syncStatusLabel(): string {
     return this.syncResult ? SYNC_STATUS_LABELS[this.syncResult.status] : '';
   }
@@ -208,6 +219,7 @@ export class AdminFootballSyncComponent implements OnInit, OnDestroy {
     }
   }
 }
+
 
 
 
