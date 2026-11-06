@@ -39,6 +39,7 @@ export const createFootballAdminRoutes = (
   router.get('/quality-issues', adminAccessGuard, asyncHandler(controller.qualityIssues.bind(controller)));
   router.get('/audit', adminAccessGuard, asyncHandler(controller.listAudit.bind(controller)));
 
+  router.get('/ingestion/sync', adminAccessGuard, asyncHandler(controller.listSyncOperations.bind(controller)));
   router.post('/ingestion/sync', adminAccessGuard, strictRateLimit, asyncHandler(controller.sync.bind(controller)));
 
   return router;

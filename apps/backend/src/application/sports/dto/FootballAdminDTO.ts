@@ -349,8 +349,64 @@ export interface FootballAuditDTO {
   items: FootballAuditEntryDTO[];
 }
 
-export interface FootballSyncResultDTO {
+// ---- Manual sync operation lifecycle (F06) ----
+
+/**
+ * Truthful operation lifecycle. A queued job is never collapsed into a generic
+ * success; every tick outcome maps to a distinct terminal status.
+ * `cancelled` is intentionally absent: there is no cancel operation.
+ */
+export type FootballSyncStatus =
+  | 'queued'
+  | 'running'
+  | 'succeeded'
+  | 'empty'
+  | 'skipped'
+  | 'throttled'
+  | 'failed';
+
+export interface FootballSyncOperationDTO {
   id: string;
-  status: 'queued' | 'running' | 'completed' | 'failed';
+  status: FootballSyncStatus;
+  /** Raw tick outcome once the run has finished (success|partial|failed|skipped|empty). */
+  outcome?: FootballIngestionRunOutcome;
+  /** Requested scope (defaults to "full"). */
+  scope: string;
+  triggeredBy: string;
   correlationId: string;
+  idempotencyKey?: string;
+  queuedAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+  recordsFetched: number | null;
+  recordsFetchedState: AvailabilityState;
+  recordsPersisted: number | null;
+  recordsPersistedState: AvailabilityState;
+  errors: string[];
+  skipReason?: string;
+  quotaOutcome?: 'allowed' | 'exhausted';
+}
+
+export interface FootballSyncOperationsDTO {
+  page: number;
+  limit: number;
+  total: number;
+  items: FootballSyncOperationDTO[];
+}
+
+/** `POST /ingestion/sync` returns the operation snapshot; HTTP 202 = queued, never success. */
+export type FootballSyncResultDTO = FootballSyncOperationDTO;
+
+const SYNC_STATUSES = ['queued', 'running', 'succeeded', 'empty', 'skipped', 'throttled', 'failed'] as const;
+
+export interface SyncListQuery extends PageQuery {
+  status?: (typeof SYNC_STATUSES)[number];
+}
+
+export function parseSyncListQuery(query: Record<string, unknown>): ParseResult<SyncListQuery> {
+  const base = parsePageQuery(query);
+  if (!base.ok) return base;
+  const status = parseEnum(query.status, SYNC_STATUSES, 'status');
+  if (!status.ok) return status;
+  return ok({ ...base.value, status: status.value });
 }

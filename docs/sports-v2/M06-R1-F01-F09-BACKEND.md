@@ -229,3 +229,73 @@ INVALID_PARAMS` **antes** de tocar la base de datos.
 `idx_football_*`):
 - `football_teams`: `{ lastUpdatedAt: -1, slug: 1 }` → `idx_football_team_updated_slug`
 - `football_competitions`: `{ lastUpdatedAt: -1, slug: 1 }` → `idx_football_competition_updated_slug`
+
+---
+
+## 7. Ciclo de vida de la sincronización manual (F06)
+
+`POST /v2/sports/football/admin/ingestion/sync` encola una operación y responde
+**202**. Un 202 **nunca** es éxito de ingesta: la operación se queda `queued` y el
+resultado real se escribe cuando el tick termina. El body admite `idempotencyKey`
+(clave de idempotencia, opcional) y `scope` (texto acotado, por defecto `"full"`).
+
+`GET /v2/sports/football/admin/ingestion/sync` (nuevo) devuelve el historial de
+operaciones paginado (`page`, `limit` 1..100, `status` opcional), más recientes
+primero.
+
+### 7.1 Estados terminales (nunca se colapsan en un éxito genérico)
+
+| `status` | Producido por |
+|---|---|
+| `queued` | respuesta del `POST` (202) |
+| `running` | el tick ha empezado |
+| `succeeded` | tick `success` o `partial` |
+| `empty` | tick `empty` (la ingesta no adelanta `lastSuccessAt`) |
+| `skipped` | tick `skipped` (lock, circuito abierto, deshabilitado) |
+| `throttled` | tick `skipped` con razón `budget_exhausted` |
+| `failed` | tick `failed` o excepción |
+
+`cancelled` no existe: no hay operación de cancelación (no se inventa un estado).
+
+### 7.2 Campos de la operación
+
+| Campo | Tipo | Semántica |
+|---|---|---|
+| `id` | `string` | id de la operación |
+| `status` | `FootballSyncStatus` | ciclo de vida real |
+| `outcome` | `'success' \| 'partial' \| 'failed' \| 'skipped' \| 'empty'` (opcional) | resultado crudo del tick |
+| `scope` | `string` | alcance solicitado (por defecto `full`) |
+| `triggeredBy` | `string` | actor iniciador (`admin-key` o `admin`) |
+| `correlationId` | `string` | correlación de eventos |
+| `idempotencyKey` | `string?` | clave de idempotencia del cliente |
+| `queuedAt` / `startedAt` / `completedAt` | `string?` | marcas de tiempo |
+| `recordsFetched` | `number \| null` | registros obtenidos (`not_measured` antes del tick, `observed` después; 0 incluido) |
+| `recordsPersisted` | `number \| null` | registros persistidos (mismo patrón de estado) |
+| `errors` | `string[]` | errores redactados |
+| `skipReason` | `string?` | razón de skip/throttle |
+| `quotaOutcome` | `'allowed' \| 'exhausted'` (opcional) | decisión de la cuota |
+
+### 7.3 Idempotencia atómica
+
+La clave de idempotencia se impone en la **base de datos** con un índice único
+parcial `{ type: 1, idempotencyKey: 1 }` (`partialFilterExpression`:
+`{ idempotencyKey: { $type: 'string' } }`, nombre `idx_admin_operation_type_idempotency`).
+Dos peticiones concurrentes idénticas colapsan en **una** operación; la perdedora
+re-lee la ganadora (E11000). Las operaciones sin clave de cliente (correlación
+autogenerada) no participan en el índice y no colisionan.
+
+---
+
+## 8. Cuota durable y modo local (F07)
+
+- La autoridad durable (MongoDB, `MongoDurableQuotaStore` + `DurableRequestBudget` +
+  `MongoLock`) es el **default**. `FOOTBALL_DURABLE_QUOTA` distinta de la cadena
+  exacta `"0"` (o ausente) pide durable; solo `FOOTBALL_DURABLE_QUOTA=0` activa el
+  modo local de proceso.
+- **Fail-closed**: si se pide durable y MongoDB no está listo, la fábrica lanza y no
+  hay ingesta — nunca hay degradación silenciosa a un presupuesto de proceso.
+- **Modo local (`=0`)**: explícito y **solo para un único trabajador**. El
+  presupuesto y el lock son de proceso, por lo que dos trabajadores podrían creerse
+  dueños de la cuota. No usar en despliegue multi-worker.
+- La reserva durable es atómica (`findOneAndUpdate` con `$inc` y filtro
+  `consumed < limit`): dos instancias nunca ganan la misma unidad.

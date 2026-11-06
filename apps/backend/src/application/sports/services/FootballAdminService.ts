@@ -25,6 +25,7 @@ import { AdminOperationModel } from '@/infrastructure/database/models/AdminOpera
 import { getCompetitionCatalog } from '@/application/sports/services/FootballCompetitionCatalog';
 import { resolveOpenLigaDbCoverage, OPENLIGADB_COMPETITION_MAP } from '@/infrastructure/sports/providers/openLigaDb/OpenLigaDbAdapter';
 import { sharedFootballIngestionService } from '@/application/sports/ingestion/footballIngestionContainer';
+import { TickResult } from '@/application/sports/ingestion/types';
 import {
   AvailabilityState,
   FootballAdminMatchDTO,
@@ -42,10 +43,14 @@ import {
   FootballProviderSummaryDTO,
   FootballQualityIssueDTO,
   FootballQualityIssuesDTO,
+  FootballSyncOperationDTO,
+  FootballSyncOperationsDTO,
   FootballSyncResultDTO,
+  FootballSyncStatus,
   MatchListQuery,
   AuditQuery,
   EntityMappingQuery,
+  SyncListQuery,
 } from '../dto/FootballAdminDTO';
 
 const STALENESS_MS = 6 * 60 * 60 * 1000;
@@ -85,6 +90,51 @@ async function durableQuota(): Promise<DurableQuota> {
     store.getThrottleUntil('openligadb'),
   ]);
   return { consumed, disabled, throttleUntil, state: 'observed' };
+}
+
+/** Maps a tick outcome to a truthful terminal operation status (F06). */
+function mapTickToOperation(tick: TickResult): {
+  status: FootballSyncStatus;
+  /** Null means "not measured", never "zero records". */
+  recordsFetched: number | null;
+  errors: string[];
+  skipReason?: string;
+  quotaOutcome?: 'allowed' | 'exhausted';
+} {
+  // F06: use the tick's OWN measurement of fetched matches. Summing bucket counts
+  // was a derivation, not a measurement: buckets classify match STATUS, so a tick
+  // that fetched matches would have reported a number that only happened to be
+  // non-zero, and an unclassified tick would have reported a fabricated 0.
+  const recordsFetched: number | null =
+    typeof tick.matchesFetched === 'number' ? tick.matchesFetched : null;
+  switch (tick.outcome) {
+    case 'success':
+    case 'partial':
+      return { status: 'succeeded', recordsFetched, errors: [], quotaOutcome: 'allowed' };
+    case 'empty':
+      // A successful fetch that yielded no matches is a MEASURED zero.
+      return {
+        status: 'empty',
+        recordsFetched: recordsFetched ?? 0,
+        errors: [],
+        skipReason: tick.reason ?? 'no records returned',
+        quotaOutcome: 'allowed',
+      };
+    case 'failed':
+      return { status: 'failed', recordsFetched, errors: tick.reason ? [tick.reason] : [], quotaOutcome: 'allowed' };
+    case 'skipped':
+      if (tick.reason === 'budget_exhausted') {
+        return { status: 'throttled', recordsFetched: 0, errors: [], skipReason: tick.reason, quotaOutcome: 'exhausted' };
+      }
+      return { status: 'skipped', recordsFetched: 0, errors: [], skipReason: tick.reason ?? 'skipped', quotaOutcome: 'allowed' };
+  }
+}
+
+function isDuplicateKeyError(error: unknown): boolean {
+  if (error === null || typeof error !== 'object') return false;
+  const e = error as { code?: number; message?: string };
+  const message = typeof e.message === 'string' ? e.message : '';
+  return e.code === 11000 || message.includes('E11000') || message.toLowerCase().includes('duplicate key');
 }
 
 export class FootballAdminService {
@@ -392,45 +442,115 @@ export class FootballAdminService {
     };
   }
 
-  /** Manual sync: idempotency-keyed, audited, and truthfully status-reported. */
-  async enqueueSync(actor: string, idempotencyKey?: string): Promise<FootballSyncResultDTO> {
+  /** Manual sync: idempotency-keyed (database-enforced), audited, and truthfully status-reported. */
+  async enqueueSync(actor: string, idempotencyKey?: string, scope?: string): Promise<FootballSyncResultDTO> {
     const correlationId = idempotencyKey || `football.sync.${randomUUID()}`;
-    const existing = await AdminOperationModel.findOne({ correlationId, type: 'football.sync' }).lean().exec();
-    if (existing) {
-      return { id: String(existing._id), status: existing.status, correlationId };
-    }
-    const job = await AdminOperationModel.create({
+    const doc: Record<string, unknown> = {
       type: 'football.sync',
       status: 'queued',
       queuedAt: new Date(),
       attempts: 1,
       triggeredBy: actor,
       correlationId,
+      scope: scope ?? 'full',
       target: 'manual-sync',
-    });
-    await AdminOperationalEventModel.create({
-      timestamp: new Date(),
-      severity: 'info',
-      subsystem: 'football',
-      message: `Queued manual football sync`,
-      correlationId,
-      jobId: String(job._id),
-    });
-    void (async () => {
-      try {
-        await AdminOperationModel.updateOne({ _id: job._id }, { status: 'running', startedAt: new Date(), currentStep: 'Ingesting' });
-        const service = sharedFootballIngestionService();
-        if (!service) throw new Error('Football ingestion is disabled');
-        await service.runTick();
-        await AdminOperationModel.updateOne({ _id: job._id }, { status: 'completed', completedAt: new Date(), progress: 100 });
-      } catch (error) {
-        await AdminOperationModel.updateOne(
-          { _id: job._id },
-          { status: 'failed', completedAt: new Date(), errorSummary: redact(error instanceof Error ? error.message : String(error)).slice(0, 240) }
-        );
+    };
+    // Only set the key when the client supplied one, so the partial unique index
+    // never collides on auto-generated (keyless) correlations.
+    if (idempotencyKey) doc.idempotencyKey = idempotencyKey;
+
+    try {
+      const job = await AdminOperationModel.create(doc);
+      await AdminOperationalEventModel.create({
+        timestamp: new Date(),
+        severity: 'info',
+        subsystem: 'football',
+        message: `Queued manual football sync`,
+        correlationId,
+        jobId: String(job._id),
+      });
+      void this.executeSync(job._id);
+      return this.toSyncOperationDTO(job.toObject());
+    } catch (error) {
+      // Atomic idempotency: a concurrent identical request hit the unique index.
+      if (isDuplicateKeyError(error) && idempotencyKey) {
+        const winner = await AdminOperationModel.findOne({ type: 'football.sync', idempotencyKey }).lean().exec();
+        if (winner) return this.toSyncOperationDTO(winner);
       }
-    })();
-    return { id: String(job._id), status: 'queued', correlationId };
+      throw error;
+    }
+  }
+
+  /** Operation history for the sync screen — truthful states, newest first. */
+  async listSyncOperations(query: SyncListQuery): Promise<FootballSyncOperationsDTO> {
+    const filter: Record<string, unknown> = { type: 'football.sync' };
+    if (query.status) filter.status = query.status;
+    const [total, docs] = await Promise.all([
+      AdminOperationModel.countDocuments(filter).exec(),
+      AdminOperationModel.find(filter).sort({ queuedAt: -1 }).skip((query.page - 1) * query.limit).limit(query.limit).lean().exec(),
+    ]);
+    return { page: query.page, limit: query.limit, total, items: docs.map((d) => this.toSyncOperationDTO(d)) };
+  }
+
+  private async executeSync(operationId: unknown): Promise<void> {
+    try {
+      await AdminOperationModel.updateOne(
+        { _id: operationId },
+        { status: 'running', startedAt: new Date(), currentStep: 'Ingesting' }
+      );
+      const service = sharedFootballIngestionService();
+      if (!service) throw new Error('Football ingestion is disabled');
+      const tick = await service.runTick();
+      // Never collapse outcomes into a generic success: map each tick outcome to
+      // its own terminal status. An all-empty tick is `empty` (never `succeeded`,
+      // and it never advances lastSuccessAt — that is the ingestion service's F03
+      // guarantee, which we merely record truthfully).
+      const mapped = mapTickToOperation(tick);
+      await AdminOperationModel.updateOne(
+        { _id: operationId },
+        {
+          status: mapped.status,
+          completedAt: new Date(),
+          outcome: tick.outcome,
+          recordsFetched: mapped.recordsFetched,
+          recordsPersisted: tick.snapshotsWritten,
+          errors: mapped.errors,
+          skipReason: mapped.skipReason,
+          quotaOutcome: mapped.quotaOutcome,
+          currentStep: mapped.status,
+        }
+      );
+    } catch (error) {
+      const summary = redact(error instanceof Error ? error.message : String(error)).slice(0, 240);
+      await AdminOperationModel.updateOne(
+        { _id: operationId },
+        { status: 'failed', completedAt: new Date(), errorSummary: summary, currentStep: 'Failed', errors: [summary] }
+      );
+    }
+  }
+
+  private toSyncOperationDTO(d: Record<string, any>): FootballSyncOperationDTO {
+    const fetchedSet = typeof d.recordsFetched === 'number';
+    const persistedSet = typeof d.recordsPersisted === 'number';
+    return {
+      id: String(d._id),
+      status: d.status,
+      outcome: d.outcome,
+      scope: d.scope ?? 'full',
+      triggeredBy: d.triggeredBy ?? '',
+      correlationId: d.correlationId ?? '',
+      idempotencyKey: d.idempotencyKey,
+      queuedAt: iso(d.queuedAt),
+      startedAt: iso(d.startedAt),
+      completedAt: iso(d.completedAt),
+      recordsFetched: fetchedSet ? d.recordsFetched : null,
+      recordsFetchedState: fetchedSet ? 'observed' : 'not_measured',
+      recordsPersisted: persistedSet ? d.recordsPersisted : null,
+      recordsPersistedState: persistedSet ? 'observed' : 'not_measured',
+      errors: Array.isArray(d.errors) ? d.errors : [],
+      skipReason: d.skipReason,
+      quotaOutcome: d.quotaOutcome,
+    };
   }
 
   private toMatchDTO(d: { matchId: string; canonicalKey: string; competitionSlug: string; sourceTimestamp: Date; ingestedAt: Date; contentHash: string; match: Record<string, any> }): FootballAdminMatchDTO {

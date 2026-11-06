@@ -83,6 +83,13 @@ export interface TickResult {
   snapshotsWritten: number;
   /** Minimum poll interval (ms) the scheduler computed for the matches just ingested. */
   nextPollIntervalMs?: number;
+  /**
+   * F06: number of provider matches actually fetched in this tick (the raw count
+   * before any dedupe/upsert). This is a MEASUREMENT, not a derivation: an
+   * operation report must state what was fetched, never infer it from bucket
+   * counts, which classify match status and would silently misreport.
+   */
+  matchesFetched?: number;
   buckets?: Partial<Record<IngestionBucket, number>>;
 }
 
@@ -120,3 +127,4 @@ export interface FootballDiagnosticsReport {
     lastRunAt?: string;
   };
 }
+

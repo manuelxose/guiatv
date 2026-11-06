@@ -389,6 +389,7 @@ export class FootballIngestionService {
       requestsUsed,
       snapshotsWritten,
       nextPollIntervalMs: this.nextPollIntervalMs,
+      matchesFetched: allMatches.length,
       buckets: bucketCounts(allMatches, this.clock(), this.scheduler),
       competitions: perCompetition,
     } as TickResult;
@@ -451,3 +452,4 @@ export function bucketCounts(
   }
   return counts;
 }
+
