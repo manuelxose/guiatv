@@ -16,7 +16,7 @@
         Refrescar
       </button>
       <button
-        class="px-4 py-2 rounded-xl bg-[var(--spotify-negative)]/20 border border-[var(--spotify-negative)]/40 text-[var(--spotify-negative)] text-sm hover:bg-[var(--spotify-negative)]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+        class="px-4 py-2 rounded-xl bg-[var(--spotify-negative)]/20 border border-[var(--spotify-negative)]/40 text-[var(--spotify-negative-text)] text-sm hover:bg-[var(--spotify-negative)]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
         type="button"
         (click)="startNewDraft()"
       >
@@ -40,7 +40,7 @@
       (click)="setBlogTab(tab.id)"
     >
       {{ tab.label }}
-      <span *ngIf="tab.id !== 'posts' && isEditingBlogPost" class="ml-1 text-[10px] text-[var(--accent-discover)]">●</span>
+      <span *ngIf="tab.id !== 'posts' && isEditingBlogPost" class="ml-1 text-[10px] text-[var(--accent-discover-text)]">●</span>
     </button>
   </div>
 
@@ -100,7 +100,7 @@
     <div *ngIf="blogLoading" class="text-sm text-[var(--portal-text-muted)] py-6 text-center">
       Cargando articulos...
     </div>
-    <div *ngIf="blogError" class="text-sm text-[var(--spotify-negative)] py-3">
+    <div *ngIf="blogError" class="text-sm text-[var(--spotify-negative-text)] py-3">
       {{ blogError }}
     </div>
     <div *ngIf="!blogLoading && !blogError && blogPosts.length === 0" class="text-sm text-[var(--portal-text-muted)] py-6 text-center">
@@ -153,18 +153,18 @@
                 <span
                   class="text-[10px] px-2 py-1 rounded-full border"
                   [ngClass]="post.origin === 'ai-assisted' || post.origin === 'automated-import'
-                    ? 'border-[var(--accent-streaming)]/40 bg-[var(--accent-streaming)]/10 text-[var(--accent-streaming)]'
+                    ? 'border-[var(--accent-streaming)]/40 bg-[var(--accent-streaming)]/10 text-[var(--accent-streaming-text)]'
                     : 'border-[var(--portal-border-strong)] bg-[var(--portal-surface)] text-[var(--portal-text-muted)]'"
                 >
                   {{ getPostOriginLabel(post) }}
                 </span>
                 <span
                   *ngIf="getPostReviewLabel(post)"
-                  class="text-[10px] px-2 py-1 rounded-full border border-[var(--spotify-warning)]/40 bg-[var(--spotify-warning)]/10 text-[var(--spotify-warning)]"
+                  class="text-[10px] px-2 py-1 rounded-full border border-[var(--spotify-warning)]/40 bg-[var(--spotify-warning)]/10 text-[var(--spotify-warning-text)]"
                 >
                   {{ getPostReviewLabel(post) }}
                 </span>
-                <span *ngIf="post.featured" class="text-[10px] px-2 py-1 rounded-full border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 text-[var(--spotify-negative)]">
+                <span *ngIf="post.featured" class="text-[10px] px-2 py-1 rounded-full border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 text-[var(--spotify-negative-text)]">
                   Destacado
                 </span>
               </div>
@@ -188,7 +188,7 @@
               </button>
               <button *ngIf="post.status === 'publish'"
                 type="button"
-                class="px-3 py-1.5 rounded-lg border border-[var(--accent-discover)]/30 text-[var(--accent-discover)] hover:border-[var(--accent-discover)]/40"
+                class="px-3 py-1.5 rounded-lg border border-[var(--accent-discover)]/30 text-[var(--accent-discover-text)] hover:border-[var(--accent-discover)]/40"
                 (click)="togglePublishState(post)"
               >
                 Retirar publicación
@@ -203,7 +203,7 @@
               </a>
               <button
                 type="button"
-                class="px-3 py-1.5 rounded-lg border border-[var(--spotify-negative)]/30 text-[var(--spotify-negative)] hover:border-[var(--spotify-negative)]/40 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+                class="px-3 py-1.5 rounded-lg border border-[var(--spotify-negative)]/30 text-[var(--spotify-negative-text)] hover:border-[var(--spotify-negative)]/40 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
                 [disabled]="blogDeletingId === post.id"
                 (click)="requestDeleteBlogPost(post)"
               >
@@ -232,15 +232,15 @@
         </p>
       </div>
       <span *ngIf="blogSaving" class="text-xs text-[var(--portal-text-soft)]">Guardando...</span>
-      <span *ngIf="!blogSaving" class="text-xs text-[var(--accent-discover)]">
+      <span *ngIf="!blogSaving" class="text-xs text-[var(--accent-discover-text)]">
         {{ isEditingBlogPost ? 'Modo edicion' : 'Modo alta' }}
       </span>
     </div>
 
-    <div *ngIf="blogSaveError" class="bg-[var(--spotify-negative)]/10 border border-[var(--spotify-negative)]/30 text-[var(--spotify-negative)] px-4 py-3 rounded-xl text-sm">
+    <div *ngIf="blogSaveError" class="bg-[var(--spotify-negative)]/10 border border-[var(--spotify-negative)]/30 text-[var(--spotify-negative-text)] px-4 py-3 rounded-xl text-sm">
       {{ blogSaveError }}
     </div>
-    <div *ngIf="blogSaveSuccess" class="bg-[var(--accent-discover)]/10 border border-[var(--accent-discover)]/30 text-[var(--accent-discover)] px-4 py-3 rounded-xl text-sm">
+    <div *ngIf="blogSaveSuccess" class="bg-[var(--accent-discover)]/10 border border-[var(--accent-discover)]/30 text-[var(--accent-discover-text)] px-4 py-3 rounded-xl text-sm">
       {{ blogSaveSuccess }}
     </div>
 
@@ -261,7 +261,7 @@
             class="mt-2 w-full bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-xl px-4 py-2 text-sm text-[var(--portal-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
             placeholder="Escribe un titular orientado a busqueda real"
           />
-          <p *ngIf="blogForm.get('title')?.invalid && blogForm.get('title')?.touched" class="text-xs text-[var(--spotify-negative)] mt-1">
+          <p *ngIf="blogForm.get('title')?.invalid && blogForm.get('title')?.touched" class="text-xs text-[var(--spotify-negative-text)] mt-1">
             El titulo es obligatorio.
           </p>
         </div>
@@ -282,7 +282,7 @@
           <div>
             <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-status">Estado</label>
             <input id="blog-status" formControlName="status" type="hidden" />
-            <p class="mt-2 rounded-xl border border-[var(--spotify-warning)]/30 bg-[var(--spotify-warning)]/10 px-3 py-2 text-sm text-[var(--spotify-warning)]">Borrador · requiere aprobación editorial separada</p>
+            <p class="mt-2 rounded-xl border border-[var(--spotify-warning)]/30 bg-[var(--spotify-warning)]/10 px-3 py-2 text-sm text-[var(--spotify-warning-text)]">Borrador · requiere aprobación editorial separada</p>
           </div>
           <div>
             <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-type">Tipo</label>
@@ -357,11 +357,11 @@
 
       <div class="grid gap-4 md:grid-cols-2">
         <label class="flex items-center gap-3 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface)] px-4 py-3 text-sm text-[var(--portal-text)]">
-          <input type="checkbox" formControlName="featured" class="h-4 w-4 rounded border-[var(--portal-border-strong)] bg-[var(--portal-surface)] text-[var(--spotify-green)] focus:ring-[var(--spotify-green)]" />
+          <input type="checkbox" formControlName="featured" class="h-4 w-4 rounded border-[var(--portal-border-strong)] bg-[var(--portal-surface)] text-[var(--spotify-green-text)] focus:ring-[var(--spotify-green)]" />
           Destacar en hubs editoriales
         </label>
         <label class="flex items-center gap-3 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface)] px-4 py-3 text-sm text-[var(--portal-text)]">
-          <input type="checkbox" formControlName="evergreen" class="h-4 w-4 rounded border-[var(--portal-border-strong)] bg-[var(--portal-surface)] text-[var(--spotify-green)] focus:ring-[var(--spotify-green)]" />
+          <input type="checkbox" formControlName="evergreen" class="h-4 w-4 rounded border-[var(--portal-border-strong)] bg-[var(--portal-surface)] text-[var(--spotify-green-text)] focus:ring-[var(--spotify-green)]" />
           Contenido evergreen
         </label>
       </div>
@@ -456,14 +456,14 @@
           <div class="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              class="px-4 py-2 rounded-xl bg-[var(--accent-streaming)]/20 border border-[var(--accent-streaming)]/40 text-[var(--accent-streaming)] text-sm hover:bg-[var(--accent-streaming)]/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+              class="px-4 py-2 rounded-xl bg-[var(--accent-streaming)]/20 border border-[var(--accent-streaming)]/40 text-[var(--accent-streaming-text)] text-sm hover:bg-[var(--accent-streaming)]/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
               [disabled]="aiLoading || !aiModel"
               (click)="runAiAssist()"
             >
               {{ aiLoading ? 'Generando…' : 'Generar con IA' }}
             </button>
-            <span *ngIf="aiError" class="text-xs text-[var(--spotify-negative)]">{{ aiError }}</span>
-            <span *ngIf="aiAppliedMessage" class="text-xs text-[var(--accent-discover)]">{{ aiAppliedMessage }}</span>
+            <span *ngIf="aiError" class="text-xs text-[var(--spotify-negative-text)]">{{ aiError }}</span>
+            <span *ngIf="aiAppliedMessage" class="text-xs text-[var(--accent-discover-text)]">{{ aiAppliedMessage }}</span>
           </div>
 
           <div *ngIf="aiResult" class="rounded-xl border border-[var(--accent-streaming)]/40 bg-[var(--accent-streaming)]/5 p-4 space-y-3">
@@ -553,7 +553,7 @@
               >
                 <input
                   type="checkbox"
-                  class="mt-0.5 h-4 w-4 rounded border-[var(--portal-border-strong)] bg-[var(--portal-surface)] text-[var(--spotify-green)] focus:ring-[var(--spotify-green)]"
+                  class="mt-0.5 h-4 w-4 rounded border-[var(--portal-border-strong)] bg-[var(--portal-surface)] text-[var(--spotify-green-text)] focus:ring-[var(--spotify-green)]"
                   [checked]="isArraySelectionActive('relatedPlatformKeys', option.key)"
                   (change)="toggleArraySelection('relatedPlatformKeys', option.key, $any($event.target).checked)"
                 />
@@ -571,7 +571,7 @@
               >
                 <input
                   type="checkbox"
-                  class="mt-0.5 h-4 w-4 rounded border-[var(--portal-border-strong)] bg-[var(--portal-surface)] text-[var(--spotify-green)] focus:ring-[var(--spotify-green)]"
+                  class="mt-0.5 h-4 w-4 rounded border-[var(--portal-border-strong)] bg-[var(--portal-surface)] text-[var(--spotify-green-text)] focus:ring-[var(--spotify-green)]"
                   [checked]="isArraySelectionActive('relatedRouteKeys', option.key)"
                   (change)="toggleArraySelection('relatedRouteKeys', option.key, $any($event.target).checked)"
                 />
@@ -613,7 +613,7 @@
               >
                 <input
                   type="checkbox"
-                  class="mt-0.5 h-4 w-4 rounded border-[var(--portal-border-strong)] bg-[var(--portal-surface)] text-[var(--spotify-green)] focus:ring-[var(--spotify-green)]"
+                  class="mt-0.5 h-4 w-4 rounded border-[var(--portal-border-strong)] bg-[var(--portal-surface)] text-[var(--spotify-green-text)] focus:ring-[var(--spotify-green)]"
                   [checked]="isArraySelectionActive('relatedOfferCategories', option.key)"
                   (change)="toggleArraySelection('relatedOfferCategories', option.key, $any($event.target).checked)"
                 />
@@ -668,7 +668,7 @@
               </button>
             </div>
 
-            <p *ngIf="affiliatePreviewError" class="text-xs text-[var(--spotify-negative)]">{{ affiliatePreviewError }}</p>
+            <p *ngIf="affiliatePreviewError" class="text-xs text-[var(--spotify-negative-text)]">{{ affiliatePreviewError }}</p>
 
             <ng-container *ngIf="affiliatePreviewRequested && !affiliatePreviewLoading && !affiliatePreviewError">
               <div *ngIf="affiliatePreviewOffers.length; else noAffiliatePreview" class="space-y-3">
@@ -708,7 +708,7 @@
           <div>
             <div class="flex items-center justify-between">
               <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-meta-title">Meta title</label>
-              <span class="text-xs" [ngClass]="isSeoTitleOk() ? 'text-[var(--accent-discover)]' : 'text-[var(--spotify-warning)]'">
+              <span class="text-xs" [ngClass]="isSeoTitleOk() ? 'text-[var(--accent-discover-text)]' : 'text-[var(--spotify-warning-text)]'">
                 {{ blogSeoTitleLength }}/{{ seoTitleMax }}
               </span>
             </div>
@@ -724,7 +724,7 @@
           <div>
             <div class="flex items-center justify-between">
               <label class="text-xs text-[var(--portal-text-soft)] uppercase tracking-wider" for="blog-meta-description">Meta description</label>
-              <span class="text-xs" [ngClass]="isSeoDescriptionOk() ? 'text-[var(--accent-discover)]' : 'text-[var(--spotify-warning)]'">
+              <span class="text-xs" [ngClass]="isSeoDescriptionOk() ? 'text-[var(--accent-discover-text)]' : 'text-[var(--spotify-warning-text)]'">
                 {{ blogSeoDescriptionLength }}/{{ seoDescriptionMax }}
               </span>
             </div>
@@ -758,7 +758,7 @@
                 [ngClass]="{ 'border-[var(--spotify-negative)]/60': !isCanonicalValid() }"
                 placeholder="/guias/slug o https://..."
               />
-              <p *ngIf="!isCanonicalValid()" class="text-xs text-[var(--spotify-negative)] mt-1">Canonical invalida.</p>
+              <p *ngIf="!isCanonicalValid()" class="text-xs text-[var(--spotify-negative-text)] mt-1">Canonical invalida.</p>
             </div>
           </div>
         </fieldset>
@@ -772,7 +772,7 @@
           </div>
           <div class="mt-4 space-y-2">
             <div class="text-xs text-[var(--portal-text-muted)] break-all">{{ blogPreviewUrl }}</div>
-            <div class="text-xl font-semibold text-[var(--accent-streaming)]">{{ blogPreviewTitle }}</div>
+            <div class="text-xl font-semibold text-[var(--accent-streaming-text)]">{{ blogPreviewTitle }}</div>
             <p class="text-sm text-[var(--portal-text-soft)]">
               {{ blogPreviewDescription || 'Anade una descripcion util para mejorar el CTR.' }}
             </p>
@@ -812,7 +812,7 @@
       </button>
       <button
         type="submit"
-        class="px-5 py-2 rounded-xl bg-[var(--spotify-negative)]/20 border border-[var(--spotify-negative)]/40 text-[var(--spotify-negative)] text-sm hover:bg-[var(--spotify-negative)]/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+        class="px-5 py-2 rounded-xl bg-[var(--spotify-negative)]/20 border border-[var(--spotify-negative)]/40 text-[var(--spotify-negative-text)] text-sm hover:bg-[var(--spotify-negative)]/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
         [disabled]="blogSaving || blogForm.invalid"
       >
         {{ isEditingBlogPost ? 'Actualizar borrador' : 'Guardar borrador' }}

@@ -10,18 +10,18 @@
     </button>
   </div>
 
-  <div *ngIf="error" role="alert" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative)]">{{ error }}</div>
+  <div *ngIf="error" role="alert" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative-text)]">{{ error }}</div>
   <div *ngIf="notice" role="status" class="rounded-xl border border-[var(--spotify-green)]/40 bg-[var(--spotify-green)]/10 p-4 text-sm text-[var(--portal-text)]">{{ notice }}</div>
 
   <div *ngIf="selected.size" role="region" aria-label="Acciones sobre la selección" class="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--spotify-green)]/40 bg-[var(--portal-surface)] p-3">
     <strong class="text-sm text-[var(--portal-text)]">{{ selected.size }} seleccionados</strong>
     <button type="button" class="px-3 py-2 text-xs rounded-xl border border-[var(--portal-border-strong)] text-[var(--portal-text)] disabled:opacity-40" (click)="bulkRequeue()" [disabled]="bulkBusy !== ''">{{ bulkBusy === 'requeue' ? 'Recuperando…' : 'Reintentar (reinvestigar)' }}</button>
-    <button type="button" class="px-3 py-2 text-xs rounded-xl border border-[var(--spotify-negative)]/40 text-[var(--spotify-negative)] disabled:opacity-40" (click)="bulkDelete()" [disabled]="bulkBusy !== ''">{{ bulkBusy === 'delete' ? 'Eliminando…' : 'Eliminar borradores' }}</button>
+    <button type="button" class="px-3 py-2 text-xs rounded-xl border border-[var(--spotify-negative)]/40 text-[var(--spotify-negative-text)] disabled:opacity-40" (click)="bulkDelete()" [disabled]="bulkBusy !== ''">{{ bulkBusy === 'delete' ? 'Eliminando…' : 'Eliminar borradores' }}</button>
     <button type="button" class="px-3 py-2 text-xs rounded-xl text-[var(--portal-text-soft)] underline" (click)="clearSelection()">Limpiar selección</button>
   </div>
   <div *ngIf="bulkResults.length" role="status" class="text-xs text-[var(--portal-text-soft)]">
     {{ bulkOkCount }}/{{ bulkResults.length }} procesados
-    <span *ngFor="let r of bulkResults.slice(0, 6)" class="ml-2" [ngClass]="r.ok ? 'text-[var(--accent-discover)]' : 'text-[var(--spotify-negative)]'">{{ r.id.slice(0, 12) }}{{ r.ok ? ' ✓' : ' ✗' }}</span>
+    <span *ngFor="let r of bulkResults.slice(0, 6)" class="ml-2" [ngClass]="r.ok ? 'text-[var(--accent-discover-text)]' : 'text-[var(--spotify-negative-text)]'">{{ r.id.slice(0, 12) }}{{ r.ok ? ' ✓' : ' ✗' }}</span>
   </div>
 
   <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl overflow-x-auto" tabindex="0" role="region" aria-label="Borradores rechazados, tabla con desplazamiento">
@@ -45,8 +45,8 @@
           <td><app-admin-status-badge [status]="post.pipelineState" [label]="stateLabel(post.pipelineState)"></app-admin-status-badge></td>
           <td>{{ stateLabel(post.criticVerdict) }}</td>
           <td class="numeric">${{ post.costUsd | number: '1.2-4' }}</td>
-          <td><span class="text-xs" [ngClass]="canRetry(post) ? 'text-[var(--accent-discover)]' : 'text-[var(--portal-text-muted)]'">{{ eligibilityText(post) }}</span></td>
-          <td><div class="flex flex-wrap gap-3"><button type="button" class="text-[var(--portal-text)] underline text-xs" (click)="openPost(post.id)">Revisar</button><button *ngIf="canRetry(post)" type="button" class="text-[var(--portal-text)] underline text-xs" (click)="requeue(post.id)" [disabled]="busy === post.id">Reintentar</button><button type="button" class="text-[var(--spotify-negative)] underline text-xs" (click)="requestDelete(post)">Eliminar borrador</button></div></td>
+          <td><span class="text-xs" [ngClass]="canRetry(post) ? 'text-[var(--accent-discover-text)]' : 'text-[var(--portal-text-muted)]'">{{ eligibilityText(post) }}</span></td>
+          <td><div class="flex flex-wrap gap-3"><button type="button" class="text-[var(--portal-text)] underline text-xs" (click)="openPost(post.id)">Revisar</button><button *ngIf="canRetry(post)" type="button" class="text-[var(--portal-text)] underline text-xs" (click)="requeue(post.id)" [disabled]="busy === post.id">Reintentar</button><button type="button" class="text-[var(--spotify-negative-text)] underline text-xs" (click)="requestDelete(post)">Eliminar borrador</button></div></td>
         </tr>
       </tbody>
     </table>
@@ -61,7 +61,7 @@
     </header>
     <div class="overflow-y-auto p-4 space-y-6">
       <p *ngIf="detailLoading" aria-busy="true" class="text-sm text-[var(--portal-text-muted)]">Cargando evidencias y revisión…</p>
-      <p *ngIf="detailError" role="alert" class="rounded-xl border border-[var(--spotify-negative)]/40 p-3 text-sm text-[var(--spotify-negative)]">{{ detailError }}</p>
+      <p *ngIf="detailError" role="alert" class="rounded-xl border border-[var(--spotify-negative)]/40 p-3 text-sm text-[var(--spotify-negative-text)]">{{ detailError }}</p>
       <ng-container *ngIf="detail as d">
         <section aria-labelledby="rj-reasons"><h4 id="rj-reasons" class="text-xs font-semibold uppercase tracking-wider text-[var(--portal-text-muted)] mb-2">Motivos del rechazo</h4>
           <p class="text-sm text-[var(--portal-text-soft)]">Revisión {{ d.post.reviewState }}<ng-container *ngIf="d.post.reviewedBy"> por {{ d.post.reviewedBy }}</ng-container><ng-container *ngIf="d.post.reviewNotes"> — {{ d.post.reviewNotes }}</ng-container></p>
@@ -100,13 +100,13 @@
           <div *ngIf="editOpen && editDraft as edit" class="space-y-3 mb-3">
             <label class="block text-xs text-[var(--portal-text-soft)]" for="rj-edit-content">Contenido (reescritura dirigida)</label>
             <textarea id="rj-edit-content" [(ngModel)]="edit.content" name="rjEditContent" rows="8" class="w-full min-h-[120px] rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface-strong)] text-[var(--portal-text)] p-3 text-sm"></textarea>
-            <p *ngIf="editError" role="alert" class="text-xs text-[var(--spotify-warning)]">{{ editError }}</p>
+            <p *ngIf="editError" role="alert" class="text-xs text-[var(--spotify-warning-text)]">{{ editError }}</p>
             <div class="flex gap-2"><button type="button" class="px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-xs" (click)="cancelEdit()">Cancelar</button><button type="button" class="px-3 py-2 rounded-xl bg-[var(--spotify-green)] text-black text-xs font-semibold" (click)="saveEdit()" [disabled]="editBusy">{{ editBusy ? 'Guardando…' : 'Guardar reescritura' }}</button></div>
           </div>
           <div class="flex flex-wrap gap-2">
             <button *ngIf="canRetryDetail(d)" type="button" class="px-3 py-2 rounded-xl bg-[var(--spotify-green)] text-black text-xs font-semibold" (click)="requeue(d.post.id)" [disabled]="busy === d.post.id">{{ busy === d.post.id ? 'Recuperando…' : 'Reintento seguro (reinvestigar)' }}</button>
             <button type="button" class="px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text)]" (click)="startEdit()">Reescritura dirigida</button>
-            <button type="button" class="px-3 py-2 rounded-xl border border-[var(--spotify-negative)]/40 text-xs text-[var(--spotify-negative)]" (click)="requestDelete(d.post)">Eliminar borrador</button>
+            <button type="button" class="px-3 py-2 rounded-xl border border-[var(--spotify-negative)]/40 text-xs text-[var(--spotify-negative-text)]" (click)="requestDelete(d.post)">Eliminar borrador</button>
           </div>
         </section>
       </ng-container>

@@ -24,11 +24,11 @@
       </div>
       <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-4">
         <p class="text-[11px] uppercase tracking-wider text-[var(--portal-text-muted)]">Open</p>
-        <p class="text-2xl font-semibold text-[var(--spotify-warning)] mt-2">{{ openCount }}</p>
+        <p class="text-2xl font-semibold text-[var(--spotify-warning-text)] mt-2">{{ openCount }}</p>
       </div>
       <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-4">
         <p class="text-[11px] uppercase tracking-wider text-[var(--portal-text-muted)]">Reviewing</p>
-        <p class="text-2xl font-semibold text-[var(--accent-streaming)] mt-2">{{ reviewingCount }}</p>
+        <p class="text-2xl font-semibold text-[var(--accent-streaming-text)] mt-2">{{ reviewingCount }}</p>
       </div>
       <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-4">
         <p class="text-[11px] uppercase tracking-wider text-[var(--portal-text-muted)]">Page</p>
@@ -53,7 +53,7 @@
       <button
         type="button"
         (click)="applyFilter()"
-        class="px-4 py-2 rounded-xl bg-[var(--spotify-negative)]/20 border border-[var(--spotify-negative)]/40 text-sm text-[var(--spotify-negative)] hover:bg-[var(--spotify-negative)]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+        class="px-4 py-2 rounded-xl bg-[var(--spotify-negative)]/20 border border-[var(--spotify-negative)]/40 text-sm text-[var(--spotify-negative-text)] hover:bg-[var(--spotify-negative)]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
       >
         Apply
       </button>
@@ -64,7 +64,7 @@
       <div class="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[var(--spotify-negative)] border-t-transparent"></div>
       <p class="text-xs text-[var(--portal-text-soft)] mt-2">Loading reports…</p>
     </div>
-    <div *ngIf="error" class="bg-[var(--spotify-negative)]/10 border border-[var(--spotify-negative)]/40 rounded-2xl p-4 text-sm text-[var(--spotify-negative)]">{{ error }}</div>
+    <div *ngIf="error" class="bg-[var(--spotify-negative)]/10 border border-[var(--spotify-negative)]/40 rounded-2xl p-4 text-sm text-[var(--spotify-negative-text)]">{{ error }}</div>
 
     <!-- reports table -->
     <div *ngIf="!loading && reports.length" class="overflow-auto border border-[var(--portal-border)] rounded-2xl">
@@ -98,7 +98,7 @@
                 *ngIf="r.status === 'open' || r.status === 'reviewing'"
                 type="button"
                 (click)="openResolve(r)"
-                class="text-xs text-[var(--spotify-negative)] hover:text-[var(--spotify-negative)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+                class="text-xs text-[var(--spotify-negative-text)] hover:text-[var(--spotify-negative-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
               >
                 Resolve
               </button>
@@ -186,7 +186,7 @@
             type="button"
             [disabled]="resolving"
             (click)="submitResolve()"
-            class="px-4 py-2 rounded-xl bg-[var(--spotify-negative)]/20 border border-[var(--spotify-negative)]/40 text-xs text-[var(--spotify-negative)] hover:bg-[var(--spotify-negative)]/30 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+            class="px-4 py-2 rounded-xl bg-[var(--spotify-negative)]/20 border border-[var(--spotify-negative)]/40 text-xs text-[var(--spotify-negative-text)] hover:bg-[var(--spotify-negative)]/30 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
           >
             {{ resolving ? 'Saving…' : 'Submit' }}
           </button>
@@ -201,7 +201,7 @@
       <p class="text-[10px] uppercase tracking-[0.3em] text-[var(--portal-text-muted)] mb-2">Community</p>
       <p class="text-lg text-[var(--portal-text-soft)]">{{ activeItem === 'chat' ? 'Chat Moderation' : 'Favorites Analytics' }}</p>
       <p class="text-sm text-[var(--portal-text-muted)] mt-2">This section is planned for a future release.</p>
-      <span class="mt-4 inline-block text-[11px] px-3 py-1 rounded-full border border-[var(--spotify-warning)]/40 text-[var(--spotify-warning)] bg-[var(--spotify-warning)]/10">Planned</span>
+      <span class="mt-4 inline-block text-[11px] px-3 py-1 rounded-full border border-[var(--spotify-warning)]/40 text-[var(--spotify-warning-text)] bg-[var(--spotify-warning)]/10">Planned</span>
     </div>
   </ng-container>
 </section>

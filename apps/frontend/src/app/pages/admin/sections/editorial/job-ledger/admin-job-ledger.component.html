@@ -57,12 +57,12 @@
       <thead>
         <tr>
           <th scope="col" class="select"><input type="checkbox" [checked]="allSelected" (change)="toggleAll()" aria-label="Seleccionar todos los trabajos de esta página" /></th>
-          <th scope="col"><button type="button" class="sort-btn" [attr.aria-sort]="sortAria('slug')" (click)="toggleSort('slug')">Trabajo<span aria-hidden="true">{{ sortKey === 'slug' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '' }}</span></button></th>
-          <th scope="col"><button type="button" class="sort-btn" [attr.aria-sort]="sortAria('state')" (click)="toggleSort('state')">Estado<span aria-hidden="true">{{ sortKey === 'state' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '' }}</span></button></th>
+          <th scope="col" [attr.aria-sort]="sortAria('slug')"><button type="button" class="sort-btn" (click)="toggleSort('slug')">Trabajo<span aria-hidden="true">{{ sortKey === 'slug' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '' }}</span></button></th>
+          <th scope="col" [attr.aria-sort]="sortAria('state')"><button type="button" class="sort-btn" (click)="toggleSort('state')">Estado<span aria-hidden="true">{{ sortKey === 'state' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '' }}</span></button></th>
           <th scope="col">Etapa</th>
-          <th scope="col"><button type="button" class="sort-btn" [attr.aria-sort]="sortAria('attempt')" (click)="toggleSort('attempt')">Intento<span aria-hidden="true">{{ sortKey === 'attempt' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '' }}</span></button></th>
+          <th scope="col" [attr.aria-sort]="sortAria('attempt')"><button type="button" class="sort-btn" (click)="toggleSort('attempt')">Intento<span aria-hidden="true">{{ sortKey === 'attempt' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '' }}</span></button></th>
           <th scope="col">Lease</th>
-          <th scope="col" class="numeric"><button type="button" class="sort-btn numeric" [attr.aria-sort]="sortAria('usd')" (click)="toggleSort('usd')">Coste<span aria-hidden="true">{{ sortKey === 'usd' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '' }}</span></button></th>
+          <th scope="col" class="numeric" [attr.aria-sort]="sortAria('usd')"><button type="button" class="sort-btn numeric" (click)="toggleSort('usd')">Coste<span aria-hidden="true">{{ sortKey === 'usd' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '' }}</span></button></th>
           <th scope="col">Duración</th>
           <th scope="col">Acciones</th>
         </tr>
@@ -102,7 +102,7 @@
     <button type="button" class="button secondary" (click)="nextPage()" [disabled]="to >= page.total">Siguiente</button>
   </div>
 
-  <div *ngIf="pending" class="confirm" role="dialog" aria-modal="true" aria-labelledby="ledger-confirm-title">
+  <div *ngIf="pending" class="confirm" role="dialog" aria-modal="true" aria-labelledby="ledger-confirm-title" cdkTrapFocus cdkTrapFocusAutoCapture>
     <h4 id="ledger-confirm-title">{{ pending.title }}</h4>
     <p *ngIf="pending.action === 'delete'">Se borran solo los metadatos de ejecución de trabajos terminales ya archivados. No se borra ningún artículo publicado.</p>
     <p *ngIf="pending.action === 'archive'">El trabajo queda fuera de la lista activa; sus datos se conservan.</p>
@@ -115,7 +115,7 @@
     </div>
   </div>
 
-  <aside *ngIf="detailOpen && detail as job" class="drawer" role="dialog" aria-modal="true" aria-labelledby="ledger-detail-title">
+  <aside *ngIf="detailOpen && detail as job" class="drawer" role="dialog" aria-modal="true" aria-labelledby="ledger-detail-title" cdkTrapFocus cdkTrapFocusAutoCapture>
     <header>
       <div>
         <p class="eyebrow">Trabajo</p>

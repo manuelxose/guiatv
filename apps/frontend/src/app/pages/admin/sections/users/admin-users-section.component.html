@@ -31,7 +31,7 @@
     </div>
     <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-4">
       <p class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Active</p>
-      <p class="text-2xl font-semibold text-[var(--accent-discover)] mt-2">{{ users.length }}</p>
+      <p class="text-2xl font-semibold text-[var(--accent-discover-text)] mt-2">{{ users.length }}</p>
       <p class="text-xs text-[var(--portal-text-muted)] mt-1">Visible in table</p>
     </div>
     <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-4">
@@ -41,7 +41,7 @@
     </div>
     <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-4">
       <p class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Suspended</p>
-      <p class="text-2xl font-semibold text-[var(--spotify-warning)] mt-2">{{ suspendedCount ?? '—' }}</p>
+      <p class="text-2xl font-semibold text-[var(--spotify-warning-text)] mt-2">{{ suspendedCount ?? '—' }}</p>
       <p class="text-xs text-[var(--portal-text-muted)] mt-1">Awaiting review</p>
     </div>
   </div>
@@ -82,14 +82,14 @@
       </select>
       <button
         type="button"
-        class="px-4 py-2 rounded-xl bg-[var(--spotify-negative)]/20 border border-[var(--spotify-negative)]/40 text-[var(--spotify-negative)] text-sm hover:bg-[var(--spotify-negative)]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+        class="px-4 py-2 rounded-xl bg-[var(--spotify-negative)]/20 border border-[var(--spotify-negative)]/40 text-[var(--spotify-negative-text)] text-sm hover:bg-[var(--spotify-negative)]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
         (click)="applyFilters()"
       >
         Apply
       </button>
     </div>
 
-    <div *ngIf="error" class="bg-[var(--spotify-negative)]/10 border border-[var(--spotify-negative)]/30 text-[var(--spotify-negative)] px-4 py-3 rounded-xl text-sm">
+    <div *ngIf="error" class="bg-[var(--spotify-negative)]/10 border border-[var(--spotify-negative)]/30 text-[var(--spotify-negative-text)] px-4 py-3 rounded-xl text-sm">
       {{ error }}
     </div>
 
@@ -162,7 +162,7 @@
                 type="button"
                 class="px-3 py-1.5 rounded-xl text-xs border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
                 [disabled]="!canSave(user.id)"
-                [ngClass]="user.status === 'suspended' ? 'border-[var(--accent-discover)]/40 text-[var(--accent-discover)] bg-[var(--accent-discover)]/10' : 'border-[var(--spotify-warning)]/40 text-[var(--spotify-warning)] bg-[var(--spotify-warning)]/10'"
+                [ngClass]="user.status === 'suspended' ? 'border-[var(--accent-discover)]/40 text-[var(--accent-discover-text)] bg-[var(--accent-discover)]/10' : 'border-[var(--spotify-warning)]/40 text-[var(--spotify-warning-text)] bg-[var(--spotify-warning)]/10'"
                 (click)="toggleStatus(user)"
               >
                 {{ user.status === 'suspended' ? 'Activate' : 'Suspend' }}

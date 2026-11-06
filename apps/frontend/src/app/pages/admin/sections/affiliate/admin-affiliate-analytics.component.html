@@ -11,7 +11,7 @@
   </div>
 
   <div *ngIf="loading" class="text-sm text-[var(--portal-text-muted)] py-6 text-center">Cargando analytics...</div>
-  <div *ngIf="error" class="text-sm text-[var(--spotify-negative)] py-3">{{ error }}</div>
+  <div *ngIf="error" class="text-sm text-[var(--spotify-negative-text)] py-3">{{ error }}</div>
 
   <ng-container *ngIf="report && !loading">
     <div class="grid sm:grid-cols-3 gap-4">

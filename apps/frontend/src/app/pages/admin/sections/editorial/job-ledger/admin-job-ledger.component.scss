@@ -4,7 +4,8 @@ h3, h4, p { margin: 0; }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .55; }
-button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--spotify-green); outline-offset: 3px; }
+// P2 (R2): the focus ring must reach 3:1 against the light surfaces (WCAG 1.4.11); #1ed760 measures 1.89:1.
+button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--portal-text); outline-offset: 3px; }
 .ledger { display: grid; gap: 16px; min-width: 0; }
 .ledger-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
 .ledger-heading p, .bulk-hint, .empty { color: var(--portal-text-soft); line-height: 1.5; margin-top: 4px; }
@@ -13,36 +14,41 @@ button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focu
 .button { min-height: 44px; border-radius: var(--radius-pill); padding: 9px 16px; border: 1px solid transparent; font-weight: 700; }
 .button.secondary { background: var(--portal-surface-strong); border-color: var(--portal-border-strong); color: var(--portal-text); }
 .button.danger { background: var(--spotify-negative); color: #000; }
+// P1 (R2, 1.4.3): status text on the light admin surfaces uses the text-safe tokens.
+.badge, .feedback, .danger-link, .expired, .stage-error { color: var(--portal-text); }
 .feedback { border-radius: var(--radius-md); padding: 12px 16px; }
-.feedback.error { border: 1px solid var(--spotify-negative); }
-.feedback.success { border: 1px solid var(--spotify-green); }
+.feedback.error { border: 1px solid var(--spotify-negative-text); }
+.feedback.success { border: 1px solid var(--spotify-green-text); }
 .filters { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; padding: 16px; border: 1px solid var(--portal-border); border-radius: var(--radius-lg); background: var(--portal-surface); }
 .filters > div { flex: 1; min-width: 180px; }
 .filters label { display: block; color: var(--portal-text-soft); font-weight: 700; margin-bottom: 6px; }
 .filters .check { display: flex; gap: 8px; align-items: center; min-height: 44px; margin: 0; }
+input[type='checkbox'] { width: 20px; height: 20px; margin: 0; } // P1 (R2, 2.5.8): checkbox targets were 13px
 input:not([type='checkbox']), select { width: 100%; min-height: 44px; border: 1px solid var(--portal-border-strong); background: var(--portal-surface-strong); color: var(--portal-text); border-radius: var(--radius-md); padding: 10px 12px; }
-.bulk { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding: 12px 16px; border: 1px solid var(--spotify-green); border-radius: var(--radius-lg); background: var(--portal-surface); }
+.bulk { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding: 12px 16px; border: 1px solid var(--spotify-green-text); border-radius: var(--radius-lg); background: var(--portal-surface); }
 .bulk .button { min-height: 40px; padding: 7px 12px; }
 .link { border: 0; background: transparent; color: var(--portal-text-soft); text-decoration: underline; min-height: 40px; }
 .table-scroll { overflow: auto; border: 1px solid var(--portal-border); border-radius: var(--radius-lg); background: var(--portal-surface); }
 table { width: 100%; border-collapse: collapse; min-width: 920px; }
 th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--portal-border); vertical-align: top; }
 th { color: var(--portal-text-muted); font-size: 12px; font-weight: 700; }
-.sort-btn { display: inline-flex; align-items: center; gap: 4px; border: 0; background: transparent; padding: 0; color: var(--portal-text-muted); font-size: 12px; font-weight: 700; min-height: 32px; }
+.sort-btn { display: inline-flex; align-items: center; gap: 4px; border: 0; background: transparent; padding: 0 6px; color: var(--portal-text-muted); font-size: 12px; font-weight: 700; min-height: 44px; }
 .sort-btn:hover { color: var(--portal-text); }
 th.numeric .sort-btn { flex-direction: row-reverse; }
 td small, .stages small, .checkpoints small { display: block; color: var(--portal-text-muted); margin-top: 4px; }
 tr.selected { background: color-mix(in srgb, var(--spotify-green) 8%, transparent); }
 .select { width: 44px; }
-.table-link { border: 0; background: transparent; color: var(--portal-text); font-weight: 700; text-align: left; padding: 0; text-decoration: underline; min-height: 32px; }
-.danger-link { color: var(--spotify-negative); }
+.table-link { border: 0; background: transparent; color: var(--portal-text); font-weight: 700; text-align: left; padding: 4px 0; text-decoration: underline; min-height: 44px; }
+.danger-link { color: var(--spotify-negative-text); }
 table-actions, .table-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+// P1 (R2, 2.5.8): every row action keeps a 24px target even at the compact table size.
+.table-actions .table-link { min-height: 32px; min-width: 24px; display: inline-flex; align-items: center; }
 .badge { display: inline-block; padding: 3px 9px; border-radius: var(--radius-pill); border: 1px solid var(--portal-border-strong); font-size: 12px; font-weight: 700; }
-.state-running, .stage-running { border-color: var(--spotify-green); color: var(--spotify-green); }
-.state-completed, .stage-completed { border-color: var(--spotify-green); }
-.state-failed, .state-cancelled, .state-dead-letter, .stage-failed, .stage-cancelled { border-color: var(--spotify-negative); color: var(--spotify-negative); }
-.state-paused, .state-cancelling, .state-blocked, .stage-skipped { border-color: var(--spotify-warning); }
-.expired { color: var(--spotify-negative); font-weight: 700; }
+.state-running, .stage-running { border-color: var(--spotify-green-text); color: var(--spotify-green-text); }
+.state-completed, .stage-completed { border-color: var(--spotify-green-text); }
+.state-failed, .state-cancelled, .state-dead-letter, .stage-failed, .stage-cancelled { border-color: var(--spotify-negative-text); color: var(--spotify-negative-text); }
+.state-paused, .state-cancelling, .state-blocked, .stage-skipped { border-color: var(--spotify-warning-text); color: var(--spotify-warning-text); }
+.expired { color: var(--spotify-negative-text); font-weight: 700; }
 .numeric { text-align: right; font-variant-numeric: tabular-nums; }
 .pager { display: flex; align-items: center; gap: 16px; justify-content: flex-end; }
 .confirm { position: fixed; inset: 0; margin: auto; z-index: 50; width: min(520px, calc(100vw - 32px)); height: fit-content; display: grid; gap: 12px; padding: 24px; border-radius: var(--radius-lg); background: var(--portal-surface); border: 1px solid var(--portal-border-strong); box-shadow: 0 24px 60px rgb(0 0 0 / 45%); }
@@ -56,10 +62,10 @@ table-actions, .table-actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .detail-grid dd { margin: 4px 0 0; }
 .stages { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .stages li { border-left: 3px solid var(--portal-border-strong); padding: 6px 0 6px 12px; }
-.stages li.stage-running { border-color: var(--spotify-green); }
-.stages li.stage-failed, .stages li.stage-cancelled { border-color: var(--spotify-negative); }
+.stages li.stage-running { border-color: var(--spotify-green-text); }
+.stages li.stage-failed, .stages li.stage-cancelled { border-color: var(--spotify-negative-text); }
 .stage-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
-.stage-error { color: var(--spotify-negative); margin-top: 4px; }
+.stage-error { color: var(--spotify-negative-text); margin-top: 4px; }
 .checkpoints { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .checkpoints li { display: grid; gap: 2px; }
 .checkpoints code { font-family: ui-monospace, monospace; font-size: 12px; overflow-wrap: anywhere; }

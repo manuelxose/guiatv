@@ -55,6 +55,19 @@ export class AdminSeoSectionComponent implements OnInit {
     this.load();
   }
 
+  /** M14-R6 (R2/P2-04): a real tab pattern — the tabs move with the arrow keys and keep one tab stop. */
+  selectTab(tab: 'indexation' | 'issues'): void {
+    this.tab = tab;
+  }
+  onTabKeydown(event: KeyboardEvent): void {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const next = event.key === 'Home' || (event.key === 'ArrowLeft' && this.tab === 'issues') ? 'indexation'
+      : event.key === 'End' || (event.key === 'ArrowRight' && this.tab === 'indexation') ? 'issues' : this.tab;
+    this.tab = next;
+    (document.getElementById(next === 'indexation' ? 'seo-tab-indexation' : 'seo-tab-issues') as HTMLElement | null)?.focus();
+  }
+
   get allSelected(): boolean {
     return this.page.rows.length > 0 && this.page.rows.every((r) => this.selected.has(r.url));
   }

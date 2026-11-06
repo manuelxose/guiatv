@@ -11,15 +11,18 @@
     presenta aquí como indexación y no se promete indexación.
   </p>
 
-  <nav class="tabs" role="tablist" aria-label="Vistas SEO">
-    <button role="tab" [attr.aria-selected]="tab === 'indexation'" (click)="tab = 'indexation'">Cuadrícula</button>
-    <button role="tab" [attr.aria-selected]="tab === 'issues'" (click)="tab = 'issues'">Incidencias ({{ issues.length }})</button>
+  <!-- M14-R6 (R2/P2-04): complete tab pattern — roving tabindex, arrow keys and aria-controls. -->
+  <nav class="tabs" role="tablist" aria-label="Vistas SEO" (keydown)="onTabKeydown($event)">
+    <button role="tab" id="seo-tab-indexation" aria-controls="seo-panel-indexation" [attr.tabindex]="tab === 'indexation' ? 0 : -1"
+      [attr.aria-selected]="tab === 'indexation'" (click)="selectTab('indexation')">Cuadrícula</button>
+    <button role="tab" id="seo-tab-issues" aria-controls="seo-panel-issues" [attr.tabindex]="tab === 'issues' ? 0 : -1"
+      [attr.aria-selected]="tab === 'issues'" (click)="selectTab('issues')">Incidencias ({{ issues.length }})</button>
   </nav>
 
   <p class="seo__notice" *ngIf="notice" role="status">{{ notice }}</p>
   <p class="seo__error" *ngIf="error" role="alert">{{ error }}</p>
 
-  <ng-container *ngIf="tab === 'indexation'">
+  <div id="seo-panel-indexation" role="tabpanel" aria-labelledby="seo-tab-indexation" *ngIf="tab === 'indexation'">
     <div class="toolbar">
       <input type="search" [(ngModel)]="q" (keyup.enter)="applyFilters()" placeholder="Buscar URL o slug…" aria-label="Buscar" />
       <select [(ngModel)]="state" (change)="applyFilters()" aria-label="Estado">
@@ -92,9 +95,9 @@
       <span>Página {{ page.page }} de {{ page.pages }} ({{ page.total }} URLs)</span>
       <button (click)="setPage(page.page + 1)" [disabled]="page.page >= page.pages">Siguiente</button>
     </div>
-  </ng-container>
+  </div>
 
-  <ng-container *ngIf="tab === 'issues'">
+  <div id="seo-panel-issues" role="tabpanel" aria-labelledby="seo-tab-issues" *ngIf="tab === 'issues'">
     <ul class="issues" *ngIf="issues.length; else empty">
       <li class="issue" *ngFor="let issue of issues; trackBy: trackIssue">
         <div class="issue__head">
@@ -118,5 +121,5 @@
       </li>
     </ul>
     <ng-template #empty><p class="muted">Sin incidencias. La auditoría técnica volverá a detectarlas si aparecen.</p></ng-template>
-  </ng-container>
+  </div>
 </section>

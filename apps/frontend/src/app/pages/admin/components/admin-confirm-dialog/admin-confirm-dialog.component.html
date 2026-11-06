@@ -36,7 +36,7 @@
         type="button"
         class="px-3 py-2 rounded-[var(--radius-sm)] text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
         [ngClass]="danger
-          ? 'bg-[var(--spotify-negative)]/20 border border-[var(--spotify-negative)]/40 text-[var(--spotify-negative)] hover:bg-[var(--spotify-negative)]/30'
+          ? 'bg-[var(--spotify-negative)]/20 border border-[var(--spotify-negative)]/40 text-[var(--spotify-negative-text)] hover:bg-[var(--spotify-negative)]/30'
           : 'bg-[var(--portal-surface-strong)] border border-[var(--portal-border-strong)] text-[var(--portal-text)]'"
         [disabled]="busy"
         (click)="onConfirm()"

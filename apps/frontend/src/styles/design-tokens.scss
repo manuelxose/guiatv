@@ -124,6 +124,12 @@
   // its tone with a label/icon — colour alone no longer disambiguates 5 ways.
   --accent-live: var(--spotify-negative);
   --accent-live-strong: #c42835;
+  // Text-safe accent aliases (see --spotify-*-text): the red/green/amber/blue accents
+  // measure 1.65–2.80:1 on the light surfaces and must not paint text there.
+  --accent-live-text: var(--spotify-negative-text);
+  --accent-discover-text: var(--spotify-green-text);
+  --accent-sports-text: var(--spotify-warning-text);
+  --accent-streaming-text: var(--spotify-announce-text);
   --accent-live-soft: color-mix(in oklch, var(--accent-live) 8%, var(--portal-card));
   --accent-discover: var(--spotify-green);
   --accent-discover-soft: color-mix(in oklch, var(--accent-discover) 8%, var(--portal-card));
@@ -142,6 +148,17 @@
   --status-live-soft: var(--accent-live-soft);
   --status-warning: var(--accent-sports);
   --status-warning-soft: var(--accent-sports-soft);
+
+  // Text-safe semantic colours (WCAG 1.4.3 AA, 4.5:1 on the light surfaces).
+  // The Spotify primitives are tuned for dark backgrounds and fail as text on
+  // --portal-bg #fdfdfd (#f3727f 2.74:1, #1ed760 1.89:1, #ffa42b 1.95:1,
+  // #539df5 2.75:1). Component rules that paint text/border-on-light with a
+  // status colour use these instead; the primitives keep serving fills and
+  // iconography on dark surfaces.
+  --spotify-negative-text: #a8323d; // 6.47:1 on #fdfdfd
+  --spotify-green-text: #0f7a33; // 5.36:1 on #fdfdfd
+  --spotify-warning-text: #8a5200; // 6.28:1 on #fdfdfd
+  --spotify-announce-text: #1a5fa8; // 6.36:1 on #fdfdfd
 
   // Football product semantics. These aliases let the vertical express
   // hierarchy without coupling components to a palette or theme.

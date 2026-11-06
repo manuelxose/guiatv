@@ -12,7 +12,7 @@
     </button>
   </div>
 
-  <div *ngIf="error" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative)]">
+  <div *ngIf="error" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative-text)]">
     {{ error }}
   </div>
 
@@ -21,7 +21,7 @@
     <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-4">
       <p class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Status</p>
       <p class="text-2xl font-semibold mt-2"
-        [ngClass]="health?.status === 'healthy' ? 'text-[var(--accent-discover)]' : 'text-[var(--spotify-warning)]'">
+        [ngClass]="health?.status === 'healthy' ? 'text-[var(--accent-discover-text)]' : 'text-[var(--spotify-warning-text)]'">
         {{ health?.status || '…' }}
       </p>
       <p class="text-xs text-[var(--portal-text-muted)] mt-1">API v{{ health?.version || '…' }}</p>
@@ -34,7 +34,7 @@
     <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-4">
       <p class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Cache</p>
       <p class="text-2xl font-semibold mt-2"
-        [ngClass]="cacheStatus === 'healthy' ? 'text-[var(--accent-discover)]' : 'text-[var(--spotify-warning)]'">
+        [ngClass]="cacheStatus === 'healthy' ? 'text-[var(--accent-discover-text)]' : 'text-[var(--spotify-warning-text)]'">
         {{ cacheStatus }}
       </p>
       <p class="text-xs text-[var(--portal-text-muted)] mt-1">Valkey/Redis</p>
@@ -96,7 +96,7 @@
             <tr class="hover:bg-[var(--portal-surface)]">
               <td class="px-2 py-3 text-[var(--portal-text)]">API Server</td>
               <td class="px-2 py-3">
-                <span class="text-[11px] px-2 py-1 rounded-full border border-[var(--accent-discover)]/40 text-[var(--accent-discover)] bg-[var(--accent-discover)]/10">
+                <span class="text-[11px] px-2 py-1 rounded-full border border-[var(--accent-discover)]/40 text-[var(--accent-discover-text)] bg-[var(--accent-discover)]/10">
                   {{ health.status }}
                 </span>
               </td>
@@ -106,7 +106,7 @@
               <td class="px-2 py-3 text-[var(--portal-text)]">Cache (Valkey)</td>
               <td class="px-2 py-3">
                 <span class="text-[11px] px-2 py-1 rounded-full border"
-                  [ngClass]="cacheStatus === 'healthy' ? 'border-[var(--accent-discover)]/40 text-[var(--accent-discover)] bg-[var(--accent-discover)]/10' : 'border-[var(--spotify-warning)]/40 text-[var(--spotify-warning)] bg-[var(--spotify-warning)]/10'">
+                  [ngClass]="cacheStatus === 'healthy' ? 'border-[var(--accent-discover)]/40 text-[var(--accent-discover-text)] bg-[var(--accent-discover)]/10' : 'border-[var(--spotify-warning)]/40 text-[var(--spotify-warning-text)] bg-[var(--spotify-warning)]/10'">
                   {{ cacheStatus }}
                 </span>
               </td>
@@ -115,7 +115,7 @@
             <tr class="hover:bg-[var(--portal-surface)]">
               <td class="px-2 py-3 text-[var(--portal-text)]">MongoDB</td>
               <td class="px-2 py-3">
-                <span class="text-[11px] px-2 py-1 rounded-full border border-[var(--accent-discover)]/40 text-[var(--accent-discover)] bg-[var(--accent-discover)]/10">
+                <span class="text-[11px] px-2 py-1 rounded-full border border-[var(--accent-discover)]/40 text-[var(--accent-discover-text)] bg-[var(--accent-discover)]/10">
                   connected
                 </span>
               </td>

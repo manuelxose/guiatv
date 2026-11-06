@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import express, { type ErrorRequestHandler } from 'express';
 import type { AddressInfo } from 'node:net';
 import {
-  buildSeoGrid, detectIssues, parseSeoIndexationQuery, safeSeoFix, seoStateOf,
+  ISSUE_DEFS, buildSeoGrid, detectIssues, parseSeoIndexationQuery, safeSeoFix, seoStateOf,
   type SeoInspectionSeed, type SeoPostSeed, type SeoUrlView,
 } from './SeoIndexationService';
 import { createAdminSeoRoutes } from '../../presentation/routes/admin-seo.routes';
@@ -126,6 +126,23 @@ test('safeSeoFix es determinista y jamás elimina un noindex justificado', () =>
 
   const manual = safeSeoFix('broken-link', [indexable]);
   assert.equal(manual.applicable, false, 'sin corrección automática segura');
+});
+
+test('M14-R6: la remediación se resuelve por automationKind, no por el código del síntoma', () => {
+  // R2/P1-06: applySeoIssue pasaba doc.code ("missing-sitemap") a safeSeoFix, que sólo conoce los
+  // automationKind de ISSUE_DEFS; todo caía en default y ninguna corrección segura se aplicaba jamás.
+  const row: SeoUrlView = { url: A, slug: 'guia-a', contentType: 'guide', publishedAt: null, intendedIndexable: true, state: 'not-discovered', lastInspectedAt: null, inSitemap: false, declaredCanonical: A, googleCanonical: null, robotsDirective: null, issueCodes: [], actions: [], nextInspectionAt: null };
+  const kindOf = (code: string): string => String(ISSUE_DEFS[code]?.automationKind ?? '');
+  assert.equal(kindOf('missing-sitemap'), 'add-to-sitemap');
+  assert.equal(kindOf('unexpected-noindex'), 'clear-unexpected-noindex');
+  assert.equal(kindOf('canonical-mismatch'), 'set-self-canonical');
+
+  const viaKind = safeSeoFix(kindOf('missing-sitemap'), [row]);
+  assert.equal(viaKind.applicable, true, 'una incidencia automatizable con su automationKind sí se aplica');
+  assert.deepEqual(viaKind.updates, [{ url: A, field: 'inSitemap', value: true }]);
+  // The symptom code alone is not an automation: it must stay refused instead of silently doing nothing useful.
+  assert.equal(safeSeoFix('missing-sitemap', [row]).applicable, false);
+  assert.equal(safeSeoFix(kindOf('broken-link'), [row]).applicable, false, 'sin automationKind no hay acción automática');
 });
 
 test('parseSeoIndexationQuery aplica filtros, orden y paginación en servidor', () => {

@@ -77,7 +77,16 @@ async function refreshSeoUrls(now = new Date()): Promise<void> {
   for (const row of grid) {
     const observed = { url: row.url, slug: row.slug, contentType: row.contentType, publishedAt: row.publishedAt, state: row.state, lastInspectedAt: row.lastInspectedAt, googleCanonical: row.googleCanonical, updatedAt: now };
     const intent = { intendedIndexable: row.intendedIndexable, inSitemap: row.inSitemap, declaredCanonical: row.declaredCanonical, robotsDirective: row.robotsDirective, nextInspectionAt: row.nextInspectionAt, issueCodes: row.issueCodes, actions: row.actions };
-    await seoUrls().updateOne({ url: row.url }, { $set: observed, $setOnInsert: intent }, { upsert: true });
+    // M14-R6 (R2/P2-10): a refresh may not overwrite the stored Google verdict with "not inspected".
+    // Without a fresh inspection the state is unknown; keep the last known verdict on the record.
+    const stored = await seoUrls().findOne({ url: row.url }, { projection: { state: 1, lastInspectedAt: 1, googleCanonical: 1 } });
+    const keepVerdict = Boolean(stored) && !row.lastInspectedAt && row.state === 'unobserved';
+    if (keepVerdict) {
+      const { state: _s, lastInspectedAt: _l, googleCanonical: _g, ...rest } = observed as Record<string, any>;
+      await seoUrls().updateOne({ url: row.url }, { $set: rest, $setOnInsert: intent }, { upsert: true });
+    } else {
+      await seoUrls().updateOne({ url: row.url }, { $set: observed, $setOnInsert: intent }, { upsert: true });
+    }
   }
 }
 
@@ -159,7 +168,9 @@ async function applySeoIssue(id: string, note: string, now = new Date()): Promis
   const doc = await findIssueDoc(id);
   if (doc.state !== 'open') throw new ValidationError('La incidencia ya no está abierta', []);
   const rows = await seoUrls().find({ url: { $in: doc.urls } }).toArray();
-  const fix = safeSeoFix(String(doc.code), rows.map((r) => toUrlView(r as Record<string, any>)));
+  // The automation is keyed by the issue kind (automationKind), never by the issue code: the code names the
+  // symptom ("missing-sitemap"), the kind names the supported safe action ("add-to-sitemap").
+  const fix = safeSeoFix(String(doc.automationKind ?? ISSUE_DEFS[String(doc.code)]?.automationKind ?? ''), rows.map((r) => toUrlView(r as Record<string, any>)));
   if (fix.applicable) {
     for (const u of fix.updates) await seoUrls().updateOne({ url: u.url }, { $set: { [u.field]: u.value, updatedAt: now } });
   } else if (!note.trim()) {

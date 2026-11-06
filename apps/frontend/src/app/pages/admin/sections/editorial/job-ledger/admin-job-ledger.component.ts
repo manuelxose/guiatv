@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, HostListener, OnDestroy, OnInit, Output } from '@angular/core';
+import { A11yModule } from '@angular/cdk/a11y';
+import { Component, ElementRef, EventEmitter, HostListener, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { Subject, Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
@@ -33,7 +34,7 @@ const MAX_BULK = 50;
 @Component({
   selector: 'app-admin-job-ledger',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, A11yModule],
   templateUrl: './admin-job-ledger.component.html',
   styleUrl: './admin-job-ledger.component.scss',
 })
@@ -73,6 +74,8 @@ export class AdminJobLedgerComponent implements OnInit, OnDestroy {
   sortDir: 'asc' | 'desc' = 'desc';
 
   private subs = new Subscription();
+  /** Element that opened the current modal layer; focus returns here when the layer closes (WCAG 2.4.3). */
+  private returnFocus: HTMLElement | null = null;
   private readonly search$ = new Subject<string>();
   private timer: ReturnType<typeof setInterval> | null = null;
 
@@ -102,6 +105,17 @@ export class AdminJobLedgerComponent implements OnInit, OnDestroy {
   onEscape(): void {
     if (this.pending) this.cancelPending();
     else if (this.detailOpen) this.closeDetail();
+  }
+
+  /** The element that opened a modal layer receives focus again when that layer closes (WCAG 2.4.3). */
+  private rememberFocus(): void {
+    const active = document.activeElement;
+    this.returnFocus = active instanceof HTMLElement ? active : null;
+  }
+  private restoreFocus(): void {
+    const target = this.returnFocus;
+    this.returnFocus = null;
+    target?.focus?.();
   }
 
   /** Reflect the URL state/q/skip/archived/stale into the component. Returns true when something changed. */
@@ -267,6 +281,7 @@ export class AdminJobLedgerComponent implements OnInit, OnDestroy {
   ask(action: LedgerAction, job?: EditorialLedgerJob): void {
     const ids = job ? [job.jobId] : [...this.selected];
     if (!ids.length) return;
+    this.rememberFocus();
     const label = {
       pause: 'Pausar', resume: 'Reanudar', cancel: 'Cancelar', retry: 'Reintentar', recover: 'Recuperar', archive: 'Archivar', delete: 'Borrar metadatos',
     }[action];
@@ -277,7 +292,12 @@ export class AdminJobLedgerComponent implements OnInit, OnDestroy {
     this.pendingReason = '';
   }
 
-  cancelPending(): void { if (!this.pendingBusy) { this.pending = null; this.pendingReason = ''; } }
+  cancelPending(): void {
+    if (this.pendingBusy) return;
+    this.pending = null;
+    this.pendingReason = '';
+    this.restoreFocus();
+  }
 
   confirmPending(): void {
     if (!this.pending || this.pendingBusy) return;
@@ -290,6 +310,8 @@ export class AdminJobLedgerComponent implements OnInit, OnDestroy {
       this.pendingBusy = false;
       this.pending = null;
       this.notice = message;
+      // The row may have been re-rendered: the opener cannot be restored, so the announcement region takes focus.
+      this.restoreFocus();
       this.load(true);
       if (this.detailOpen) this.refreshDetail();
     };
@@ -339,11 +361,12 @@ export class AdminJobLedgerComponent implements OnInit, OnDestroy {
   }
 
   openDetail(job: EditorialLedgerJob): void {
+    this.rememberFocus();
     this.detail = job;
     this.detailOpen = true;
     this.refreshDetail();
   }
-  closeDetail(): void { this.detailOpen = false; this.detail = null; }
+  closeDetail(): void { this.detailOpen = false; this.detail = null; this.restoreFocus(); }
   private refreshDetail(): void {
     if (!this.detail) return;
     this.detailLoading = true;

@@ -49,7 +49,7 @@
 .grid-wrap--loading { opacity: 0.6; }
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid var(--border, #e2e8f0); vertical-align: top; }
-th button { background: none; border: none; cursor: pointer; font-weight: 600; padding: 0; color: inherit; }
+th button { background: none; border: none; cursor: pointer; font-weight: 600; padding: 6px 4px; min-height: 32px; color: inherit; } // P1 (R2, 2.5.8): sort target was 22px
 .cell-url .url { display: block; word-break: break-all; }
 .cell-url .type, .muted { color: #64748b; font-size: 0.78rem; }
 .cell-date { white-space: nowrap; }
