@@ -368,7 +368,22 @@ export class Container {
     const footballApiKey = process.env.FOOTBALL_DATA_API_KEY;
     const epgFootballProvider = new EpgFootballDataProvider();
     let footballProvider: any;
-    if (footballApiKey) {
+
+    // M06: prefer the data this system actually ingests and verifies.
+    //
+    // Before M06 the public API was served only by the EPG or football-data.org,
+    // so ingested OpenLigaDB snapshots reached the admin console but never a
+    // public page. The snapshot provider serves the SAME stored matches the admin
+    // reads, so public and admin can never disagree about what we hold.
+    //
+    // Opt out with FOOTBALL_PUBLIC_SOURCE=epg|football-data. Default: snapshot.
+    const publicSource = (process.env.FOOTBALL_PUBLIC_SOURCE || 'snapshot').toLowerCase();
+    const { SnapshotFootballDataProvider } = await import(
+      '../infrastructure/sports/providers/SnapshotFootballDataProvider'
+    );
+    const snapshotFootballProvider = new SnapshotFootballDataProvider();
+
+    if (publicSource === 'football-data' && footballApiKey) {
       const { FootballDataOrgAdapter } = await import(
         '../infrastructure/sports/providers/FootballDataOrgAdapter'
       );
@@ -379,10 +394,13 @@ export class Container {
         new FootballDataOrgAdapter(footballApiKey),
         epgFootballProvider
       );
-      logger.info('Football provider: football-data.org (live scores enabled, EPG fallback)');
-    } else {
+      logger.info('Football provider: football-data.org (EPG fallback), explicitly requested');
+    } else if (publicSource === 'epg') {
       footballProvider = epgFootballProvider;
-      logger.info('Football provider: EPG (real fixtures/broadcasts, no live scores)');
+      logger.info('Football provider: EPG only, explicitly requested');
+    } else {
+      footballProvider = snapshotFootballProvider;
+      logger.info('Football provider: ingested snapshots (OpenLigaDB, verified), EPG as fallback');
     }
     this.dependencies.set('footballProvider', footballProvider);
 
