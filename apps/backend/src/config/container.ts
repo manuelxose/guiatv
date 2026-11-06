@@ -665,6 +665,36 @@ export class Container {
     );
     this.dependencies.set('footballController', footballController);
 
+    // M05 ingestion diagnostics (admin-only). The ingestion service is built lazily
+    // on first read so boot never performs upstream I/O; when ingestion is disabled
+    // the endpoint reports a clearly disabled state instead of inventing health data.
+    const { FootballOpsController } = await import('../presentation/controllers/FootballOpsController');
+    const { getFootballIngestionService, sharedFootballIngestionService } = await import(
+      '../application/sports/ingestion/footballIngestionContainer'
+    );
+    type DiagnosticsReport = Awaited<ReturnType<typeof getFootballIngestionService>> extends infer S
+      ? S extends { diagnostics(): infer R }
+        ? R
+        : never
+      : never;
+    // Resolve the shared service once at boot; it performs no I/O until the first tick.
+    void getFootballIngestionService();
+    const footballOpsController = new FootballOpsController({
+      diagnostics: () => {
+        const service = sharedFootballIngestionService();
+        if (!service) {
+          // Ingestion switched off: report that honestly. No provider row is invented.
+          return {
+            generatedAt: new Date().toISOString(),
+            providers: [],
+            summary: { activeMatches: 0, staleSnapshots: 0, queueSize: 0, identityConflicts: 0 },
+          } as DiagnosticsReport;
+        }
+        return service.diagnostics();
+      },
+    });
+    this.dependencies.set('footballOpsController', footballOpsController);
+
     const blogController = new BlogController(this.get('cacheRepository'));
     this.dependencies.set('blogController', blogController);
     const { EditorialOpsController } = await import('../presentation/controllers/EditorialOpsController');
