@@ -1,5 +1,5 @@
 import { SportsSnapshot } from '../domain/models';
-import { ApiMatch, ApiNews, htmlToParagraphs, mapBroadcasts, mapMatch, mapNews, mapStandings, mapStatus, mapCompetition, mapTeam, mergeSnapshots, safeImageUrl, relationIndex } from './football-mapper';
+import { ApiMatch, ApiNews, htmlToParagraphs, mapBroadcasts, mapEventType, mapMatch, mapNews, mapPhase, mapStandings, mapStatus, mapCompetition, mapTeam, mergeSnapshots, safeImageUrl, relationIndex } from './football-mapper';
 
 const team = (slug: string, name: string, id = slug) => ({ id, slug, name, aliases: [name] });
 const api = (over: Partial<ApiMatch> = {}): ApiMatch => ({
@@ -41,11 +41,22 @@ describe('football mapper', () => {
       expect(mapMatch(api({ status: 'finished', minute: 90, score: { home: 1, away: 0 } })).minute).toBeUndefined();
     });
 
-    it('never invents events, statistics or lineups', () => {
+    it('never derives a live minute from the kickoff timestamp', () => {
+      expect(mapMatch(api({ status: 'live', kickoffAt: '2026-11-05T20:00:00Z', minute: null })).minute).toBeUndefined();
+      expect(mapMatch(api({ status: 'live', minute: 90 })).minute).toBe(90);
+    });
+
+    it('leaves events, statistics and lineups undefined when the provider sent none', () => {
       const m = mapMatch(api({ status: 'finished', score: { home: 1, away: 0 } }));
-      expect(m.events).toEqual([]);
-      expect(m.stats).toEqual([]);
+      expect(m.events).toBeUndefined();
+      expect(m.stats).toBeUndefined();
       expect(m.lineups).toBeUndefined();
+    });
+
+    it('carries venue and referee when supplied and leaves them undefined otherwise', () => {
+      expect(mapMatch(api({ venue: 'Estadio Costa', referee: 'Á. Árbitro' })).venue).toBe('Estadio Costa');
+      expect(mapMatch(api({ venue: 'Estadio Costa' })).referee).toBeUndefined();
+      expect(mapMatch(api({ venue: null, referee: '' })).venue).toBeUndefined();
     });
 
     it('maps provider statuses; unknown values are treated as scheduled, not live', () => {
@@ -54,6 +65,128 @@ describe('football mapper', () => {
 
     it('keeps the authoritative UTC kickoff untouched', () => {
       expect(mapMatch(api({ kickoffAt: '2026-11-05T23:30:00Z' })).kickoff).toBe('2026-11-05T23:30:00Z');
+    });
+  });
+
+  describe('match phases', () => {
+    it('derives unambiguous scheduled/finished phases and keeps live unresolved without a provider value', () => {
+      expect(mapMatch(api({ status: 'scheduled' })).phase).toBe('scheduled');
+      expect(mapMatch(api({ status: 'finished', score: { home: 1, away: 0 } })).phase).toBe('finished');
+      expect(mapMatch(api({ status: 'live' })).phase).toBeUndefined();
+    });
+
+    it('keeps a provider phase and tolerates synonyms', () => {
+      expect(mapMatch(api({ status: 'live', phase: 'first_half' })).phase).toBe('first_half');
+      expect(mapPhase('HALF-TIME', 'live')).toBe('halftime');
+      expect(mapPhase('penalty shootout', 'live')).toBe('penalties');
+      expect(mapPhase('bogus', 'live')).toBeUndefined();
+    });
+  });
+
+  describe('match events', () => {
+    it('maps provider event type synonyms and ignores unknown types', () => {
+      expect(mapEventType('GOAL')).toBe('goal');
+      expect(mapEventType('Own Goal')).toBe('own_goal');
+      expect(mapEventType('Yellow Card')).toBe('yellow');
+      expect(mapEventType('Second Yellow')).toBe('second_yellow');
+      expect(mapEventType({ name: 'Missed Penalty' })).toBe('penalty_missed');
+      expect(mapEventType('mystery')).toBeUndefined();
+    });
+
+    it('preserves events sorted by minute, dedupes (type, minute, player) and drops unknown types', () => {
+      const m = mapMatch(api({
+        status: 'live', minute: 80, score: { home: 2, away: 1 },
+        events: [
+          { type: 'GOAL', minute: 63, team: { name: 'Alpha' }, player: { name: 'L. Prieto' }, score: { home: 2, away: 1 } },
+          { type: 'goal', minute: 63, team: 'a', player: 'L. Prieto' },
+          { type: 'Yellow Card', minute: 38, team: 'b', player: 'J. Salas' },
+          { type: 'mystery', minute: 40, team: 'a', player: 'X' },
+          { type: 'substitution', minute: 70, team: 'a', player: 'A. Cruz', assist: { name: 'L. Prieto' } },
+          { type: 'Own Goal', minute: 12, team: 'a', player: 'Vidal', detail: 'Own Goal' },
+          { type: 'Penalty', minute: 50, team: 'b', player: 'Navas', score: { home: 1, away: 1 } },
+          { type: 'goal_disallowed', minute: 30, team: 'a', player: 'Ortega' },
+          { type: 'var', minute: 31, team: 'a' },
+        ],
+      }));
+      expect(m.events?.map((e) => `${e.type}@${e.minute}:${e.player}`)).toEqual([
+        'own_goal@12:Vidal',
+        'goal_disallowed@30:Ortega',
+        'var@31:undefined',
+        'yellow@38:J. Salas',
+        'penalty@50:Navas',
+        'goal@63:L. Prieto',
+        'substitution@70:A. Cruz',
+      ]);
+      expect(m.events?.[5].scoreAfter).toEqual({ home: 2, away: 1 });
+    });
+
+    it('keeps a disallowed goal in the timeline without changing the score', () => {
+      const m = mapMatch(api({
+        status: 'finished', score: { home: 1, away: 0 },
+        events: [{ type: 'goal_disallowed', minute: 40, team: 'a', player: 'Ortega', score: { home: 1, away: 0 } }],
+      }));
+      expect(m.homeScore).toBe(1);
+      expect(m.awayScore).toBe(0);
+      expect(m.events?.[0].type).toBe('goal_disallowed');
+      expect(m.events?.[0].scoreAfter).toEqual({ home: 1, away: 0 });
+    });
+
+    it('maps stoppage time and keeps it separate from the kickoff-derived minute', () => {
+      const m = mapMatch(api({ status: 'live', minute: 45, events: [{ type: 'goal', minute: 45, addedMinute: 3, team: 'a', player: 'Ortega' }] }));
+      expect(m.minute).toBe(45);
+      expect(m.events?.[0].addedMinute).toBe(3);
+    });
+  });
+
+  describe('match statistics', () => {
+    it('preserves statistics and distinguishes an absent value from a real 0', () => {
+      const m = mapMatch(api({
+        status: 'finished', score: { home: 2, away: 1 },
+        statistics: [
+          { label: 'Posesión', home: 54, away: 46, unit: '%' },
+          { label: 'Fueras de juego', home: 0, away: 3 },
+          { label: 'Remates', home: 12 },
+        ],
+      }));
+      expect(m.stats).toEqual([
+        { label: 'Posesión', home: 54, away: 46, unit: '%' },
+        { label: 'Fueras de juego', home: 0, away: 3 },
+        { label: 'Remates', home: 12, away: undefined },
+      ]);
+    });
+
+    it('accepts a keyed statistics object and drops labels with no values', () => {
+      const m = mapMatch(api({ status: 'finished', score: { home: 1, away: 1 }, statistics: { 'Posesión': { home: 50, away: 50 }, 'Córneres': { home: 4, away: 6 }, 'Notas': {} } }));
+      expect(m.stats?.map((s) => s.label)).toEqual(['Posesión', 'Córneres']);
+      expect(m.stats?.[0].home).toBe(50);
+    });
+
+    it('keeps statistics undefined when the provider sends none', () => {
+      expect(mapMatch(api({ status: 'finished', score: { home: 1, away: 1 }, statistics: [] })).stats).toBeUndefined();
+      expect(mapMatch(api({ status: 'finished', score: { home: 1, away: 1 }, statistics: null })).stats).toBeUndefined();
+    });
+  });
+
+  describe('match lineups', () => {
+    it('preserves coach, formation, starters and bench', () => {
+      const m = mapMatch(api({
+        status: 'finished', score: { home: 1, away: 0 },
+        lineups: {
+          home: { formation: '4-3-3', coach: { name: 'C. Táctico' }, starters: [{ number: 1, name: 'Vidal', position: 'POR' }], bench: [{ name: 'Rey' }] },
+          away: { formation: '4-4-2', coach: 'R. Banco', players: ['Bravo', 'Salas'] },
+        },
+      }));
+      expect(m.lineups?.home?.coach).toBe('C. Táctico');
+      expect(m.lineups?.home?.formation).toBe('4-3-3');
+      expect(m.lineups?.home?.starters).toEqual([{ number: 1, name: 'Vidal', position: 'POR' }]);
+      expect(m.lineups?.home?.bench).toEqual([{ name: 'Rey' }]);
+      expect(m.lineups?.away?.coach).toBe('R. Banco');
+      expect(m.lineups?.away?.starters?.map((p) => p.name)).toEqual(['Bravo', 'Salas']);
+    });
+
+    it('keeps lineups undefined when the provider sends none', () => {
+      expect(mapMatch(api({ status: 'finished', score: { home: 1, away: 0 }, lineups: null })).lineups).toBeUndefined();
+      expect(mapMatch(api({ status: 'finished', score: { home: 1, away: 0 }, lineups: { home: {}, away: {} } })).lineups).toBeUndefined();
     });
   });
 
