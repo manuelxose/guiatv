@@ -80,6 +80,14 @@ FootballSnapshotSchema.index(
   { contentHash: 1 },
   { unique: true, name: 'idx_football_snapshot_contentHash' }
 );
+FootballSnapshotSchema.index(
+  { competitionSlug: 1, sourceTimestamp: -1 },
+  { name: 'idx_football_snapshot_competition_source' }
+);
+FootballSnapshotSchema.index(
+  { sourceTimestamp: 1 },
+  { name: 'idx_football_snapshot_source' }
+);
 
 const FootballIngestionRunSchema = new Schema<IFootballIngestionRunDocument>(
   {

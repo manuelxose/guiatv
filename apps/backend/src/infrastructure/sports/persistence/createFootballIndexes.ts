@@ -38,6 +38,16 @@ export async function createFootballIndexes(db = mongoose.connection.db): Promis
     { ingestedAt: 1 },
     { expireAfterSeconds: FOOTBALL_SNAPSHOT_TTL_SECONDS, name: 'idx_football_snapshot_ttl', background: true }
   );
+  // Admin read models (M06 t7): competition-scoped match lists sort by kickoff
+  // (`sourceTimestamp`), and the dashboard/staleness counts filter by it.
+  await snapshots.createIndex(
+    { competitionSlug: 1, sourceTimestamp: -1 },
+    { name: 'idx_football_snapshot_competition_source', background: true }
+  );
+  await snapshots.createIndex(
+    { sourceTimestamp: 1 },
+    { name: 'idx_football_snapshot_source', background: true }
+  );
 
   const syncState = db.collection('football_provider_sync_state');
   await syncState.createIndex(
