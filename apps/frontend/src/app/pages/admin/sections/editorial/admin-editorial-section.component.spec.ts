@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { AdminEditorialService, EditorialOverview, EditorialPolicyStatus } from '../../../../services/admin-editorial.service';
 import { diffLines, gateDetails, postStage, queueStage } from './editorial-status';
 import { AdminEditorialSectionComponent, policyStateText } from './admin-editorial-section.component';
@@ -113,6 +113,41 @@ describe('topic control', () => {
 });
 
 describe('review helpers', () => {
+  it('does not reopen the editor if it was closed while saving', () => {
+    const save = new Subject<{ updated: boolean; id: string }>();
+    const detail = { version: 1, post: { id: 'p1', status: 'publish', title: 'Título publicado de veinte caracteres', slug: 's', content: '', excerpt: '', metaTitle: '', metaDescription: '' }, pendingEdit: null, provenance: { bundle: { sources: [], claims: [] } }, findings: [], policyBlockers: [], revisions: [], previous: null } as any;
+    TestBed.configureTestingModule({ imports: [AdminEditorialSectionComponent], providers: [{ provide: AdminEditorialService, useValue: {
+      getOverview: () => of(overview), getProviders: () => of({ checkedAt: new Date().toISOString(), providers: [] }), getPost: () => of(detail), updatePost: () => save,
+    } }] });
+    const fixture = TestBed.createComponent(AdminEditorialSectionComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.openPost('p1');
+    fixture.componentInstance.savePostEdit();
+    fixture.componentInstance.closeDetail();
+    save.next({ updated: true, id: 'p1' });
+    expect(fixture.componentInstance.detailOpen).toBeFalse();
+  });
+
+  it('edits a published article as a separate draft and keeps the public article', () => {
+    const calls: unknown[][] = [];
+    const detail = { version: 3, post: { id: 'p1', status: 'publish', title: 'Título publicado de veinte caracteres', slug: 's', content: '<p>Publicado</p>', excerpt: '', metaTitle: '', metaDescription: '' }, pendingEdit: null, provenance: { state: 'published', bundle: { sources: [], claims: [] } }, findings: [], policyBlockers: [], revisions: [], previous: null } as any;
+    TestBed.configureTestingModule({ imports: [AdminEditorialSectionComponent], providers: [{ provide: AdminEditorialService, useValue: {
+      getOverview: () => of(overview), getProviders: () => of({ checkedAt: new Date().toISOString(), providers: [] }), getPost: () => of(detail), updatePost: (...args: unknown[]) => { calls.push(args); return of({ updated: true }); },
+    } }] });
+    const fixture = TestBed.createComponent(AdminEditorialSectionComponent);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    component.openPost('p1');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Borrador de cambios');
+    component.editDraft!.content = '<p>Pendiente</p>';
+    component.savePostEdit();
+    expect(calls[0][0]).toBe('p1');
+    expect((calls[0][1] as { content: string }).content).toBe('<p>Pendiente</p>');
+    expect((calls[0][1] as { expectedVersion: number }).expectedVersion).toBe(3);
+    expect(component.editNotice).toContain('versión publicada sigue intacta');
+  });
+
   it('diffs HTML by element and marks additions and removals', () => {
     const d = diffLines('<p>uno</p><p>dos</p><p>tres</p>', '<p>uno</p><p>dos cambiado</p><p>tres</p><p>cuatro</p>');
     expect(d.filter((l) => l.kind === 'del').map((l) => l.text)).toEqual(['<p>dos</p>']);

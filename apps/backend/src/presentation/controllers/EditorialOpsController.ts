@@ -148,7 +148,7 @@ export class EditorialOpsController {
       // startedAt is the runner's ISO string, so a string range is the UTC day.
       jobs().find({ startedAt: { $gte: today } }, { projection: { _id: 0, state: 1, revisions: 1, costUsd: 1, costEntries: 1, blockingCodes: 1 } }).toArray(),
       BlogPostModel.find({ origin: 'ai-assisted', editorial: { $exists: true } })
-        .select({ title: 1, slug: 1, status: 1, reviewState: 1, reviewedBy: 1, updatedAt: 1, featuredImage: 1, editorial: 1 })
+        .select({ title: 1, slug: 1, status: 1, reviewState: 1, reviewedBy: 1, updatedAt: 1, featuredImage: 1, editorial: 1, __v: 1 })
         .sort({ updatedAt: -1 }).limit(50).lean().exec(),
       jobs().aggregate<{ _id: string; usd: number }>([
         // startedAt is stored as the runner's ISO string, so the day is its first 10 characters.
@@ -206,7 +206,7 @@ export class EditorialOpsController {
         const p = post.editorial as EditorialProvenance;
         const count = (status: string) => p.bundle.claims.filter((c) => (c.status ?? 'unverified') === status).length;
         return {
-          id: String(post._id), slug: post.slug, title: post.title, status: post.status, reviewState: post.reviewState ?? 'unreviewed',
+          id: String(post._id), version: post.__v ?? null, slug: post.slug, title: post.title, status: post.status, reviewState: post.reviewState ?? 'unreviewed',
           reviewedBy: post.reviewedBy ?? null, updatedAt: post.updatedAt, pipelineState: p.state, backend: p.backend ?? null,
           signed: Boolean(p.signature), costUsd: usdOf(p),
           claims: { supported: count('supported'), conflicting: count('conflicting'), unverified: count('unverified') },
@@ -243,6 +243,8 @@ export class EditorialOpsController {
         // A draft's cover is not public (editorialMediaGate), so the Admin gets the image itself.
         coverPreview: await editorialCoverPreview(post.featuredImage?.sourceUrl),
       },
+      version: post.__v ?? null,
+      pendingEdit: post.pendingEdit ?? null,
       provenance: {
         pipelineVersion: p.pipelineVersion, state: p.state, backend: p.backend ?? null,
         signed: provenanceSignatureValid(p, process.env.EDITORIAL_PIPELINE_SIGNING_KEY),
@@ -263,8 +265,10 @@ export class EditorialOpsController {
   updatePost = async (req: Request, res: Response): Promise<void> => {
     const post = await BlogPostModel.findById(String(req.params.id)).exec().catch(() => null);
     if (!post?.editorial) throw new NotFoundError('AI editorial post not found');
-    if (post.status !== 'draft') throw new ConflictError('Only unpublished drafts can be edited');
     const body = req.body ?? {};
+    if (!Object.prototype.hasOwnProperty.call(body, 'expectedVersion') || body.expectedVersion !== (post.__v ?? null) || body.expectedStatus !== post.status) {
+      throw new ConflictError('El artículo cambió desde que se abrió; vuelve a cargarlo');
+    }
     const updates: Record<string, unknown> = { reviewState: 'unreviewed' };
     for (const field of ['title', 'excerpt', 'content'] as const) {
       if (body[field] !== undefined) updates[field] = String(body[field]).trim().slice(0, field === 'content' ? 100_000 : 500);
@@ -273,6 +277,21 @@ export class EditorialOpsController {
     if (body.metaDescription !== undefined) updates['seo.metaDescription'] = String(body.metaDescription).trim().slice(0, 220);
     if (updates.title !== undefined && String(updates.title).length < 20) throw new ValidationError('Title must contain at least 20 characters', []);
     const version = post.__v === undefined ? { $exists: false } : post.__v;
+    if (post.status === 'publish') {
+      const pendingEdit = {
+        title: String(updates.title ?? post.pendingEdit?.title ?? post.title),
+        excerpt: String(updates.excerpt ?? post.pendingEdit?.excerpt ?? post.excerpt ?? ''),
+        content: String(updates.content ?? post.pendingEdit?.content ?? post.content ?? ''),
+        metaTitle: String(updates['seo.metaTitle'] ?? post.pendingEdit?.metaTitle ?? post.seo?.metaTitle ?? ''),
+        metaDescription: String(updates['seo.metaDescription'] ?? post.pendingEdit?.metaDescription ?? post.seo?.metaDescription ?? ''),
+        savedAt: new Date(),
+      };
+      const result = await BlogPostModel.updateOne({ _id: post._id, status: 'publish', __v: version }, { $set: { pendingEdit }, $inc: { __v: 1 } }, { timestamps: false });
+      if (!result.matchedCount) throw new ConflictError('The post changed while this request ran; read it again');
+      await audit().insertOne({ at: new Date(), action: 'editorial-pending-edit', by: actor(req), postId: String(post._id), slug: post.slug });
+      res.json(successResponse({ updated: true, id: String(post._id) }));
+      return;
+    }
     const result = await BlogPostModel.updateOne({ _id: post._id, status: 'draft', __v: version }, { $set: updates, $unset: { reviewedBy: 1, reviewNotes: 1 }, $inc: { __v: 1 } });
     if (!result.matchedCount) throw new ConflictError('The post changed while this request ran; read it again');
     await audit().insertOne({ at: new Date(), action: 'editorial-post-edit', by: actor(req), postId: String(post._id), slug: post.slug });
@@ -293,10 +312,23 @@ export class EditorialOpsController {
   };
 
   deletePost = async (req: Request, res: Response): Promise<void> => {
-    const post = await BlogPostModel.findById(String(req.params.id)).select({ slug: 1, status: 1, editorial: 1 }).lean().exec().catch(() => null);
+    const post = await BlogPostModel.findById(String(req.params.id)).select({ slug: 1, status: 1, editorial: 1, pendingEdit: 1, __v: 1 }).lean().exec().catch(() => null);
     if (!post?.editorial) throw new NotFoundError('AI editorial post not found');
+    if (!Object.prototype.hasOwnProperty.call(req.body ?? {}, 'expectedVersion') || req.body.expectedVersion !== (post.__v ?? null) || req.body.expectedStatus !== post.status) {
+      throw new ConflictError('El artículo cambió desde que se abrió; vuelve a cargarlo');
+    }
+    if (post.status === 'publish' && post.pendingEdit) {
+      const version = post.__v === undefined ? { $exists: false } : post.__v;
+      const result = await BlogPostModel.updateOne({ _id: post._id, status: 'publish', __v: version }, { $unset: { pendingEdit: 1 }, $inc: { __v: 1 } }, { timestamps: false });
+      if (!result.matchedCount) throw new ConflictError('The post changed while this request ran; read it again');
+      await audit().insertOne({ at: new Date(), action: 'editorial-pending-edit-delete', by: actor(req), postId: String(post._id), slug: post.slug });
+      res.json(successResponse({ deleted: true, id: String(post._id), pendingEdit: true }));
+      return;
+    }
     if (post.status !== 'draft') throw new ConflictError('Only unpublished drafts can be deleted');
-    await BlogPostModel.deleteOne({ _id: post._id, status: 'draft' });
+    const version = post.__v === undefined ? { $exists: false } : post.__v;
+    const result = await BlogPostModel.deleteOne({ _id: post._id, status: 'draft', __v: version });
+    if (!result.deletedCount) throw new ConflictError('The post changed while this request ran; read it again');
     await audit().insertOne({ at: new Date(), action: 'editorial-post-delete', by: actor(req), postId: String(post._id), slug: post.slug });
     res.json(successResponse({ deleted: true, id: String(post._id) }));
   };

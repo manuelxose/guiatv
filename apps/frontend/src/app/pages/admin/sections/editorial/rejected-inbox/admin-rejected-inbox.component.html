@@ -54,7 +54,7 @@
   </div>
 
   <div *ngIf="detailOpen" class="rejected-backdrop" role="presentation"></div>
-  <aside *ngIf="detailOpen" #drawer class="rejected-drawer" role="dialog" aria-modal="true" aria-labelledby="rejected-detail-title" cdkTrapFocus cdkTrapFocusAutoCapture>
+  <aside *ngIf="detailOpen" #drawer class="rejected-drawer" role="dialog" aria-modal="true" aria-labelledby="rejected-detail-title" [cdkTrapFocus]="!deleteTarget" cdkTrapFocusAutoCapture>
     <header class="flex items-start justify-between gap-4 border-b border-[var(--portal-border)] p-4">
       <div class="min-w-0"><p class="text-[10px] uppercase tracking-[0.3em] text-[var(--portal-text-muted)]">REVISIÓN EDITORIAL</p><h3 id="rejected-detail-title" class="text-xl font-semibold text-[var(--portal-text)] break-words">{{ detail?.post?.title || 'Detalle' }}</h3></div>
       <button type="button" class="px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text)]" (click)="closeDetail()">Cerrar</button>
@@ -81,8 +81,8 @@
 
         <section aria-labelledby="rj-evidence"><h4 id="rj-evidence" class="text-xs font-semibold uppercase tracking-wider text-[var(--portal-text-muted)] mb-2">Evidencia</h4>
           <p class="text-sm text-[var(--portal-text-soft)] mb-2">{{ d.provenance.bundle.intent }}</p>
-          <ul class="space-y-2 text-sm text-[var(--portal-text)]">
-            <li *ngFor="let claim of d.provenance.bundle.claims"><strong>{{ claim.id }} · {{ claim.status || 'unverified' }}</strong><p class="text-[var(--portal-text-soft)]">{{ claim.text }}</p><ul class="ml-4 list-disc text-[var(--portal-text-muted)]"><li *ngFor="let q of claim.quotes">«{{ q.quote }}»</li></ul></li>
+          <ul class="rejected-evidence-list">
+            <li *ngFor="let claim of d.provenance.bundle.claims" class="rejected-evidence-card"><strong>{{ claim.id }} · {{ claim.status || 'unverified' }}</strong><p>{{ claim.text }}</p><blockquote *ngFor="let q of claim.quotes">«{{ q.quote }}»</blockquote><small *ngIf="!claim.quotes.length">Sin citas disponibles.</small></li>
           </ul>
           <p class="mt-2 text-xs text-[var(--portal-text-muted)]">Fuentes: {{ d.provenance.bundle.sources.length }}</p>
         </section>
@@ -97,6 +97,7 @@
 
         <section aria-labelledby="rj-actions" class="rounded-xl border border-[var(--portal-border)] p-4">
           <p class="text-sm text-[var(--portal-text-soft)] mb-3">{{ eligibilityTextDetail(d) }}</p>
+          <p *ngIf="editNotice" role="status" class="text-sm text-[var(--portal-text)] mb-3">{{ editNotice }}</p>
           <div *ngIf="editOpen && editDraft as edit" class="space-y-3 mb-3">
             <label class="block text-xs text-[var(--portal-text-soft)]" for="rj-edit-content">Contenido (reescritura dirigida)</label>
             <textarea id="rj-edit-content" [(ngModel)]="edit.content" name="rjEditContent" rows="8" class="w-full min-h-[120px] rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface-strong)] text-[var(--portal-text)] p-3 text-sm"></textarea>
@@ -105,8 +106,8 @@
           </div>
           <div class="flex flex-wrap gap-2">
             <button *ngIf="canRetryDetail(d)" type="button" class="px-3 py-2 rounded-xl bg-[var(--spotify-green)] text-black text-xs font-semibold" (click)="requeue(d.post.id)" [disabled]="busy === d.post.id">{{ busy === d.post.id ? 'Recuperando…' : 'Reintento seguro (reinvestigar)' }}</button>
-            <button type="button" class="px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text)]" (click)="startEdit()">Reescritura dirigida</button>
-            <button type="button" class="px-3 py-2 rounded-xl border border-[var(--spotify-negative)]/40 text-xs text-[var(--spotify-negative-text)]" (click)="requestDelete(d.post)">Eliminar borrador</button>
+            <button *ngIf="d.post.status === 'draft'" type="button" class="px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text)]" (click)="startEdit()">Reescritura dirigida</button>
+            <button *ngIf="d.post.status === 'draft'" type="button" class="px-3 py-2 rounded-xl border border-[var(--spotify-negative)]/40 text-xs text-[var(--spotify-negative-text)]" (click)="requestDelete(d.post)">Eliminar borrador</button>
           </div>
         </section>
       </ng-container>
@@ -116,7 +117,7 @@
   <app-admin-confirm-dialog
     [open]="deleteTarget !== null"
     title="Eliminar borrador"
-    [description]="'Se eliminará este borrador no publicado «' + (deleteTarget?.title || deleteTarget?.slug || '') + '» y su historial. Los artículos ya publicados no se pueden eliminar desde aquí.'"
+    [description]="'Se eliminará este borrador no publicado «' + (deleteTarget?.title || '') + '» y su historial. Los artículos ya publicados no se pueden eliminar desde aquí.'"
     confirmLabel="Eliminar borrador"
     cancelLabel="Cancelar"
     [busy]="deleteBusy"

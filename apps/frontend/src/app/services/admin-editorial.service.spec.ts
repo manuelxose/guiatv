@@ -93,8 +93,8 @@ describe('AdminEditorialService', () => {
     const calls: Call[] = [];
     const service = createService({ success: true, data: { updated: true, deleted: true, id: 'a/b' } }, calls);
 
-    await firstValueFrom(service.updatePost('a/b', { title: 'Título corregido con suficiente longitud' }));
-    await firstValueFrom(service.deletePost('a/b'));
+    await firstValueFrom(service.updatePost('a/b', { title: 'Título corregido con suficiente longitud', expectedVersion: 1, expectedStatus: 'draft' }));
+    await firstValueFrom(service.deletePost('a/b', 1, 'draft'));
     await firstValueFrom(service.requeuePost('a/b'));
 
     expect(calls.map((c) => c.method)).toEqual(['PATCH', 'DELETE', 'POST']);

@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { AdminEditorialService } from '../../../../../services/admin-editorial.service';
 import { AdminRejectedInboxComponent } from './admin-rejected-inbox.component';
 
@@ -37,5 +37,31 @@ describe('AdminRejectedInboxComponent', () => {
     expect(c.eligibilityText(post({ status: 'publish' }) as never)).toContain('no se puede reintentar');
     c.overview = { posts: [post({ id: 'p1', pipelineState: 'blocked' }), post({ id: 'p2', pipelineState: 'verified', reviewState: 'unreviewed' })] } as never;
     expect(c.rejectedPosts.map((p) => p.id)).toEqual(['p1']);
+  });
+
+  it('sends the loaded version when editing or deleting a rejected draft', () => {
+    const update = jasmine.createSpy('updatePost').and.returnValue(new Subject());
+    const remove = jasmine.createSpy('deletePost').and.returnValue(new Subject());
+    TestBed.overrideProvider(AdminEditorialService, { useValue: { getOverview: () => of({ posts: [] }), updatePost: update, deletePost: remove } });
+    const fixture = TestBed.createComponent(AdminRejectedInboxComponent);
+    const c = fixture.componentInstance;
+    c.detail = { version: 4, post: { id: 'p1', status: 'draft', title: 'Título de prueba', content: 'original' } } as never;
+    c.editDraft = { title: 'Título de prueba con veinte caracteres', excerpt: '', content: 'cambio', metaTitle: '', metaDescription: '' };
+    c.saveEdit();
+    expect(update).toHaveBeenCalledWith('p1', jasmine.objectContaining({ content: 'cambio', expectedVersion: 4, expectedStatus: 'draft' }));
+    c.requestDelete({ id: 'p1', title: 'Título de prueba' });
+    c.confirmDelete();
+    expect(remove).toHaveBeenCalledWith('p1', 4, 'draft');
+  });
+
+  it('deselects a draft if an automatic refresh finds it changed', () => {
+    TestBed.overrideProvider(AdminEditorialService, { useValue: { getOverview: () => of({ posts: [{ ...post(), version: 2 }] }) } });
+    const fixture = TestBed.createComponent(AdminRejectedInboxComponent);
+    const c = fixture.componentInstance;
+    c.overview = { posts: [{ ...post(), version: 1 }] } as never;
+    c.selected.add('p1');
+    c.load(true);
+    expect(c.selected.has('p1')).toBeFalse();
+    expect(c.notice).toContain('cambiaron');
   });
 });
