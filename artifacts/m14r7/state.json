@@ -1,0 +1,28 @@
+{
+  "startedAt": "2026-11-06T13:52:06.453Z",
+  "services": [
+    {
+      "name": "mongod",
+      "pid": 46460,
+      "alive": true
+    },
+    {
+      "name": "backend",
+      "pid": 50920,
+      "alive": true
+    },
+    {
+      "name": "ssr",
+      "pid": 13836,
+      "alive": true
+    }
+  ],
+  "ports": {
+    "mongo": 27139,
+    "api": 3329,
+    "ssr": 4329,
+    "integrity": 4339
+  },
+  "db": "guiatv_m14r7",
+  "envFile": "C:\\Users\\Admin\\Documents\\workspace\\guiatv-m14r6-fixes\\.env.m14r7"
+}

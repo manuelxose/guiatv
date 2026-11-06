@@ -1,7 +1,8 @@
-import { afterNextRender, ChangeDetectionStrategy, Component, ElementRef, HostListener, inject, OnInit, viewChild } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, ElementRef, HostListener, inject, OnInit, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { kickoffTime } from '../domain/calendar';
 import { sv2Link } from '../sports-v2.paths';
 import { SportsStore } from '../state/sports-store';
 import { Sv2IconComponent } from '../ui/icon';
@@ -29,12 +30,22 @@ export class Sv2AppShellComponent implements OnInit {
   protected readonly mobileItems = NAV_ITEMS.filter((i) => i.mobile);
   private readonly main = viewChild.required<ElementRef<HTMLElement>>('main');
 
+  /** Wall-clock of the last successful refresh, in the visitor's zone. */
+  protected readonly updatedAt = computed(() => {
+    this.store.zone();
+    const at = this.store.lastUpdated();
+    return at === null ? '' : kickoffTime(new Date(at).toISOString());
+  });
+
   private readonly router = inject(Router);
   private lastPath = '';
 
   constructor() {
     // Follows come from localStorage: read them after hydration so server and client markup match.
-    afterNextRender(() => this.store.restoreFollows());
+    afterNextRender(() => {
+      this.store.restoreFollows();
+      this.store.startLive();
+    });
     this.router
       .events.pipe(filter((e) => e instanceof NavigationEnd), takeUntilDestroyed())
       .subscribe(() => {

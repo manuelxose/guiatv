@@ -1,0 +1,179 @@
+{
+  "probedAt": "2026-11-05T19:45:35.699Z",
+  "window": {
+    "days": "-4..+5",
+    "matches": 3,
+    "competitions": 1,
+    "byStatus": {
+      "finished": 2,
+      "scheduled": 1
+    },
+    "withScore": 2,
+    "withMinute": 0,
+    "withVenue": 0,
+    "withBroadcasts": 1,
+    "withEvents": 0,
+    "withStats": 0,
+    "withLineups": 0,
+    "withCrest": 3,
+    "broadcastProvenance": {
+      "reconciliation/high": 1
+    },
+    "spanishTop": 0
+  },
+  "competitions": [
+    "campeonato-brasileiro-serie-a",
+    "championship",
+    "premier-league",
+    "uefa-champions-league",
+    "european-championship",
+    "ligue-1",
+    "bundesliga",
+    "serie-a",
+    "eredivisie",
+    "primeira-liga",
+    "copa-libertadores",
+    "primera-division",
+    "fifa-world-cup"
+  ],
+  "standingsByCompetition": [
+    [
+      "campeonato-brasileiro-serie-a",
+      200,
+      20,
+      40,
+      0
+    ],
+    [
+      "championship",
+      200,
+      24,
+      40,
+      0
+    ],
+    [
+      "premier-league",
+      200,
+      20,
+      40,
+      0
+    ],
+    [
+      "uefa-champions-league",
+      200,
+      0,
+      40,
+      0
+    ],
+    [
+      "european-championship",
+      200,
+      0,
+      0,
+      0
+    ],
+    [
+      "ligue-1",
+      200,
+      0,
+      2,
+      0
+    ],
+    [
+      "bundesliga",
+      200,
+      0,
+      0,
+      0
+    ],
+    [
+      "serie-a",
+      200,
+      0,
+      0,
+      0
+    ],
+    [
+      "eredivisie",
+      200,
+      0,
+      0,
+      0
+    ],
+    [
+      "primeira-liga",
+      200,
+      0,
+      0,
+      0
+    ],
+    [
+      "copa-libertadores",
+      200,
+      0,
+      0,
+      0
+    ],
+    [
+      "primera-division",
+      200,
+      20,
+      40,
+      0
+    ],
+    [
+      "fifa-world-cup",
+      200,
+      0,
+      0,
+      0
+    ]
+  ],
+  "liveNow": 0,
+  "liveMeta": {
+    "total": 0,
+    "status": "live",
+    "generatedAt": "2026-11-05T19:17:46.965Z"
+  },
+  "news": {
+    "total": 3,
+    "withRelations": 0,
+    "withCover": 1,
+    "types": [
+      "guide"
+    ]
+  },
+  "newsCanonicalCheck": [
+    [
+      "donde-ver-laliga-2026-27-espana",
+      200
+    ],
+    [
+      "donde-ver-champions-league-2026-27-espana",
+      200
+    ],
+    [
+      "movistar-plus-vs-dazn",
+      200
+    ]
+  ],
+  "dayBeyondWindow": {
+    "day": "2026-11-13",
+    "status": 200,
+    "matches": 0
+  },
+  "teamEndpoint": {
+    "s": 404,
+    "keys": []
+  },
+  "matchDetail": {
+    "s": 200,
+    "hasRelatedNews": true
+  },
+  "backendSearch": {
+    "matches": 8,
+    "teams": 1,
+    "competitions": 0,
+    "news": 0
+  }
+}

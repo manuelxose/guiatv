@@ -9,8 +9,8 @@
       <span *ngIf="saving" class="text-xs text-[var(--portal-text-soft)]">Guardando...</span>
     </div>
 
-    <div *ngIf="saveError" class="bg-[var(--spotify-negative)]/10 border border-[var(--spotify-negative)]/30 text-[var(--spotify-negative)] px-4 py-3 rounded-xl text-sm">{{ saveError }}</div>
-    <div *ngIf="saveSuccess" class="bg-[var(--accent-discover)]/10 border border-[var(--accent-discover)]/30 text-[var(--accent-discover)] px-4 py-3 rounded-xl text-sm">{{ saveSuccess }}</div>
+    <div *ngIf="saveError" class="bg-[var(--spotify-negative)]/10 border border-[var(--spotify-negative)]/30 text-[var(--spotify-negative-text)] px-4 py-3 rounded-xl text-sm">{{ saveError }}</div>
+    <div *ngIf="saveSuccess" class="bg-[var(--accent-discover)]/10 border border-[var(--accent-discover)]/30 text-[var(--accent-discover-text)] px-4 py-3 rounded-xl text-sm">{{ saveSuccess }}</div>
 
     <div class="grid grid-cols-2 gap-4">
       <div>
@@ -201,7 +201,7 @@
         Limpiar
       </button>
       <button type="submit"
-        class="px-5 py-2 rounded-xl bg-[var(--spotify-negative)]/20 border border-[var(--spotify-negative)]/40 text-[var(--spotify-negative)] text-sm hover:bg-[var(--spotify-negative)]/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+        class="px-5 py-2 rounded-xl bg-[var(--spotify-negative)]/20 border border-[var(--spotify-negative)]/40 text-[var(--spotify-negative-text)] text-sm hover:bg-[var(--spotify-negative)]/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
         [disabled]="saving || form.invalid">
         {{ isEditing ? 'Actualizar oferta' : 'Crear oferta' }}
       </button>
@@ -228,7 +228,7 @@
     </div>
 
     <div *ngIf="loading" class="text-sm text-[var(--portal-text-muted)] py-6 text-center">Cargando ofertas...</div>
-    <div *ngIf="error" class="text-sm text-[var(--spotify-negative)] py-3">{{ error }}</div>
+    <div *ngIf="error" class="text-sm text-[var(--spotify-negative-text)] py-3">{{ error }}</div>
     <div *ngIf="!loading && !error && offers.length === 0" class="text-sm text-[var(--portal-text-muted)] py-6 text-center">
       No hay ofertas para este filtro.
     </div>
@@ -248,10 +248,10 @@
           </div>
           <div class="flex flex-col items-end gap-1 flex-shrink-0">
             <span class="text-[10px] px-2 py-1 rounded-full border"
-              [ngClass]="offer.status === 'active' ? 'bg-[var(--accent-discover)]/20 text-[var(--accent-discover)] border-[var(--accent-discover)]/40' : 'bg-[var(--spotify-warning)]/20 text-[var(--spotify-warning)] border-[var(--spotify-warning)]/40'">
+              [ngClass]="offer.status === 'active' ? 'bg-[var(--accent-discover)]/20 text-[var(--accent-discover-text)] border-[var(--accent-discover)]/40' : 'bg-[var(--spotify-warning)]/20 text-[var(--spotify-warning-text)] border-[var(--spotify-warning)]/40'">
               {{ offer.status }}
             </span>
-            <span *ngIf="offer.expired" class="text-[10px] px-2 py-1 rounded-full border bg-[var(--spotify-negative)]/20 text-[var(--spotify-negative)] border-[var(--spotify-negative)]/40">
+            <span *ngIf="offer.expired" class="text-[10px] px-2 py-1 rounded-full border bg-[var(--spotify-negative)]/20 text-[var(--spotify-negative-text)] border-[var(--spotify-negative)]/40">
               Expirada
             </span>
             <span class="text-[10px] px-2 py-1 rounded-full border" [ngClass]="verificationBadgeClass(offer.verificationDisplay)">
@@ -267,7 +267,7 @@
             Editar
           </button>
           <button type="button"
-            class="px-3 py-1.5 rounded-lg border border-[var(--spotify-negative)]/30 text-[var(--spotify-negative)] hover:border-[var(--spotify-negative)]/40 disabled:opacity-50"
+            class="px-3 py-1.5 rounded-lg border border-[var(--spotify-negative)]/30 text-[var(--spotify-negative-text)] hover:border-[var(--spotify-negative)]/40 disabled:opacity-50"
             [disabled]="offer.status === 'inactive' || deactivatingId === offer.id"
             (click)="deactivate(offer)">
             {{ deactivatingId === offer.id ? 'Desactivando...' : 'Desactivar' }}

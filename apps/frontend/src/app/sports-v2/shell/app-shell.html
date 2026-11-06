@@ -9,7 +9,17 @@
     @if (store.isDemo) {
       <p class="demo" role="note"><b>Datos de demostración.</b> Equipos, marcadores, noticias y canales son ficticios y no reflejan partidos reales.</p>
     }
-    <router-outlet />
+    @if (!store.isDemo && store.loadState() === 'ready') {
+      <p class="fresh" role="status" [class.stale]="store.stale()">
+        @if (store.stale()) {
+          No se pudo actualizar; se muestran los datos de las {{ updatedAt() }}.
+          @if (store.liveStopped()) { <button type="button" (click)="store.refreshLive()">Reintentar</button> }
+        } @else {
+          Última actualización: {{ updatedAt() }}. Los marcadores llegan de un proveedor de datos, se refrescan solos durante los partidos y pueden ir con retraso respecto a la emisión.
+        }
+      </p>
+    }
+    @for (z of [store.zone()]; track z) { <router-outlet /> }
   </main>
 
   @if (!store.matchPageOpen()) {

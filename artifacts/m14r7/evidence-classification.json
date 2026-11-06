@@ -1,0 +1,140 @@
+{
+  "schema": "m14r7-evidence-classification/1",
+  "generatedAt": "2026-11-06T11:57:02.878Z",
+  "source": "C:/Users/Admin/Documents/workspace/guiatv/tmp-storage/m14r7/prod-probe3.txt",
+  "totalInsufficientEvidence": 19,
+  "byClass": {
+    "url-rota": 9,
+    "documento-javascript": 4,
+    "extraccion-pobre": 2,
+    "http-recuperacion": 2,
+    "independencia-requerida": 1,
+    "relevancia-incorrecta": 1
+  },
+  "classLabels": {
+    "url-rota": "URL rota (HTTP 404 en la fuente semilla)",
+    "http-recuperacion": "Problema HTTP de recuperación (HTTP 0 / sin respuesta)",
+    "documento-javascript": "Documento renderizado por JavaScript (SPA sin texto legible)",
+    "extraccion-pobre": "Extracción de texto pobre (baja coincidencia de términos)",
+    "relevancia-incorrecta": "Puntuación de relevancia incorrecta (fuente autoritativa mal puntuada)",
+    "cobertura-insuficiente": "Cobertura de afirmaciones insuficiente",
+    "independencia-requerida": "Independencia de fuentes genuinamente requerida (un solo editor)",
+    "falta-real": "Falta real de evidencia (no hay fuente oficial que sostenga la afirmación)"
+  },
+  "topics": [
+    {
+      "slug": "compartir-cuenta-netflix-hogar-normas",
+      "class": "documento-javascript",
+      "classLabel": "Documento renderizado por JavaScript (SPA sin texto legible)",
+      "evidence": "netflix node 8/11 + netflix termsofuse \"página sin texto legible (¿SPA?)\": la segunda fuente es una SPA sin SSR, no aporta texto"
+    },
+    {
+      "slug": "derecho-desistimiento-suscripciones-streaming-espana",
+      "class": "extraccion-pobre",
+      "classLabel": "Extracción de texto pobre (baja coincidencia de términos)",
+      "evidence": "boe 6/10 + netflix 2/10 + primevideo 1/10: texto recuperado pero baja coincidencia de términos con el tema"
+    },
+    {
+      "slug": "minutos-publicidad-planes-con-anuncios-streaming",
+      "class": "url-rota",
+      "classLabel": "URL rota (HTTP 404 en la fuente semilla)",
+      "evidence": "disneyplus.com/es-es/help HTTP 404 (además netflix 3/10 y primevideo 1/10)"
+    },
+    {
+      "slug": "reglamento-var-laliga-como-funciona",
+      "class": "url-rota",
+      "classLabel": "URL rota (HTTP 404 en la fuente semilla)",
+      "evidence": "rfef.es/es/arbitros HTTP 404 + laliga.com/es-ES/var HTTP 404 (fifa 4/8)"
+    },
+    {
+      "slug": "normas-estadio-entradas-reventa-laliga",
+      "class": "url-rota",
+      "classLabel": "URL rota (HTTP 404 en la fuente semilla)",
+      "evidence": "laliga.com/es-ES/clubes HTTP 404 (boe 5/9)"
+    },
+    {
+      "slug": "apple-tv-airplay-ajustes-imagen-television",
+      "class": "independencia-requerida",
+      "classLabel": "Independencia de fuentes genuinamente requerida (un solo editor)",
+      "evidence": "una sola entidad editora entre las fuentes semilla (support.apple.com ×2): hacen falta dos editores independientes"
+    },
+    {
+      "slug": "descargar-series-peliculas-netflix-disneyplus",
+      "class": "documento-javascript",
+      "classLabel": "Documento renderizado por JavaScript (SPA sin texto legible)",
+      "evidence": "disneyplus-downloads \"página sin texto legible (¿SPA?)\" + disneyplus-supported-devices HTTP 0 (netflix 5/13)"
+    },
+    {
+      "slug": "ajustar-calidad-reproduccion-datos-netflix-disneyplus",
+      "class": "url-rota",
+      "classLabel": "URL rota (HTTP 404 en la fuente semilla)",
+      "evidence": "netflix node/10084 HTTP 404 + disneyplus-video-quality SPA (netflix 6/13)"
+    },
+    {
+      "slug": "requisitos-ver-4k-uhd-hdr-netflix-disneyplus",
+      "class": "http-recuperacion",
+      "classLabel": "Problema HTTP de recuperación (HTTP 0 / sin respuesta)",
+      "evidence": "disneyplus-supported-devices HTTP 0 + disneyplus-video-quality SPA (netflix 8/11)"
+    },
+    {
+      "slug": "ver-netflix-apple-tv-plus-airplay",
+      "class": "url-rota",
+      "classLabel": "URL rota (HTTP 404 en la fuente semilla)",
+      "evidence": "support.apple.com HT202180 HTTP 404 + HT207057 HTTP 404 (netflix 7/12)"
+    },
+    {
+      "slug": "ver-canales-tdt-directo-internet-rtve-mitele-atresplayer",
+      "class": "documento-javascript",
+      "classLabel": "Documento renderizado por JavaScript (SPA sin texto legible)",
+      "evidence": "atresplayer.com/directos \"página sin texto legible (¿SPA?)\" (rtve 4/9, mitele 1/9)"
+    },
+    {
+      "slug": "cambiar-idioma-subtitulos-netflix-disneyplus",
+      "class": "url-rota",
+      "classLabel": "URL rota (HTTP 404 en la fuente semilla)",
+      "evidence": "netflix node/14189 HTTP 404 + netflix node/10084 HTTP 404 + disneyplus-subtitles HTTP 0"
+    },
+    {
+      "slug": "copa-del-rey-2026-27-rfef-rtve",
+      "class": "extraccion-pobre",
+      "classLabel": "Extracción de texto pobre (baja coincidencia de términos)",
+      "evidence": "rfef 1/11 + rtve 2/11 + rtve 4/11: una sola entidad editora con texto poco coincidente"
+    },
+    {
+      "slug": "formato-champions-league-2026-27-uefa",
+      "class": "url-rota",
+      "classLabel": "URL rota (HTTP 404 en la fuente semilla)",
+      "evidence": "uefa.com format HTTP 404 (dos URLs de uefa) (rtve 6/11)"
+    },
+    {
+      "slug": "cancelar-netflix-prime-video-espana",
+      "class": "url-rota",
+      "classLabel": "URL rota (HTTP 404 en la fuente semilla)",
+      "evidence": "primevideo help?nodeId=G202029060 HTTP 404 + disneyplus-cancel HTTP 0 (netflix 5/10)"
+    },
+    {
+      "slug": "cambiar-contrasena-netflix-prime-video",
+      "class": "url-rota",
+      "classLabel": "URL rota (HTTP 404 en la fuente semilla)",
+      "evidence": "primevideo help?nodeId=G202025230 HTTP 404 + disneyplus-password HTTP 0 (netflix 2/10)"
+    },
+    {
+      "slug": "canjear-tarjetas-regalo-netflix-disney",
+      "class": "http-recuperacion",
+      "classLabel": "Problema HTTP de recuperación (HTTP 0 / sin respuesta)",
+      "evidence": "disneyplus-gift-card HTTP 0 (netflix 4/8): una fuente no recuperable y solo dos candidatas"
+    },
+    {
+      "slug": "gestionar-perfiles-netflix-disney",
+      "class": "documento-javascript",
+      "classLabel": "Documento renderizado por JavaScript (SPA sin texto legible)",
+      "evidence": "disneyplus-profiles \"página sin texto legible (¿SPA?)\" (netflix 3/10)"
+    },
+    {
+      "slug": "decidir-edad-recomendada-peliculas-series",
+      "class": "relevancia-incorrecta",
+      "classLabel": "Puntuación de relevancia incorrecta (fuente autoritativa mal puntuada)",
+      "evidence": "boe 5/8 + cnmc 1/8: la fuente CNMC puntúa 1/8 aun siendo fuente primaria autoritativa del tema"
+    }
+  ]
+}

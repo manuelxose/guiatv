@@ -1,0 +1,12 @@
+:host { display: block; color: var(--portal-text); font-size: 14px; }
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--spotify-green); outline-offset: 3px; }
+button { touch-action: manipulation; }
+.rejected-backdrop { position: fixed; inset: 0; background: rgb(0 0 0 / 65%); z-index: var(--z-header, 40); }
+.rejected-drawer { position: fixed; inset: 0 0 0 auto; width: min(680px, 100%); z-index: calc(var(--z-header, 40) + 1); background: var(--portal-bg); border-left: 1px solid var(--portal-border); box-shadow: var(--shadow-lg, 0 24px 60px rgb(0 0 0 / 45%)); display: flex; flex-direction: column; overscroll-behavior: contain; }
+@media (prefers-reduced-motion: no-preference) {
+  .rejected-drawer { animation: rejected-in var(--motion-slow, 180ms) var(--motion-ease, ease); }
+  @keyframes rejected-in { from { transform: translateX(24px); opacity: 0; } }
+}
+@media (max-width: 767px) {
+  .rejected-drawer { width: 100vw; }
+}

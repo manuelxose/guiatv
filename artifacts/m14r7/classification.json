@@ -1,0 +1,40 @@
+{
+  "schema": "m14r7-classification/1",
+  "source": "tmp-storage/m14r7/prod-probe3.txt (editorial_queue_snapshot, updatedAt 2026-11-06T09:11:03+01:00)",
+  "generatedBy": "verifier",
+  "generatedAt": "2026-11-06T12:20:00+01:00",
+  "snapshot": {
+    "total": 22,
+    "byState": { "rejected": 21, "held": 1 }
+  },
+  "reasonFamily": {
+    "insufficient-evidence": 19,
+    "invalid-candidate": 1,
+    "duplicate": 1,
+    "held": 1
+  },
+  "topics": [
+    { "slug": "compartir-cuenta-netflix-hogar-normas", "state": "rejected", "attempts": 0, "score": 0, "category": "Streaming", "reasonFamily": "insufficient-evidence", "reason": "insufficient-evidence: menos de dos entidades editoras verificadas" },
+    { "slug": "derecho-desistimiento-suscripciones-streaming-espana", "state": "rejected", "attempts": 0, "score": 0, "category": "Streaming", "reasonFamily": "insufficient-evidence", "reason": "insufficient-evidence: menos de dos entidades editoras verificadas" },
+    { "slug": "minutos-publicidad-planes-con-anuncios-streaming", "state": "rejected", "attempts": 0, "score": 0, "category": "Streaming", "reasonFamily": "insufficient-evidence", "reason": "insufficient-evidence: menos de dos entidades editoras verificadas" },
+    { "slug": "cnmc-derechos-audiovisuales-accesibilidad-plataformas", "state": "held", "attempts": 2, "score": 67, "category": "Streaming", "reasonFamily": "held", "reason": "blocked: agotados los ciclos de revisión (5)" },
+    { "slug": "proteccion-menores-control-parental-plataformas", "state": "rejected", "attempts": 0, "score": 0, "category": "Tecnología", "reasonFamily": "invalid-candidate", "reason": "invalid-candidate: slug" },
+    { "slug": "reglamento-var-laliga-como-funciona", "state": "rejected", "attempts": 0, "score": 0, "category": "Fútbol", "reasonFamily": "insufficient-evidence", "reason": "insufficient-evidence: menos de dos entidades editoras verificadas" },
+    { "slug": "normas-estadio-entradas-reventa-laliga", "state": "rejected", "attempts": 0, "score": 0, "category": "Deportes", "reasonFamily": "insufficient-evidence", "reason": "insufficient-evidence: menos de dos entidades editoras verificadas" },
+    { "slug": "apple-tv-airplay-ajustes-imagen-television", "state": "rejected", "attempts": 0, "score": 0, "category": "Tecnología", "reasonFamily": "insufficient-evidence", "reason": "insufficient-evidence: una sola entidad editora entre las fuentes semilla (hacen falta dos)" },
+    { "slug": "descargar-series-peliculas-netflix-disneyplus", "state": "rejected", "attempts": 0, "score": 0, "category": "Streaming", "reasonFamily": "insufficient-evidence", "reason": "insufficient-evidence: menos de dos entidades editoras verificadas" },
+    { "slug": "ajustar-calidad-reproduccion-datos-netflix-disneyplus", "state": "rejected", "attempts": 0, "score": 0, "category": "Streaming", "reasonFamily": "insufficient-evidence", "reason": "insufficient-evidence: menos de dos entidades editoras verificadas" },
+    { "slug": "requisitos-ver-4k-uhd-hdr-netflix-disneyplus", "state": "rejected", "attempts": 0, "score": 0, "category": "Tecnología", "reasonFamily": "insufficient-evidence", "reason": "insufficient-evidence: menos de dos entidades editoras verificadas" },
+    { "slug": "ver-netflix-apple-tv-plus-airplay", "state": "rejected", "attempts": 0, "score": 0, "category": "Tecnología", "reasonFamily": "insufficient-evidence", "reason": "insufficient-evidence: menos de dos entidades editoras verificadas" },
+    { "slug": "ver-canales-tdt-directo-internet-rtve-mitele-atresplayer", "state": "rejected", "attempts": 0, "score": 0, "category": "Televisión", "reasonFamily": "insufficient-evidence", "reason": "insufficient-evidence: menos de dos entidades editoras verificadas" },
+    { "slug": "cambiar-idioma-subtitulos-netflix-disneyplus", "state": "rejected", "attempts": 0, "score": 0, "category": "Streaming", "reasonFamily": "insufficient-evidence", "reason": "insufficient-evidence: menos de dos entidades editoras verificadas" },
+    { "slug": "copa-del-rey-2026-27-rfef-rtve", "state": "rejected", "attempts": 0, "score": 0, "category": "Fútbol", "reasonFamily": "insufficient-evidence", "reason": "insufficient-evidence: menos de dos entidades editoras verificadas" },
+    { "slug": "formato-champions-league-2026-27-uefa", "state": "rejected", "attempts": 0, "score": 0, "category": "Fútbol", "reasonFamily": "insufficient-evidence", "reason": "insufficient-evidence: menos de dos entidades editoras verificadas" },
+    { "slug": "control-parental-netflix-prime-video", "state": "rejected", "attempts": 0, "score": 0, "category": "Streaming", "reasonFamily": "duplicate", "reason": "duplicate: misma intención que protección-menores-control-parental-plataformas (0.47)" },
+    { "slug": "cancelar-netflix-prime-video-espana", "state": "rejected", "attempts": 0, "score": 0, "category": "Streaming", "reasonFamily": "insufficient-evidence", "reason": "insufficient-evidence: menos de dos entidades editoras verificadas" },
+    { "slug": "cambiar-contrasena-netflix-prime-video", "state": "rejected", "attempts": 0, "score": 0, "category": "Tecnología", "reasonFamily": "insufficient-evidence", "reason": "insufficient-evidence: menos de dos entidades editoras verificadas" },
+    { "slug": "canjear-tarjetas-regalo-netflix-disney", "state": "rejected", "attempts": 0, "score": 0, "category": "Streaming", "reasonFamily": "insufficient-evidence", "reason": "insufficient-evidence: menos de dos entidades editoras verificadas" },
+    { "slug": "gestionar-perfiles-netflix-disney", "state": "rejected", "attempts": 0, "score": 0, "category": "Streaming", "reasonFamily": "insufficient-evidence", "reason": "insufficient-evidence: menos de dos entidades editoras verificadas" },
+    { "slug": "decidir-edad-recomendada-peliculas-series", "state": "rejected", "attempts": 0, "score": 0, "category": "Cine", "reasonFamily": "insufficient-evidence", "reason": "insufficient-evidence: menos de dos entidades editoras verificadas" }
+  ]
+}

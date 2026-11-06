@@ -16,7 +16,7 @@ import { EditorialMediaRejected, storeEditorialCover } from '../../infrastructur
 import { generatedImageFindings } from '../../application/services/EditorialImages';
 import { editorialCoverPreview } from '../middlewares/editorialMediaGate';
 import { runSearchConsoleMonitor, searchConsoleOverview } from '../../application/services/SearchConsoleMonitor';
-import { EditorialGenerationService } from '../../application/services/EditorialGenerationService';
+import { EditorialGenerationService, runnerStartAllowed, RunnerStartMode } from '../../application/services/EditorialGenerationService';
 import { EditorialRunnerService } from '../../application/services/EditorialRunnerService';
 import { EditorialProvidersService } from '../../application/services/EditorialProvidersService';
 import {
@@ -110,6 +110,8 @@ const requireLease = (req: Request) => {
   }
   return { token, generation };
 };
+/** The cron calls the runner start endpoint with no signal; a human operator declares the action explicitly. */
+const runnerStartMode = (req: Request): RunnerStartMode => (req.body?.mode === 'manual' ? 'manual' : 'automatic');
 
 export class EditorialOpsController {
   private readonly generation = new EditorialGenerationService();
@@ -458,9 +460,17 @@ export class EditorialOpsController {
   };
 
   startRunnerProcess = async (req: Request, res: Response): Promise<void> => {
+    const mode = runnerStartMode(req);
+    const settings = await this.generation.getSettings();
+    const gate = runnerStartAllowed(settings, mode);
+    if (!gate.allowed) {
+      await audit().insertOne({ at: new Date(), action: 'runner-process-start-refused', by: actor(req), reason: gate.reason, mode });
+      res.json(successResponse({ started: false, reason: gate.reason, mode, enabled: settings.enabled }));
+      return;
+    }
     const state = await this.runnerProcess.start();
-    await audit().insertOne({ at: new Date(), action: 'runner-process-start', by: actor(req), pid: state.pid });
-    res.json(successResponse(state));
+    await audit().insertOne({ at: new Date(), action: 'runner-process-start', by: actor(req), pid: state.pid, mode });
+    res.json(successResponse({ ...state, started: true, mode }));
   };
 
   stopRunnerProcess = async (req: Request, res: Response): Promise<void> => {
@@ -471,9 +481,17 @@ export class EditorialOpsController {
   };
 
   restartRunnerProcess = async (req: Request, res: Response): Promise<void> => {
+    const mode = runnerStartMode(req);
+    const settings = await this.generation.getSettings();
+    const gate = runnerStartAllowed(settings, mode);
+    if (!gate.allowed) {
+      await audit().insertOne({ at: new Date(), action: 'runner-process-restart-refused', by: actor(req), reason: gate.reason, mode });
+      res.json(successResponse({ started: false, reason: gate.reason, mode, enabled: settings.enabled }));
+      return;
+    }
     const state = await this.runnerProcess.restart();
-    await audit().insertOne({ at: new Date(), action: 'runner-process-restart', by: actor(req), pid: state.pid });
-    res.json(successResponse(state));
+    await audit().insertOne({ at: new Date(), action: 'runner-process-restart', by: actor(req), pid: state.pid, mode });
+    res.json(successResponse({ ...state, started: true, mode }));
   };
 
   runnerProcessLogs = async (req: Request, res: Response): Promise<void> => {

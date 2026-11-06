@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { stamp } from '../domain/calendar';
 import { NewsItem } from '../domain/models';
 import { Sv2EmptyStateComponent } from '../ui/states';
 
@@ -7,7 +7,7 @@ import { Sv2EmptyStateComponent } from '../ui/states';
 @Component({
   selector: 'app-sv2-news-list',
   standalone: true,
-  imports: [DatePipe, Sv2EmptyStateComponent],
+  imports: [Sv2EmptyStateComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (items().length) {
@@ -15,7 +15,7 @@ import { Sv2EmptyStateComponent } from '../ui/states';
         @for (n of items(); track n.slug) {
           <li>
             <article>
-              <p class="kicker">{{ n.kicker }} · <time [attr.datetime]="n.publishedAt">{{ n.publishedAt | date: 'd MMM, HH:mm' : 'Europe/Madrid' : 'es-ES' }}</time></p>
+              <p class="kicker">{{ n.kicker }} · <time [attr.datetime]="n.publishedAt">{{ stamp(n.publishedAt) }}</time></p>
               <h3>{{ n.title }}</h3>
             </article>
           </li>
@@ -33,5 +33,6 @@ import { Sv2EmptyStateComponent } from '../ui/states';
   `,
 })
 export class Sv2NewsListComponent {
+  protected readonly stamp = stamp;
   readonly items = input.required<readonly NewsItem[]>();
 }

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
@@ -11,7 +11,7 @@ import { Sv2MatchCardComponent } from '../ui/match-card';
 import { Sv2EmptyStateComponent, Sv2ErrorStateComponent, Sv2LoadingSkeletonComponent } from '../ui/states';
 import { Sv2TeamIdentityComponent } from '../ui/team-identity';
 import { Sv2MatchListComponent } from './match-list';
-import { usePageTitle } from './page-title';
+import { breadcrumbs, SPORTS_SITE_URL, sv2Path, useNotFound, useSeo } from './seo';
 import { Sv2StandingsTableComponent } from './standings-table';
 
 @Component({
@@ -116,6 +116,7 @@ import { Sv2StandingsTableComponent } from './standings-table';
 export class Sv2TeamPageComponent {
   protected readonly store = inject(SportsStore);
   private readonly route = inject(ActivatedRoute);
+  private readonly site = inject(SPORTS_SITE_URL);
   protected readonly listLink = sv2Link('competiciones');
   // Signal, not snapshot: /equipos/a → /equipos/b reuses this component instance.
   private readonly slug = toSignal(this.route.paramMap.pipe(map((p) => p.get('slug') ?? '')), { initialValue: this.route.snapshot.paramMap.get('slug') ?? '' });
@@ -134,7 +135,26 @@ export class Sv2TeamPageComponent {
   protected readonly articles = computed(() => this.store.newsFor({ team: this.slug() }));
 
   constructor() {
-    usePageTitle(() => this.team()?.name ?? 'Equipo');
+    effect(() => {
+      if (this.store.loadState() === 'ready' && this.slug()) untracked(() => void this.store.ensureTeam(this.slug()));
+    });
+    useNotFound(() => this.store.loadState() === 'ready' && !this.store.resolving() && !this.team(), false);
+    effect(() => {
+      if (this.store.loadState() !== 'ready') return;
+      // League tables and fixtures arrive per competition; fetch the ones this team plays in.
+      for (const c of this.store.teamCompetitions(this.slug())) untracked(() => void this.store.ensureCompetition(c.slug));
+    });
+    useSeo(() => {
+      const t = this.team();
+      if (!t) return { title: 'Equipo' };
+      const segments = ['equipos', t.slug];
+      return {
+        title: t.name,
+        description: `Próximos partidos, resultados, posición en la clasificación y noticias de ${t.name}.`,
+        segments,
+        jsonLd: [breadcrumbs(this.site, [['Fútbol', sv2Path()], [t.name, sv2Path(segments)]])],
+      };
+    });
   }
 
   protected compLink(slug: string): string[] {

@@ -1,3 +1,4 @@
+import { kickoffTime } from './calendar';
 import { MatchStatus } from './models';
 
 export interface StatusPresentation {
@@ -18,10 +19,7 @@ export function matchClockLabel(status: MatchStatus, minute: number | undefined,
   if (status === 'live') return minute != null ? `${minute}'` : 'En vivo';
   if (status === 'finished') return 'FIN';
   if (status === 'postponed') return 'Aplazado';
-  const d = new Date(kickoff);
-  return Number.isNaN(d.getTime())
-    ? '--:--'
-    : d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' });
+  return kickoffTime(kickoff);
 }
 
 /** Accessible one-sentence description of a score line. */

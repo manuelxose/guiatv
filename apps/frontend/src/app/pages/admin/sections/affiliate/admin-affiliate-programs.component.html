@@ -9,8 +9,8 @@
       <span *ngIf="saving" class="text-xs text-[var(--portal-text-soft)]">Guardando...</span>
     </div>
 
-    <div *ngIf="saveError" class="bg-[var(--spotify-negative)]/10 border border-[var(--spotify-negative)]/30 text-[var(--spotify-negative)] px-4 py-3 rounded-xl text-sm">{{ saveError }}</div>
-    <div *ngIf="saveSuccess" class="bg-[var(--accent-discover)]/10 border border-[var(--accent-discover)]/30 text-[var(--accent-discover)] px-4 py-3 rounded-xl text-sm">{{ saveSuccess }}</div>
+    <div *ngIf="saveError" class="bg-[var(--spotify-negative)]/10 border border-[var(--spotify-negative)]/30 text-[var(--spotify-negative-text)] px-4 py-3 rounded-xl text-sm">{{ saveError }}</div>
+    <div *ngIf="saveSuccess" class="bg-[var(--accent-discover)]/10 border border-[var(--accent-discover)]/30 text-[var(--accent-discover-text)] px-4 py-3 rounded-xl text-sm">{{ saveSuccess }}</div>
 
     <div class="grid grid-cols-2 gap-4">
       <div>
@@ -135,7 +135,7 @@
         Limpiar
       </button>
       <button type="submit"
-        class="px-5 py-2 rounded-xl bg-[var(--spotify-negative)]/20 border border-[var(--spotify-negative)]/40 text-[var(--spotify-negative)] text-sm hover:bg-[var(--spotify-negative)]/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
+        class="px-5 py-2 rounded-xl bg-[var(--spotify-negative)]/20 border border-[var(--spotify-negative)]/40 text-[var(--spotify-negative-text)] text-sm hover:bg-[var(--spotify-negative)]/30 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--spotify-green)]"
         [disabled]="saving || form.invalid">
         {{ isEditing ? 'Actualizar programa' : 'Crear programa' }}
       </button>
@@ -156,7 +156,7 @@
     </div>
 
     <div *ngIf="loading" class="text-sm text-[var(--portal-text-muted)] py-6 text-center">Cargando programas...</div>
-    <div *ngIf="error" class="text-sm text-[var(--spotify-negative)] py-3">{{ error }}</div>
+    <div *ngIf="error" class="text-sm text-[var(--spotify-negative-text)] py-3">{{ error }}</div>
     <div *ngIf="!loading && !error && programs.length === 0" class="text-sm text-[var(--portal-text-muted)] py-6 text-center">
       No hay programas configurados.
     </div>
@@ -174,7 +174,7 @@
           </div>
           <div class="flex flex-col items-end gap-1 flex-shrink-0">
             <span class="text-[10px] px-2 py-1 rounded-full border"
-              [ngClass]="program.status === 'active' ? 'bg-[var(--accent-discover)]/20 text-[var(--accent-discover)] border-[var(--accent-discover)]/40' : 'bg-[var(--spotify-warning)]/20 text-[var(--spotify-warning)] border-[var(--spotify-warning)]/40'">
+              [ngClass]="program.status === 'active' ? 'bg-[var(--accent-discover)]/20 text-[var(--accent-discover-text)] border-[var(--accent-discover)]/40' : 'bg-[var(--spotify-warning)]/20 text-[var(--spotify-warning-text)] border-[var(--spotify-warning)]/40'">
               {{ program.status }}
             </span>
             <span *ngIf="program.secretRefName" class="text-[10px] px-2 py-1 rounded-full border" [ngClass]="secretBadgeClass(program.secretStatus)">

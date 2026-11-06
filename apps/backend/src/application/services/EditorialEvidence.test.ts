@@ -15,8 +15,10 @@ import {
   nextReviewAt,
   provenanceSignatureValid,
   signProvenance,
+  sourceKindFor,
   stripClaimMarkers,
   verifyBundle,
+  spelledNumbers,
 } from './EditorialEvidence';
 import { policyGateFailures } from './EditorialReviewPolicy';
 
@@ -330,4 +332,56 @@ test('M14-B: an ordered list marker is not a factual figure and does not change 
   const findings = evaluateEvidence({ content, excerpt: 'Resumen', author: { name: AI_AUTHOR.name }, seo: { metaTitle: 'Título', metaDescription: 'Descripción' } }, provenanceFor(v, draftMarkdown), NOW);
   assert.ok(!findings.some((f) => f.code === 'uncited-factual-statement' && /«1\.»|«2\.»/.test(f.message)), JSON.stringify(findings));
   assert.ok(!findings.some((f) => f.code === 'content-not-reviewed-draft'), 'list numbering must not break the HTML/draft comparison');
+});
+
+test('M14-R cifras en letras: una cifra escrita con letras y respaldada por su cita verificada ya no bloquea', () => {
+  const official = 'La plataforma tiene seis millones de suscriptores en España.';
+  const bundle = bundleFixture({
+    sources: [...bundleFixture().sources, { id: 's9', url: 'https://www.cnmc.es/suscriptores', publisher: 'CNMC', kind: 'official', retrievedAt: RETRIEVED, contentHash: 'h9' }],
+    claims: [...bundleFixture().claims, { id: 'cw', text: 'La plataforma tiene seis millones de suscriptores en España', volatility: 'stable', quotes: [{ sourceId: 's9', quote: 'seis millones de suscriptores en España' }] }],
+  });
+  const v = verifyBundle(bundle, new Map(snapshots).set('s9', official));
+  assert.equal(v.claims.find((c) => c.id === 'cw')!.status, 'supported');
+  const draft = `${DRAFT}\n\nTiene seis millones de suscriptores en España [[cw]].`;
+  const findings = evaluateEvidence({ author: AI_AUTHOR, content: render(draft) }, provenanceFor(v, draft), NOW);
+  assert.ok(!findings.some((f) => f.code === 'figure-in-words'), JSON.stringify(findings));
+  assert.ok(!findings.some((f) => f.code === 'figure-not-in-claim'), JSON.stringify(findings));
+});
+
+test('M14-R cifras en letras: una cifra escrita con letras sin cita verificada sigue bloqueando', () => {
+  const v = verifyBundle(bundleFixture(), snapshots);
+  // "seis millones" (6) no está en ninguna cita verificada del paquete (hablan de 6,99 €, horarios y 2027).
+  const draft = `${DRAFT}\n\nLa plataforma tiene seis millones de suscriptores [[c1]].`;
+  const findings = evaluateEvidence({ author: AI_AUTHOR, content: render(draft) }, provenanceFor(v, draft), NOW);
+  assert.ok(findings.some((f) => f.code === 'figure-in-words'), JSON.stringify(findings));
+});
+
+test('M14-R (R1-L1) una cantidad aproximada sin cifra («millones de suscriptores») también bloquea sin respaldo', () => {
+  // Antes el multiplicador se descartaba en silencio: el filtro quedaba vacío y la puerta dejaba pasar la frase.
+  assert.deepEqual(spelledNumbers('millones de suscriptores'), ['~millones']);
+  assert.deepEqual(spelledNumbers('un millón de hogares'), ['~millones']);
+  // Una cifra explícita sigue resolviéndose a su valor, que una cita sí puede autorizar.
+  assert.deepEqual(spelledNumbers('seis millones de euros'), ['6000000']);
+  assert.deepEqual(spelledNumbers('veinte millones de euros'), ['20000000']);
+  const v = verifyBundle(bundleFixture(), snapshots);
+  const draft = `${DRAFT}\n\nLa plataforma suma millones de suscriptores [[c1]].`;
+  const findings = evaluateEvidence({ author: AI_AUTHOR, content: render(draft) }, provenanceFor(v, draft), NOW);
+  assert.ok(findings.some((f) => f.code === 'figure-in-words'), JSON.stringify(findings));
+});
+
+test('M14-R valor diferencial: sin un valor declarado y probado por afirmaciones citadas, el artículo sigue rechazado', () => {
+  const v = verifyBundle(bundleFixture(), snapshots);
+  // m11g-1 ya no está antes de la regla distinctValue: su ausencia bloquea.
+  const missing = { ...provenanceFor(v), pipelineVersion: 'm11g-1' };
+  assert.ok(codes(evaluateEvidence({ author: AI_AUTHOR, content: render(DRAFT) }, missing, NOW)).includes('distinct-value-missing'));
+  // Un valor declarado que cita una afirmación no usada en el texto tampoco prueba nada.
+  const unsupported = { ...provenanceFor(v), pipelineVersion: 'm11g-1', distinctValue: { readerBenefit: 'Una comparación exclusiva que no está en el texto ni en las citas verificadas.', claimIds: ['c3'] } };
+  const f = evaluateEvidence({ author: AI_AUTHOR, content: render(DRAFT) }, unsupported, NOW);
+  assert.ok(f.some((x) => x.code === 'distinct-value-unsupported'), JSON.stringify(f));
+});
+
+test('M14-R fuentes: autoridades audiovisuales, protección de datos y estadística oficial son fuentes primarias', () => {
+  for (const url of ['https://www.aepd.es/nota-prensa', 'https://www.ine.es/dyngs/INEbase', 'https://www.cac.cat/actualitat', 'https://datos.gob.es/catalogo']) {
+    assert.equal(sourceKindFor(url), 'official', url);
+  }
 });

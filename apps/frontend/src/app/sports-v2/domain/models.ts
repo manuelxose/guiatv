@@ -49,9 +49,13 @@ export interface Standings {
   readonly rows: readonly StandingRow[];
 }
 
+/** A broadcaster that passed verification (EPG airing, high-confidence reconciliation or editorial override). */
 export interface Broadcast {
   readonly channel: string;
   readonly kind: 'tv' | 'streaming';
+  /** Internal GuíaTV channel page, when a stable one exists. */
+  readonly channelPath?: string;
+  readonly evidence?: 'airing' | 'reconciliation' | 'override';
 }
 
 export interface MatchEvent {
@@ -88,6 +92,8 @@ export interface Match {
   readonly stats: readonly MatchStat[];
   readonly lineups?: { readonly home: Lineup; readonly away: Lineup };
   readonly broadcasts: readonly Broadcast[];
+  /** When the provider last changed this fixture (ISO). Absent for demo data. */
+  readonly updatedAt?: string;
 }
 
 export interface NewsItem {
@@ -105,6 +111,8 @@ export interface NewsItem {
   /** Licensed editorial image. Absent: the UI draws a neutral gradient from `hue`. */
   readonly image?: { readonly url: string; readonly alt: string };
   readonly hue?: number;
+  /** Canonical public URL of the editorial article (the CMS owns it; v2 never republishes it). */
+  readonly canonicalPath?: string;
 }
 
 export interface SportsSnapshot {
@@ -113,4 +121,12 @@ export interface SportsSnapshot {
   readonly matches: readonly Match[];
   readonly standings: readonly Standings[];
   readonly news: readonly NewsItem[];
+}
+
+/** A result from the rest of Guía TV (programmes, films, series) found by the site-wide search. */
+export interface SiteResult {
+  readonly title: string;
+  readonly meta: string;
+  /** Absolute in-app path (never an external URL). */
+  readonly path: string;
 }

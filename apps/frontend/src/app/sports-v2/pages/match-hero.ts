@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { dayKey, kickoffTime, longDay, timezoneLabel } from '../domain/calendar';
+import { dayKey, kickoffTime, longDay, zoneDescription } from '../domain/calendar';
 import { matchClockLabel } from '../domain/match-status';
 import { Match } from '../domain/models';
 import { sv2Link } from '../sports-v2.paths';
@@ -70,7 +70,7 @@ export class Sv2MatchHeroComponent {
   protected readonly compLink = computed(() => sv2Link('competiciones', this.match().competitionSlug));
   protected readonly when = computed(() => {
     const iso = this.match().kickoff;
-    return `${longDay(dayKey(iso))} · ${kickoffTime(iso)} (${timezoneLabel(new Date(iso))}, hora de Madrid)`;
+    return `${longDay(dayKey(iso))} · ${kickoffTime(iso)} · ${zoneDescription(new Date(iso))}`;
   });
 
   protected teamLink(slug: string): string[] {

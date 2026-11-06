@@ -38,7 +38,7 @@
       <div class="mx-auto w-full max-w-[1600px] space-y-10">
           <app-admin-overview-section
             *ngIf="activeGroup === 'overview'"
-            (navigate)="selectSection($event.group, $event.item)"
+            (navigate)="navigateTo($event)"
             (lastUpdatedChange)="onLastUpdated($event)"
           ></app-admin-overview-section>
 
@@ -93,14 +93,30 @@
           ></app-admin-system-section>
           <ng-container *ngIf="activeGroup === 'ai'">
             <app-admin-ai-section
-              *ngIf="activeItem !== 'editorial'"
+              *ngIf="activeItem !== 'editorial' && activeItem !== 'rejected'"
               (lastUpdatedChange)="onLastUpdated($event)"
             ></app-admin-ai-section>
             <app-admin-editorial-section
               *ngIf="activeItem === 'editorial'"
+              [initialTab]="editorialInitialTab"
               (lastUpdatedChange)="onLastUpdated($event)"
             ></app-admin-editorial-section>
+            <app-admin-rejected-inbox
+              *ngIf="activeItem === 'rejected'"
+              (lastUpdatedChange)="onLastUpdated($event)"
+            ></app-admin-rejected-inbox>
           </ng-container>
+
+          <app-admin-seo-section
+            *ngIf="activeGroup === 'seo'"
+            (lastUpdatedChange)="onLastUpdated($event)"
+          ></app-admin-seo-section>
+
+          <app-admin-flow-guide
+            *ngIf="activeGroup === 'administration'"
+            [initialView]="flowGuideInitialView"
+            (lastUpdatedChange)="onLastUpdated($event)"
+          ></app-admin-flow-guide>
 
         </div>
       </main>

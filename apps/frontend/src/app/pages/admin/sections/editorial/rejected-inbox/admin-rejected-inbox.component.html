@@ -1,0 +1,126 @@
+<div class="rejected-inbox space-y-6">
+  <div class="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <p class="text-[10px] uppercase tracking-[0.3em] text-[var(--portal-text-muted)]">AI Assistant</p>
+      <h3 class="text-2xl font-semibold text-[var(--portal-text)]">Bandeja de rechazados</h3>
+      <p class="text-sm text-[var(--portal-text-soft)]">Borradores rechazados o bloqueados por los controles. Revisa motivos, evidencia y calidad antes de reintentar.</p>
+    </div>
+    <button type="button" class="px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text)]" (click)="load()" [disabled]="loading">
+      {{ loading ? 'Actualizando…' : 'Actualizar' }}
+    </button>
+  </div>
+
+  <div *ngIf="error" role="alert" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative-text)]">{{ error }}</div>
+  <div *ngIf="notice" role="status" class="rounded-xl border border-[var(--spotify-green)]/40 bg-[var(--spotify-green)]/10 p-4 text-sm text-[var(--portal-text)]">{{ notice }}</div>
+
+  <div *ngIf="selected.size" role="region" aria-label="Acciones sobre la selección" class="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--spotify-green)]/40 bg-[var(--portal-surface)] p-3">
+    <strong class="text-sm text-[var(--portal-text)]">{{ selected.size }} seleccionados</strong>
+    <button type="button" class="px-3 py-2 text-xs rounded-xl border border-[var(--portal-border-strong)] text-[var(--portal-text)] disabled:opacity-40" (click)="bulkRequeue()" [disabled]="bulkBusy !== ''">{{ bulkBusy === 'requeue' ? 'Recuperando…' : 'Reintentar (reinvestigar)' }}</button>
+    <button type="button" class="px-3 py-2 text-xs rounded-xl border border-[var(--spotify-negative)]/40 text-[var(--spotify-negative-text)] disabled:opacity-40" (click)="bulkDelete()" [disabled]="bulkBusy !== ''">{{ bulkBusy === 'delete' ? 'Eliminando…' : 'Eliminar borradores' }}</button>
+    <button type="button" class="px-3 py-2 text-xs rounded-xl text-[var(--portal-text-soft)] underline" (click)="clearSelection()">Limpiar selección</button>
+  </div>
+  <div *ngIf="bulkResults.length" role="status" class="text-xs text-[var(--portal-text-soft)]">
+    {{ bulkOkCount }}/{{ bulkResults.length }} procesados
+    <span *ngFor="let r of bulkResults.slice(0, 6)" class="ml-2" [ngClass]="r.ok ? 'text-[var(--accent-discover-text)]' : 'text-[var(--spotify-negative-text)]'">{{ r.id.slice(0, 12) }}{{ r.ok ? ' ✓' : ' ✗' }}</span>
+  </div>
+
+  <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl overflow-x-auto" tabindex="0" role="region" aria-label="Borradores rechazados, tabla con desplazamiento">
+    <table class="w-full text-sm min-w-[900px]">
+      <caption class="sr-only">Borradores rechazados o bloqueados, {{ rejectedPosts.length }} en total</caption>
+      <thead class="text-left text-[var(--portal-text-muted)]">
+        <tr>
+          <th scope="col" class="p-4 w-11"><input class="h-6 w-6" type="checkbox" [checked]="allSelected" (change)="toggleAll()" aria-label="Seleccionar todos los borradores rechazados" /></th>
+          <th scope="col" class="p-4">Artículo</th>
+          <th scope="col">Estado</th>
+          <th scope="col">Crítico</th>
+          <th scope="col" class="numeric">Coste</th>
+          <th scope="col">Elegibilidad</th>
+          <th scope="col">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let post of rejectedPosts; trackBy: trackPost" class="border-t border-[var(--portal-border)]">
+          <td class="p-4"><input class="h-6 w-6" type="checkbox" [checked]="isSelected(post.id)" (change)="toggle(post.id)" [attr.aria-label]="'Seleccionar ' + post.title" /></td>
+          <td class="p-4"><button type="button" class="text-left font-semibold text-[var(--portal-text)] underline underline-offset-2" (click)="openPost(post.id)">{{ post.title || post.slug }}</button><small class="block text-[var(--portal-text-muted)]">{{ post.slug }} · {{ post.updatedAt | date: 'short' }}</small></td>
+          <td><app-admin-status-badge [status]="post.pipelineState" [label]="stateLabel(post.pipelineState)"></app-admin-status-badge></td>
+          <td>{{ stateLabel(post.criticVerdict) }}</td>
+          <td class="numeric">${{ post.costUsd | number: '1.2-4' }}</td>
+          <td><span class="text-xs" [ngClass]="canRetry(post) ? 'text-[var(--accent-discover-text)]' : 'text-[var(--portal-text-muted)]'">{{ eligibilityText(post) }}</span></td>
+          <td><div class="flex flex-wrap gap-3"><button type="button" class="text-[var(--portal-text)] underline text-xs inline-flex items-center min-h-6 px-0.5" (click)="openPost(post.id)">Revisar</button><button *ngIf="canRetry(post)" type="button" class="text-[var(--portal-text)] underline text-xs inline-flex items-center min-h-6 px-0.5" (click)="requeue(post.id)" [disabled]="busy === post.id">Reintentar</button><button type="button" class="text-[var(--spotify-negative-text)] underline text-xs inline-flex items-center min-h-6 px-0.5" (click)="requestDelete(post)">Eliminar borrador</button></div></td>
+        </tr>
+      </tbody>
+    </table>
+    <p *ngIf="!loading && !rejectedPosts.length" class="p-6 text-center text-[var(--portal-text-muted)]">No hay borradores rechazados. Cuando el crítico o la política bloqueen un artículo aparecerá aquí.</p>
+  </div>
+
+  <div *ngIf="detailOpen" class="rejected-backdrop" role="presentation"></div>
+  <aside *ngIf="detailOpen" #drawer class="rejected-drawer" role="dialog" aria-modal="true" aria-labelledby="rejected-detail-title" cdkTrapFocus cdkTrapFocusAutoCapture>
+    <header class="flex items-start justify-between gap-4 border-b border-[var(--portal-border)] p-4">
+      <div class="min-w-0"><p class="text-[10px] uppercase tracking-[0.3em] text-[var(--portal-text-muted)]">REVISIÓN EDITORIAL</p><h3 id="rejected-detail-title" class="text-xl font-semibold text-[var(--portal-text)] break-words">{{ detail?.post?.title || 'Detalle' }}</h3></div>
+      <button type="button" class="px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text)]" (click)="closeDetail()">Cerrar</button>
+    </header>
+    <div class="overflow-y-auto p-4 space-y-6">
+      <p *ngIf="detailLoading" aria-busy="true" class="text-sm text-[var(--portal-text-muted)]">Cargando evidencias y revisión…</p>
+      <p *ngIf="detailError" role="alert" class="rounded-xl border border-[var(--spotify-negative)]/40 p-3 text-sm text-[var(--spotify-negative-text)]">{{ detailError }}</p>
+      <ng-container *ngIf="detail as d">
+        <section aria-labelledby="rj-reasons"><h4 id="rj-reasons" class="text-xs font-semibold uppercase tracking-wider text-[var(--portal-text-muted)] mb-2">Motivos del rechazo</h4>
+          <p class="text-sm text-[var(--portal-text-soft)]">Revisión {{ d.post.reviewState }}<ng-container *ngIf="d.post.reviewedBy"> por {{ d.post.reviewedBy }}</ng-container><ng-container *ngIf="d.post.reviewNotes"> — {{ d.post.reviewNotes }}</ng-container></p>
+          <ul class="mt-2 space-y-1 text-sm text-[var(--portal-text)]"><li *ngFor="let f of d.findings"><strong>{{ f.code }}</strong> — {{ f.message }}</li></ul>
+          <p *ngIf="!d.findings.length" class="text-sm text-[var(--portal-text-muted)]">Sin hallazgos registrados.</p>
+        </section>
+
+        <section *ngIf="d.provenance.critic as critic" aria-labelledby="rj-fix"><h4 id="rj-fix" class="text-xs font-semibold uppercase tracking-wider text-[var(--portal-text-muted)] mb-2">Corrección sugerida</h4>
+          <p class="text-sm text-[var(--portal-text-soft)]"><app-admin-status-badge [status]="critic.verdict" [label]="stateLabel(critic.verdict)"></app-admin-status-badge> {{ critic.model }}</p>
+          <ul class="mt-2 space-y-1 text-sm text-[var(--portal-text)]"><li *ngFor="let issue of critic.issues"><strong>{{ issue.severity }}</strong> — {{ issue.message }}</li></ul>
+        </section>
+
+        <section aria-labelledby="rj-quality"><h4 id="rj-quality" class="text-xs font-semibold uppercase tracking-wider text-[var(--portal-text-muted)] mb-2">Evaluación de calidad</h4>
+          <ul class="space-y-1 text-sm text-[var(--portal-text)]"><li *ngFor="let f of d.findings"><span class="inline-block w-24 text-[var(--portal-text-muted)]">{{ f.severity }}</span>{{ f.message }}</li></ul>
+          <p *ngIf="!d.findings.length" class="text-sm text-[var(--portal-text-muted)]">Sin hallazgos.</p>
+        </section>
+
+        <section aria-labelledby="rj-evidence"><h4 id="rj-evidence" class="text-xs font-semibold uppercase tracking-wider text-[var(--portal-text-muted)] mb-2">Evidencia</h4>
+          <p class="text-sm text-[var(--portal-text-soft)] mb-2">{{ d.provenance.bundle.intent }}</p>
+          <ul class="space-y-2 text-sm text-[var(--portal-text)]">
+            <li *ngFor="let claim of d.provenance.bundle.claims"><strong>{{ claim.id }} · {{ claim.status || 'unverified' }}</strong><p class="text-[var(--portal-text-soft)]">{{ claim.text }}</p><ul class="ml-4 list-disc text-[var(--portal-text-muted)]"><li *ngFor="let q of claim.quotes">«{{ q.quote }}»</li></ul></li>
+          </ul>
+          <p class="mt-2 text-xs text-[var(--portal-text-muted)]">Fuentes: {{ d.provenance.bundle.sources.length }}</p>
+        </section>
+
+        <section aria-labelledby="rj-draft"><h4 id="rj-draft" class="text-xs font-semibold uppercase tracking-wider text-[var(--portal-text-muted)] mb-2">Borrador</h4>
+          <div class="prose-sm text-sm text-[var(--portal-text-soft)] max-h-72 overflow-auto rounded-xl border border-[var(--portal-border)] p-3" [innerHTML]="d.post.content"></div>
+        </section>
+
+        <section *ngIf="d.revisions.length" aria-labelledby="rj-history"><h4 id="rj-history" class="text-xs font-semibold uppercase tracking-wider text-[var(--portal-text-muted)] mb-2">Historial de revisiones</h4>
+          <ol class="space-y-1 text-sm text-[var(--portal-text)]"><li *ngFor="let r of d.revisions.slice().reverse()"><strong>v{{ r.version }}</strong> · {{ r.savedAt | date: 'short' }} · {{ r.reason }} ({{ r.status }})</li></ol>
+        </section>
+
+        <section aria-labelledby="rj-actions" class="rounded-xl border border-[var(--portal-border)] p-4">
+          <p class="text-sm text-[var(--portal-text-soft)] mb-3">{{ eligibilityTextDetail(d) }}</p>
+          <div *ngIf="editOpen && editDraft as edit" class="space-y-3 mb-3">
+            <label class="block text-xs text-[var(--portal-text-soft)]" for="rj-edit-content">Contenido (reescritura dirigida)</label>
+            <textarea id="rj-edit-content" [(ngModel)]="edit.content" name="rjEditContent" rows="8" class="w-full min-h-[120px] rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface-strong)] text-[var(--portal-text)] p-3 text-sm"></textarea>
+            <p *ngIf="editError" role="alert" class="text-xs text-[var(--spotify-warning-text)]">{{ editError }}</p>
+            <div class="flex gap-2"><button type="button" class="px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-xs" (click)="cancelEdit()">Cancelar</button><button type="button" class="px-3 py-2 rounded-xl bg-[var(--spotify-green)] text-black text-xs font-semibold" (click)="saveEdit()" [disabled]="editBusy">{{ editBusy ? 'Guardando…' : 'Guardar reescritura' }}</button></div>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button *ngIf="canRetryDetail(d)" type="button" class="px-3 py-2 rounded-xl bg-[var(--spotify-green)] text-black text-xs font-semibold" (click)="requeue(d.post.id)" [disabled]="busy === d.post.id">{{ busy === d.post.id ? 'Recuperando…' : 'Reintento seguro (reinvestigar)' }}</button>
+            <button type="button" class="px-3 py-2 rounded-xl border border-[var(--portal-border-strong)] text-xs text-[var(--portal-text)]" (click)="startEdit()">Reescritura dirigida</button>
+            <button type="button" class="px-3 py-2 rounded-xl border border-[var(--spotify-negative)]/40 text-xs text-[var(--spotify-negative-text)]" (click)="requestDelete(d.post)">Eliminar borrador</button>
+          </div>
+        </section>
+      </ng-container>
+    </div>
+  </aside>
+
+  <app-admin-confirm-dialog
+    [open]="deleteTarget !== null"
+    title="Eliminar borrador"
+    [description]="'Se eliminará este borrador no publicado «' + (deleteTarget?.title || deleteTarget?.slug || '') + '» y su historial. Los artículos ya publicados no se pueden eliminar desde aquí.'"
+    confirmLabel="Eliminar borrador"
+    cancelLabel="Cancelar"
+    [busy]="deleteBusy"
+    (confirmed)="confirmDelete()"
+    (cancelled)="deleteTarget = null"
+  ></app-admin-confirm-dialog>
+</div>

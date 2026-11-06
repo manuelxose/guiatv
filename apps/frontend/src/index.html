@@ -99,15 +99,14 @@
 
     <!-- Prefetch de rutas probables después de carga inicial -->
     <script>
-      // Prefetch de recursos después de que la página esté idle
+      // M14-R6: the previous hard-coded icon list requested files that do not exist (5 × 404 on every
+      // page, admin included). A prefetch may only repeat an icon the page already loaded successfully.
       if ('requestIdleCallback' in window) {
         requestIdleCallback(function() {
-          // Prefetch de iconos de canales populares
-          var popularChannels = ['la_1', 'la_2', 'antena_3', 'cuatro', 'telecinco'];
-          popularChannels.forEach(function(channel) {
+          document.querySelectorAll('img[src*="/storage/channel_icons/"]').forEach(function(img) {
             var link = document.createElement('link');
             link.rel = 'prefetch';
-            link.href = '/storage/channel_icons/' + channel + '.webp';
+            link.href = img.currentSrc || img.src;
             link.as = 'image';
             document.head.appendChild(link);
           });

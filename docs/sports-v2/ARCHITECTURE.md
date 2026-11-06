@@ -38,3 +38,7 @@ Pages (`pages/`): `Sv2HomePageComponent`, `Sv2SectionPageComponent` (live, fixtu
 - Followed teams and favourites are in-memory defaults; persistence and auth wiring are M02+.
 - News items are not links yet (no article route).
 - The account button links to the legacy `/perfil`; there is no v2 account surface.
+
+## M03 update
+
+The demo adapter is now test-only. `HttpFootballData` implements the same `FootballData` port against the existing `/v2/sports/football/*` BFF, with optional enrichment methods (live updates, per-day, per-competition, per-team, per-match, news search, article). `SportsStore` merges partial snapshots (`mergeSnapshots`) and owns the adaptive `LivePoller`. The display time zone lives in `calendar.ts`; SEO in `pages/seo.ts`. The "demo data only" and "no persistence" limits above are lifted for real data; see `M03-DELIVERY.md` for the provider matrix and what remains.

@@ -51,10 +51,10 @@ El monitor omite una URL cuando ya tiene una inspección con `error:null` en las
 - `npm run build:backend` correcto.
 - Pruebas focalizadas de pipeline y ledger correctas; la suite completa se ejecuta en la entrega.
 - Consulta directa a Google correcta (evidencia de la sección 3).
-- No se ha desplegado todavía.
+- **Producción (2026-11-05 19:52 UTC)**: sincronización lanzada desde el nuevo endpoint; resultado `ok`, `inspected=0`, `skipped=14`, y por primera vez cada URL omitida con su motivo (`fresh-inspected`). Diagnóstico: propiedad con filas (`date/page/query = 5`), guías `zero-for-guides`. El panel ya distingue «sin datos de guías» de «sin acceso».
 
 ## 7. Limitaciones
 
-- No se ha verificado la nueva ejecución en producción ni la nueva UI con navegador real.
+- No se ha probado la nueva UI con navegador real (build y tests Angular sí).
 - La inspección de URLs depende de la cuota de Google; el límite por ejecución sigue siendo 500.
 - Google no expone una API soportada para forzar indexación de páginas editoriales; el sistema solo inspecciona y muestra evidencia.

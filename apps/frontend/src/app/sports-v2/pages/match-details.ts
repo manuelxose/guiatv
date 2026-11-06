@@ -96,15 +96,20 @@ const EVENT_GLYPH: Record<MatchEvent['type'], string> = { goal: '⚽', yellow: '
           @if (match().broadcasts.length) {
             <ul class="bcast">
               @for (b of match().broadcasts; track b.channel) {
-                <li><app-sv2-icon name="tv" /><span>{{ b.channel }}</span><em>{{ b.kind === 'tv' ? 'TV' : 'Streaming' }}</em></li>
+                <li>
+                  <app-sv2-icon name="tv" />
+                  @if (b.channelPath) { <a [href]="b.channelPath">{{ b.channel }}</a> } @else { <span>{{ b.channel }}</span> }
+                  <em>{{ b.kind === 'tv' ? 'TV' : 'Streaming' }} · {{ b.evidence === 'override' ? 'confirmado por la redacción' : 'según la programación' }}</em>
+                </li>
               }
             </ul>
             <p class="note">
-              {{ store.isDemo ? 'Canales ficticios de demostración: no corresponden a ninguna emisión real.' : 'Las emisiones pueden cambiar. Confirma el canal con tu operador antes del inicio.' }}
+              {{ store.isDemo ? 'Canales ficticios de demostración: no corresponden a ninguna emisión real.' : 'Fuente: guía de programación de Guía TV; la hora de inicio es la del proveedor del partido. Las emisiones pueden cambiar: confirma el canal con tu operador antes del inicio.' }}
             </p>
           } @else {
-            <app-sv2-empty-state title="Sin emisión confirmada" hint="Aún no hay canal ni plataforma anunciados para este partido." />
+            <app-sv2-empty-state title="Emisión no confirmada" hint="Todavía no tenemos un canal o plataforma verificados para este partido. No mostramos canales por suposición." />
           }
+          <p class="note">Para ver el partido usa siempre el servicio autorizado que tengas contratado. Guía TV solo enlaza a sus propias fichas de canal y nunca enlaza ni incrusta emisiones no autorizadas.</p>
         }
       }
     </div>
@@ -134,6 +139,7 @@ const EVENT_GLYPH: Record<MatchEvent['type'], string> = { goal: '⚽', yellow: '
     .lineups ol { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
     .bcast { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
     .bcast li { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 12px; border-radius: var(--sv2-r-sm); background: var(--sv2-surface-2); font-size: var(--sv2-fs-sm); font-weight: 600; }
+    .bcast a { color: inherit; }
     .bcast em { margin-left: auto; font-style: normal; font-size: var(--sv2-fs-xs); color: var(--sv2-text-muted); }
     .note { margin: 0; font-size: var(--sv2-fs-xs); color: var(--sv2-text-faint); }
     a:focus-visible { outline: 2px solid var(--sv2-focus); outline-offset: 2px; }

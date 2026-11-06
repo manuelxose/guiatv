@@ -2,10 +2,10 @@ import { Location } from '@angular/common';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { SPORTS_NOW } from '../data/football-data';
+import { DemoFootballData, SPORTS_NOW } from '../data/football-data';
 import { SportsStore } from '../state/sports-store';
 import { Sv2Viewport } from '../state/viewport';
-import { SPORTS_V2_ROUTES } from '../sports-v2.routes';
+import { sportsV2Routes } from '../sports-v2.routes';
 import { TEST_NOW, TEST_TODAY } from '../testing/providers';
 
 const BASE = '/laboratorio/futbol';
@@ -44,7 +44,7 @@ describe('sports-v2 navigation flows', () => {
   beforeEach(async () => {
     localStorage.removeItem('guiatv.sports-v2.follows');
     TestBed.configureTestingModule({
-      providers: [provideRouter([{ path: 'laboratorio/futbol', children: SPORTS_V2_ROUTES }]), { provide: SPORTS_NOW, useValue: () => TEST_NOW }],
+      providers: [provideRouter([{ path: 'laboratorio/futbol', children: sportsV2Routes(DemoFootballData) }]), { provide: SPORTS_NOW, useValue: () => TEST_NOW }],
     });
     h = await RouterTestingHarness.create();
   });
@@ -313,7 +313,7 @@ describe('sports-v2 navigation flows', () => {
       await go();
       const slug = store().matches().find((m) => m.status === 'postponed')!.slug;
       await go(`/partido/${slug}?tab=donde-verlo`);
-      expect(main().textContent).toContain('Sin emisión confirmada');
+      expect(main().textContent).toContain('Emisión no confirmada');
     });
 
     it('shows a not-found state for an unknown match and a way back', async () => {

@@ -205,11 +205,18 @@ function containsQuote(spacedText: string, spacedNeedle: string): boolean {
   return false;
 }
 
-// Rights holders and operators whose own pages state their prices, catalogue and broadcast rights.
+// Rights holders and operators whose own pages state their prices, catalogue and broadcast rights, plus the
+// public authorities an editorial claim may cite. Maintainable default: the Admin overrides it via `sourceDomains`
+// (EditorialGenerationService), so this list is the safe base, not a closed gate. Each entry is a real host that
+// answers (the runner's seed check re-fetches it before use).
 export const OFFICIAL_DOMAINS = [
+  // Operadores y plataformas (precios, catálogo, disponibilidad).
   'netflix.com', 'hbomax.com', 'max.com', 'disneyplus.com', 'primevideo.com', 'movistarplus.es', 'movistar.es',
-  'dazn.com', 'apple.com', 'filmin.es', 'skyshowtime.com', 'atresplayer.com', 'rtve.es', 'mitele.es', 'laliga.com', 'uefa.com',
-  'rfef.es', 'boe.es', 'cnmc.es', 'fifa.com',
+  'dazn.com', 'apple.com', 'filmin.es', 'skyshowtime.com', 'atresplayer.com', 'mitele.es',
+  // Radiodifusión pública y competiciones (programación y derechos).
+  'rtve.es', 'laliga.com', 'uefa.com', 'rfef.es', 'fifa.com',
+  // Norma y autoridades: BOE, regulador audiovisual estatal y autonómico, protección de datos y estadística oficial.
+  'boe.es', 'cnmc.es', 'cac.cat', 'aepd.es', 'ine.es', 'datos.gob.es',
 ];
 const DATASET_DOMAINS = ['themoviedb.org', 'justwatch.com', 'wikidata.org'];
 // User-generated areas of official domains are not the operator speaking.
@@ -279,6 +286,16 @@ export function spelledNumbers(text: string): string[] {
     if (ONE_WORDS.has(word) && (state === 'H' || state === 'TY')) { current += 1; state = 'U'; continue; }
     if (word === 'y' && (state === 'T' || state === 'M') && nextIsUnit) { state = 'TY'; continue; }
     if (word === 'mil' && total === 0 && state !== 'TY') { total = (state === 'S' ? 1 : current) * 1000; current = 0; state = 'M'; continue; }
+    // M14-R (review R1-L1): a multiplier was silently dropped, so "millones de suscriptores" produced no number and the
+    // figure gate let it through. A multiplier now scales whatever precedes it: "seis millones" → 6000000 (a claim can
+    // authorise it), and a bare "millones" → the wildcard `~millones`, which no claim can ever authorise.
+    if (word === 'millón' || word === 'millones') {
+      const quantified = state !== 'S' && current > 0;
+      const value = (quantified ? current : 1) * 1_000_000;
+      total = 0; current = 0; state = 'S';
+      out.push(quantified ? String(value) : '~millones');
+      continue;
+    }
     const wasOpen = state !== 'S';
     close();
     // A number word that could not continue the previous number starts the next one.
@@ -627,7 +644,9 @@ export function evaluateEvidence(post: EvidencePost, provenance: EditorialProven
     const allowed = allowedNumbers(supportedCited);
     const stray = figuresIn(visible, supportedCited).filter((n) => !allowed.has(n));
     if (stray.length) add('block', 'figure-not-in-claim', `Cifras que no están en ${ids.join(', ')}: ${stray.join(', ')} («${visible.slice(0, 100)}»)`);
-    if (NUMBER_WORDS.test(visible)) add('block', 'figure-in-words', `Cifra escrita con letras: «${visible.slice(0, 100)}»`);
+    // M14-R: una cifra en letras es válida si su valor está en una cita verificada (en dígitos o en letras); si no, bloquea.
+    const spelledStray = NUMBER_WORDS.test(visible) ? spelledNumbers(withoutLocatedRefs(visible, supportedCited.flatMap((c) => c.legalRefs ?? []))).filter((n) => !allowed.has(n)) : [];
+    if (spelledStray.length) add('block', 'figure-in-words', `Cifra escrita con letras sin respaldo: ${spelledStray.join(', ')} («${visible.slice(0, 100)}»)`);
   }
 
   // Title, excerpt and metadata cannot carry markers: their figures must come from the claims the draft states.
@@ -635,7 +654,8 @@ export function evaluateEvidence(post: EvidencePost, provenance: EditorialProven
   for (const [field, text] of [['title', post.title], ['excerpt', post.excerpt], ['metaTitle', post.seo?.metaTitle], ['metaDescription', post.seo?.metaDescription]] as const) {
     const visible = String(text || '').replace(/<[^>]+>/g, ' ');
     const stray = figuresIn(visible, usedSupported).filter((n) => !allowedAll.has(n));
-    if (stray.length || NUMBER_WORDS.test(visible)) add('block', 'metadata-figure-not-in-claims', `${field}: cifras sin afirmación verificada en el texto (${stray.join(', ') || 'cifra con letras'})`);
+    const spelledStrayAll = NUMBER_WORDS.test(visible) ? spelledNumbers(withoutLocatedRefs(visible, usedSupported.flatMap((c) => c.legalRefs ?? []))).filter((n) => !allowedAll.has(n)) : [];
+    if (stray.length || spelledStrayAll.length) add('block', 'metadata-figure-not-in-claims', `${field}: cifras sin afirmación verificada en el texto (${[...stray, ...spelledStrayAll].join(', ') || 'cifra con letras'})`);
   }
   if ((post.faqItems || []).length) add('block', 'faq-not-evidenced', 'Las preguntas frecuentes no pasan por el paquete de evidencias');
 

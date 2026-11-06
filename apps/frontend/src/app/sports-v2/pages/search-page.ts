@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
@@ -34,7 +34,7 @@ import { usePageTitle } from './page-title';
           <section [attr.aria-label]="s.title">
             <h2>{{ s.title }} <span>{{ s.hits.length }}</span></h2>
             <ul>
-              @for (h of s.hits; track h.link.join('/')) {
+              @for (h of s.hits; track h.path ?? h.link.join('/')) {
                 <li><a [routerLink]="link(h)"><span class="l">{{ h.label }}</span><span class="d">{{ h.detail }}</span></a></li>
               }
             </ul>
@@ -73,16 +73,18 @@ export class Sv2SearchPageComponent {
     { title: 'Competiciones', hits: this.groups().competitions },
     { title: 'Partidos', hits: this.groups().matches },
     { title: 'Noticias', hits: this.groups().news },
+    { title: 'Programas, películas y series', hits: this.groups().site },
   ]);
 
   constructor() {
     usePageTitle(() => (this.q().trim() ? `Buscar «${this.q().trim()}»` : 'Buscar'));
+    effect(() => this.store.searchRemote(this.q()));
   }
 
   protected setQuery(value: string): void {
     void this.router.navigate([], { relativeTo: this.route, queryParams: { q: value || null }, queryParamsHandling: 'merge', replaceUrl: true });
   }
-  protected link(hit: SearchHit): string[] {
-    return sv2Link(...hit.link);
+  protected link(hit: SearchHit): string | string[] {
+    return hit.path ?? sv2Link(...hit.link);
   }
 }

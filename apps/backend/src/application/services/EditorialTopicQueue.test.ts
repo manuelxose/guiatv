@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   applyQueueAction, cleanSlug,
-  checkSeeds, pickTopics, proposeTopics, QueuedTopic, recoverQueue, screenProposal, scoreProposal, sourceFamily, TopicProposal, TopicQueueFile,
+  checkSeeds, pickTopics, proposeTopics, QueuedTopic, recoverQueue, screenProposal, scoreProposal, seedRecoveryHint, sourceFamily, TopicProposal, TopicQueueFile,
 } from './EditorialTopicQueue';
 import { DEFAULT_ROUTES, EditorialModel } from './EditorialAgentPipeline';
 
@@ -76,9 +76,44 @@ test('missing source and insufficient evidence: a seed must exist, be readable a
   };
   const seeds = await checkSeeds(p, async (url) => pages[url]);
   assert.deepEqual(seeds.map((s) => s.ok), [false, false, false]);
-  assert.deepEqual(seeds.map((s) => s.note.split(' ')[0]), ['HTTP', 'página', '0/6']);
+  // M14-R7: the note now names the concrete cause instead of one generic reason. The three seeds are a
+  // dead URL, a JavaScript shell and an off-topic page — three different problems the operator must be
+  // able to tell apart.
+  assert.deepEqual(seeds.map((s) => s.note.split(' ')[0]), ['URL', 'documento', 'fuente']);
   const outage = await checkSeeds(proposal(), async () => { throw new Error('ECONNRESET'); });
   assert.deepEqual([outage[0].ok, outage[0].status], [false, 0]);
+  assert.match(outage[0].note, /problema HTTP de recuperación/);
+});
+
+test('M14-R7: a JavaScript-only document is not mistaken for evidence by measuring its markup', async () => {
+  const p = proposal();
+  const shell = '<html><head><script src="/app.js"></script></head><body><div id="app"></div></body></html>';
+  const seeds = await checkSeeds(p, async () => ({ status: 200, text: shell }));
+  assert.equal(seeds[0].ok, false);
+  assert.match(seeds[0].note, /renderizado por JavaScript/);
+});
+
+test('M14-R7: a real page with the same words is accepted even when wrapped in markup', async () => {
+  const p = proposal();
+  const words = 'resintonizar los canales del televisor tras el cambio de frecuencias de la televisión digital ';
+  const html = `<html><body><nav>Menú</nav><script>var x=1;</script><main><p>${words.repeat(10)}</p></main></body></html>`;
+  const seeds = await checkSeeds(p, async () => ({ status: 200, text: html }));
+  assert.equal(seeds[0].ok, true, seeds[0].note);
+});
+
+test('M14-R7: technical failures are reported as recoverable, an off-topic source as genuine', async () => {
+  const p = proposal({
+    seedUrls: ['https://www.rtve.es/roto', 'https://www.atresplayer.com/directo', 'https://www.rtve.es/otra-cosa'],
+  });
+  const pages: Record<string, { status: number; text: string }> = {
+    'https://www.rtve.es/roto': { status: 404, text: 'not found' },
+    'https://www.atresplayer.com/directo': { status: 200, text: '<div id="app"></div>' },
+    'https://www.rtve.es/otra-cosa': { status: 200, text: 'Noticias de deportes y del tiempo. '.repeat(60) },
+  };
+  const seeds = await checkSeeds(p, async (url) => pages[url]);
+  const { recoverable, genuine } = seedRecoveryHint(seeds);
+  assert.equal(recoverable.length, 2, 'a broken URL and a JavaScript shell are recoverable');
+  assert.equal(genuine.length, 1, 'an off-topic source is a genuine evidence problem');
 });
 
 test('discovery: the model only proposes; a provider outage throws to the cycle, a bad answer yields nothing', async () => {

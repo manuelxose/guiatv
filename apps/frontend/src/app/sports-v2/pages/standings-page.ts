@@ -1,11 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { map } from 'rxjs';
 import { sv2Link } from '../sports-v2.paths';
 import { SportsStore } from '../state/sports-store';
 import { Sv2EmptyStateComponent, Sv2ErrorStateComponent, Sv2LoadingSkeletonComponent } from '../ui/states';
-import { usePageTitle } from './page-title';
+import { useSeo } from './seo';
 import { Sv2StandingsTableComponent } from './standings-table';
 
 /** Standings for one competition; `/clasificaciones` redirects to the first competition that has a table. */
@@ -32,6 +32,8 @@ import { Sv2StandingsTableComponent } from './standings-table';
                 <app-sv2-standings-table [standings]="s" [competition]="c" />
                 <a class="more" [routerLink]="compLink()">Ver la competición</a>
               </section>
+            } @else if (store.resolving()) {
+              <app-sv2-loading-skeleton [count]="2" />
             } @else {
               <app-sv2-empty-state [title]="c.name + ' no tiene clasificación'" hint="Elige otra competición o consulta sus partidos." actionLabel="Ver la competición" [actionLink]="compLink()" />
             }
@@ -64,12 +66,17 @@ export class Sv2StandingsPageComponent {
   protected readonly base = sv2Link('clasificaciones');
   private readonly slug = toSignal(this.route.paramMap.pipe(map((p) => p.get('slug'))), { initialValue: this.route.snapshot.paramMap.get('slug') });
 
-  protected readonly withTables = computed(() => this.store.competitions().filter((c) => this.store.standingsOf(c.slug)));
+  // Tables load per competition, so every league is offered; the table appears once fetched.
+  protected readonly withTables = computed(() => this.store.competitions().filter((c) => c.kind === 'league' || this.store.standingsOf(c.slug)));
   protected readonly competition = computed(() => (this.slug() ? this.store.competition(this.slug() as string) : undefined));
   protected readonly standings = computed(() => (this.slug() ? this.store.standingsOf(this.slug() as string) : undefined));
 
   constructor() {
-    usePageTitle(() => (this.competition() ? `Clasificación ${this.competition()?.name}` : 'Clasificaciones'));
+    useSeo(() => ({ title: this.competition() ? `Clasificación ${this.competition()?.name}` : 'Clasificaciones', segments: this.slug() ? ['clasificaciones', this.slug() as string] : ['clasificaciones'] }));
+    effect(() => {
+      const slug = this.slug();
+      if (this.store.loadState() === 'ready' && slug) untracked(() => void this.store.ensureCompetition(slug));
+    });
     effect(() => {
       const first = this.withTables()[0];
       if (!this.slug() && first) void this.router.navigate(sv2Link('clasificaciones', first.slug), { replaceUrl: true });

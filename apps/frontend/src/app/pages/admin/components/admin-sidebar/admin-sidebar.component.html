@@ -11,7 +11,7 @@
 >
   <div class="admin-sidebar__header px-4 py-6 border-b border-[var(--portal-border)]">
     <div class="flex items-center justify-between gap-2">
-      <span class="admin-sidebar__brand-mark hidden h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 text-xs font-bold text-[var(--spotify-negative)]" aria-hidden="true">TV</span>
+      <span class="admin-sidebar__brand-mark hidden h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 text-xs font-bold text-[var(--spotify-negative-text)]" aria-hidden="true">TV</span>
       <div class="admin-sidebar__brand min-w-0">
         <p class="text-[10px] text-[var(--portal-text-muted)] uppercase tracking-[0.3em]">Control Center</p>
         <h1 class="text-xl font-semibold text-[var(--portal-text)] truncate">GuíaTV Admin</h1>
@@ -31,7 +31,7 @@
     <div class="admin-sidebar__env mt-3">
       <span
         class="text-[10px] px-2 py-1 rounded-[var(--radius-sm)] border"
-        [ngClass]="environmentLabel === 'Production' ? 'border-[var(--spotify-negative)]/40 text-[var(--spotify-negative)] bg-[var(--spotify-negative)]/10' : 'border-[var(--spotify-green)]/40 text-[var(--spotify-green)] bg-[var(--spotify-green)]/10'"
+        [ngClass]="environmentLabel === 'Production' ? 'border-[var(--spotify-negative)]/40 text-[var(--spotify-negative-text)] bg-[var(--spotify-negative)]/10' : 'border-[var(--spotify-green)]/40 text-[var(--spotify-green-text)] bg-[var(--spotify-green)]/10'"
       >
         {{ environmentLabel }}
       </span>
