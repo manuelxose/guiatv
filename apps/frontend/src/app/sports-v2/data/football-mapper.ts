@@ -5,8 +5,8 @@ import { Broadcast, Competition, Match, MatchStatus, NewsItem, SportsSnapshot, S
  * Rule: a field the provider does not supply stays absent. Nothing is guessed, defaulted to a score or invented.
  */
 
-export interface ApiTeam { id: string; slug: string; name: string; shortName?: string; aliases?: string[]; country?: string }
-export interface ApiCompetition { id: string; slug: string; name: string; shortName?: string; country?: string; type?: string; currentSeason?: string }
+export interface ApiTeam { id: string; slug: string; name: string; shortName?: string; aliases?: string[]; country?: string; crest?: string | null }
+export interface ApiCompetition { id: string; slug: string; name: string; shortName?: string; country?: string; type?: string; currentSeason?: string; logo?: string | null }
 export interface ApiBroadcast { channelId?: string; channelName: string; availability?: string; provenance?: string; confidence?: string; channelPath?: string }
 export interface ApiMatch {
   id: string; slug: string; kickoffAt: string; status: string; round?: string; minute?: number | null; lastUpdatedAt?: string;
@@ -21,7 +21,18 @@ export interface ApiNews {
   sportsRelations?: { teamIds?: string[]; competitionIds?: string[]; matchIds?: string[] };
 }
 
-/** Deterministic badge colour; no licensed crests are used. */
+/** Only absolute https URLs are rendered as images; anything else (data:, javascript:, http:, relative) is dropped. */
+export function safeImageUrl(u: string | null | undefined): string | undefined {
+  if (!u) return undefined;
+  try {
+    const url = new URL(u);
+    return url.protocol === 'https:' && !url.username && !url.password ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Deterministic badge colour, used as the fallback when no crest is supplied. */
 export function hueOf(slug: string): number {
   let h = 0;
   for (const c of slug) h = (h * 31 + c.charCodeAt(0)) % 360;
@@ -31,13 +42,13 @@ export function hueOf(slug: string): number {
 export function mapTeam(t: ApiTeam): Team {
   const tla = t.aliases?.find((a) => /^[A-Z]{3}$/.test(a));
   const letters = t.name.normalize('NFD').replace(/[^A-Za-z]/g, '');
-  return { slug: t.slug, name: t.name, shortName: tla ?? letters.slice(0, 3).toUpperCase(), hue: hueOf(t.slug) };
+  return { slug: t.slug, name: t.name, shortName: tla ?? letters.slice(0, 3).toUpperCase(), hue: hueOf(t.slug), crestUrl: safeImageUrl(t.crest) };
 }
 
 const KINDS: Record<string, Competition['kind']> = { league: 'league', cup: 'cup', international: 'international', national_team: 'international' };
 
 export function mapCompetition(c: ApiCompetition): Competition {
-  return { slug: c.slug, name: c.name, country: c.country ?? '', kind: KINDS[c.type ?? ''] ?? 'cup', hue: hueOf(c.slug), teamSlugs: [], season: c.currentSeason };
+  return { slug: c.slug, name: c.name, country: c.country ?? '', kind: KINDS[c.type ?? ''] ?? 'cup', hue: hueOf(c.slug), logoUrl: safeImageUrl(c.logo), teamSlugs: [], season: c.currentSeason };
 }
 
 /** halftime stays "live" (no minute); suspended/cancelled have no v2 state yet and read as "postponed" (documented limit). */
@@ -57,17 +68,18 @@ export function mapStatus(raw: string): MatchStatus {
   }
 }
 
-/** Only broadcasts backed by evidence are surfaced. Medium/low reconciliation guesses are dropped. */
+/** Surfaced like the legacy section: override/airing, or reconciliation with medium+ confidence (medium is flagged `probable`). Low is dropped. */
 export function mapBroadcasts(list: readonly ApiBroadcast[] | undefined): Broadcast[] {
   const out: Broadcast[] = [];
   for (const b of list ?? []) {
-    const verified = b.provenance === 'override' || b.provenance === 'airing' || (b.provenance === 'reconciliation' && b.confidence === 'high');
+    const verified = b.provenance === 'override' || b.provenance === 'airing' || (b.provenance === 'reconciliation' && (b.confidence === 'high' || b.confidence === 'medium'));
     if (!verified || !b.channelName?.trim() || out.some((o) => o.channel === b.channelName)) continue;
     out.push({
       channel: b.channelName,
       kind: b.availability === 'streaming' ? 'streaming' : 'tv',
       channelPath: b.channelPath && b.channelPath.startsWith('/') ? b.channelPath : undefined,
       evidence: b.provenance as Broadcast['evidence'],
+      probable: b.provenance === 'reconciliation' && b.confidence !== 'high' ? true : undefined,
     });
   }
   return out;

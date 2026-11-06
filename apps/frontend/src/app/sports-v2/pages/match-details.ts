@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, model } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { COMPETITION_RIGHTS_LABEL, competitionRight } from '../data/competition-rights';
 import { Match, MatchEvent } from '../domain/models';
 import { sv2Link } from '../sports-v2.paths';
 import { SportsStore } from '../state/sports-store';
@@ -99,13 +100,22 @@ const EVENT_GLYPH: Record<MatchEvent['type'], string> = { goal: '⚽', yellow: '
                 <li>
                   <app-sv2-icon name="tv" />
                   @if (b.channelPath) { <a [href]="b.channelPath">{{ b.channel }}</a> } @else { <span>{{ b.channel }}</span> }
-                  <em>{{ b.kind === 'tv' ? 'TV' : 'Streaming' }} · {{ b.evidence === 'override' ? 'confirmado por la redacción' : 'según la programación' }}</em>
+                  <em>{{ b.kind === 'tv' ? 'TV' : 'Streaming' }} · {{ b.evidence === 'override' ? 'confirmado por la redacción' : b.probable ? 'probable, según la programación' : 'según la programación' }}</em>
                 </li>
               }
             </ul>
             <p class="note">
               {{ store.isDemo ? 'Canales ficticios de demostración: no corresponden a ninguna emisión real.' : 'Fuente: guía de programación de Guía TV; la hora de inicio es la del proveedor del partido. Las emisiones pueden cambiar: confirma el canal con tu operador antes del inicio.' }}
             </p>
+          } @else if (right(); as r) {
+            <div class="right">
+              <app-sv2-icon name="tv" />
+              <div>
+                <strong>{{ r.operator }}</strong> <em>España · {{ r.season }}</em>
+                <p>{{ rightsLabel }}</p>
+                <a [href]="r.source" target="_blank" rel="noopener noreferrer">Fuente: UEFA</a>
+              </div>
+            </div>
           } @else {
             <app-sv2-empty-state title="Emisión no confirmada" hint="Todavía no tenemos un canal o plataforma verificados para este partido. No mostramos canales por suposición." />
           }
@@ -141,6 +151,9 @@ const EVENT_GLYPH: Record<MatchEvent['type'], string> = { goal: '⚽', yellow: '
     .bcast li { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 12px; border-radius: var(--sv2-r-sm); background: var(--sv2-surface-2); font-size: var(--sv2-fs-sm); font-weight: 600; }
     .bcast a { color: inherit; }
     .bcast em { margin-left: auto; font-style: normal; font-size: var(--sv2-fs-xs); color: var(--sv2-text-muted); }
+    .right { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px dashed var(--sv2-border-strong); border-radius: var(--sv2-r-md); }
+    .right p { margin: 4px 0; font-size: var(--sv2-fs-sm); color: var(--sv2-text-muted); }
+    .right a { font-size: var(--sv2-fs-xs); color: var(--sv2-text-muted); }
     .note { margin: 0; font-size: var(--sv2-fs-xs); color: var(--sv2-text-faint); }
     a:focus-visible { outline: 2px solid var(--sv2-focus); outline-offset: 2px; }
   `,
@@ -149,6 +162,8 @@ export class Sv2MatchDetailsComponent {
   protected readonly store = inject(SportsStore);
   protected readonly tabs = MATCH_TABS;
   readonly match = input.required<Match>();
+  protected readonly rightsLabel = COMPETITION_RIGHTS_LABEL;
+  protected readonly right = computed(() => competitionRight(this.match().competitionSlug));
   /** DOM id prefix; the sidebar and the page use different ones so ids never collide. */
   readonly prefix = input('sv2m');
   readonly tab = model<MatchTab>('resumen');

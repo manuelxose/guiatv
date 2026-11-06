@@ -2,16 +2,16 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { RouterLink } from '@angular/router';
 import { Competition } from '../domain/models';
 import { sv2Link } from '../sports-v2.paths';
-import { Sv2IconComponent } from './icon';
+import { Sv2CompetitionLogoComponent } from './competition-logo';
 
 @Component({
   selector: 'app-sv2-competition-card',
   standalone: true,
-  imports: [RouterLink, Sv2IconComponent],
+  imports: [RouterLink, Sv2CompetitionLogoComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <a [routerLink]="link()" [style.--hue]="competition().hue">
-      <span class="ico"><app-sv2-icon name="trophy" /></span>
+      <span class="ico"><app-sv2-competition-logo [url]="competition().logoUrl" /></span>
       <span class="txt">
         <strong>{{ competition().name }}</strong>
         <small>{{ competition().country }} · {{ kindLabel() }}</small>

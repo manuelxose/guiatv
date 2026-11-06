@@ -1,5 +1,5 @@
 import { SportsSnapshot } from '../domain/models';
-import { ApiMatch, ApiNews, htmlToParagraphs, mapBroadcasts, mapMatch, mapNews, mapStandings, mapStatus, mapTeam, mergeSnapshots, relationIndex } from './football-mapper';
+import { ApiMatch, ApiNews, htmlToParagraphs, mapBroadcasts, mapMatch, mapNews, mapStandings, mapStatus, mapCompetition, mapTeam, mergeSnapshots, safeImageUrl, relationIndex } from './football-mapper';
 
 const team = (slug: string, name: string, id = slug) => ({ id, slug, name, aliases: [name] });
 const api = (over: Partial<ApiMatch> = {}): ApiMatch => ({
@@ -9,6 +9,20 @@ const api = (over: Partial<ApiMatch> = {}): ApiMatch => ({
 });
 
 describe('football mapper', () => {
+  describe('crests and logos', () => {
+    it('preserves the provider crest and competition logo', () => {
+      expect(mapTeam({ ...team('a', 'Alpha'), crest: 'https://crests.football-data.org/86.png' }).crestUrl).toBe('https://crests.football-data.org/86.png');
+      expect(mapCompetition({ id: '1', slug: 'x', name: 'X', logo: 'https://crests.football-data.org/PD.png' }).logoUrl).toBe('https://crests.football-data.org/PD.png');
+    });
+
+    it('drops unsafe or missing image URLs so the UI falls back to a monogram', () => {
+      for (const bad of ['javascript:alert(1)', 'data:image/svg+xml,<svg/>', 'http://x/a.png', '/rel.png', 'https://u:p@x/a.png', '', null, undefined]) {
+        expect(safeImageUrl(bad)).toBeUndefined();
+      }
+      expect(mapTeam(team('a', 'Alpha')).crestUrl).toBeUndefined();
+    });
+  });
+
   describe('matches', () => {
     it('keeps provider scores only for live and finished matches', () => {
       expect(mapMatch(api({ status: 'finished', score: { home: 2, away: 1 } }))).toEqual(jasmine.objectContaining({ status: 'finished', homeScore: 2, awayScore: 1 }));
@@ -52,8 +66,9 @@ describe('football mapper', () => {
       expect(out[0].kind).toBe('streaming');
     });
 
-    it('drops medium and low confidence guesses', () => {
-      expect(mapBroadcasts([b({ provenance: 'reconciliation', confidence: 'medium' }), b({ provenance: 'reconciliation', confidence: 'low' })])).toEqual([]);
+    it('keeps medium confidence as probable and drops low', () => {
+      expect(mapBroadcasts([b({ provenance: 'reconciliation', confidence: 'medium' })])[0].probable).toBeTrue();
+      expect(mapBroadcasts([b({ provenance: 'reconciliation', confidence: 'low' })])).toEqual([]);
     });
 
     it('drops unknown provenance, blank names and duplicates; only keeps internal channel paths', () => {

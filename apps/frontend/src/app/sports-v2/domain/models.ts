@@ -6,7 +6,9 @@ export interface Team {
   readonly slug: string;
   readonly name: string;
   readonly shortName: string; // 3 letters, used for the monogram badge
-  readonly hue: number; // 0-359, deterministic badge colour (no licensed crests yet)
+  readonly hue: number; // 0-359, deterministic badge colour (fallback when no crest)
+  /** Provider-supplied crest (validated https URL). Absent: the UI draws a monogram. */
+  readonly crestUrl?: string;
   readonly city?: string;
   readonly founded?: number;
 }
@@ -25,6 +27,8 @@ export interface Competition {
   readonly country: string;
   readonly kind: 'league' | 'cup' | 'international';
   readonly hue: number;
+  /** Provider-supplied competition logo (validated https URL). Absent: neutral trophy icon. */
+  readonly logoUrl?: string;
   readonly teamSlugs: readonly string[];
   readonly season?: string;
   readonly description?: string;
@@ -56,6 +60,8 @@ export interface Broadcast {
   /** Internal GuíaTV channel page, when a stable one exists. */
   readonly channelPath?: string;
   readonly evidence?: 'airing' | 'reconciliation' | 'override';
+  /** Medium-confidence EPG reconciliation: likely, not confirmed. */
+  readonly probable?: boolean;
 }
 
 export interface MatchEvent {
