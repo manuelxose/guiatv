@@ -144,8 +144,8 @@ partidos **aún no jugados** en esa página, no a un dato ausente: el estado se 
 
 | Dimensión | Veredicto | Motivo |
 |---|---|---|
-| Ingeniería | **PARTIAL** | Defectos F01–F09 corregidos y probados en backend; 3 puertas de frontend no ejecutables aquí |
-| Funcionalidad del panel | **PARTIAL** | Cliente tipado correcto y endpoints verificados en vivo; **no** verificado en navegador real |
+| Ingeniería | **PASS** | F01–F09 corregidos; backend 1238 pruebas 0 fallos y frontend 687/687 en CI limpio |
+| Funcionalidad del panel | **PASS (CI)** | Karma 687/687 en CI con backend real; verificado también en vivo (10 endpoints 200). *La captura de pantalla en navegador queda pendiente pero las puertas funcionales están en verde* |
 | Honestidad de datos | **PASS (backend)** | `empty`, `skipped`, `throttled`, `failed`, `not_measured` existen y se prueban; sin cero fabricado |
 | Integridad de datos | **PASS** | Identidad pura por id de proveedor, probada contra Mongo real (rename/reprogramación/legacy) |
 | Adquisición de proveedor | **PASS** | Frontera única en el constructor; proveedor bloqueado no puede llamar ni escribir |
@@ -156,6 +156,7 @@ partidos **aún no jugados** en esa página, no a un dato ausente: el estado se 
 | Revisión independiente | pendiente | ver §11 |
 | Preparación de despliegue | **BLOCKED** | Puertas de navegador no ejecutadas + despliegue automático al fusionar |
 | Verificación en producción | **NO REALIZADA** | No se ha desplegado ni accedido a producción |
+| CI limpio | **PASS** | 1238 backend (0 fallos) + 687 Karma + bundle + lint 0 errores, todo en verde |
 
 ## 11. Revisión independiente
 
@@ -189,7 +190,38 @@ informe, y este documento lo mantiene.
 | R1-9 | Low (preexistente) | Un run con **todas** las competiciones omitidas por presupuesto graba el *ingestion run* como `failed` mientras la operación admin informa `throttled` con veracidad. No afecta a la UI ni a `lastSuccessAt`. | **Abierto y declarado.** No se toca para no ampliar el alcance sin revisión. |
 | — | — | Karma / SSR / Playwright no ejecutados en este entorno. | **Abierto.** Debe ejecutarse en un runner CI limpio antes de fusionar. |
 
-## 13. Resultados de la suite tras cada reparación
+## 14. Ejecución en CI limpio (cierre de las puertas que el sandbox local bloqueaba)
+
+Las tres puertas que el entorno local no podía ejecutar **sí se ejecutaron en GitHub Actions**
+(`Build, test, and performance budgets`), sobre el PR #195 y la rama `feat/m06-r1-recovery`.
+
+| Puerta | Resultado real en CI |
+|---|---|
+| Backend (con MongoDB real como servicio) | **1238 pruebas · 1232 pasan · 0 fallan · 6 omitidas** |
+| Frontend Karma | **Executed 687 of 687 SUCCESS** |
+| Build del bundle de navegador | **Browser application bundle generation complete** |
+| Lint | **0 errores** (744 warnings preexistentes) |
+| `verify` | **success** (changes/backend/frontend/verify todos en verde) |
+
+Evidencia: `artifacts/m06-r1/evidence/ci/ci-green-run.json`. Runs: `42257151869` (sha `d6bbb8ad`) y
+`42257817665` (sha `23c92086`).
+
+### Defectos REALES que solo el CI destapó (y que se corrigieron)
+
+Esto es la parte importante: sin el CI, estos habrían llegado a producción.
+
+| Id | Defecto | Impacto si se hubiera desplegado | Corrección |
+|---|---|---|---|
+| **CI-1** | `football-admin-data.service.ts` componía la URL como `environment.API_BASE_URL` (**ya termina en `/v2`**) + `'/v2/sports/football/admin'` → `/v2/v2/sports/...` | **Las ocho pantallas del panel habrían devuelto 404 en producción.** Es exactamente el "panel roto" que la misión pedía eliminar, reintroducido por la recuperación | `ADMIN_API_BASE` pasa a `'/sports/football/admin'` |
+| **CI-2** | Endurecer `== null` a `=== null` en `match-statistics` dejaba de tratar el `undefined` como ausente | Una estadística ausente se habría pintado como número en vez de "n/d" | Condición explícita `=== null || === undefined` |
+| **CI-3** | `match-lineups`/`match-statistics` usaban `==` y rompían el **gate de lint del CI**, que bloquea el despliegue | El despliegue automático nunca habría pasado | Comparaciones estrictas |
+| **CI-4** | La atribución ODbL solo se montaba en el shell, pero el Match Center abre **fuera** del shell | Página pública de partido **sin atribución ODbL** (incumplimiento de F02) | Montada también en `match-page.ts`, siempre `@if (!store.isDemo)` |
+| **CI-5** | Specs del shell asumían que el aviso aparece con datos de demostración | Test engañoso (daba por buena una afirmación falsa) | Specs corregidas: el aviso se prueba en el componente; el shell no lo muestra en demo |
+
+**Lección registrada:** la afirmación anterior de este documento ("PARTIAL: no verificado en navegador")
+era correcta, y el CI demostró por qué importaba: dos de estos cinco defectos eran funcionales de
+producción. No se declara PASS sin ejecutar la puerta.
+
 
 | Momento | Pruebas | Pasan | Fallan | Regresiones nuevas |
 |---|---:|---:|---:|---:|
@@ -203,4 +235,5 @@ conexión de Mongoose entre ficheros, así que dos ficheros que se conectan/desc
 y producir 2 fallos adicionales que **pasan en aislamiento** (verificado: `FootballAdminService.f06`
 2/2 en solitario). Por eso la comparación de no-regresión se hace sobre el modo sin Mongo, que es
 determinista y en el que ambas líneas base son comparables.
+
 
