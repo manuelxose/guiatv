@@ -345,6 +345,11 @@ export class AdminEditorialService {
       .pipe(map((resp) => resp.data));
   }
 
+  submitGuideSitemap(slug: string): Observable<{ submittedAt: string }> {
+    return this.http.post<ApiResponse<{ submittedAt: string }>>(`${this.baseUrl}/search-console/submit-guide-sitemap`, { slug })
+      .pipe(map((resp) => resp.data));
+  }
+
   getPost(id: string): Observable<EditorialPostDetail> {
     return this.http
       .get<ApiResponse<EditorialPostDetail>>(`${this.baseUrl}/posts/${encodeURIComponent(id)}`)
