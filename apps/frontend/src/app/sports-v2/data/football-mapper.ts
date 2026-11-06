@@ -242,8 +242,10 @@ function mapEvent(item: unknown, refs: EventTeamRefs): MatchEvent | undefined {
   const minute = asNumber(r.minute ?? r.eventMinute ?? r.time);
   if (minute == null) return undefined; // a timeline entry without a minute cannot be placed honestly
   const teamSlug = asString(r.teamSlug) ?? asString(r.team);
+  // An event we cannot attribute to a side is still real data: the model and the
+  // timeline both handle a side-less event, and dropping it would hide a VAR or
+  // disallowed goal the provider did report.
   const side = mapSide(r.side, teamSlug, refs);
-  if (!side) return undefined; // cannot attribute the event to a team
   const player = asString(r.playerName) ?? asString(r.player);
   return {
     minute,
@@ -344,12 +346,14 @@ export function mapPlayers(raw: unknown): readonly LineupPlayer[] | undefined {
     const name = asString(r.name) ?? asString(r.player) ?? asString(r.fullName);
     if (!name) continue;
     const substitutedOut = typeof r.substitutedOut === 'boolean' ? r.substitutedOut : typeof r.substituted === 'boolean' ? r.substituted : typeof r.off === 'boolean' ? r.off : undefined;
+    const number = asNumber(r.number ?? r.shirtNumber ?? r.shirt);
+    const position = asString(r.position) ?? asString(r.pos);
+    // Absent stays absent: never write a key whose value is undefined, so a player the
+    // provider gave no number/position for is distinguishable from one that has them.
     out.push({
-      number: asNumber(r.number ?? r.shirtNumber ?? r.shirt),
       name,
-      position: asString(r.position) ?? asString(r.pos),
-      // Only carry the flag when the provider actually states it, so an unknown
-      // substitution status never reads as "still on the pitch" or as "substituted".
+      ...(number === undefined ? {} : { number }),
+      ...(position === undefined ? {} : { position }),
       ...(substitutedOut === undefined ? {} : { substitutedOut }),
     });
   }
