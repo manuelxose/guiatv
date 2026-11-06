@@ -43,8 +43,11 @@ describe('competition coverage', () => {
     expect(competitionHasApprovedProvider('')).toBeFalse();
   });
 
-  it('distinguishes competition_not_covered from an empty-but-covered interval', () => {
-    const laliga = resolveAvailability({
+  it('distinguishes competition_not_covered from a covered-but-not-yet-loaded competition', () => {
+    // A competition WITH an approved provider and no data yet is "unavailable",
+    // never "not covered": LaLiga is covered since 2026-11-06, so it must not
+    // claim the provider does not supply it.
+    const covered = resolveAvailability({
       loading: false,
       hasApprovedProvider: competitionHasApprovedProvider('laliga'),
       fetchFailed: false,
@@ -52,7 +55,18 @@ describe('competition coverage', () => {
       updatedAt: null,
       now: 0,
     });
-    expect(laliga).toBe('competition_not_covered');
+    expect(covered).toBe('unavailable');
+    // A competition WITHOUT a provider (Copa del Rey returns no fixtures) is
+    // reported as not covered.
+    const uncovered = resolveAvailability({
+      loading: false,
+      hasApprovedProvider: competitionHasApprovedProvider('copa-del-rey'),
+      fetchFailed: false,
+      hasData: false,
+      updatedAt: null,
+      now: 0,
+    });
+    expect(uncovered).toBe('competition_not_covered');
 
     const coveredEmpty = resolveAvailability({
       loading: false,
