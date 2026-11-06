@@ -11,6 +11,13 @@
 import * as mongoose from 'mongoose';
 import { Schema } from 'mongoose';
 
+/**
+ * Snapshot retention TTL. MUST stay equal to `FOOTBALL_SNAPSHOT_TTL_SECONDS` in
+ * `createFootballIndexes.ts` so the schema-declared index and the boot index
+ * creator agree on name + options (never two conflicting index definitions).
+ */
+const FOOTBALL_SNAPSHOT_TTL_SECONDS = 45 * 24 * 60 * 60;
+
 export interface IFootballProviderSyncStateDocument {
   provider: string;
   lastSuccessAt?: Date;
@@ -38,7 +45,8 @@ export interface IFootballIngestionRunDocument {
   startedAt: Date;
   finishedAt?: Date;
   requestsUsed: number;
-  outcome: 'success' | 'partial' | 'failed' | 'skipped';
+  /** F03: `empty` is a truthful first-class outcome for a run that fetched nothing useful. */
+  outcome: 'success' | 'partial' | 'failed' | 'skipped' | 'empty';
   errors: string[];
 }
 
@@ -64,7 +72,7 @@ const FootballSnapshotSchema = new Schema<IFootballSnapshotDocument>(
     canonicalKey: { type: String, required: true },
     providerId: { type: String, required: true },
     matchId: { type: String, required: true },
-    competitionSlug: { type: String, required: true, index: true },
+    competitionSlug: { type: String, required: true },
     match: { type: Schema.Types.Mixed as any, required: true },
     sourceTimestamp: { type: Date, required: true },
     ingestedAt: { type: Date, required: true },
@@ -76,9 +84,24 @@ FootballSnapshotSchema.index(
   { canonicalKey: 1, providerId: 1 },
   { unique: true, name: 'idx_football_snapshot_key' }
 );
+// F04: the stable identity is (providerId, matchId). This unique index is the
+// additive, backward-compatible guarantee that a re-sent match collapses to ONE
+// record across the old (slug-keyed) and new (provider-anchored) key schemes.
+FootballSnapshotSchema.index(
+  { providerId: 1, matchId: 1 },
+  { unique: true, name: 'idx_football_snapshot_provider_match' }
+);
 FootballSnapshotSchema.index(
   { contentHash: 1 },
   { unique: true, name: 'idx_football_snapshot_contentHash' }
+);
+FootballSnapshotSchema.index(
+  { competitionSlug: 1, ingestedAt: -1 },
+  { name: 'idx_football_snapshot_competition_ingested' }
+);
+FootballSnapshotSchema.index(
+  { ingestedAt: 1 },
+  { expireAfterSeconds: FOOTBALL_SNAPSHOT_TTL_SECONDS, name: 'idx_football_snapshot_ttl' }
 );
 FootballSnapshotSchema.index(
   { competitionSlug: 1, sourceTimestamp: -1 },
@@ -96,7 +119,7 @@ const FootballIngestionRunSchema = new Schema<IFootballIngestionRunDocument>(
     startedAt: { type: Date, required: true },
     finishedAt: { type: Date },
     requestsUsed: { type: Number, default: 0 },
-    outcome: { type: String, enum: ['success', 'partial', 'failed', 'skipped'], required: true },
+    outcome: { type: String, enum: ['success', 'partial', 'failed', 'skipped', 'empty'], required: true },
     errors: { type: [String], default: [] },
   },
   { collection: 'football_ingestion_runs' }

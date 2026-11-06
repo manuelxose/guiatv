@@ -1,11 +1,24 @@
 <div class="space-y-6">
-  <div *ngIf="error" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative)]">
+  <div *ngIf="unauthorized" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative)]">
     {{ error }}
   </div>
 
-  <p *ngIf="loading && !entities.length" class="text-sm text-[var(--portal-text-muted)]">Cargando entidades…</p>
+  <div *ngIf="!unauthorized && error" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative)]">
+    <p class="mb-2">{{ error }}</p>
+    <button type="button" class="px-3 py-2 text-xs rounded-xl border border-[var(--portal-border)] text-[var(--portal-text)]" (click)="load()">Reintentar</button>
+  </div>
 
-  <ng-container *ngIf="entities.length">
+  <div class="flex flex-wrap items-end gap-3">
+    <label class="text-xs text-[var(--portal-text-muted)]">
+      Buscar
+      <input type="text" class="block mt-1 px-3 py-2 text-sm rounded-xl border border-[var(--portal-border)] bg-[var(--portal-surface)] text-[var(--portal-text)]" [value]="q" (input)="onQ($event)" placeholder="Nombre o slug…" />
+    </label>
+    <button type="button" class="px-4 py-2 text-sm rounded-xl border border-[var(--portal-border)] text-[var(--portal-text)]" (click)="applySearch()">Buscar</button>
+  </div>
+
+  <p *ngIf="loading && !loaded" class="text-sm text-[var(--portal-text-muted)]">Cargando entidades…</p>
+
+  <ng-container *ngIf="loaded">
     <div class="flex flex-wrap items-center gap-2">
       <button type="button" class="px-3 py-2 text-xs rounded-xl border border-[var(--portal-border)]" (click)="setFilter('all')">Todas</button>
       <button type="button" class="px-3 py-2 text-xs rounded-xl border border-[var(--portal-border)]" (click)="setFilter('competition')">Competiciones</button>
@@ -24,29 +37,30 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let entity of filtered" class="border-t border-[var(--portal-border)]">
+          <tr *ngFor="let entity of visible" class="border-t border-[var(--portal-border)]">
             <td class="p-4 text-[var(--portal-text)]">{{ entity.name }}</td>
             <td class="text-[var(--portal-text-soft)]">{{ entity.kind === 'competition' ? 'Competición' : 'Equipo' }}</td>
             <td>
-              <app-admin-status-badge
-                [status]="entity.mapped ? 'configured' : 'missing'"
-                [label]="entity.mapped ? 'Mapeado' : 'Sin mapear'"
-              ></app-admin-status-badge>
+              <app-admin-status-badge [status]="mapped(entity) ? 'configured' : 'missing'" [label]="mapped(entity) ? 'Mapeado' : 'Sin mapear'"></app-admin-status-badge>
             </td>
             <td>
-              <app-admin-status-badge
-                [status]="entity.stale ? 'stale' : 'current'"
-                [label]="entity.stale ? 'Desactualizado' : 'Al día'"
-              ></app-admin-status-badge>
+              <app-admin-status-badge [status]="stale(entity) ? 'stale' : 'current'" [label]="stale(entity) ? 'Desactualizado' : 'Al día'"></app-admin-status-badge>
             </td>
             <td class="text-[var(--portal-text-soft)]">{{ entity.lastUpdatedAt ? (entity.lastUpdatedAt | date:'short') : 'Nunca' }}</td>
           </tr>
+          <tr *ngIf="!visible.length">
+            <td colspan="5" class="p-4 text-[var(--portal-text-muted)]">No hay entidades que coincidan con la consulta.</td>
+          </tr>
         </tbody>
       </table>
+
+      <div class="flex items-center justify-between gap-3 p-4 border-t border-[var(--portal-border)] text-sm text-[var(--portal-text-soft)]">
+        <span>{{ total }} resultado(s)</span>
+        <div class="flex gap-2">
+          <button type="button" class="px-3 py-2 text-xs rounded-xl border border-[var(--portal-border)] disabled:opacity-40" [disabled]="page <= 1" (click)="prevPage()">Anterior</button>
+          <button type="button" class="px-3 py-2 text-xs rounded-xl border border-[var(--portal-border)] disabled:opacity-40" [disabled]="page * limit >= total" (click)="nextPage()">Siguiente</button>
+        </div>
+      </div>
     </div>
   </ng-container>
-
-  <p *ngIf="!loading && !entities.length && !error" class="text-sm text-[var(--portal-text-muted)]">
-    No hay entidades registradas.
-  </p>
 </div>

@@ -4,25 +4,21 @@ import { AdminFootballBroadcastsComponent } from './admin-football-broadcasts.co
 import { FootballAdminDataService } from '@app/features/football/admin-data/football-admin-data.service';
 
 describe('AdminFootballBroadcastsComponent', () => {
-  let service: { getMatches: jasmine.Spy };
+  let service: { getBroadcasts: jasmine.Spy };
 
-  const match = (id: string, broadcasts: unknown[]) => ({
-    id,
-    slug: id,
-    providerIds: {},
-    competition: { id: 'c1', slug: 'laliga', name: 'LaLiga' },
-    kickoffAt: '2026-11-06T20:00:00.000Z',
-    status: 'scheduled',
-    homeTeam: { id: 'h', slug: 'h', name: 'Real Madrid', aliases: [], providerIds: {}, lastUpdatedAt: '' },
-    awayTeam: { id: 'a', slug: 'a', name: 'Barcelona', aliases: [], providerIds: {}, lastUpdatedAt: '' },
-    score: { home: null, away: null },
-    broadcasts,
-    sourceProvenance: { source: 'openligadb', confidence: 'high' },
-    lastUpdatedAt: '2026-11-06T10:00:00.000Z',
+  const broadcast = (overrides: Record<string, unknown> = {}) => ({
+    matchId: 'm1',
+    matchSlug: 'real-madrid-barcelona',
+    channelId: 'c1',
+    channelName: 'Canal TV',
+    availability: 'tv',
+    provenance: 'airing',
+    confidence: 'high',
+    ...overrides,
   });
 
   beforeEach(() => {
-    service = { getMatches: jasmine.createSpy().and.returnValue(of([])) };
+    service = { getBroadcasts: jasmine.createSpy().and.returnValue(of({ page: 1, limit: 25, total: 0, items: [] })) };
     TestBed.configureTestingModule({
       imports: [AdminFootballBroadcastsComponent],
       providers: [{ provide: FootballAdminDataService, useValue: service }],
@@ -30,14 +26,17 @@ describe('AdminFootballBroadcastsComponent', () => {
   });
 
   it('renders distinct TV, Streaming and TV y streaming availability states', () => {
-    service.getMatches.and.returnValue(
-      of([
-        match('m1', [
-          { channelId: 'a', channelName: 'Canal TV', availability: 'tv', provenance: 'airing', confidence: 'high' },
-          { channelId: 'b', channelName: 'Plataforma', availability: 'streaming', provenance: 'reconciliation', confidence: 'medium' },
-          { channelId: 'c', channelName: 'Ambos', availability: 'both', provenance: 'override', confidence: 'high' },
-        ]),
-      ])
+    service.getBroadcasts.and.returnValue(
+      of({
+        page: 1,
+        limit: 25,
+        total: 3,
+        items: [
+          broadcast(),
+          broadcast({ channelId: 'b', channelName: 'Plataforma', availability: 'streaming' }),
+          broadcast({ channelId: 'c', channelName: 'Ambos', availability: 'both' }),
+        ],
+      })
     );
     const fixture = TestBed.createComponent(AdminFootballBroadcastsComponent);
     fixture.detectChanges();
@@ -49,18 +48,10 @@ describe('AdminFootballBroadcastsComponent', () => {
     fixture.destroy();
   });
 
-  it('renders "Sin retransmisión" for a match with no broadcasts', () => {
-    service.getMatches.and.returnValue(of([match('m1', [])]));
+  it('shows an honest empty state when there are no broadcast mappings', () => {
     const fixture = TestBed.createComponent(AdminFootballBroadcastsComponent);
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Sin retransmisión');
-    fixture.destroy();
-  });
-
-  it('renders a distinct empty state when there are no matches at all', () => {
-    const fixture = TestBed.createComponent(AdminFootballBroadcastsComponent);
-    fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('No hay retransmisiones');
+    expect(fixture.nativeElement.textContent).toContain('No hay retransmisiones que coincidan con la consulta.');
     fixture.destroy();
   });
 });

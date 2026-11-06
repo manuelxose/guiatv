@@ -7,6 +7,7 @@ import { dayKey, kickoffTime, longDay } from '../domain/calendar';
 import { sv2Link } from '../sports-v2.paths';
 import { SportsStore } from '../state/sports-store';
 import { Sv2IconComponent } from '../ui/icon';
+import { Sv2OdblAttributionComponent } from '../ui/odbl-attribution';
 import { Sv2EmptyStateComponent, Sv2ErrorStateComponent, Sv2LoadingSkeletonComponent } from '../ui/states';
 import { MATCH_TABS, MatchTab, Sv2MatchDetailsComponent } from './match-details';
 import { Sv2MatchHeroComponent } from './match-hero';
@@ -16,7 +17,7 @@ import { breadcrumbs, sportsEvent, SPORTS_SITE_URL, sv2Path, useNotFound, useSeo
 @Component({
   selector: 'app-sv2-match-page',
   standalone: true,
-  imports: [RouterLink, Sv2IconComponent, Sv2MatchHeroComponent, Sv2MatchDetailsComponent, Sv2EmptyStateComponent, Sv2ErrorStateComponent, Sv2LoadingSkeletonComponent],
+  imports: [RouterLink, Sv2IconComponent, Sv2MatchHeroComponent, Sv2MatchDetailsComponent, Sv2EmptyStateComponent, Sv2ErrorStateComponent, Sv2LoadingSkeletonComponent, Sv2OdblAttributionComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="bar">
@@ -46,6 +47,11 @@ import { breadcrumbs, sportsEvent, SPORTS_SITE_URL, sv2Path, useNotFound, useSeo
         }
       }
       @default { <app-sv2-loading-skeleton [count]="3" /> }
+    }
+    <!-- F02/R1-4: the Match Center opens OUTSIDE the shell, so the page carries
+         the ODbL notice itself. Never shown for demo (fictitious) data. -->
+    @if (!store.isDemo) {
+      <app-sv2-odbl-attribution />
     }
   `,
   styles: `
@@ -129,3 +135,4 @@ export class Sv2MatchPageComponent {
 }
 
 const asTab = (value: string | null): MatchTab => (MATCH_TABS.some((t) => t.id === value) ? (value as MatchTab) : 'resumen');
+

@@ -4,37 +4,37 @@ import { AdminFootballSectionComponent } from './admin-football-section.componen
 import { FootballAdminDataService } from '@app/features/football/admin-data/football-admin-data.service';
 
 describe('AdminFootballSectionComponent (navigation)', () => {
-  const overview = {
-    generatedAt: null,
-    provider: { configured: true, state: 'healthy', eligibility: 'approved-limited' },
-    activeCompetitions: 0,
-    totalTeams: 0,
-    upcomingFixtures: 0,
-    fixturesMissingBroadcast: 0,
+  const dashboard = {
+    generatedAt: '2026-11-06T10:00:00.000Z',
+    competitions: 0,
+    teams: 0,
+    snapshots: 0,
+    providers: 0,
     broadcastMappings: 0,
-    staleCompetitions: 0,
-    staleTeams: 0,
-    unmappedCompetitions: 0,
-    unmappedTeams: 0,
-    lastSuccessfulSync: null,
-    lastFailedSync: null,
+    staleSnapshots: 0,
+    openQualityIssues: 0,
+    countsState: 'observed',
+    lastSyncState: 'not_measured',
   };
 
   let service: Record<string, jasmine.Spy>;
 
   beforeEach(() => {
     service = {
-      getOverview: jasmine.createSpy().and.returnValue(of(overview)),
-      getCoverage: jasmine.createSpy().and.returnValue(of({ provider: overview.provider, competitions: [], matrix: [] })),
-      getMatches: jasmine.createSpy().and.returnValue(of([])),
-      getEntities: jasmine.createSpy().and.returnValue(of([])),
-      getSyncState: jasmine
+      getDashboard: jasmine.createSpy().and.returnValue(of(dashboard)),
+      getProviders: jasmine.createSpy().and.returnValue(of([])),
+      getProvider: jasmine.createSpy().and.returnValue(of(null)),
+      getCoverage: jasmine.createSpy().and.returnValue(of({ generatedAt: '2026-11-06T10:00:00.000Z', rows: [] })),
+      getMatches: jasmine.createSpy().and.returnValue(of({ page: 1, limit: 25, total: 0, items: [] })),
+      getMatch: jasmine.createSpy().and.returnValue(of(null)),
+      getEntityMappings: jasmine.createSpy().and.returnValue(of({ page: 1, limit: 25, total: 0, items: [] })),
+      getBroadcasts: jasmine.createSpy().and.returnValue(of({ page: 1, limit: 25, total: 0, items: [] })),
+      getIngestionStatus: jasmine
         .createSpy()
-        .and.returnValue(of({ provider: overview.provider, lastSuccessfulSync: null, lastFailedSync: null, jobs: [] })),
-      getQuality: jasmine
-        .createSpy()
-        .and.returnValue(of({ overview, staleEntities: [], unmappedEntities: [] })),
-      refreshFootball: jasmine.createSpy().and.returnValue(of({ id: 'job-1' })),
+        .and.returnValue(of({ generatedAt: '2026-11-06T10:00:00.000Z', enabled: false, providers: [], quota: { consumed: null, disabled: null, state: 'unavailable' } })),
+      getQualityIssues: jasmine.createSpy().and.returnValue(of({ page: 1, limit: 25, total: 0, items: [] })),
+      getAudit: jasmine.createSpy().and.returnValue(of({ page: 1, limit: 25, total: 0, items: [] })),
+      sync: jasmine.createSpy().and.returnValue(of({ id: 'op-1', status: 'queued', correlationId: 'manual.1' })),
     };
     TestBed.configureTestingModule({
       imports: [AdminFootballSectionComponent],
@@ -45,14 +45,14 @@ describe('AdminFootballSectionComponent (navigation)', () => {
   it('renders each of the eight sections for its activeItem', () => {
     const fixture = TestBed.createComponent(AdminFootballSectionComponent);
     const cases: Array<[string, string]> = [
-      ['centro-de-control', 'Próximos partidos'],
-      ['proveedores', 'Proveedor de datos de fútbol'],
-      ['cobertura', 'No hay competiciones registradas'],
-      ['partidos', 'no hay partidos hoy'],
-      ['entidades', 'No hay entidades registradas'],
-      ['retransmisiones', 'No hay retransmisiones'],
+      ['centro-de-control', 'Competiciones / equipos'],
+      ['proveedores', 'No hay proveedores registrados.'],
+      ['cobertura', 'No hay competiciones registradas.'],
+      ['partidos', 'No hay partidos que coincidan con la consulta.'],
+      ['entidades', 'No hay entidades que coincidan con la consulta.'],
+      ['retransmisiones', 'No hay retransmisiones que coincidan con la consulta.'],
       ['sincronizacion', 'Sincronizar ahora'],
-      ['calidad', 'Sin incidencias de calidad'],
+      ['calidad', 'Sin incidencias de calidad.'],
     ];
     for (const [item, expectedText] of cases) {
       fixture.componentInstance.activeItem = item;

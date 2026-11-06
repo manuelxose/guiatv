@@ -72,3 +72,26 @@ test('M06: a real 0-0 result is preserved, not treated as missing', () => {
   assert.strictEqual(clone.score.away, 0);
   assert.notStrictEqual(clone.score.home, null);
 });
+
+/**
+ * M06-R1 regression: the day filter must survive the compact `YYYYMMDD` form the
+ * Sports v2 client sends. `new Date('20261126')` is Invalid Date, so the filter
+ * used to be dropped SILENTLY and the endpoint answered with matches from any
+ * date - which is why a competition playing weeks apart (Europa League) looked
+ * missing. These tests call the private builder directly: no database needed.
+ */
+test('M06-R1: a compact YYYYMMDD day becomes a real 24h kickoff window', () => {
+  const build = (provider as unknown as { buildFilter(q: unknown): Record<string, any> }).buildFilter.bind(provider);
+  const compact = build({ date: '20261126' });
+  const dashed = build({ date: '2026-11-26' });
+  assert.deepEqual(compact['match.kickoffAt'], dashed['match.kickoffAt']);
+  assert.equal(compact['match.kickoffAt'].$gte, '2026-11-26T00:00:00.000Z');
+  assert.equal(compact['match.kickoffAt'].$lte, '2026-11-27T00:00:00.000Z');
+  // An unparseable day must not silently widen the query to every match.
+  const bogus = build({ date: 'not-a-day' });
+  assert.equal(bogus['match.kickoffAt'], undefined);
+  // The competition filter is preserved alongside the day window.
+  const both = build({ date: '20261126', competitionSlug: 'europa-league' });
+  assert.equal(both.competitionSlug, 'europa-league');
+  assert.ok(both['match.kickoffAt']);
+});

@@ -16,9 +16,9 @@ import { Sv2EmptyStateComponent } from './states';
         @for (s of stats(); track $index) {
           <div class="stat">
             <div class="srow">
-              <b [class.na]="s.home == null" [attr.aria-label]="s.home == null ? 'No disponible' : null">{{ homeValue(s) }}</b>
+              <b [class.na]="s.home === null || s.home === undefined" [attr.aria-label]="s.home === null || s.home === undefined ? 'No disponible' : null">{{ homeValue(s) }}</b>
               <span>{{ s.label }}</span>
-              <b [class.na]="s.away == null" [attr.aria-label]="s.away == null ? 'No disponible' : null">{{ awayValue(s) }}</b>
+              <b [class.na]="s.away === null || s.away === undefined" [attr.aria-label]="s.away === null || s.away === undefined ? 'No disponible' : null">{{ awayValue(s) }}</b>
             </div>
             @if (share(s.home, s.away); as sh) {
               <div class="bar" aria-hidden="true"><i [style.flex-grow]="sh.home"></i><i class="b" [style.flex-grow]="sh.away"></i></div>
@@ -57,10 +57,10 @@ export class Sv2MatchStatisticsComponent {
   protected readonly emptyHint = computed(() => (this.match().status === 'scheduled' ? 'Se publican cuando empieza el partido.' : 'No hay estadísticas para este partido.'));
 
   protected homeValue(s: MatchStat): string {
-    return s.home == null ? 'n/d' : `${s.home}${s.unit ?? ''}`;
+    return s.home === null || s.home === undefined ? 'n/d' : `${s.home}${s.unit ?? ''}`;
   }
   protected awayValue(s: MatchStat): string {
-    return s.away == null ? 'n/d' : `${s.away}${s.unit ?? ''}`;
+    return s.away === null || s.away === undefined ? 'n/d' : `${s.away}${s.unit ?? ''}`;
   }
   protected share(home: number | undefined, away: number | undefined): { home: number; away: number } | null {
     if (home == null || away == null) return null;
@@ -69,3 +69,5 @@ export class Sv2MatchStatisticsComponent {
     return { home: Math.max(home / total, 0.01), away: Math.max(away / total, 0.01) };
   }
 }
+
+

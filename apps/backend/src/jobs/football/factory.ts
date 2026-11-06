@@ -9,7 +9,6 @@
 
 import { OpenLigaDbClient, FetchLike } from '@/infrastructure/sports/providers/openLigaDb/OpenLigaDbClient';
 import { OpenLigaDbAdapter } from '@/infrastructure/sports/providers/openLigaDb/OpenLigaDbAdapter';
-import { assertEligible } from '@/infrastructure/sports/providers/eligibility/providerEligibilityRegistry';
 import { FootballIngestionRepository } from '@/infrastructure/sports/persistence/FootballIngestionRepository';
 import { InMemoryLock } from '@/application/sports/ingestion/Lock';
 import { RequestBudget } from '@/application/sports/ingestion/RequestBudget';
@@ -33,6 +32,8 @@ export const M06_OPENLIGADB_COMPETITIONS: ReadonlyArray<{ shortcuts: readonly st
   { shortcuts: ['uel2026'], season: '2026' },
   { shortcuts: ['uecl2026'], season: '2026' },
   { shortcuts: ['dfb'], season: '2026' },
+  // LaLiga 2026/27: 380 real fixtures verified against the provider (la1).
+  { shortcuts: ['la1'], season: '2026' },
   { shortcuts: ['wm2026'], season: '2026' },
 ];
 
@@ -66,16 +67,18 @@ export function buildFootballIngestionService(
 ): FootballIngestionService {
   const fetchImpl: FetchLike = options.fetch ?? (globalThis.fetch as unknown as FetchLike);
 
+  // F05 (independent review): the eligibility registry (`assertEligible`) is the
+  // sole admission gate, and it is now enforced INSIDE the `OpenLigaDbClient`
+  // constructor — before the client is retained, before any adapter, request or
+  // write can happen. The old order (construct client, THEN assert) let a
+  // blocked provider construct a client first; now construction itself throws for
+  // any provider that is not `approved`. Every ingestion entry path (scheduled
+  // loop, manual sync, CLI, startup/recovery) builds this client through the
+  // factory, so none can bypass the boundary.
   const client = new OpenLigaDbClient(fetchImpl, {
     userAgent: process.env.OPENLIGADB_USER_AGENT || 'guiatv-m06-ingestion/1.0',
     timeoutMs: Number(process.env.OPENLIGADB_TIMEOUT_MS) || 10_000,
   });
-  // F05 (independent review): the eligibility registry is documented as the SOLE
-  // admission gate, but the ingestion path constructed the adapter directly, so
-  // blocking a provider in the registry would not have stopped ingestion. The gate
-  // is now enforced here, before any adapter, request or write can happen.
-  // It throws for every provider that is not `approved`.
-  assertEligible('openligadb');
   const adapter = new OpenLigaDbAdapter(client);
   const repository = new FootballIngestionRepository();
   const scheduler = new AdaptiveScheduler(DEFAULT_SCHEDULER_CONFIG);

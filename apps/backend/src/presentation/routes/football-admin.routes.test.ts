@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FootballOpsController } from '@/presentation/controllers/FootballOpsController';
 import { createFootballAdminRoutes } from '@/presentation/routes/football-admin.routes';
-import { analyticsAdminGuard } from '@/presentation/middlewares/analyticsAdminGuard';
-import { ForbiddenError } from '@/shared/errors';
+import { createAdminAccessGuard } from '@/presentation/middlewares/adminAccessGuard';
+import { UnauthorizedError } from '@/shared/errors';
 import { FootballAdminService } from '@/application/sports/services/FootballAdminService';
 import {
   FootballSnapshotModel,
@@ -20,6 +20,12 @@ const EMPTY_DIAGNOSTICS = () => ({
   summary: { activeMatches: 0, staleSnapshots: 0, queueSize: 0, identityConflicts: 0 },
 });
 
+const REJECTING_AUTH_SERVICE = {
+  getSession: async () => {
+    throw new UnauthorizedError('invalid session');
+  },
+};
+
 function fakeRes() {
   const out: { status: number; body: Record<string, any> } = { status: 200, body: {} };
   const res = {
@@ -35,30 +41,41 @@ function fakeRes() {
   return { res, out };
 }
 
-test('every football admin route is mounted behind the admin guard', () => {
+test('every football admin route is mounted behind the shared admin guard', async () => {
   const controller = new FootballOpsController({ diagnostics: EMPTY_DIAGNOSTICS });
-  const router = createFootballAdminRoutes(controller);
+  const router = createFootballAdminRoutes(controller, REJECTING_AUTH_SERVICE as never);
 
   const stack = (router as any).stack as Array<{ route?: { path?: string; stack?: Array<{ handle: unknown }> } }>;
   const routes = stack.filter((l) => l?.route).map((l) => ({ method: Object.keys(l.route!).find((k) => k !== 'path' && k !== 'stack'), path: l.route!.path, handlers: (l.route!.stack ?? []).map((h) => h.handle) }));
 
   assert.ok(routes.length >= 13, `expected at least 13 routes, got ${routes.length}`);
   for (const route of routes) {
-    assert.ok(
-      route.handlers.includes(analyticsAdminGuard),
-      `route ${route.method} ${route.path} must be guarded by analyticsAdminGuard`
+    assert.ok(route.handlers.length >= 2, `route ${route.method} ${route.path} must mount a guard before its handler`);
+    const guard = route.handlers[0];
+    assert.equal(typeof guard, 'function', `route ${route.method} ${route.path} first handler must be the guard`);
+    // Fail-closed behavior: a credential-less request must be rejected.
+    let err: unknown;
+    await (guard as (req: unknown, res: unknown, next: (e?: unknown) => void) => unknown)(
+      { header: () => undefined, headers: {} } as never,
+      {} as never,
+      (e?: unknown) => {
+        err = e;
+      }
     );
+    assert.ok(err, `route ${route.method} ${route.path} guard must reject a credential-less request`);
   }
 });
 
-test('analyticsAdminGuard rejects a request without the admin key', () => {
+test('the shared admin guard rejects a request without credentials', async () => {
   const previous = process.env.ANALYTICS_ADMIN_KEY;
-  process.env.ANALYTICS_ADMIN_KEY = 'test-secret';
+  delete process.env.ANALYTICS_ADMIN_KEY;
   try {
-    assert.throws(
-      () => analyticsAdminGuard({ header: () => undefined } as any, {} as any, () => {}),
-      (error: unknown) => error instanceof ForbiddenError
-    );
+    const guard = createAdminAccessGuard(REJECTING_AUTH_SERVICE as never);
+    let err: unknown;
+    await guard({ header: () => undefined, headers: {} } as never, {} as never, (e?: unknown) => {
+      err = e;
+    });
+    assert.ok(err instanceof UnauthorizedError);
   } finally {
     if (previous === undefined) delete process.env.ANALYTICS_ADMIN_KEY;
     else process.env.ANALYTICS_ADMIN_KEY = previous;
@@ -124,6 +141,8 @@ test('opening the dashboard issues zero upstream provider calls', async () => {
     assert.equal(out.status, 200);
     assert.equal(out.body.data.competitions, 7);
     assert.equal(out.body.data.snapshots, 1444);
+    assert.equal(out.body.data.countsState, 'observed');
+    assert.equal(out.body.data.lastSyncState, 'not_measured');
     assert.equal(upstreamCalls, 0, 'the dashboard read must never call an upstream provider');
   } finally {
     (globalThis as any).fetch = realFetch;

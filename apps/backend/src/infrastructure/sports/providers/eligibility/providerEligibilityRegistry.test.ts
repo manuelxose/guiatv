@@ -55,3 +55,17 @@ test('openligadb does not claim capabilities it cannot supply', () => {
   assert.equal(caps.includes('statistics'), false);
   assert.equal(caps.includes('standings'), false);
 });
+
+test('F05: assertEligible is the sole admission gate — a locally installed adapter cannot become an authorised provider', () => {
+  // Only `approved` entries pass. A locally installed adapter for a prototype,
+  // blocked or unknown provider has NO path through this gate, so it can never
+  // construct a client, issue a request or write. This is the single boundary
+  // every ingestion entry path (scheduled loop, manual sync, CLI, startup) uses.
+  for (const id of ['football-data-org', 'google-search', 'flashscore', 'made-up-provider']) {
+    assert.throws(
+      () => assertEligible(id as never),
+      (error: unknown) => error instanceof ProviderNotEligibleError
+    );
+  }
+  assert.equal(assertEligible('openligadb').eligibility.state, 'approved');
+});

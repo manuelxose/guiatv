@@ -1,0 +1,118 @@
+{
+  "ranAt": "2026-11-06T14:32:52.869Z",
+  "runnerExitCode": 1,
+  "isolation": "none",
+  "testFiles": 198,
+  "tests": 1198,
+  "pass": 1163,
+  "fail": 29,
+  "skipped": 6,
+  "failingTests": [
+    {
+      "name": "legacy page parity and enrichment through the real read model",
+      "file": "application\\services\\CatalogService.legacy-enrichment.test.js"
+    },
+    {
+      "name": "links the programme page when its lookup resolves to a visible airing of the same TMDB work and kind",
+      "file": "application\\services\\CatalogService.programme-path.test.js"
+    },
+    {},
+    {
+      "name": "the committed real manifest is reproducible from the committed inputs and respects every bound",
+      "file": "application\\services\\ContentCanaryManifest.test.js"
+    },
+    {
+      "name": "3D: the refreshed manifest is reproducible, keeps nothing whose legacy page became indexable, and needs a new grant",
+      "file": "application\\services\\ContentCanaryManifest.test.js"
+    },
+    {
+      "name": "rehearsal of the proposed canary: write, idempotency, certification, read, revocation, rollback — measured",
+      "file": "application\\services\\ContentCanaryRehearsal.mongo.test.js"
+    },
+    {},
+    {
+      "name": "3D rehearsal of the committed batch: enrichment, broadcasts, quality and consolidation, measured",
+      "file": "application\\services\\ContentEnrichmentRehearsal.mongo.test.js"
+    },
+    {
+      "name": "rollback: provisional only; verified, reviewed and airing-referenced entities survive; dry run changes nothing",
+      "file": "application\\services\\ContentIdentityAdmission.test.js"
+    },
+    {
+      "name": "read-only guard: a write ends the process before it is sent; model indexes are not built",
+      "file": "application\\services\\ContentIdentityIngestion.test.js"
+    },
+    {
+      "name": "write flags before the store is ready: the identity step fails, the day does not",
+      "file": "application\\services\\ContentIdentityIngestion.test.js"
+    },
+    {
+      "name": "write: entities, paths and review rows match the shadow plan",
+      "file": "application\\services\\ContentIdentityIngestion.test.js"
+    },
+    {
+      "name": "EPG output parity: flags off, shadow and writes store the same airings apart from refs",
+      "file": "application\\services\\ContentIdentityIngestion.test.js"
+    },
+    {
+      "name": "editorial runner process starts, reports, logs and stops only the configured command",
+      "file": "application\\services\\EditorialRunnerService.test.js"
+    },
+    {},
+    {
+      "name": "Claude Code refuses research and relative profile paths before starting a process",
+      "file": "infrastructure\\external\\ClaudeCodeEditorialModel.test.js"
+    },
+    {
+      "name": "flag off: boot creates none of the new collections; reads work, writes refuse",
+      "file": "infrastructure\\repositories\\MongoContentIdentityRepositories.test.js"
+    },
+    {
+      "name": "redirects: only to an active canonical entity, never a loop, never overwrite",
+      "file": "infrastructure\\repositories\\MongoContentIdentityRepositories.test.js"
+    },
+    {
+      "name": "slug role changes and reassignment are audited; canonical cannot be reassigned",
+      "file": "infrastructure\\repositories\\MongoContentIdentityRepositories.test.js"
+    },
+    {},
+    {
+      "name": "Phase 3A entity detail paths are excluded while enabled, including warmed sitemap caches",
+      "file": "presentation\\controllers\\SitemapController.test.js"
+    },
+    {
+      "name": "sitemap-programs.xml only queries the same today/tomorrow window the slug resolver supports",
+      "file": "presentation\\controllers\\SitemapController.test.js"
+    },
+    {
+      "name": "sitemap-programs.xml uses the public TV read model instead of repository-only rows",
+      "file": "presentation\\controllers\\SitemapController.test.js"
+    },
+    {
+      "name": "sitemap lastmod is a real change date: never in the future, absent when unknown",
+      "file": "presentation\\controllers\\SitemapController.test.js"
+    },
+    {
+      "name": "3B canary: allowlist, ceiling, read-time revalidation, kill switch, breaker; no writes, no reads for refused paths",
+      "file": "presentation\\routes\\entities.canary.test.js"
+    },
+    {
+      "name": "3C: AI-certified entities in the canary — noindex, allowlisted, revalidated per read, revocable, no writes",
+      "file": "presentation\\routes\\entities.certified.test.js"
+    },
+    {
+      "name": "public HTTP reads use lifecycle fixtures, fail closed and issue no Mongo writes",
+      "file": "presentation\\routes\\entities.routes.test.js"
+    },
+    {
+      "name": "owner flow: only the owner key can authorise the exact committed batch; a stale, edited or foreign grant is refused",
+      "file": "scripts\\content-certify.cli.test.js"
+    },
+    {
+      "name": "3F preflight: coverage, candidates, strict vs title-only, read-only",
+      "file": "scripts\\legacy-enrichment-preflight.mongo.test.js"
+    }
+  ],
+  "junit": "..\\tmp-storage\\diag\\runs\\base-mongo\\junit.xml",
+  "zeroTestGuard": true
+}

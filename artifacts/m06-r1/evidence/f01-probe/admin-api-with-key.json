@@ -1,0 +1,82 @@
+[
+  {
+    "path": "/v2/admin/football/overview",
+    "status": 200,
+    "head": "{\"success\":true,\"data\":{\"generatedAt\":\"2026-11-06T13:24:59.918Z\",\"provider\":{\"configured\":true,\"state\":\"healthy\"},\"activeCompetitions\":0,\"totalTeams\":0,\"upcomingFixtures\":28,\"fixturesMissingBroadcast\":28,\"broadcastMappin"
+  },
+  {
+    "path": "/v2/admin/football/competitions",
+    "status": 200,
+    "head": "{\"success\":true,\"data\":{\"page\":1,\"limit\":25,\"total\":0,\"items\":[]},\"meta\":{\"timestamp\":\"2026-11-06T13:24:59.939Z\"}}"
+  },
+  {
+    "path": "/v2/admin/football/teams",
+    "status": 200,
+    "head": "{\"success\":true,\"data\":{\"page\":1,\"limit\":25,\"total\":0,\"items\":[]},\"meta\":{\"timestamp\":\"2026-11-06T13:24:59.955Z\"}}"
+  },
+  {
+    "path": "/v2/admin/football/fixtures",
+    "status": 200,
+    "head": "{\"success\":true,\"data\":{\"page\":1,\"limit\":50,\"total\":50,\"items\":[{\"id\":\"83509\",\"slug\":\"vfl-bochum-hertha-bsc-2026-08-07\",\"providerIds\":{\"openligadb\":\"83509\"},\"competition\":{\"id\":\"catalog:bundesliga-2\",\"slug\":\"bundesliga-2"
+  },
+  {
+    "path": "/v2/admin/jobs",
+    "status": 200,
+    "head": "{\"success\":true,\"data\":{\"page\":1,\"limit\":25,\"total\":0,\"items\":[]},\"meta\":{\"timestamp\":\"2026-11-06T13:25:00.002Z\"}}"
+  },
+  {
+    "path": "/v2/sports/football/admin/dashboard",
+    "status": 200,
+    "head": "{\"success\":true,\"data\":{\"generatedAt\":\"2026-11-06T13:25:00.017Z\",\"competitions\":0,\"teams\":0,\"snapshots\":1444,\"providers\":1,\"broadcastMappings\":0,\"staleSnapshots\":1444,\"lastSyncAt\":\"2026-11-06T13:24:45.031Z\",\"lastSyncOutc"
+  },
+  {
+    "path": "/v2/sports/football/admin/providers",
+    "status": 200,
+    "head": "{\"success\":true,\"data\":{\"providers\":[{\"provider\":\"openligadb\",\"health\":\"ok\",\"lastSuccessAt\":\"2026-11-06T13:24:46.289Z\",\"consecutiveFailures\":0,\"quotaConsumedToday\":8,\"circuitState\":\"closed\"}]},\"meta\":{\"timestamp\":\"2026-1"
+  },
+  {
+    "path": "/v2/sports/football/admin/coverage",
+    "status": 200,
+    "head": "{\"success\":true,\"data\":{\"generatedAt\":\"2026-11-06T13:25:00.050Z\",\"rows\":[{\"competitionSlug\":\"laliga\",\"name\":\"LaLiga\",\"type\":\"league\",\"coverageState\":\"competition_not_covered\",\"snapshotCount\":0},{\"competitionSlug\":\"laliga"
+  },
+  {
+    "path": "/v2/sports/football/admin/matches",
+    "status": 200,
+    "head": "{\"success\":true,\"data\":{\"page\":1,\"limit\":25,\"total\":1444,\"items\":[{\"matchId\":\"88308\",\"canonicalKey\":\"agf-aarhus-kf-egnatia-2026-10-22\",\"competitionSlug\":\"conference-league\",\"kickoffAt\":\"2026-10-22T19:00:00Z\",\"status\":\"fi"
+  },
+  {
+    "path": "/v2/sports/football/admin/entity-mappings",
+    "status": 200,
+    "head": "{\"success\":true,\"data\":{\"page\":1,\"limit\":25,\"total\":0,\"items\":[]},\"meta\":{\"timestamp\":\"2026-11-06T13:25:00.079Z\"}}"
+  },
+  {
+    "path": "/v2/sports/football/admin/broadcasts",
+    "status": 200,
+    "head": "{\"success\":true,\"data\":{\"page\":1,\"limit\":25,\"total\":0,\"items\":[]},\"meta\":{\"timestamp\":\"2026-11-06T13:25:00.096Z\"}}"
+  },
+  {
+    "path": "/v2/sports/football/admin/ingestion/status",
+    "status": 200,
+    "head": "{\"success\":true,\"data\":{\"generatedAt\":\"2026-11-06T13:25:00.116Z\",\"enabled\":true,\"providers\":[{\"provider\":\"openligadb\",\"health\":\"ok\",\"lastSuccessAt\":\"2026-11-06T13:24:46.289Z\",\"consecutiveFailures\":0,\"quotaConsumedToday\":"
+  },
+  {
+    "path": "/v2/sports/football/admin/quality-issues",
+    "status": 200,
+    "head": "{\"success\":true,\"data\":{\"page\":1,\"limit\":25,\"total\":1,\"items\":[{\"id\":\"stale-snapshots\",\"kind\":\"stale\",\"message\":\"1444 snapshots older than 6h\"}]},\"meta\":{\"timestamp\":\"2026-11-06T13:25:00.131Z\"}}"
+  },
+  {
+    "path": "/v2/sports/football/admin/audit",
+    "status": 200,
+    "head": "{\"success\":true,\"data\":{\"page\":1,\"limit\":25,\"total\":0,\"items\":[]},\"meta\":{\"timestamp\":\"2026-11-06T13:25:00.137Z\"}}"
+  },
+  {
+    "path": "/v2/sports/football/admin/diagnostics",
+    "status": 200,
+    "head": "{\"success\":true,\"data\":{\"generatedAt\":\"2026-11-06T13:25:00.140Z\",\"providers\":[{\"provider\":\"openligadb\",\"health\":\"ok\",\"quotaRemaining\":1492,\"quotaReserveRemaining\":300,\"quotaResetAt\":\"2026-11-07T00:00:00.000Z\",\"lastSyncAt"
+  },
+  {
+    "path": "/v2/sports/football/admin/dashboard (NO KEY)",
+    "status": 403,
+    "head": "{\"success\":false,\"error\":{\"code\":\"FORBIDDEN\",\"message\":\"Invalid admin key\"}}"
+  }
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "name": "pipe-both",
+    "status": null,
+    "signal": null,
+    "error": "EPERM"
+  },
+  {
+    "name": "pipe-out-inherit-err",
+    "status": null,
+    "signal": null,
+    "error": "EPERM"
+  },
+  {
+    "name": "ignore-err-pipe-out",
+    "status": null,
+    "signal": null,
+    "error": "EPERM"
+  },
+  {
+    "name": "file-out",
+    "status": 0,
+    "signal": null,
+    "error": null
+  }
+]
