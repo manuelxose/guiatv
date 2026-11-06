@@ -93,7 +93,7 @@ td a, .table-link, .card-title { color: var(--portal-text); text-decoration: und
 fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .check-grid, .domain-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
 .check-grid label, .domain-list label { display: flex; align-items: center; gap: 8px; min-height: 44px; margin: 0; padding: 8px; border-radius: var(--radius-md); background: var(--portal-surface-strong); }
-input[type='checkbox'] { width: 20px; height: 20px; flex: none; }
+input[type='checkbox'] { width: 24px; height: 24px; flex: none; } // P1 (R2, 2.5.8): >=24px target
 .routes-field > p { color: var(--portal-text-soft); margin-bottom: 12px; }
 .route-row { padding: 16px 0; border-top: 1px solid var(--portal-border); }
 .route-row > strong { display: block; margin-bottom: 8px; }
