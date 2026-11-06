@@ -269,7 +269,6 @@ export class FootballIngestionService {
         snapshotsWritten += written;
         lastIdentityConflicts = identityConflicts;
         allMatches.push(...matches);
-        anySuccess = true;
         if (degraded.stale) anyStale = true;
         // An empty provider response is NOT a success. It is a truthful, distinct
         // state: the competition is covered but supplied nothing this run (e.g. its
@@ -287,6 +286,8 @@ export class FootballIngestionService {
           });
           continue;
         }
+        // F03: only a competition that actually yielded matches counts as a success.
+        anySuccess = true;
         perCompetition.push({
           leagueShortcut: shortcut,
           season: competition.season,
@@ -313,6 +314,23 @@ export class FootballIngestionService {
         this.metrics.health = 'degraded';
         await this.recordRun(runId, 'failed', 0, ['budget_exhausted'], nowMs);
         return { outcome: 'skipped', reason: 'budget_exhausted', requestsUsed: 0, snapshotsWritten: 0 };
+      }
+      // F03 (independent review): when EVERY competition answered successfully but
+      // with zero matches, the run is 'empty', not 'failed' and never 'success'. It
+      // must not advance lastSuccessAt or report healthy.
+      const onlyEmpty = perCompetition.every((c) => c.outcome === 'empty');
+      if (onlyEmpty) {
+        this.metrics.health = 'degraded';
+        this.metrics.staleSnapshots = 0;
+        this.cachedBudget = await this.budget.snapshot(this.clock());
+        await this.recordRun(runId, 'partial', requestsUsed, [], nowMs);
+        return {
+          outcome: 'empty',
+          reason: 'every competition returned no matches',
+          requestsUsed,
+          snapshotsWritten: 0,
+          competitions: perCompetition,
+        } as unknown as TickResult;
       }
       const firstError = perCompetition.find((c) => c.outcome === 'failed')?.reason ?? 'no competitions ingested';
       this.consecutiveFailures += 1;

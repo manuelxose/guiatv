@@ -9,6 +9,7 @@
 
 import { OpenLigaDbClient, FetchLike } from '@/infrastructure/sports/providers/openLigaDb/OpenLigaDbClient';
 import { OpenLigaDbAdapter } from '@/infrastructure/sports/providers/openLigaDb/OpenLigaDbAdapter';
+import { assertEligible } from '@/infrastructure/sports/providers/eligibility/providerEligibilityRegistry';
 import { FootballIngestionRepository } from '@/infrastructure/sports/persistence/FootballIngestionRepository';
 import { InMemoryLock } from '@/application/sports/ingestion/Lock';
 import { RequestBudget } from '@/application/sports/ingestion/RequestBudget';
@@ -69,6 +70,12 @@ export function buildFootballIngestionService(
     userAgent: process.env.OPENLIGADB_USER_AGENT || 'guiatv-m06-ingestion/1.0',
     timeoutMs: Number(process.env.OPENLIGADB_TIMEOUT_MS) || 10_000,
   });
+  // F05 (independent review): the eligibility registry is documented as the SOLE
+  // admission gate, but the ingestion path constructed the adapter directly, so
+  // blocking a provider in the registry would not have stopped ingestion. The gate
+  // is now enforced here, before any adapter, request or write can happen.
+  // It throws for every provider that is not `approved`.
+  assertEligible('openligadb');
   const adapter = new OpenLigaDbAdapter(client);
   const repository = new FootballIngestionRepository();
   const scheduler = new AdaptiveScheduler(DEFAULT_SCHEDULER_CONFIG);
@@ -87,15 +94,26 @@ export function buildFootballIngestionService(
   };
 
   // M06-C: the durable, cluster-shared authority is the DEFAULT. The M05
-  // process-local budget and lock remain available only when explicitly asked
-  // for (FOOTBALL_DURABLE_QUOTA=0), so "cluster-safe" describes what actually
-  // runs rather than an unwired library. A single instance still reads and
-  // writes the shared store, which is what makes a second instance safe.
-  // Requires an open connection; without one the durable store cannot be built, so the
-  // factory degrades to the process-local budget rather than throwing at construction.
+  // process-local budget and lock remain available only when explicitly asked for
+  // (FOOTBALL_DURABLE_QUOTA=0), so "cluster-safe" describes what actually runs
+  // rather than an unwired library.
+  //
+  // F07 (independent review): if MongoDB is not ready, silently falling back to a
+  // process-local budget would let two workers each believe they own the quota. The
+  // durable path therefore FAILS CLOSED: construction throws, so no ingestion runs
+  // with an authority that is not shared. Tests and genuinely single-process setups
+  // must opt in explicitly with FOOTBALL_DURABLE_QUOTA=0.
   const { mongoose } = require('@/config/mongodb') as typeof import('@/config/mongodb');
   const connectionReady = mongoose?.connection?.readyState === 1 && Boolean(mongoose.connection.db);
-  const durable = process.env.FOOTBALL_DURABLE_QUOTA !== '0' && connectionReady;
+  const durableRequested = process.env.FOOTBALL_DURABLE_QUOTA !== '0';
+  if (durableRequested && !connectionReady) {
+    throw new Error(
+      'football ingestion: durable quota authority requires a ready MongoDB connection; ' +
+        'refusing to start with a process-local budget (set FOOTBALL_DURABLE_QUOTA=0 only for ' +
+        'a deliberately single-process deployment)'
+    );
+  }
+  const durable = durableRequested;
   let budget: any;
   let lock: any;
   if (durable) {
