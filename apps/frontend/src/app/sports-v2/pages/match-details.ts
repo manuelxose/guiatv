@@ -127,9 +127,9 @@ const EVENT_GLYPH: Record<MatchEvent['type'], string> = { goal: '⚽', yellow: '
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
     .ctx { display: grid; gap: 1px; margin: 0; border-radius: var(--sv2-r-sm); overflow: hidden; background: var(--sv2-border); }
     .ctx div { display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; background: var(--sv2-surface-2); font-size: var(--sv2-fs-sm); }
-    .ctx dt { color: var(--sv2-text-muted); } .ctx dd { margin: 0; font-weight: 600; text-align: right; }
+    .ctx dt { color: var(--sv2-text-muted); } .ctx dd { margin: 0; font-weight: 600; text-align: right; } .ctx dd a { display: inline-flex; align-items: center; min-block-size: 24px; }
     .ctx a, .more { color: var(--sv2-text); }
-    .more { display: inline-block; margin-top: 10px; font-size: var(--sv2-fs-sm); font-weight: 600; }
+    .more { display: inline-flex; align-items: center; min-block-size: 24px; margin-top: 10px; font-size: var(--sv2-fs-sm); font-weight: 600; }
     .rel { display: grid; gap: 12px; }
     .stats { display: grid; gap: 18px; }
     .srow { display: grid; grid-template-columns: 56px 1fr 56px; text-align: center; font-size: var(--sv2-fs-xs); color: var(--sv2-text-muted); }

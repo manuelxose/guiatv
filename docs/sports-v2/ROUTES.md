@@ -1,5 +1,7 @@
 # Sports v2: Route map
 
+> **M04 cutover (this release):** Sports v2 is mounted at `/deportes/futbol/**` (`SPORTS_V2_BASE`). Every URL below that says `/laboratorio/futbol` now lives under `/deportes/futbol`; `/laboratorio/futbol/**` answers a 301 to the same path. Legacy `partidos-hoy` and `calendario` answer a 301 to `partidos`; `en-directo` is a native page; `noticias/:slug` still 301s to the guide `/guias/:slug`. `buscar` and `siguiendo` are `noindex, follow`. The rest of this file records the M01 design and the cutover plan that was followed; see `SEO-VALIDATION.md` for the measured result.
+
 ## M01 mount (live now)
 
 All routes sit under the noindex preview prefix `/laboratorio/futbol`. It is not in the sitemap, carries `robots: noindex, nofollow`, and does not overlap any production URL (`/deportes/futbol/**` is untouched).

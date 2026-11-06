@@ -32,9 +32,11 @@ import { Sv2TeamIdentityComponent } from '../ui/team-identity';
     </div>
     <p class="when"><app-sv2-icon name="clock" /><time [attr.datetime]="match().kickoff">{{ when() }}</time></p>
     <div class="acts">
+    @if (match().status === 'scheduled' || match().status === 'live') {
       <button type="button" [class.on]="store.isTracked(match().slug)" [attr.aria-pressed]="store.isTracked(match().slug)" (click)="store.toggleTracked(match().slug)">
         <app-sv2-icon name="track" />{{ store.isTracked(match().slug) ? 'Siguiendo en directo' : 'Seguir en directo' }}
       </button>
+    }
       <button type="button" [class.on]="store.isSaved(match().slug)" [attr.aria-pressed]="store.isSaved(match().slug)" (click)="store.toggleSaved(match().slug)">
         <app-sv2-icon name="bookmark" />{{ store.isSaved(match().slug) ? 'Guardado' : 'Guardar' }}
       </button>
@@ -44,7 +46,7 @@ import { Sv2TeamIdentityComponent } from '../ui/team-identity';
     :host { display: grid; gap: 12px; padding: 16px; border-radius: var(--sv2-r-md); background: var(--sv2-surface-2); border: 1px solid var(--sv2-border); --sv2-badge: 44px; --sv2-score-size: var(--sv2-fs-score); min-width: 0; }
     :host(.lg) { padding: 24px 16px; --sv2-badge: 64px; --sv2-score-size: 3rem; background: linear-gradient(160deg, var(--sv2-surface-3), var(--sv2-surface-2) 60%); }
     .comp { margin: 0; text-align: center; font-size: var(--sv2-fs-xs); color: var(--sv2-text-muted); }
-    .comp a { color: inherit; font-weight: 600; text-decoration: none; }
+    .comp a { display: inline-flex; align-items: center; min-block-size: 24px; color: inherit; font-weight: 600; text-decoration: none; }
     .comp a:hover { text-decoration: underline; text-underline-offset: 3px; }
     .teams { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
     .tm { color: var(--sv2-text); text-decoration: none; border-radius: var(--sv2-r-sm); justify-self: center; }

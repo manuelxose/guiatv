@@ -8,7 +8,7 @@ import { Sv2Viewport } from '../state/viewport';
 import { sportsV2Routes } from '../sports-v2.routes';
 import { TEST_NOW, TEST_TODAY } from '../testing/providers';
 
-const BASE = '/laboratorio/futbol';
+const BASE = '/deportes/futbol';
 const LIVE_SLUG = `real-costa-racing-sur-${TEST_TODAY}`;
 const SCHEDULED_SLUG = `ciudad-alta-club-ribera-${TEST_TODAY}`;
 
@@ -44,7 +44,7 @@ describe('sports-v2 navigation flows', () => {
   beforeEach(async () => {
     localStorage.removeItem('guiatv.sports-v2.follows');
     TestBed.configureTestingModule({
-      providers: [provideRouter([{ path: 'laboratorio/futbol', children: sportsV2Routes(DemoFootballData) }]), { provide: SPORTS_NOW, useValue: () => TEST_NOW }],
+      providers: [provideRouter([{ path: 'deportes/futbol', children: sportsV2Routes(DemoFootballData) }]), { provide: SPORTS_NOW, useValue: () => TEST_NOW }],
     });
     h = await RouterTestingHarness.create();
   });
@@ -80,6 +80,17 @@ describe('sports-v2 navigation flows', () => {
       expect(all('app-sv2-match-row').length).toBe(2);
       expect(all('.gh').length).toBe(1); // both are Liga Demo A
       expect(one('app-sv2-match-row .clock')?.textContent).toMatch(/\d+'/);
+    });
+
+    it('announces a live score change to screen readers in a polite live region, and not the first load', async () => {
+      await go('/en-directo');
+      const region = () => root().querySelector('[aria-live="polite"].sr-only')?.textContent?.trim();
+      expect(region()).toBe('');
+      const live = store().matches().find((m) => m.slug === LIVE_SLUG)!;
+      (store() as unknown as { merge(p: object): void }).merge({ matches: [{ ...live, homeScore: (live.homeScore ?? 0) + 1 }] });
+      await settle();
+      expect(region()).toContain('Marcador actualizado');
+      expect(region()).toContain(`${(live.homeScore ?? 0) + 1}`);
     });
 
     it('filters by competition through the URL and explains an empty result', async () => {

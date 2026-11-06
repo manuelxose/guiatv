@@ -118,7 +118,7 @@ export class Sv2HomePageComponent {
   protected readonly articles = computed(() => (this.store.personalizedNews().length ? this.store.personalizedNews() : this.store.news()).slice(0, 3));
 
   constructor() {
-    usePageTitle(() => 'Inicio');
+    usePageTitle(() => 'Partidos de hoy, resultados y dónde verlos', 'Partidos de fútbol de hoy, resultados, clasificaciones y noticias. Mostramos canal solo cuando la emisión está confirmada.');
   }
 
   protected team(slug: string): string[] {

@@ -1,5 +1,6 @@
 <div class="shell" [class.collapsed]="store.sidebarCollapsed()" [class.ctx-open]="store.contextOpen()" [class.expanded]="store.matchPageOpen()">
   <a class="skip" href="#sv2-main">Saltar al contenido</a>
+  <div class="sr-only" aria-live="polite" aria-atomic="true">{{ announcement() }}</div>
 
   <header class="top"><app-sv2-top-navigation /></header>
 

@@ -63,7 +63,7 @@ export class Sv2FixturesPageComponent {
   protected readonly label = shortDay;
 
   constructor() {
-    usePageTitle(() => (this.results ? 'Resultados' : 'Partidos'));
+    usePageTitle(() => (this.results ? 'Resultados' : 'Partidos'), this.results ? 'Resultados de los últimos partidos de fútbol por día y competición.' : 'Calendario de partidos de fútbol por día, con horarios y dónde verlos cuando hay emisión confirmada.');
     effect(() => {
       const d = this.day();
       if (!this.results && this.store.loadState() === 'ready') untracked(() => void this.store.ensureDay(d));

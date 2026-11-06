@@ -63,7 +63,7 @@ interface Group {
     :host { display: grid; gap: 16px; min-width: 0; }
     .grp { border-radius: var(--sv2-r-md); background: var(--sv2-surface-2); border: 1px solid var(--sv2-border); overflow: hidden; }
     .gh { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; padding: 0 12px; border-bottom: 1px solid var(--sv2-border); font-size: var(--sv2-fs-sm); font-weight: 700; }
-    .gh a { color: var(--sv2-text); text-decoration: none; border-radius: 6px; }
+    .gh a { display: inline-flex; align-items: center; min-block-size: 24px; color: var(--sv2-text); text-decoration: none; border-radius: 6px; }
     .gh a:hover { text-decoration: underline; text-underline-offset: 3px; }
     .gh a:focus-visible { outline: 2px solid var(--sv2-focus); outline-offset: 2px; }
     .n { min-width: 24px; padding: 2px 8px; border-radius: 999px; background: var(--sv2-surface-3); color: var(--sv2-text-muted); font-size: var(--sv2-fs-xs); text-align: center; }

@@ -42,7 +42,7 @@ import { breadcrumbs, sportsEvent, SPORTS_SITE_URL, sv2Path, useNotFound, useSeo
         } @else if (store.resolving()) {
           <app-sv2-loading-skeleton [count]="3" />
         } @else {
-          <app-sv2-empty-state title="No encontramos este partido" hint="Puede que el enlace sea antiguo o que el partido ya no esté disponible." actionLabel="Ver el calendario" [actionLink]="fixtures" />
+          <app-sv2-empty-state page title="No encontramos este partido" hint="Puede que el enlace sea antiguo o que el partido ya no esté disponible." actionLabel="Ver el calendario" [actionLink]="fixtures" />
         }
       }
       @default { <app-sv2-loading-skeleton [count]="3" /> }
@@ -54,6 +54,7 @@ import { breadcrumbs, sportsEvent, SPORTS_SITE_URL, sv2Path, useNotFound, useSeo
     .back { display: inline-grid; place-items: center; flex: none; width: 40px; height: 40px; border: 0; border-radius: 50%; background: var(--sv2-surface-2); color: var(--sv2-text); cursor: pointer; }
     .back:hover { background: var(--sv2-surface-3); }
     ol { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; padding: 0; list-style: none; font-size: var(--sv2-fs-sm); color: var(--sv2-text-muted); min-width: 0; }
+    ol a { display: inline-flex; align-items: center; min-block-size: 24px; }
     li + li::before { content: '›'; margin-right: 8px; color: var(--sv2-text-faint); }
     li a { color: var(--sv2-text-muted); text-decoration: none; border-radius: 4px; } li a:hover { color: var(--sv2-text); text-decoration: underline; }
     li[aria-current] { color: var(--sv2-text); font-weight: 600; }

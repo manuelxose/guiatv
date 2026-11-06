@@ -105,8 +105,6 @@ const LEGACY_INTERNAL_PATHS: ReadonlyArray<readonly [RegExp, string]> = [
   [/^\/(?:editorial|blog|deportes\/futbol\/noticias)\/([^/?#]+)(?=$|[?#])/, '/guias/$1'],
   [/^\/(?:editorial|blog)(?=$|[?#])/, '/guias'],
   [/^\/programacion-tv\/guia-canales(?=$|[?#])/, '/programacion-tv/en-directo'],
-  // The target carries its own query, so the legacy one is dropped rather than appended.
-  [/^\/deportes\/futbol\/en-directo(?:\?[^#]*)?(?=$|#)/, '/deportes/futbol/partidos-hoy?filter=live'],
 ];
 
 export function canonicalInternalPath(path: string): string {

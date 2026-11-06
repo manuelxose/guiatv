@@ -77,7 +77,6 @@ const KNOWN_ROUTES = [
   /^\/plataformas$/,
   /^\/deportes$/,
   /^\/deportes\/futbol(\/.*)?$/,
-  /^\/laboratorio\/futbol(\/.*)?$/, // sports-v2 preview (noindex)
   /^\/contenido\/[^/]+$/,
   /^\/peliculas\/[^/]+$/,
   /^\/series\/[^/]+$/,
@@ -107,7 +106,6 @@ const KNOWN_ROUTES = [
 
 const NOINDEX_ROUTES = [
   /^\/(?:iniciar-sesion|registro|perfil|mi-cuenta|comunidad|para-ti|admin)(?:\/.*)?$/,
-  /^\/laboratorio\/futbol(?:\/.*)?$/,
   /^\/contenido\/[^/]+$/,
   // Client-rendered iframe widget: a 200 shell for third-party sites, never a search result.
   /^\/embed\/programacion$/,
@@ -314,7 +312,9 @@ const movedTo = (req, res, path) => {
 };
 // 2026-10-20 restructure: section renamed to "Guías", live TV page named after its content, channel slugs hyphenated.
 app.get('/programacion-tv/guia-canales', (req, res) => movedTo(req, res, '/programacion-tv/en-directo'));
-app.get('/deportes/futbol/en-directo', (_req, res) => res.redirect(301, '/deportes/futbol/partidos-hoy?filter=live'));
+// Sports v2 owns /deportes/futbol/**. Legacy URLs that moved: today and calendar are the fixtures page; the lab mount is gone.
+app.get(['/deportes/futbol/partidos-hoy', '/deportes/futbol/calendario'], (_req, res) => res.redirect(301, '/deportes/futbol/partidos'));
+app.get(/^\/laboratorio\/futbol(\/.*)?$/, (req, res) => movedTo(req, res, req.path.replace('/laboratorio/futbol', '/deportes/futbol')));
 // Football is the only sport: the section root is its hub (Angular's redirectTo would answer 302).
 app.get('/deportes', (req, res) => movedTo(req, res, '/deportes/futbol'));
 // M10-C: a verified second XMLTV feed of a channel (`Telemadrid.TV` beside `Telemadrid.es`) is one channel: its page
@@ -362,7 +362,7 @@ const EDITORIAL_REDIRECTS = {
   'mejor-plataforma-streaming-familias': PLAN_GUIDE,
   'que-plataforma-tiene-mas-peliculas': PLAN_GUIDE,
   // "hoy en TV" posts duplicated live pages: send readers to the live page (a value starting with "/" is a full path)
-  'futbol-hoy-en-tv': '/deportes/futbol/partidos-hoy',
+  'futbol-hoy-en-tv': '/deportes/futbol/partidos',
   'series-hoy-en-tv': '/programacion-tv/series',
   'peliculas-hoy-en-tv': '/programacion-tv/peliculas',
   'que-ver-hoy-en-tv-y-streaming': '/programacion-tv/que-ver-hoy',
