@@ -336,9 +336,15 @@ async function reportCycle(report, result, reason, q, generated = 0) {
   if (result === 'discovery-error') await generationPost(report, 'runner/heartbeat', { version: 'm11g-2', status: 'error', error: reason, providers: liveProviderNames(), webSearch: true }).catch(() => null);
   await generationPost(report, 'runner/cycles', { result, reason, queued: q.topics.filter((t) => t.state === 'queued').length, generated, queue: q.topics }).catch(() => null);
 }
-const manualTopic = (topic, settings) => ({
-  ...topic, categories: [topic.category], length: settings.lengths?.[topic.length] ?? { short: { min: 600, max: 900 }, medium: { min: 900, max: 1400 }, long: { min: 1400, max: 2000 } }[topic.length],
-});
+// Function declaration is hoisted: top-level command dispatch may reach runCycle before this line executes.
+function manualTopic(topic, settings = {}) {
+  if (!topic || typeof topic !== 'object') throw new Error('manual request missing topic');
+  return {
+    ...topic,
+    categories: [topic.category],
+    length: settings.lengths?.[topic.length] ?? { short: { min: 600, max: 900 }, medium: { min: 900, max: 1400 }, long: { min: 1400, max: 2000 } }[topic.length],
+  };
+}
 
 /**
  * The `run` job: research → … → gates per topic, then (autopublish) policy publication and the Admin job report.
@@ -574,18 +580,29 @@ async function runCycle(report, discoverOnly) {
     if (serverCapacity < 1) break;
     const claimed = await claim(request);
     if (!claimed) continue;
-    const topic = manualTopic(request.topic, work.settings);
-    const seeds = await queueLib.checkSeeds({ title: topic.title, intent: topic.intent, seedUrls: topic.seedUrls }, fetchSource);
-    if (seeds.some((s) => !s.ok)) {
-      const reason = seeds.filter((s) => !s.ok).map((s) => `${s.url}: ${s.note}`).join('; ');
-      await finish(claimed, 'failed', reason);
-      continue;
+    // Once claimed, every ordinary exception must be reconciled through the owned finish endpoint.
+    // A process crash is recovered separately by the server-side lease/fencing protocol.
+    let status = 'failed';
+    let reason = 'Sin resultado';
+    let published = false;
+    try {
+      const topic = manualTopic(request.topic, work.settings);
+      const seeds = await queueLib.checkSeeds({ title: topic.title, intent: topic.intent, seedUrls: topic.seedUrls }, fetchSource);
+      if (seeds.some((s) => !s.ok)) {
+        reason = seeds.filter((s) => !s.ok).map((s) => `${s.url}: ${s.note}`).join('; ');
+      } else {
+        const [run] = await runTopics([topic], { report, autopublish: true, corpus });
+        published = run?.state === 'published';
+        status = published ? 'completed' : 'failed';
+        reason = run?.reason ?? run?.state ?? 'Sin resultado';
+      }
+    } catch (error) {
+      reason = `error de generación manual: ${error instanceof Error ? error.message : String(error)}`.slice(0, 500);
     }
-    const [run] = await runTopics([topic], { report, autopublish: true, corpus });
-    const ok = run?.state === 'published';
-    generated += ok ? 1 : 0;
-    await finish(claimed, ok ? 'completed' : 'failed', run?.reason ?? run?.state ?? 'Sin resultado');
-    serverCapacity = Math.max(0, serverCapacity - ok);
+    const finished = await finish(claimed, status, reason);
+    if (!finished.ok) throw new Error(`cannot finish manual request ${request.id}: HTTP ${finished.status}`);
+    generated += published ? 1 : 0;
+    serverCapacity = Math.max(0, serverCapacity - (published ? 1 : 0));
   }
   const queued = q.topics.filter((t) => t.state === 'queued').length;
   if (!log.discovery && queued < 3 && now - Date.parse(q.lastDiscoveryAt ?? 0) >= 12 * 3600e3) log.discovery = await discover(q, corpus, report);
