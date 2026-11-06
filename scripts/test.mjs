@@ -10,4 +10,15 @@ const tsc = run('node', ['node_modules/typescript/bin/tsc', '-p', 'apps/backend/
 console.log('typecheck exit', tsc);
 if (tsc !== 0) process.exit(tsc);
 console.log('== backend build + unit tests ==');
-process.exit(run('node', ['node_modules/npm/bin/npm-cli.js', 'run', 'test', '--prefix', 'apps/backend']));
+// Mirror `npm test -w apps/backend` without needing the npm CLI in the confined child.
+const build = run('node', ['node_modules/typescript/bin/tsc', '-p', 'apps/backend/tsconfig.json']);
+console.log('build exit', build);
+if (build !== 0) process.exit(build);
+process.exit(
+  run('node', [
+    '--require',
+    './test-setup.cjs',
+    '--test',
+    'dist/**/*.test.js',
+  ])
+);
