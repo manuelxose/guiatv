@@ -45,6 +45,7 @@ import {
   FootballSyncResultDTO,
   MatchListQuery,
   AuditQuery,
+  EntityMappingQuery,
 } from '../dto/FootballAdminDTO';
 
 const STALENESS_MS = 6 * 60 * 60 * 1000;
@@ -234,32 +235,75 @@ export class FootballAdminService {
     return doc ? this.toMatchDTO(doc) : null;
   }
 
-  async listEntityMappings(query: MatchListQuery): Promise<FootballEntityMappingsDTO> {
-    const rx = query.q ? new RegExp(escapeRegex(query.q), 'i') : undefined;
-    const [competitions, teams] = await Promise.all([
-      FootballCompetitionModel.find(rx ? { $or: [{ name: rx }, { slug: rx }] } : {}).lean().exec(),
-      FootballTeamModel.find(rx ? { $or: [{ name: rx }, { slug: rx }] } : {}).lean().exec(),
-    ]);
-    const items: FootballEntityMappingDTO[] = [
-      ...competitions.map((c) => ({
-        kind: 'competition' as const,
-        id: String(c._id),
-        slug: c.slug,
-        name: c.name,
-        providerIds: c.providerIds ?? {},
-        lastUpdatedAt: iso(c.lastUpdatedAt),
-      })),
-      ...teams.map((t) => ({
-        kind: 'team' as const,
-        id: String(t._id),
-        slug: t.slug,
-        name: t.name,
-        providerIds: t.providerIds ?? {},
-        lastUpdatedAt: iso(t.lastUpdatedAt),
-      })),
-    ].sort((a, b) => (b.lastUpdatedAt ?? '').localeCompare(a.lastUpdatedAt ?? ''));
+  async listEntityMappings(query: EntityMappingQuery): Promise<FootballEntityMappingsDTO> {
+    // F08: server-side pagination across the two entity collections. Filter,
+    // count, sort, skip and limit all happen in the database (`$unionWith` +
+    // `$facet`), so only `limit` documents ever leave Mongo — no unbounded scan
+    // into memory and no unbounded response payload.
+    const filter = this.entityMappingFilter(query.q);
+    const sortSpec = this.entityMappingSort(query.sort, query.order);
     const start = (query.page - 1) * query.limit;
-    return { page: query.page, limit: query.limit, total: items.length, items: items.slice(start, start + query.limit) };
+    const project = (kind: 'team' | 'competition') => [
+      { $match: filter },
+      { $project: { kind: { $literal: kind }, slug: 1, name: 1, providerIds: 1, lastUpdatedAt: 1 } },
+    ];
+    const facet = [
+      { $sort: sortSpec },
+      {
+        $facet: {
+          meta: [{ $count: 'total' }],
+          items: [{ $skip: start }, { $limit: query.limit }],
+        },
+      },
+    ];
+
+    let resultDoc: { meta?: Array<{ total: number }>; items?: Array<Record<string, any>> } | undefined;
+    if (query.kind === 'team') {
+      [resultDoc] = await FootballTeamModel.aggregate([...project('team'), ...facet] as any[]).exec();
+    } else if (query.kind === 'competition') {
+      [resultDoc] = await FootballCompetitionModel.aggregate([...project('competition'), ...facet] as any[]).exec();
+    } else {
+      [resultDoc] = await FootballCompetitionModel.aggregate([
+        ...project('competition'),
+        { $unionWith: { coll: 'football_teams', pipeline: project('team') } },
+        ...facet,
+      ] as any[]).exec();
+    }
+
+    const total = resultDoc?.meta?.[0]?.total ?? 0;
+    const items: FootballEntityMappingDTO[] = (resultDoc?.items ?? []).map((d) => ({
+      kind: d.kind,
+      id: String(d._id),
+      slug: d.slug,
+      name: d.name,
+      providerIds: d.providerIds ?? {},
+      lastUpdatedAt: iso(d.lastUpdatedAt),
+    }));
+    return { page: query.page, limit: query.limit, total, items };
+  }
+
+  /** Regex search is always escaped and length-bounded by the DTO parser. */
+  private entityMappingFilter(q?: string): Record<string, unknown> {
+    if (!q) return {};
+    const rx = new RegExp(escapeRegex(q), 'i');
+    return { $or: [{ name: rx }, { slug: rx }] };
+  }
+
+  /**
+   * Deterministic total ordering: the requested sort field/direction, then
+   * `slug` (asc), then `_id` (asc) — so pages are stable across boundaries even
+   * when many entities share the same sort key. `sort` is already allow-listed
+   * by `parseEntityMappingQuery`.
+   */
+  private entityMappingSort(
+    sort: EntityMappingQuery['sort'],
+    order: EntityMappingQuery['order']
+  ): Record<string, 1 | -1> {
+    const direction: 1 | -1 = order === 'asc' ? 1 : -1;
+    const spec: Record<string, 1 | -1> = { [sort]: direction };
+    if (sort !== 'slug') spec.slug = 1;
+    spec._id = 1;
+    return spec;
   }
 
   async listBroadcasts(query: MatchListQuery): Promise<FootballBroadcastsDTO> {

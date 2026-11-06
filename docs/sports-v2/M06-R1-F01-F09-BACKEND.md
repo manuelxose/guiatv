@@ -200,3 +200,32 @@ data-integrity; este contrato solo los re-documenta, no los re-tipa.
   news, search) conservan su forma; solo sus dos overrides de broadcast pasan a usar la
   frontera admin compartida.
 - Los campos numéricos antiguos del admin se conservan; el estado se añade al lado.
+
+---
+
+## 6. Paginación de entity-mappings (F08)
+
+`GET /v2/sports/football/admin/entity-mappings` ahora pagina **en la base de datos**
+(`$unionWith` + `$facet` + `$sort` + `$skip` + `$limit`): solo `limit` documentos salen
+de Mongo, nunca las dos colecciones completas a memoria.
+
+| Parámetro | Tipo | Valores permitidos | Por defecto |
+|---|---|---|---|
+| `page` | entero ≥ 1 | — | `1` |
+| `limit` | entero 1..100 | se recorta a `MAX_PAGE_SIZE` (100) | `25` |
+| `q` | texto ≤ 120 chars | búsqueda escapada (regex literal) sobre `name`/`slug` | — |
+| `kind` | enum | `team` · `competition` (ausente = ambos) | ambos |
+| `sort` | enum (allow-list) | `lastUpdatedAt` · `name` · `slug` | `lastUpdatedAt` |
+| `order` | enum | `asc` · `desc` | `desc` |
+
+Un `sort`/`order`/`kind`/`page` fuera de la allow-list se rechaza con `400
+INVALID_PARAMS` **antes** de tocar la base de datos.
+
+**Orden total determinista** (páginas estables): `<sort> <order>`, luego `slug` asc, luego
+`_id` asc. Aunque dos entidades compartan el mismo valor de orden, el desempate por
+`slug` + `_id` garantiza un orden total sin duplicados ni saltos entre páginas.
+
+Índices añadidos (creados en el arranque vía `model.createIndexes()`, convención
+`idx_football_*`):
+- `football_teams`: `{ lastUpdatedAt: -1, slug: 1 }` → `idx_football_team_updated_slug`
+- `football_competitions`: `{ lastUpdatedAt: -1, slug: 1 }` → `idx_football_competition_updated_slug`

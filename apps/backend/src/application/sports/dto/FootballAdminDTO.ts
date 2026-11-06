@@ -101,6 +101,45 @@ export function parseAuditQuery(query: Record<string, unknown>): ParseResult<Aud
   return ok({ ...base.value, severity: severity.value, subsystem: subsystem.value });
 }
 
+// ---- Entity mappings (F08): bounded pagination, sort allow-list, kind filter ----
+
+const ENTITY_KINDS = ['team', 'competition'] as const;
+const ENTITY_SORT_FIELDS = ['lastUpdatedAt', 'name', 'slug'] as const;
+const SORT_ORDERS = ['asc', 'desc'] as const;
+
+/**
+ * Query for `/entity-mappings`. `sort` is an explicit allow-list; any other
+ * field is rejected with a 400 before the database is touched. The default
+ * order is `lastUpdatedAt` desc; the service appends deterministic tiebreakers
+ * (`slug`, then `_id`) so pages are stable across page boundaries.
+ */
+export interface EntityMappingQuery extends PageQuery {
+  q?: string;
+  kind?: (typeof ENTITY_KINDS)[number];
+  sort: (typeof ENTITY_SORT_FIELDS)[number];
+  order: (typeof SORT_ORDERS)[number];
+}
+
+export function parseEntityMappingQuery(query: Record<string, unknown>): ParseResult<EntityMappingQuery> {
+  const base = parsePageQuery(query);
+  if (!base.ok) return base;
+  const q = parseSearch(query.q, 'q');
+  if (!q.ok) return q;
+  const kind = parseEnum(query.kind, ENTITY_KINDS, 'kind');
+  if (!kind.ok) return kind;
+  const sort = parseEnum(query.sort, ENTITY_SORT_FIELDS, 'sort');
+  if (!sort.ok) return sort;
+  const order = parseEnum(query.order, SORT_ORDERS, 'order');
+  if (!order.ok) return order;
+  return ok({
+    ...base.value,
+    q: q.value,
+    kind: kind.value,
+    sort: sort.value ?? 'lastUpdatedAt',
+    order: order.value ?? 'desc',
+  });
+}
+
 // ---- Availability contract (F09) ----
 
 /**

@@ -29,6 +29,11 @@ const FootballTeamSchema = new Schema<IFootballTeamDocument>(
 );
 
 FootballTeamSchema.index({ aliases: 1 });
+// F08: deterministic entity-mappings pagination sorts by lastUpdatedAt then slug.
+FootballTeamSchema.index(
+  { lastUpdatedAt: -1, slug: 1 },
+  { name: 'idx_football_team_updated_slug' }
+);
 
 export const FootballTeamModel = mongoose.model<IFootballTeamDocument>(
   'FootballTeam',

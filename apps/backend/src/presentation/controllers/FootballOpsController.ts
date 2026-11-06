@@ -16,6 +16,7 @@ import { FootballAdminService } from '@/application/sports/services/FootballAdmi
 import {
   parseMatchListQuery,
   parseAuditQuery,
+  parseEntityMappingQuery,
   parseSearch,
 } from '@/application/sports/dto/FootballAdminDTO';
 
@@ -87,7 +88,7 @@ export class FootballOpsController {
   }
 
   async listEntityMappings(req: Request, res: Response): Promise<void> {
-    const query = parseMatchListQuery(req.query as Record<string, unknown>);
+    const query = parseEntityMappingQuery(req.query as Record<string, unknown>);
     if (!query.ok) {
       res.status(400).json(errorResponse('INVALID_PARAMS', query.message));
       return;
