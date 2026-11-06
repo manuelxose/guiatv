@@ -84,10 +84,13 @@ test('M06 F07: the factory fails closed when the durable authority cannot be bui
  */
 test('M06: the competition plan never widens beyond the verified competitions', () => {
   const all = resolveCompetitionPlan(undefined);
-  assert.equal(all.length, 8);
+  assert.equal(all.length, 9);
   const narrowed = resolveCompetitionPlan('bl1,ucl');
   assert.equal(narrowed.length, 2);
-  const unknown = resolveCompetitionPlan('la1,nope');
+  // `la1` (LaLiga) is now a verified competition; an unknown code still narrows
+  // the plan to exactly the recognised entries and never reaches the provider.
+  assert.equal(resolveCompetitionPlan('la1').length, 1);
+  const unknown = resolveCompetitionPlan('nope');
   assert.equal(unknown.length, 0, 'an unknown code must never reach the provider');
 });
 

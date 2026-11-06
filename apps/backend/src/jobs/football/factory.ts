@@ -32,6 +32,8 @@ export const M06_OPENLIGADB_COMPETITIONS: ReadonlyArray<{ shortcuts: readonly st
   { shortcuts: ['uel2026'], season: '2026' },
   { shortcuts: ['uecl2026'], season: '2026' },
   { shortcuts: ['dfb'], season: '2026' },
+  // LaLiga 2026/27: 380 real fixtures verified against the provider (la1).
+  { shortcuts: ['la1'], season: '2026' },
   { shortcuts: ['wm2026'], season: '2026' },
 ];
 

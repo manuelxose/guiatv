@@ -17,9 +17,12 @@ describe('competition coverage', () => {
     }
   });
 
-  it('reports LaLiga and the other uncovered competitions as not covered', () => {
+  it('reports LaLiga as covered (verified 2026-11-06) and the others as not covered', () => {
+    // The provider serves LaLiga 2026/27 (380 real fixtures, shortcut `la1`), so
+    // it is now covered; Copa del Rey, Hypermotion and the foreign leagues return
+    // no fixtures and must stay NOT covered.
+    expect(competitionHasApprovedProvider('laliga')).toBeTrue();
     for (const slug of [
-      'laliga',
       'laliga-hypermotion',
       'copa-del-rey',
       'serie-a',
@@ -63,3 +66,4 @@ describe('competition coverage', () => {
     expect(coveredEmpty).not.toBe('competition_not_covered');
   });
 });
+
