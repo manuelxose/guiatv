@@ -1,0 +1,29 @@
+<div class="space-y-6">
+  <div *ngIf="error" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative)]">
+    {{ error }}
+  </div>
+
+  <p *ngIf="loading && !provider" class="text-sm text-[var(--portal-text-muted)]">Cargando proveedores…</p>
+
+  <ng-container *ngIf="provider">
+    <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6 max-w-2xl">
+      <div class="flex flex-wrap items-center justify-between gap-3 min-w-0">
+        <div class="min-w-0">
+          <h4 class="text-lg font-semibold text-[var(--portal-text)]">Proveedor de datos de fútbol</h4>
+          <p class="text-sm text-[var(--portal-text-soft)] mt-1">
+            {{ provider.configured ? 'Proveedor configurado y disponible.' : 'No hay ningún proveedor configurado.' }}
+          </p>
+        </div>
+        <app-admin-status-badge [status]="provider.state" [label]="providerStateLabel"></app-admin-status-badge>
+      </div>
+
+      <div *ngIf="provider.lastError" class="mt-4 rounded-xl border border-[var(--spotify-warning)]/40 bg-[var(--spotify-warning)]/10 p-3 text-sm text-[var(--portal-text)]">
+        Último error del proveedor: {{ provider.lastError }}
+      </div>
+
+      <p *ngIf="!provider.configured" class="mt-4 text-sm text-[var(--portal-text-muted)]">
+        Sin un proveedor configurado no se puede recuperar ni cubrir ninguna competición.
+      </p>
+    </div>
+  </ng-container>
+</div>

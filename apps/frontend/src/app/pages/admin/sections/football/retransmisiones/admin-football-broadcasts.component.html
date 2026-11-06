@@ -1,0 +1,37 @@
+<div class="space-y-6">
+  <div *ngIf="error" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative)]">
+    {{ error }}
+  </div>
+
+  <p *ngIf="loading && !matches.length" class="text-sm text-[var(--portal-text-muted)]">Cargando retransmisiones…</p>
+
+  <ng-container *ngIf="matches.length">
+    <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="text-left text-[var(--portal-text-muted)]">
+          <tr>
+            <th class="p-4">Partido</th>
+            <th>Retransmisiones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let match of matches" class="border-t border-[var(--portal-border)]">
+            <td class="p-4 align-top text-[var(--portal-text)]">{{ match.homeTeam?.name }} — {{ match.awayTeam?.name }}</td>
+            <td class="align-top">
+              <ul class="space-y-1 py-4">
+                <li *ngFor="let broadcast of match.broadcasts" class="text-[var(--portal-text-soft)]">
+                  {{ broadcast.channelName }} · {{ availabilityLabel(broadcast.availability) }} · {{ broadcast.confidence }} · {{ broadcast.provenance }}
+                </li>
+                <li *ngIf="!(match.broadcasts?.length)" class="text-[var(--portal-text-muted)]">Sin retransmisión</li>
+              </ul>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </ng-container>
+
+  <p *ngIf="!loading && !matches.length && !error" class="text-sm text-[var(--portal-text-muted)]">
+    No hay retransmisiones.
+  </p>
+</div>

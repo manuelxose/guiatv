@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, model } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { COMPETITION_RIGHTS_LABEL, competitionRight } from '../data/competition-rights';
+import { competitionHasApprovedProvider } from '../data/competition-coverage';
 import { DataAvailability, resolveAvailability } from '../data/availability';
 import { SPORTS_NOW } from '../data/football-data';
 import { Match } from '../domain/models';
@@ -163,7 +164,7 @@ export class Sv2MatchDetailsComponent {
   private availabilityOf(hasData: number | undefined): DataAvailability {
     return resolveAvailability({
       loading: this.store.loadState() === 'loading',
-      hasApprovedProvider: true, // demo and live adapters are both approved; per-competition coverage is not yet exposed by the store
+      hasApprovedProvider: competitionHasApprovedProvider(this.match().competitionSlug),
       fetchFailed: this.store.loadState() === 'error',
       hasData: (hasData ?? 0) > 0,
       updatedAt: this.store.isDemo ? this.now().getTime() : this.store.lastUpdated(),
