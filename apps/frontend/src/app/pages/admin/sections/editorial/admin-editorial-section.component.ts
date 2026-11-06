@@ -367,7 +367,7 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
     this.editError = '';
     this.editNotice = '';
     const published = this.detail.post.status === 'publish';
-    this.service.updatePost(this.detail.post.id, this.editDraft).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.service.updatePost(this.detail.post.id, { ...this.editDraft, expectedVersion: this.detail.version, expectedStatus: this.detail.post.status }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => { this.editBusy = false; this.editNotice = published ? 'Borrador de cambios guardado. La versión publicada sigue intacta.' : 'Borrador guardado; queda pendiente de revisión.'; this.openPost(this.detail!.post.id); this.refresh(true); },
       error: (e) => { this.editBusy = false; this.editError = errorMessage(e, 'No se pudo guardar el artículo'); },
     });
@@ -378,7 +378,7 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
     const id = this.detail?.post.id;
     if (!id || this.postActionBusy) return;
     this.postActionBusy = id;
-    this.service.deletePost(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.service.deletePost(id, this.detail!.version, this.detail!.post.status).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => { const published = this.detail?.post.status === 'publish'; this.postActionBusy = ''; this.deleteDialogOpen = false; this.notice = published ? 'Borrador de cambios descartado; el artículo sigue publicado.' : 'Borrador eliminado'; this.closeDetail(); this.refresh(); },
       error: (e) => { this.postActionBusy = ''; this.deleteDialogOpen = false; this.detailError = errorMessage(e, 'No se pudo eliminar el borrador'); },
     });

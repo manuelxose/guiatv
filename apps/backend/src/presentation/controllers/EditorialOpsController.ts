@@ -243,6 +243,7 @@ export class EditorialOpsController {
         // A draft's cover is not public (editorialMediaGate), so the Admin gets the image itself.
         coverPreview: await editorialCoverPreview(post.featuredImage?.sourceUrl),
       },
+      version: post.__v ?? null,
       pendingEdit: post.pendingEdit ?? null,
       provenance: {
         pipelineVersion: p.pipelineVersion, state: p.state, backend: p.backend ?? null,
@@ -265,6 +266,9 @@ export class EditorialOpsController {
     const post = await BlogPostModel.findById(String(req.params.id)).exec().catch(() => null);
     if (!post?.editorial) throw new NotFoundError('AI editorial post not found');
     const body = req.body ?? {};
+    if (!Object.prototype.hasOwnProperty.call(body, 'expectedVersion') || body.expectedVersion !== (post.__v ?? null) || body.expectedStatus !== post.status) {
+      throw new ConflictError('El artículo cambió desde que se abrió; vuelve a cargarlo');
+    }
     const updates: Record<string, unknown> = { reviewState: 'unreviewed' };
     for (const field of ['title', 'excerpt', 'content'] as const) {
       if (body[field] !== undefined) updates[field] = String(body[field]).trim().slice(0, field === 'content' ? 100_000 : 500);
@@ -310,6 +314,9 @@ export class EditorialOpsController {
   deletePost = async (req: Request, res: Response): Promise<void> => {
     const post = await BlogPostModel.findById(String(req.params.id)).select({ slug: 1, status: 1, editorial: 1, pendingEdit: 1, __v: 1 }).lean().exec().catch(() => null);
     if (!post?.editorial) throw new NotFoundError('AI editorial post not found');
+    if (!Object.prototype.hasOwnProperty.call(req.body ?? {}, 'expectedVersion') || req.body.expectedVersion !== (post.__v ?? null) || req.body.expectedStatus !== post.status) {
+      throw new ConflictError('El artículo cambió desde que se abrió; vuelve a cargarlo');
+    }
     if (post.status === 'publish' && post.pendingEdit) {
       const version = post.__v === undefined ? { $exists: false } : post.__v;
       const result = await BlogPostModel.updateOne({ _id: post._id, status: 'publish', __v: version }, { $unset: { pendingEdit: 1 }, $inc: { __v: 1 } }, { timestamps: false });

@@ -265,6 +265,7 @@ export interface EditorialFinding {
 }
 
 export interface EditorialPostDetail {
+  version: number | null;
   pendingEdit: { title: string; excerpt: string; content: string; metaTitle: string; metaDescription: string; savedAt: string } | null;
   post: {
     id: string; slug: string; title: string; status: string; reviewState: string;
@@ -399,12 +400,12 @@ export class AdminEditorialService {
     return this.http.post<ApiResponse<EditorialQueueItem>>(`${this.baseUrl}/generation/requests/${encodeURIComponent(id)}/retry`, {}).pipe(map((resp) => resp.data));
   }
 
-  updatePost(id: string, changes: { title?: string; excerpt?: string; content?: string; metaTitle?: string; metaDescription?: string }): Observable<{ updated: boolean; id: string }> {
+  updatePost(id: string, changes: { title?: string; excerpt?: string; content?: string; metaTitle?: string; metaDescription?: string; expectedVersion: number | null; expectedStatus: string }): Observable<{ updated: boolean; id: string }> {
     return this.http.patch<ApiResponse<{ updated: boolean; id: string }>>(`${this.baseUrl}/posts/${encodeURIComponent(id)}`, changes).pipe(map((resp) => resp.data));
   }
 
-  deletePost(id: string): Observable<{ deleted: boolean; id: string }> {
-    return this.http.delete<ApiResponse<{ deleted: boolean; id: string }>>(`${this.baseUrl}/posts/${encodeURIComponent(id)}`).pipe(map((resp) => resp.data));
+  deletePost(id: string, expectedVersion: number | null, expectedStatus: string): Observable<{ deleted: boolean; id: string }> {
+    return this.http.delete<ApiResponse<{ deleted: boolean; id: string }>>(`${this.baseUrl}/posts/${encodeURIComponent(id)}`, { body: { expectedVersion, expectedStatus } }).pipe(map((resp) => resp.data));
   }
 
   requeuePost(id: string): Observable<EditorialQueueItem> {

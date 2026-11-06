@@ -115,7 +115,7 @@ describe('topic control', () => {
 describe('review helpers', () => {
   it('edits a published article as a separate draft and keeps the public article', () => {
     const calls: unknown[][] = [];
-    const detail = { post: { id: 'p1', status: 'publish', title: 'Título publicado de veinte caracteres', slug: 's', content: '<p>Publicado</p>', excerpt: '', metaTitle: '', metaDescription: '' }, pendingEdit: null, provenance: { state: 'published', bundle: { sources: [], claims: [] } }, findings: [], policyBlockers: [], revisions: [], previous: null } as any;
+    const detail = { version: 3, post: { id: 'p1', status: 'publish', title: 'Título publicado de veinte caracteres', slug: 's', content: '<p>Publicado</p>', excerpt: '', metaTitle: '', metaDescription: '' }, pendingEdit: null, provenance: { state: 'published', bundle: { sources: [], claims: [] } }, findings: [], policyBlockers: [], revisions: [], previous: null } as any;
     TestBed.configureTestingModule({ imports: [AdminEditorialSectionComponent], providers: [{ provide: AdminEditorialService, useValue: {
       getOverview: () => of(overview), getProviders: () => of({ checkedAt: new Date().toISOString(), providers: [] }), getPost: () => of(detail), updatePost: (...args: unknown[]) => { calls.push(args); return of({ updated: true }); },
     } }] });
@@ -129,6 +129,7 @@ describe('review helpers', () => {
     component.savePostEdit();
     expect(calls[0][0]).toBe('p1');
     expect((calls[0][1] as { content: string }).content).toBe('<p>Pendiente</p>');
+    expect((calls[0][1] as { expectedVersion: number }).expectedVersion).toBe(3);
     expect(component.editNotice).toContain('versión publicada sigue intacta');
   });
 

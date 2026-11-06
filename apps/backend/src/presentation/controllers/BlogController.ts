@@ -350,6 +350,7 @@ export class BlogController {
       if (!existing) {
         throw new NotFoundError('Editorial post not found');
       }
+      if (existing.pendingEdit) throw new ConflictError('Descarta primero el borrador de cambios pendiente');
 
       const payload = req.body as BlogWritePayload;
       const normalized = this.normalizePayload(payload, existing);
@@ -386,6 +387,7 @@ export class BlogController {
       const reviewer = String(req.header('x-editorial-reviewer') || req.body?.reviewer || '').trim();
       const post = await BlogPostModel.findById(postId).exec();
       if (!post) throw new NotFoundError('Editorial post not found');
+      if (post.pendingEdit) throw new ConflictError('Descarta primero el borrador de cambios pendiente');
 
       let approval;
       try {
@@ -453,6 +455,7 @@ export class BlogController {
     try {
       const { policy, postId, post } = await this.policyTarget(req);
       // A person's approval is never overridden by the policy, and a draft goes through approve-by-policy.
+      if (post.pendingEdit) throw new ConflictError('Descarta primero el borrador de cambios pendiente');
       if (post.status !== 'publish' || post.reviewedBy !== POLICY_REVIEWER) {
         throw new ConflictError('Only a guide published by the policy can be revised by the policy');
       }
@@ -597,6 +600,7 @@ export class BlogController {
       const version = Number(req.body?.version);
       const post = await BlogPostModel.findById(postId).exec();
       if (!post) throw new NotFoundError('Editorial post not found');
+      if (post.pendingEdit) throw new ConflictError('Descarta primero el borrador de cambios pendiente');
       const target = (post.revisions || []).find((r) => r.version === version);
       if (!target) {
         throw new ValidationError('Unknown revision', [{ field: 'version', message: 'No stored revision with this version', value: req.body?.version }]);
@@ -627,6 +631,7 @@ export class BlogController {
     try {
       const post = await BlogPostModel.findById(String(req.params.id || '').trim()).exec();
       if (!post) throw new NotFoundError('Editorial post not found');
+      if (post.pendingEdit) throw new ConflictError('Descarta primero el borrador de cambios pendiente');
       if (post.status !== 'publish') throw new ConflictError('Only published posts can be unpublished');
       const reviewer = String(req.header('x-editorial-reviewer') || 'unnamed operator').trim();
       const reason = String(req.body?.reason ?? '').trim().slice(0, 300);

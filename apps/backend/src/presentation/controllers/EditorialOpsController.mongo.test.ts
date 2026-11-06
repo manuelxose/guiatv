@@ -41,6 +41,11 @@ async function pipelineRun(slug: string, images = false) {
   }), { ...DEFAULT_EDITORIAL_LIMITS, maxResearchCalls: 1, maxReviewLoops: 0 });
 }
 
+async function expected(id: string) {
+  const post = await BlogPostModel.findById(id).select({ status: 1, __v: 1 }).lean().exec();
+  return { expectedVersion: post?.__v ?? null, expectedStatus: post?.status };
+}
+
 test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers and authorization', { skip: !process.env.TEST_MONGO_URI }, async () => {
   await mongoose.connect(process.env.TEST_MONGO_URI!, { dbName: `guiatv_test_m11c_${process.pid}` });
   const env = { ...process.env };
@@ -72,14 +77,19 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     assert.equal((await call(blog.approveByPolicy, { params: { id } })).body?.data.post.status, 'publish');
     const original = await BlogPostModel.findById(id).lean().exec();
     const changedTitle = 'Una versión revisada de la guía sin publicarla todavía';
-    assert.equal((await call(ops.updatePost, { params: { id }, body: { title: changedTitle, content: '<p>Cambios pendientes</p>' } })).code, 200);
+    const beforeEdit = await expected(id);
+    assert.equal((await call(ops.updatePost, { params: { id }, body: { ...beforeEdit, title: changedTitle, content: '<p>Cambios pendientes</p>' } })).code, 200);
+    assert.equal((await call(ops.updatePost, { params: { id }, body: { ...beforeEdit, title: changedTitle } })).error?.name, 'ConflictError');
+    assert.equal((await call(ops.deletePost, { params: { id }, body: beforeEdit })).error?.name, 'ConflictError');
     const staged = await BlogPostModel.findById(id).lean().exec();
     assert.equal(staged?.status, 'publish');
     assert.equal(staged?.title, original?.title);
     assert.equal(staged?.content, original?.content);
     assert.equal(staged?.pendingEdit?.title, changedTitle);
     assert.equal((await call(ops.post, { params: { id } })).body?.data.pendingEdit.title, changedTitle);
-    assert.equal((await call(ops.deletePost, { params: { id } })).code, 200);
+    assert.equal((await call(blog.unpublishPost, { params: { id } })).error?.name, 'ConflictError');
+    assert.equal((await call(ops.deletePost, { params: { id }, body: { ...await expected(id), expectedStatus: 'draft' } })).error?.name, 'ConflictError');
+    assert.equal((await call(ops.deletePost, { params: { id }, body: await expected(id) })).code, 200);
     const afterDiscard = await BlogPostModel.findById(id).lean().exec();
     assert.equal(afterDiscard?.pendingEdit, undefined);
     assert.equal(afterDiscard?.status, 'publish');
@@ -117,7 +127,7 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     const qualityFindings = (blog as any).qualityFindings.bind(blog);
     (blog as any).qualityFindings = async (post: unknown) => {
       const findings = await qualityFindings(post);
-      assert.equal((await call(ops.updatePost, { params: { id: concurrentId }, body: { title: 'Un título modificado durante la aprobación' } })).code, 200);
+      assert.equal((await call(ops.updatePost, { params: { id: concurrentId }, body: { ...await expected(concurrentId), title: 'Un título modificado durante la aprobación' } })).code, 200);
       return findings;
     };
     try {
@@ -201,12 +211,12 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
     // Draft operations stay inside this admin surface: edit, refuse deleting live content, then replace a blocked draft with a fresh request.
     const retryRun = await pipelineRun('recuperar-borrador-m11c');
     const retryId = await create(retryRun);
-    assert.equal((await call(ops.updatePost, { params: { id: retryId }, body: { title: 'corto' } })).error?.name, 'ValidationError');
-    const edited = await call(ops.updatePost, { params: { id: retryId }, body: { title: 'Título corregido para una recuperación editorial completa', excerpt: 'Resumen editorial corregido' } });
+    assert.equal((await call(ops.updatePost, { params: { id: retryId }, body: { ...await expected(retryId), title: 'corto' } })).error?.name, 'ValidationError');
+    const edited = await call(ops.updatePost, { params: { id: retryId }, body: { ...await expected(retryId), title: 'Título corregido para una recuperación editorial completa', excerpt: 'Resumen editorial corregido' } });
     assert.equal(edited.code, 200, JSON.stringify(edited.error));
     // A draft of its own: the cover draft is published and served further down.
     const doomedId = await create(await pipelineRun('borrador-para-eliminar-m11c'));
-    assert.equal((await call(ops.deletePost, { params: { id: doomedId }, body: {} })).code, 200, 'an unpublished draft can be deleted');
+    assert.equal((await call(ops.deletePost, { params: { id: doomedId }, body: await expected(doomedId) })).code, 200, 'an unpublished draft can be deleted');
     assert.equal(await BlogPostModel.countDocuments({ _id: doomedId }), 0);
     // The rollback above left `id` as a draft; publish it again so the guard is what gets tested.
     await BlogPostModel.updateOne({ _id: id }, { status: 'publish', reviewState: 'approved' });
