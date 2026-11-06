@@ -1,90 +1,89 @@
-# M06-R1 — Revisión independiente R1 (revisor adversarial, familia distinta a los implementadores)
+# M06-R1 — Revisión independiente R1 (re-review tras reparación) — revisor adversarial
 
-- **Commit revisado (nombrado por el capitán):** `fe78c2f92bbac5abfbf81b6f13ad857e0163e5f1`
-- **Worktree:** `C:\Users\Admin\Documents\workspace\guiatv\.m06-r1` — rama `feat/m06-r1-recovery`
-- **Rango de cambios:** `git diff f020ea82..fe78c2f9` (84 ficheros, +6812/−1579)
-- **Autor de la revisión:** independent-reviewer (DeepSeek V4 Pro). No soy autor de ninguno de los commits revisados.
+- **SHA juzgado en esta re-revisión:** `4337361c0afd54c5208dc4f6f7d126cb8313b917` — rama `feat/m06-r1-recovery`
+- **SHA de la revisión anterior:** `fe78c2f9` (rango de reparación a revisar: `git diff fe78c2f9..4337361c`)
+- **Autor:** independent-reviewer (DeepSeek V4 Pro, familia distinta a los implementadores). No soy autor de los commits revisados.
 - **Fecha:** 2026-11-06
 
-> Este documento es una revisión de código, no una re-ejecución de suites. Los comandos y exit codes citados son los que el **capitán** ejecutó y dejó registrados; no los he vuelto a ejecutar yo.
+> Re-revisión de código (no re-ejecución de suites). Los exit codes citados son los que el **capitán** ejecutó y registró; no los he re-ejecutado yo. Verifiqué cada reparación leyendo los bytes exactos del diff `fe78c2f9..4337361c`.
 
 ---
 
-## 1. Alcance y qué pude verificar
+## 1. Alcance y qué verifiqué en esta re-revisión
 
-Leí el código exacto en el árbol de `fe78c2f9` (y lo comparé con la evidencia del capitán en `docs/sports-v2/` y `artifacts/m06-r1/evidence/`). No ejecuté el test suite, no arranqué/paré servidores y no modifiqué código de producto. Únicamente escribo este fichero.
+Revisé el diff de reparación `fe78c2f9..4337361c` (13 ficheros; los de **código** son 7 y los de documentación/evidencia 6). Confirmé que el commit de código `4337361c` toca exactamente los ficheros esperados:
 
-Verifiqué por lectura directa:
+- `apps/backend/src/application/sports/ingestion/FootballIngestionService.ts` (+21) — R1-3
+- `apps/backend/src/application/sports/services/FootballAdminService.ts` (+24) — R1-2, R1-6
+- `apps/backend/src/application/sports/ingestion/M06R1ReviewFindings.test.ts` (+105) — regresión R1-3/R1-6
+- `apps/frontend/src/app/features/football/admin-data/football-admin-data.service.ts` (+9) — R1-5
+- `apps/frontend/src/app/features/football/admin-data/football-admin.models.ts` (+58) — R1-1
+- `apps/frontend/src/app/pages/admin/sections/football/sincronizacion/admin-football-sync.component.{ts,html}` (+72/+26) — R1-1, R1-5
+- `apps/frontend/src/app/sports-v2/shell/app-shell.html` (+6) — R1-4
 
-- **Autorización (F01/F09):** `presentation/middlewares/adminAccessGuard.ts`, `presentation/routes/{admin,football,football-admin,analytics,blog,admin-*}.routes.ts`, y confirmé la eliminación de `analyticsAdminGuard` (0 referencias restantes).
-- **Elegibilidad (F05):** `infrastructure/sports/providers/openLigaDb/OpenLigaDbClient.ts`, `eligibility/providerEligibilityRegistry.ts`, `jobs/football/factory.ts`, y busqué todos los `new OpenLigaDbClient` (solo en factory + tests).
-- **Identidad (F04):** `application/sports/ingestion/snapshots.ts`, `OpenLigaDbAdapter.ts`, `persistence/FootballIngestionRepository.ts`, `persistence/models.ts`, `SnapshotFootballDataProvider.ts`.
-- **Empty veraz (F03):** `application/sports/ingestion/FootballIngestionService.ts` (rama `onlyEmpty`), `ingestion/types.ts`.
-- **Ciclo de vida (F06) y cuota durable (F07):** `database/models/AdminOperation.model.ts`, `application/sports/services/FootballAdminService.ts`, `presentation/controllers/FootballOpsController.ts`, `jobs/football/factory.ts`.
-- **Consultas acotadas (F08):** `FootballAdminService.ts` (`listEntityMappings` con `$facet`), `dto/FootballAdminDTO.ts` (parsers), índices en `models.ts` / `FootballTeam.model.ts` / `FootballCompetition.model.ts`.
-- **Frontend (F01/F09) y atribución (F02):** `features/football/admin-data/*`, las 8 secciones de `pages/admin/sections/football/*`, `sports-v2/ui/odbl-attribution.ts`, `sports-v2/shell/app-shell.{ts,html}`, `sports-v2/sports-v2.routes.ts`.
-- **Evidencia del capitán:** `M06-R1-VERIFICATION-ENVIRONMENT.md`, `M06-R1-F01-ROOT-CAUSE.md`, `M06-R1-F02-ODBL-ATTRIBUTION.md`, y los JSON de `artifacts/m06-r1/evidence/final-integration/*` y `baseline/*`.
-
-**Deriva de evidencia detectada (a registrar, no es defecto de código):** el capitán nombró `fe78c2f9`, pero el HEAD del worktree es `bedd6bd2` (un commit de documentación posterior: "finding-by-finding remediation report") y existe un fichero sin trackear `docs/sports-v2/M06-R1-TEST-EVIDENCE.md`. Todos los commits entre `fe78c2f9` y `bedd6bd2` son solo documentación, por lo que el **código** que revisé es idéntico al que ejecutó las suites en `f28c89ef`; aun así, la revisión quedó ligada al árbol `fe78c2f9` con un worktree sucio (fichero untracked), lo que debe anotarse para la puerta de entrega (ENGINE-04).
+No ejecuté el suite ni arranqué servidores; no modifiqué código de producto. Solo reescribo este fichero.
 
 ---
 
-## 2. Tabla de hallazgos
+## 2. Veredicto por hallazgo R1-1…R1-6 (reparación)
 
-### 2.1 Veredicto por hallazgo original F01–F10
-
-| ID | Severidad original | ¿Corregido en el código? | Evidencia concreta (fichero:línea) |
+| ID | Severidad | Estado tras reparación | Evidencia concreta verificada en el diff |
 |---|---|---|---|
-| F01 | P0 | **Sí** | Un único `createAdminAccessGuard` (acepta `ANALYTICS_ADMIN_KEY` en `x-admin-key`/`Bearer` en tiempo constante **o** sesión admin JWT). Aplicado a `/v2/admin/*` (`admin.routes.ts:20-22` `router.use`), `/v2/sports/football/admin/*` (`football-admin.routes.ts:26`), broadcast overrides (`football.routes.ts:9,26,33`), analytics/blog/admin-* (`analytics.routes.ts`, `blog.routes.ts`, etc.). `analyticsAdminGuard` eliminado (0 referencias). El cliente Angular (`football-admin-data.service.ts`) llama al API t7 y envía `Bearer gtv_id_token`; la clave nunca va al bundle. |
-| F02 | P1 | **Sí** | `odbl-attribution.ts` renderiza en `<footer role="contentinfo">` el texto exacto de ODbL 4.3(a) con anclas correctas: "OpenLigaDB" → `openligadb.de`; "Open Database License (ODbL)" → `opendatacommons.org/licenses/odbl/1-0/`. Montado en el shell (`app-shell.html:43`), que envuelve **todas** las rutas públicas (`sports-v2.routes.ts`). |
-| F03 | P0 | **Sí** | `IngestionRunOutcome` admite `empty`; rama todo-vacío (`FootballIngestionService.ts:324-339`) persiste `empty`, no avanza `lastSuccessAt` y `health='degraded'`; mixto → `partial` y sí avanza (`:364`). |
-| F04 | P0 | **Sí** | `canonicalKey = providerId:matchId` puro (`snapshots.ts:97-104`), nunca el slug; `match.id = String(matchID)` estable (`OpenLigaDbAdapter.ts:206`); upsert por `{providerId, matchId}` con reconciliación aditiva (`FootballIngestionRepository.ts:50-63`); índice único `idx_football_snapshot_provider_match` (`models.ts:90-93`). Evidencia E2E `f04-identity-e2e.json`: rename+reschedule→1 doc, distinto→2 docs, resuelve por slug actual/proveedor/slug viejo. |
-| F05 | P0 | **Sí** | `assertEligible('openligadb')` en el constructor de `OpenLigaDbClient` **antes** de retener `fetchImpl` (`OpenLigaDbClient.ts:59-70`); el registro lanza para todo lo que no sea `approved`; no existe otra vía de construcción en producción. |
-| F06 | P0 | **Parcial — defecto en frontend** | Backend correcto (estados veraces `queued|running|succeeded|empty|skipped|throttled|failed`, `AdminOperation.model.ts:11-19`; `mapTickToOperation` `FootballAdminService.ts:95-131`). El frontend NO fue actualizado al vocabulario nuevo: ver **R1-1**. |
-| F07 | P0 | **Sí** | `factory.ts:109-116`: solo `FOOTBALL_DURABLE_QUOTA='0'` opta por modo local; cualquier otro valor pide durable y **lanza** si no hay Mongo listo (no hay downgrade silencioso). |
-| F08 | P1 | **Sí** | `listEntityMappings` pagina en BD (`$unionWith`+`$facet`+`$sort`+`$skip`+`$limit`, `FootballAdminService.ts:288-333`); `sort`/`order`/`kind` con allow-list y 400 antes de tocar BD (`FootballAdminDTO.ts:106-141`); `limit` ≤100; `q` ≤120; regex escapada (`escapeRegex`); índices `idx_football_team_updated_slug` / `idx_football_competition_updated_slug`. Las demás listas ya paginan en servidor. |
-| F09 | P0 | **Sí (backend y UI), salvo R1-2** | `AvailabilityState` explícito + campos `<field>State` en DTOs; `durableQuota()` sin BD devuelve `{consumed:null, disabled:null, state:'unavailable'}` (`FootballAdminService.ts:81-93`); UI renderiza "No disponible" salvo estado `observed` (p. ej. `admin-football-matches.component.ts:154-192`, `admin-football-providers.component.ts:115-118`). |
-| F10 | High (proceso) | **Contenido por ausencia de merge** | `deploy-artifact.yml` sigue desplegando en `main` tras CI. No se ha fusionado ni desplegado (objetivo del milestone). El riesgo persiste y queda como decisión del propietario antes de fusionar (`M06-R1-REMEDIATION.md:35`). **No es un defecto de código del cambio; es una puerta de release pendiente.** |
+| **R1-1** | High | **CORREGIDO** | `football-admin.models.ts`: `FootballSyncStatus` ahora es la unión de 7 estados (`queued|running|succeeded|empty|skipped|throttled|failed`); `SYNC_STATUS_LABELS` con las 7 etiquetas; `SYNC_TERMINAL_STATUSES` + `isSyncTerminal()`; `FootballSyncResultDTO` replica el DTO del backend. `admin-football-sync.component.ts:155+`: `pollSync` usa `isSyncTerminal()` y emite un mensaje DISTINTO por estado (`succeeded`→"completada", `empty`→"no devolvió partidos", `skipped`→"omitida"+motivo, `throttled`→"limitada por cuota", `failed`→"falló"). El camino de etiqueta `undefined` desaparece (las 7 claves tienen etiqueta). |
+| **R1-2** | Medium | **CORREGIDO** | `FootballAdminService.ts` `mapTickToOperation`: `skipped` y `throttled` devuelven `recordsFetched: null`; solo `empty` conserva el 0 medido. Evidencia viva `final-integration/r1-2-verified-not-zero.json`: fila nueva `{status:skipped, recordsFetched:null, recordsFetchedState:not_measured, skipReason:lock_held}` frente a fila antigua `{recordsFetched:0, observed}` — el contraste demuestra la corrección. |
+| **R1-3** | Low | **CORREGIDO** | `FootballIngestionService.ts:341-361`: rama nueva — si `perCompetition.some(outcome==='failed')` es falso, se registra `empty` (nunca `failed`), no dispara el circuit breaker y no avanza `lastSuccessAt`. Test de regresión `M06R1ReviewFindings.test.ts` (R1-3) cubre empty+skipped sin fallo. |
+| **R1-4** | Low | **CORREGIDO** | `app-shell.html:43-47`: la atribución ODbL queda dentro de `@if (!store.isDemo)`. |
+| **R1-5** | Low | **CORREGIDO** | `football-admin-data.service.ts`: nuevo `getSyncOperations()`; `admin-football-sync.component.ts`: `loadHistory()` + tabla "Historial de sincronizaciones" con badge veraz, `recordsFetched` con su estado de disponibilidad, `skipReason`, y línea de error propia que no vacía la sección. |
+| **R1-6** | Low | **CORREGIDO** | `FootballAdminService.ts`: nueva `providerHealth()` — `consecutiveFailures == null` → `unknown` (nunca `ok`), `circuitState==='open'` → `down`, `>0` → `degraded`, si no `ok`. Aplicada en `listProviders` y `providerDetail`. Test de regresión R1-6 (dependiente de Mongo) lo cubre. |
 
-### 2.2 Hallazgos nuevos de esta revisión (R1-*)
-
-| ID | Severidad | Fichero:línea | Problema | Corrección requerida y verificación |
-|---|---|---|---|---|
-| **R1-1** | **High** | `apps/frontend/src/app/features/football/admin-data/football-admin.models.ts:264` y `apps/frontend/src/app/pages/admin/sections/football/sincronizacion/admin-football-sync.component.ts:133,137` | El frontend conserva el vocabulario **legacy** `FootballSyncStatus = 'queued'|'running'|'completed'|'failed'` (4 estados), mientras el backend expone 7 (`succeeded|empty|skipped|throttled` incluidos, sin `completed`). `SYNC_STATUS_LABELS` (models.ts:272-277) no tiene etiquetas para los 4 estados nuevos; `FootballSyncResultDTO` (models.ts:266-270) solo declara `{id,status,correlationId}` (pierde `outcome`, `recordsFetched*`, `skipReason`, `quotaOutcome`). `pollSync` solo trata `completed`/`failed` como terminales. **Consecuencia:** una sincronización exitosa llega con `status:'succeeded'`, no coincide con `completed`, sondea 8×2.5s y acaba mostrando "Operación X sigue **undefined**. Revisa el estado más adelante." — el resultado veraz jamás se muestra y una operación correcta se presenta como "en curso". Es exactamente lo que la aceptación en navegador (no ejecutada) habría detectado. | Alinear `FootballSyncStatus`/`SYNC_STATUS_LABELS`/`FootballSyncResultDTO` con el DTO del backend (`FootballAdminDTO.ts:359-399`) y hacer que `pollSync` trate `succeeded|empty|skipped|throttled|failed` como terminales con mensajes correctos. Verificación: test unitario del componente con `status:'succeeded'` (debe mostrar "completada", no "en curso"), y aceptación en navegador real de la sección Sincronización. |
-| **R1-2** | **Medium** | `apps/backend/src/application/sports/services/FootballAdminService.ts:125-129` y `:533-534` | `mapTickToOperation` fija `recordsFetched: 0` para `skipped` y `throttled`; `toSyncOperationDTO` lo etiqueta `observed` porque `0` es número. Un run omitido (lock_held / circuit_open / emergency_disabled) **no midió** registros. Confirmado en la evidencia viva: `admin-api-and-sync-lifecycle.json` `syncHistory[0] = {status:"skipped", recordsFetched:0, skipReason:"lock_held"}`. Es el anti-patrón "no-disponible-como-cero" que F09 quiere eliminar. | Para `skipped`/`throttled` devolver `recordsFetched: null` (estado `not_measured`); reservar `0+observed` solo para `empty` (cero medido). Verificación: test unitario de `mapTickToOperation` + DTO que compruebe `recordsFetchedState === 'not_measured'` en skip. |
-| **R1-3** | **Low** | `apps/backend/src/application/sports/ingestion/FootballIngestionService.ts:315-341` | Un run mixto "empty + skipped(presupuesto)" (sin fallo de proveedor) cae en la rama `failed` con razón `'no competitions ingested'` (`:341`), etiquetando como "fallo" algo que no tuvo error de fetch. No avanza `lastSuccessAt` (correcto), pero la etiqueta es imprecisa. | Distinguir "empty parcial + skipped" de "failed" (p. ej. `partial` sin éxito, o un outcome propio). Verificación: test con una competición `empty` y otra `skipped` esperando un outcome no-`failed` cuando no hubo error de proveedor. |
-| **R1-4** | **Low** | `apps/frontend/src/app/sports-v2/shell/app-shell.html:10-12` vs `:43` | Cuando `store.isDemo` es true se muestra un banner "Datos de demostración… ficticios", pero la atribución ODbL ("Contiene información de OpenLigaDB") sigue renderizándose — una afirmación falsa para datos ficticios. | Condicionar la atribución a `!store.isDemo`, o aceptar el texto como boilerplate y documentarlo. Verificación: página demo no debe mostrar la atribución ODbL. |
-| **R1-5** | **Low** | `football-admin-data.service.ts` (sin método) vs `football-admin.routes.ts:42` | El backend expone `GET /ingestion/sync` (modelo de lectura de historial F06) pero ningún componente/servicio frontend lo consume. El historial de operaciones veraces queda sin superficie en la UI. | Añadir `getSyncOperations()` al cliente y mostrarlo en la sección Sincronización (o declarar explícitamente que no se expone). Verificación: la sección muestra el historial con estados veraces. |
-| **R1-6** | **Low** | `apps/backend/src/application/sports/services/FootballAdminService.ts:183,200` | `health` se deriva con `d.consecutiveFailures > 0 ? 'degraded' : … : 'ok'`; un documento con `consecutiveFailures` ausente (null) se reporta `health:'ok'` aunque el dato no esté medido. Solo alcanzable con documentos legacy/malformados. | Derivar `health` teniendo en cuenta `consecutiveFailuresState === 'missing'` (p. ej. `unknown`/`degraded`), no `ok`. Verificación: test con doc sin `consecutiveFailures`. |
+Los 6 hallazgos están **realmente corregidos en el código** del SHA `4337361c`. No confié en las afirmaciones del capitán: verifiqué el diff fichero a fichero.
 
 ---
 
-## 3. Veredicto por dimensión
+## 3. Hallazgos residuales nuevos (todos Low, no bloqueantes)
+
+| ID | Severidad | Fichero:línea | Problema | Corrección sugerida |
+|---|---|---|---|---|
+| **R1-7** | Low | `apps/backend/src/application/sports/services/FootballAdminService.ts:100-106` y `dto/FootballAdminDTO.ts` (`health: 'ok'|'degraded'|'down'`) | `providerHealth()` puede devolver `'unknown'`, pero el tipo DTO (backend y frontend) sigue declarando `health` como `'ok'|'degraded'|'down'`; el `as FootballProviderSummaryDTO['health']` esconde el valor fuera de la unión. El frontend lo tolera por los `default` de `healthLabel`/`healthStatus`, pero el contrato tipado quedó inexacto. | Ampliar la unión a `'ok'|'degraded'|'down'|'unknown'` en backend y frontend, y quitar el cast. |
+| **R1-8** | Low | `apps/frontend/src/app/features/football/admin-data/football-admin.models.ts` (`finishedAt?: string`) vs backend `FootballAdminDTO.ts` (`completedAt?: string`) | El DTO frontend de la operación usa `finishedAt` pero el backend emite `completedAt`; el campo no se consume hoy (durmiente), y los campos `*State` frontend están tipados como `string` en vez de `AvailabilityState`. | Alinear el nombre a `completedAt` y tipar los campos de estado como `AvailabilityState`. |
+| **R1-9** | Low | `apps/backend/src/application/sports/ingestion/FootballIngestionService.ts:316-319` (preexistente) | El caso "todas las competiciones omitidas por presupuesto" (`budgetRefused && requestsUsed===0`) sigue grabando el **run de ingesta** con `outcome:'failed'` y error `budget_exhausted`, mientras el tick devuelve `skipped` (la operación admin se muestra `throttled`). Discrepancia interna preexistente (run de ingesta vs operación admin); no la introdujo R1-3. | Grabar ese run con un outcome no-`failed` (p. ej. `skipped`) para no contarlo como "quality issue" en el dashboard. |
+| *(nota)* | — | `FootballAdminService.ts` `toSyncOperationDTO` (`status: d.status` sin validar) | Un documento `football.sync` legacy con `status:'completed'` (el enum del modelo conserva `completed`) renderizaría `SYNC_STATUS_LABELS['completed'] === undefined` en el historial. En la práctica inalcanzable: el tipo `football.sync` nació ya con el esquema de 7 estados (t5), así que no existen filas `football.sync` con `completed`. | Opcional: filtrar/normalizar `completed`→`succeeded` al leer el historial, por robustez. |
+
+Ninguno es bloqueante (todos Low y/o preexistentes); no cambian el veredicto de la reparación.
+
+---
+
+## 4. Veredicto por dimensión
 
 | Dimensión | Veredicto | Razón |
 |---|---|---|
-| Engineering | **PASS** | Backend `tsc --noEmit` exit 0; suite sin Mongo 1150/1084/11/55 y con Mongo 1230/1195/29/6, idéntica a la línea base (0 regresiones nuevas; los 11/29 fallos preexistentes están fuera de fútbol: CatalogService, ContentCanary, EditorialRunner, ClaudeCode, Sitemap, content-certify). F08 acotado con índices. |
-| Admin functionality | **PARTIAL** | Backend correcto y probado en vivo (200 con datos reales, 401 sin credencial). Pero **R1-1** rompe la sección Sincronización en la UI (el estado veraz de F06 no se muestra) y **R1-5** deja el historial sin consumir. Además, la aceptación en navegador real **no se ejecutó**. |
-| Data honesty | **PARTIAL** | F03/F06/F09 correctos en backend salvo **R1-2** (skip→`recordsFetched:0` observado en vez de `not_measured`) y **R1-3** (empty+skip etiquetado `failed`). |
-| Data integrity | **PASS** | F04: identidad pura `providerId:matchId`, reconciliación aditiva sin borrado, índice único, E2E real verificado. |
-| Provider acquisition | **PASS** | F05: frontera única de elegibilidad en el constructor, fails-closed; único proveedor `approved`. |
-| Real ingestion | **PASS** (con nota) | 1444 snapshots reales de OpenLigaDB cubriendo UCL(144), UEL(144), UECL(108), PL(380), BL(306), BL2(306), DFB(56). **Nota:** la disponibilidad por campo y por competición en `real-coverage.json` es una **muestra de 100 docs** (`pageSample:100`), no una cobertura por competición; la disponibilidad de líneas de gol por competición no está documentada en la evidencia final (el adapter sí mapea `goals` y el registro declara capacidad `events`, pero el artefacto R1 no lo demuestra por competición). |
-| Security | **PASS** | F01: un solo límite de autorización, `timingSafeEqual` (longitud comprobada primero), fails-closed sin clave ni authService, rol `admin` exigido, sin bypass encontrado. La ambigüedad `Bearer` (misma cabecera para clave y sesión) es por diseño y documentada; no es un bypass. Nota: la sesión JWT se probó por unidad (no en vivo contra t7; la prueba viva usó `x-admin-key`). |
-| Legal eligibility | **PASS** | F02: texto ODbL 4.3(a) exacto con anclas e hiperenlaces correctos, en todas las páginas públicas; F05 con notas legales y `rightsState` por proveedor; doc F02 cita fuentes autoritativas y declara honestamente "no es asesoramiento legal". |
-| Performance | **PASS** | F08: paginación en BD, allow-lists, `limit` capado, regex escapada, índices nombrados; sin scans no acotados en el dashboard. |
-| Independent review | **Realizada** | Revisión adversarial de código a nivel de SHA, familia de modelo distinta de los implementadores. |
-| Deployment readiness | **PARTIAL** | **R1-1** (High) abierto, SSR build/Karma/browser **no ejecutados**, y deriva de evidencia (HEAD `bedd6bd2` vs `fe78c2f9` + fichero untracked). No se fusiona/despliega (correcto), pero no está listo para entrega sin resolver R1-1 y cerrar las puertas no ejecutadas. |
-| Production verification | **UNVERIFIED (FAIL en la puerta)** | Karma (`ng test`), SSR build de producción y aceptación Playwright **no se pudieron ejecutar** (`spawn EPERM` / builders ausentes; `M06-R1-VERIFICATION-ENVIRONMENT.md:34-46`). No pueden declararse PASS. R1-1 es la prueba de que esta ausencia importa. |
-
-**Veredicto global: `needs_revision`.** El backend F01–F09 queda sustancialmente bien corregido y verificado, pero **R1-1 (High)** —la superficie de administración no muestra el ciclo de vida veraz de F06— y las puertas de frontend no ejecutadas impiden dar el milestone por entregable.
+| Engineering | **PASS** | Suite completa del backend 1152 tests / 1086 pass / 11 fail con **0 regresiones nuevas** (comparación por identidad de tests fallidos contra la línea base); backend build/tsc exit 0; 2/2 tests de regresión R1 nuevos. |
+| Admin functionality | **PASS (código) / UNVERIFIED (navegador)** | R1-1 y R1-5 corregidos y verificados por lectura de código; los 8 endpoints ya estaban correctos. **Pero** R1-1 solo está probado por inspección de código + tests, NO por navegador real — la aceptación Playwright no se ejecutó. Lo declaro explícitamente, no lo marco como verificado. |
+| Data honesty | **PASS** | R1-2 y R1-3 corregidos (skip→`not_measured`, empty+skip→`empty`); verificado por código + evidencia viva + test de regresión. |
+| Data integrity | **PASS** | F04 intacto (identidad estable, reconciliación aditiva), sin cambios en la reparación. |
+| Provider acquisition | **PASS** | F05 intacto (frontera de elegibilidad en el constructor). |
+| Real ingestion | **PASS** (con nota) | Cobertura real previa (1444 snapshots, 7 competiciones) sigue vigente. La nota de muestra de 100 docs sobre disponibilidad por campo/líneas de gol sigue aplicando. |
+| Security | **PASS** | F01 intacto (un solo límite fails-closed, tiempo constante). |
+| Legal eligibility | **PASS** | F02 + R1-4 (la atribución ODbL ya no se muestra en datos demo). |
+| Performance | **PASS** | F08 intacto; la reparación no añade consultas no acotadas (el historial usa `limit:10`). |
+| Independent review | **Realizada** | Re-revisión adversarial a nivel de SHA, familia distinta. |
+| Deployment readiness | **PARTIAL** | Código listo salvo 3 hallazgos Low; **Karma, SSR build y Playwright siguen SIN ejecutarse** y deben correr en un runner de CI limpio antes de fusionar. |
+| Production verification | **UNVERIFIED (BLOCKED por entorno)** | Karma (`spawn EPERM`), SSR build de producción (`@angular/build`/builders) y aceptación Playwright no ejecutables en este sandbox (`M06-R1-VERIFICATION-ENVIRONMENT.md` §3). No pueden declararse PASS. |
 
 ---
 
-## 4. Lo que NO pude verificar y por qué
+## 5. Lo que NO pude verificar y por qué
 
-1. **Aceptación en navegador real (Playwright) en desktop/tablet/mobile:** no ejecutada en este entorno (depende del SSR build, bloqueado por `spawn EPERM` y builders ausentes). No la he re-ejecutado yo (mi rol es leer y juzgar, no re-ejecutar suites). Por eso "Admin functionality" y "Production verification" no pueden ser PASS.
-2. **Karma (`ng test`) y SSR build de producción Angular:** registrados como NO EJECUTADOS por el capitán. El typecheck/lint frontend sí pasaron antes del incidente de `node_modules` (§3 del doc de verificación), pero el re-run post-incidente está degradado (34 TS2307 por `@angular/forms` no resoluble).
-3. **Sesión JWT de administrador contra el API t7 en vivo:** la prueba de integración viva usó `x-admin-key`; el camino de sesión quedó cubierto por tests unitarios del guard, no por una prueba E2E en vivo. Lo anoto como brecha de evidencia, no como fallo de código.
-4. **Disponibilidad de líneas de gol reales por competición:** no documentada en `final-integration/real-coverage.json` (solo score/kickoff sobre una muestra de 100). El adapter y el registro de elegibilidad la declaran, pero no hay artefacto R1 que la demuestre por competición.
-5. **F10 (auto-deploy en `main`):** es una decisión de proceso del propietario, fuera del alcance de esta revisión de código; queda abierta y documentada.
-6. **6 de las 8 secciones frontend** (cobertura, entidades, retransmisiones, calidad, y los detalles de sus HTML) las revisé por el patrón compartido del cliente tipado y los helpers de estado; verifiqué en profundidad Sincronización y Centro de control y Partidos/Proveedores. El defecto R1-1 está en Sincronización, que sí revisé a fondo.
+1. **R1-1 en un navegador real:** la corrección está verificada por inspección de código y por el contrato de tipos, pero la aceptación Playwright (8 secciones en desktop/tablet/mobile, estados éxito/vacío/no-autorizado/error/no-disponible) **no se ejecutó**. La declaro UNVERIFIED, no PASS.
+2. **Karma (`ng test`) y SSR build de producción Angular:** no ejecutables en este sandbox (documentado por el capitán). El re-run del typecheck frontend sigue degradado por un problema de `node_modules` (ACL) ajeno al código.
+3. **La sesión JWT admin contra el API t7 en vivo:** sigue cubierta solo por tests unitarios del guard (la prueba viva usa `x-admin-key`). Brecha de evidencia, no defecto de código.
+4. **Disponibilidad de líneas de gol reales por competición:** no documentada por competición en la evidencia final (solo score/kickoff sobre una muestra de 100 docs).
+5. **F10 (auto-deploy en `main`):** decisión de proceso del propietario; no es defecto de código de este cambio.
+
+---
+
+## 6. Veredicto global
+
+**`pass`** sobre el **código** del SHA `4337361c`: los hallazgos F01–F10 y R1-1…R1-6 están realmente corregidos (verificado leyendo los bytes exactos del diff y la evidencia/tests del capitán), y no queda ningún hallazgo bloqueante o de severidad alta/media. Quedan 3 hallazgos **Low** no bloqueantes (R1-7, R1-8, R1-9).
+
+**Condición de entrega (NO la marco como cumplida aquí):** la aceptación en navegador real (Karma, SSR build, Playwright) sigue **sin ejecutarse** y la "verificación end-to-end en navegador real" del objetivo del milestone permanece **pendiente en un runner de CI limpio**. Eso es una puerta de verificación, no una revisión de código pendiente; no la subo a PASS.

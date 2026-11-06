@@ -159,4 +159,48 @@ partidos **aún no jugados** en esa página, no a un dato ausente: el estado se 
 
 ## 11. Revisión independiente
 
-Pendiente de adjuntar: `M06-R1-INDEPENDENT-REVIEW-R1.md` (auditoría adversarial del SHA `fe78c2f9`).
+**Veredicto: `pass` sobre el código en `4337361c`** (re-revisión del intento de reparación 1 de 2).
+Informe completo: `M06-R1-INDEPENDENT-REVIEW-R1.md`.
+
+Historial honesto de la revisión, sin suavizar:
+
+1. **Primera revisión → `needs_revision`.** Sobre `fe78c2f9` el revisor encontró **R1-1 (High,
+   bloqueante)**: el backend exponía el ciclo veraz de siete estados, pero la sección Sincronización
+   del frontend conservaba el vocabulario viejo (`completed`/`failed`), así que una sincronización
+   **correcta** se mostraba como "en curso" con etiqueta `undefined`. **El hallazgo era correcto** y es
+   exactamente lo que la aceptación en navegador (no ejecutada) habría detectado.
+2. **Reparación** en `4337361c`: R1-1 a R1-6 corregidos (estados veraces en la UI, `skipped` sin cero
+   fabricado, vacío+omitido sin etiqueta de fallo, atribución ODbL fuera de los datos de demostración,
+   historial de operaciones expuesto, health nunca `ok` sin medir) + pruebas de regresión.
+3. **Re-revisión → `pass`**, con tres residuos **Low no bloqueantes**.
+4. **Segunda reparación** en `631ba623`: R1-7 (`unknown` dentro del tipo y renderizado, en las dos
+   pantallas) y R1-8 (`completedAt` en vez de `finishedAt`) corregidos. **R1-9 se deja abierta** y
+   declarada: es preexistente y no afecta a la operación admin (que sí informa `throttled`).
+
+**Lo que el revisor NO elevó a PASS, y por qué:** Karma, build SSR y Playwright siguen sin ejecutarse, así
+que *Production verification* y *Admin functionality (navegador)* quedan **UNVERIFIED**. R1-1 está probado
+por inspección de código y pruebas, **no** en navegador real. El revisor lo dice explícitamente en su
+informe, y este documento lo mantiene.
+
+## 12. Residuos abiertos (declarados)
+
+| Id | Severidad | Descripción | Estado |
+|---|---|---|---|
+| R1-9 | Low (preexistente) | Un run con **todas** las competiciones omitidas por presupuesto graba el *ingestion run* como `failed` mientras la operación admin informa `throttled` con veracidad. No afecta a la UI ni a `lastSuccessAt`. | **Abierto y declarado.** No se toca para no ampliar el alcance sin revisión. |
+| — | — | Karma / SSR / Playwright no ejecutados en este entorno. | **Abierto.** Debe ejecutarse en un runner CI limpio antes de fusionar. |
+
+## 13. Resultados de la suite tras cada reparación
+
+| Momento | Pruebas | Pasan | Fallan | Regresiones nuevas |
+|---|---:|---:|---:|---:|
+| Base `f020ea82` (sin Mongo) | 1118 | 1058 | 11 | — |
+| Tras F01–F09 (`fe78c2f9`, sin Mongo) | 1150 | 1084 | 11 | **0** |
+| Tras R1-1..R1-6 (`4337361c`, sin Mongo) | 1152 | 1086 | 11 | **0** |
+| Tras R1-7/R1-8 (`631ba623`, sin Mongo) | 1152 | 1086 | 11 | **0** |
+
+Nota sobre la ejecución **con** Mongo: el runner in-process (`--test-isolation=none`) comparte una única
+conexión de Mongoose entre ficheros, así que dos ficheros que se conectan/desconectan pueden interferir
+y producir 2 fallos adicionales que **pasan en aislamiento** (verificado: `FootballAdminService.f06`
+2/2 en solitario). Por eso la comparación de no-regresión se hace sobre el modo sin Mongo, que es
+determinista y en el que ambas líneas base son comparables.
+
