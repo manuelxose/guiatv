@@ -97,6 +97,7 @@
 
         <section aria-labelledby="rj-actions" class="rounded-xl border border-[var(--portal-border)] p-4">
           <p class="text-sm text-[var(--portal-text-soft)] mb-3">{{ eligibilityTextDetail(d) }}</p>
+          <p *ngIf="editNotice" role="status" class="text-sm text-[var(--portal-text)] mb-3">{{ editNotice }}</p>
           <div *ngIf="editOpen && editDraft as edit" class="space-y-3 mb-3">
             <label class="block text-xs text-[var(--portal-text-soft)]" for="rj-edit-content">Contenido (reescritura dirigida)</label>
             <textarea id="rj-edit-content" [(ngModel)]="edit.content" name="rjEditContent" rows="8" class="w-full min-h-[120px] rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface-strong)] text-[var(--portal-text)] p-3 text-sm"></textarea>

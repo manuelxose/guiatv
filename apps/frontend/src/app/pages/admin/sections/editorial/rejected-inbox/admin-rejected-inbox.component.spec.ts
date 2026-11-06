@@ -53,4 +53,15 @@ describe('AdminRejectedInboxComponent', () => {
     c.confirmDelete();
     expect(remove).toHaveBeenCalledWith('p1', 4, 'draft');
   });
+
+  it('deselects a draft if an automatic refresh finds it changed', () => {
+    TestBed.overrideProvider(AdminEditorialService, { useValue: { getOverview: () => of({ posts: [{ ...post(), version: 2 }] }) } });
+    const fixture = TestBed.createComponent(AdminRejectedInboxComponent);
+    const c = fixture.componentInstance;
+    c.overview = { posts: [{ ...post(), version: 1 }] } as never;
+    c.selected.add('p1');
+    c.load(true);
+    expect(c.selected.has('p1')).toBeFalse();
+    expect(c.notice).toContain('cambiaron');
+  });
 });

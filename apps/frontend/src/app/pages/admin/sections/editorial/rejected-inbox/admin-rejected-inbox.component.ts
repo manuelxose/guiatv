@@ -47,6 +47,7 @@ export class AdminRejectedInboxComponent implements OnInit, OnDestroy {
   editOpen = false;
   editBusy = false;
   editError = '';
+  editNotice = '';
   editDraft: { title: string; excerpt: string; content: string; metaTitle: string; metaDescription: string } | null = null;
   deleteTarget: { id: string; title: string; version: number | null } | null = null;
   deleteBusy = false;
@@ -67,6 +68,16 @@ export class AdminRejectedInboxComponent implements OnInit, OnDestroy {
     this.error = '';
     this.service.getOverview().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (data) => {
+        let changed = false;
+        for (const id of this.selected) {
+          const previous = this.overview?.posts.find((post) => post.id === id);
+          const current = data.posts.find((post) => post.id === id);
+          if (!previous || !current || previous.version !== current.version || previous.status !== current.status) {
+            this.selected.delete(id);
+            changed = true;
+          }
+        }
+        if (changed) this.notice = 'Se ha retirado la selección de artículos que cambiaron. Revísalos antes de continuar.';
         this.overview = data;
         this.loading = false;
         this.lastUpdatedChange.emit(new Date());
@@ -135,6 +146,7 @@ export class AdminRejectedInboxComponent implements OnInit, OnDestroy {
     this.detail = null;
     this.editOpen = false;
     this.editDraft = null;
+    this.editNotice = '';
     this.detailError = '';
     document.body.style.overflow = '';
   }
@@ -146,12 +158,14 @@ export class AdminRejectedInboxComponent implements OnInit, OnDestroy {
     if (!this.detail || !this.editDraft || this.editBusy) return;
     this.editBusy = true;
     this.editError = '';
+    this.editNotice = '';
     const id = this.detail.post.id;
     this.service.updatePost(id, { ...this.editDraft, expectedVersion: this.detail.version, expectedStatus: this.detail.post.status }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.editBusy = false;
         this.editOpen = false;
         this.notice = 'Borrador reescrito; vuelve a revisión sin aprobar';
+        this.editNotice = 'Cambios guardados. El borrador sigue pendiente de revisión.';
         if (this.detailOpen && this.detail?.post.id === id) this.openPost(id);
         this.load(true);
       },
@@ -183,7 +197,7 @@ export class AdminRejectedInboxComponent implements OnInit, OnDestroy {
     this.deleteBusy = true;
     this.service.deletePost(id, this.deleteTarget!.version, 'draft').pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => { this.deleteBusy = false; this.deleteTarget = null; this.selected.delete(id); this.notice = 'Borrador eliminado'; this.closeDetail(); this.load(true); },
-      error: (e) => { this.deleteBusy = false; this.deleteTarget = null; this.error = errorMessage(e, 'No se pudo eliminar el borrador'); },
+      error: (e) => { this.deleteBusy = false; this.deleteTarget = null; this.error = errorMessage(e, 'No se pudo eliminar el borrador'); if (this.detailOpen) this.detailError = this.error; },
     });
   }
 
