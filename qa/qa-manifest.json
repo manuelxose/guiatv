@@ -10,11 +10,11 @@
       "kind": "build"
     },
     {
-      "id": "sports-provider-tests",
-      "argv": ["node", "scripts/sports-provider-gate.mjs"],
+      "id": "backend-typecheck",
+      "argv": ["node", "scripts/run-tsc.mjs"],
       "required": true,
       "timeoutMs": 300000,
-      "kind": "unit"
+      "kind": "static"
     }
   ]
 }

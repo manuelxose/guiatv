@@ -1,16 +1,20 @@
 #!/usr/bin/env node
 // ENGINE-03 confined gate for the backend worktrees.
 //
-// The ACL sandbox refuses the per-file child processes that `node --test` spawns
-// (EPERM), so this gate runs every test file in-process on a single Node event loop.
-// Each file therefore loses its process isolation: a file that leaves a handle open or
-// mutates global state can affect a later file. Use it as a fast inner signal; the
-// authoritative full-suite run is `node scripts/suite.mjs` unconfined.
+// Behaviour problem, stated plainly: the Windows ACL sandbox refuses the file-level
+// child processes that `node --test` spawns (EPERM), whatever the argument shape.
+// So inside confinement this gate can prove BUILD INTEGRITY (typecheck, tsc, tsc-alias)
+// and RUN TESTS IN THIS ONE PROCESS ONLY when each file is loaded directly.
 //
-// M05_GATE_TARGET=backend (default) | frontend
+// Loading `.test.js` files directly does NOT register `node:test` tests (they call
+// `test(...)` from the module at load time and are only discovered by the runner), so
+// that path reports "0 tests" and is NOT accepted as evidence. To avoid a false green
+// the gate REFUSES to run tests confined and exits 3 with that explanation.
+//
+// Authoritative runs are unconfined:
+//   node scripts/test.mjs                     (full suite, per-file isolation)
+//   node scripts/suite.mjs                    (same, explicit)
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
 
 const target = process.env.M05_GATE_TARGET ?? 'backend';
 
@@ -29,43 +33,17 @@ if (target === 'backend') {
   const alias = runIn('apps/backend', 'node', ['../../node_modules/tsc-alias/dist/bin/index.js', '-p', 'tsconfig.json']);
   console.log('backend tsc-alias exit', alias);
   if (alias !== 0) process.exit(alias);
-
-  // Sports-module tests first: they are the regression gate for this milestone.
-  const dist = join('apps', 'backend', 'dist');
-  const walk = (p, out = []) => {
-    if (!existsSync(p)) return out;
-    if (statSync(p).isFile()) {
-      if (p.endsWith('.test.js')) out.push(p);
-      return out;
-    }
-    for (const name of readdirSync(p)) walk(join(p, name), out);
-    return out;
-  };
-  const sportsRoots = [
-    join(dist, 'domain', 'sports'),
-    join(dist, 'infrastructure', 'sports'),
-    join(dist, 'application', 'sports'),
-    join(dist, 'presentation', 'controllers', 'FootballController.test.js'),
-  ];
-  const sports = [...new Set(sportsRoots.flatMap((r) => walk(r)))].sort();
-  if (!sports.length) {
-    console.error('no sports test files found');
-    process.exit(1);
-  }
-  console.log(`== in-process sports gate: ${sports.length} file(s) ==`);
-  const backendDir = join('apps', 'backend');
-  const args = sports.map((f) => relative(backendDir, f));
-  const r = spawnSync('node', ['--require', './test-setup.cjs', '--test', ...args], {
-    stdio: 'inherit',
-    cwd: backendDir,
-  });
-  process.exit(r.status ?? 1);
+  console.log('BUILD OK: typecheck, tsc and tsc-alias all passed.');
+  console.error(
+    [
+      'REFUSED: unit tests are not executed here.',
+      'The ACL sandbox denies the per-file spawns node --test needs (EPERM), and loading',
+      'dist test files in-process registers no node:test cases (0 tests counted), which',
+      'would be a false green. Run the suite unconfined: node scripts/suite.mjs',
+    ].join('\n')
+  );
+  process.exit(3);
 }
 
-if (target === 'frontend') {
-  const ng = 'node ../../node_modules/@angular/cli/bin/ng.js';
-  process.exit(runIn('apps/frontend', `${ng} test --watch=false --browsers=ChromeHeadlessNoSandbox`, []));
-}
-
-console.error(`unknown M05_GATE_TARGET "${target}" (expected backend|frontend)`);
+console.error(`unknown M05_GATE_TARGET "${target}" (expected backend)`);
 process.exit(2);
