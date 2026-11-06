@@ -36,10 +36,32 @@ export interface MatchFetcher {
   fetchMatches(leagueShortcut: string, season: string | number, now?: Date): Promise<FootballMatch[]>;
 }
 
-export interface FootballIngestionServiceOptions {
-  providerId: string;
+/** One competition in the ingestion plan (M06). */
+export interface IngestionCompetition {
+  shortcuts: readonly string[];
+  season: string;
+}
+
+/** Per-competition result inside a single tick (M06). */
+export interface CompetitionOutcome {
   leagueShortcut: string;
   season: string;
+  outcome: 'success' | 'partial' | 'failed' | 'skipped' | 'empty';
+  reason?: string;
+  requestsUsed: number;
+  snapshotsWritten: number;
+  matches?: number;
+}
+
+export interface FootballIngestionServiceOptions {
+  providerId: string;
+  /**
+   * M06: the competitions this service ingests. When omitted, `leagueShortcut` +
+   * `season` are used for a single competition (M05 callers stay valid).
+   */
+  competitions?: readonly IngestionCompetition[];
+  leagueShortcut?: string;
+  season?: string;
   adapter: MatchFetcher;
   persistence: FootballPersistencePort;
   lock: LockPort;
@@ -70,6 +92,7 @@ export class FootballIngestionService {
 
   private readonly leagueShortcut: string;
   private readonly season: string;
+  private readonly competitions: readonly IngestionCompetition[];
   private readonly adapter: MatchFetcher;
   private readonly persistence: FootballPersistencePort;
   private readonly lock: LockPort;
@@ -92,8 +115,12 @@ export class FootballIngestionService {
 
   constructor(options: FootballIngestionServiceOptions) {
     this.providerId = options.providerId;
-    this.leagueShortcut = options.leagueShortcut;
-    this.season = options.season;
+    this.competitions =
+      options.competitions && options.competitions.length > 0
+        ? options.competitions
+        : [{ shortcuts: [options.leagueShortcut ?? 'bl1'], season: options.season ?? '2026' }];
+    this.leagueShortcut = this.competitions[0]?.shortcuts[0] ?? 'bl1';
+    this.season = this.competitions[0]?.season ?? '2026';
     this.adapter = options.adapter;
     this.persistence = options.persistence;
     this.lock = options.lock;
@@ -188,77 +215,135 @@ export class FootballIngestionService {
     }
 
     this.budget.beginRun(nowMs);
-    if (!this.budget.tryAcquire('normal', nowMs)) {
-      this.metrics.health = 'degraded';
-      return { outcome: 'skipped', reason: 'budget_exhausted', requestsUsed: 0, snapshotsWritten: 0 };
+
+    // M06: one tick serves every approved competition under the SAME lock and the
+    // SAME budget. Each competition consumes one request from the shared quota; a
+    // refused or failed competition is recorded individually and never prevents the
+    // others from being ingested, and nothing is ever written on its behalf.
+    const perCompetition: CompetitionOutcome[] = [];
+    const startedAll = this.clock();
+    let requestsUsed = 0;
+    let snapshotsWritten = 0;
+    let anySuccess = false;
+    let anyFailure = false;
+    let anyStale = false;
+    let budgetRefused = false;
+    const allMatches: FootballMatch[] = [];
+    let lastIdentityConflicts = 0;
+
+    for (const competition of this.competitions) {
+      const shortcut = competition.shortcuts[0] ?? '';
+      if (!this.budget.tryAcquire('normal', this.clock())) {
+        budgetRefused = true;
+        perCompetition.push({ leagueShortcut: shortcut, season: competition.season, outcome: 'skipped', reason: 'budget_exhausted', requestsUsed: 0, snapshotsWritten: 0 });
+        continue;
+      }
+      requestsUsed += 1;
+      try {
+        const degraded = await this.singleFlight.do(
+          `${this.providerId}:season:${shortcut}:${competition.season}`,
+          () => this.degradation.get(() => this.adapter.fetchMatches(shortcut, competition.season))
+        );
+        const matches = degraded.value;
+        const ingestedAt = new Date(this.clock()).toISOString();
+        const { snapshots, identityConflicts } = buildSnapshots(matches, this.providerId, ingestedAt);
+        const written = await this.persistence.upsertSnapshots(snapshots);
+        snapshotsWritten += written;
+        lastIdentityConflicts = identityConflicts;
+        allMatches.push(...matches);
+        anySuccess = true;
+        if (degraded.stale) anyStale = true;
+        // An empty provider response is NOT a success. It is a truthful, distinct
+        // state: the competition is covered but supplied nothing this run (e.g. its
+        // fixtures aged out of the provider's window). Reporting 'success' with zero
+        // matches would be a false-healthy signal.
+        if (matches.length === 0) {
+          perCompetition.push({
+            leagueShortcut: shortcut,
+            season: competition.season,
+            outcome: 'empty',
+            reason: 'provider returned no matches for this competition',
+            requestsUsed: 1,
+            snapshotsWritten: 0,
+            matches: 0,
+          });
+          continue;
+        }
+        perCompetition.push({
+          leagueShortcut: shortcut,
+          season: competition.season,
+          outcome: degraded.stale ? 'partial' : 'success',
+          requestsUsed: 1,
+          snapshotsWritten: written,
+          matches: matches.length,
+        });
+      } catch (error) {
+        const message = redact(error instanceof Error ? error.message : String(error));
+        anyFailure = true;
+        pushError(this.metrics, 'provider', `${shortcut}: ${message}`, this.maxStoredErrors, this.clock());
+        perCompetition.push({ leagueShortcut: shortcut, season: competition.season, outcome: 'failed', reason: message, requestsUsed: 1, snapshotsWritten: 0 });
+      }
     }
 
-    const started = this.clock();
-    try {
-      const degraded = await this.singleFlight.do(
-        `${this.providerId}:season:${this.leagueShortcut}:${this.season}`,
-        () => this.degradation.get(() => this.adapter.fetchMatches(this.leagueShortcut, this.season))
-      );
-      const matches = degraded.value;
-      const ingestedAt = new Date(this.clock()).toISOString();
-      const { snapshots, identityConflicts } = buildSnapshots(matches, this.providerId, ingestedAt);
-      const written = await this.persistence.upsertSnapshots(snapshots);
+        this.nextPollIntervalMs = this.scheduler.minimumIntervalMs(
+      allMatches.map((m) => ({ kickoffAt: m.kickoffAt, status: m.status })),
+      this.clock()
+    );
 
-      this.nextPollIntervalMs = this.scheduler.minimumIntervalMs(
-        matches.map((m) => ({ kickoffAt: m.kickoffAt, status: m.status })),
-        this.clock()
-      );
-      this.metrics.lastSuccessAt = this.clock();
-      this.metrics.lastLatencyMs = this.clock() - started;
-      this.metrics.identityConflicts = identityConflicts;
-      this.metrics.activeMatches = countActive(matches);
-      this.metrics.fieldCoverage = computeFieldCoverage(matches);
-      this.metrics.staleSnapshots = degraded.stale
-        ? matches.length
-        : computeStaleCount(matches, this.clock(), this.stalenessMs);
-      this.metrics.queueSize = snapshots.length;
-      this.metrics.health = degraded.stale || this.consecutiveFailures > 0 ? 'degraded' : 'ok';
-      this.consecutiveFailures = 0;
-      this.coordinator.publish(matches);
-
-      await this.persistence.updateSyncState(this.providerId, {
-        provider: this.providerId,
-        lastSuccessAt: new Date(this.clock()).toISOString(),
-        consecutiveFailures: 0,
-        quotaConsumedToday: this.budget.consumedToday(),
-        quotaResetAt: new Date(this.budget.snapshot().quotaResetAt).toISOString(),
-        circuitState: 'closed',
-      });
-      await this.recordRun(runId, degraded.stale ? 'partial' : 'success', 1, [], nowMs);
-
-      return {
-        outcome: degraded.stale ? 'partial' : 'success',
-        requestsUsed: 1,
-        snapshotsWritten: written,
-        nextPollIntervalMs: this.nextPollIntervalMs,
-        buckets: bucketCounts(matches, this.clock(), this.scheduler),
-      };
-    } catch (error) {
-      const message = redact(error instanceof Error ? error.message : String(error));
+    if (!anySuccess) {
+      if (budgetRefused && requestsUsed === 0) {
+        this.metrics.health = 'degraded';
+        await this.recordRun(runId, 'failed', 0, ['budget_exhausted'], nowMs);
+        return { outcome: 'skipped', reason: 'budget_exhausted', requestsUsed: 0, snapshotsWritten: 0 };
+      }
+      const firstError = perCompetition.find((c) => c.outcome === 'failed')?.reason ?? 'no competitions ingested';
       this.consecutiveFailures += 1;
       this.metrics.lastErrorAt = this.clock();
-      pushError(this.metrics, 'provider', message, this.maxStoredErrors, this.clock());
       this.metrics.health = this.consecutiveFailures >= this.circuitFailureThreshold ? 'down' : 'degraded';
       if (this.consecutiveFailures >= this.circuitFailureThreshold) {
         this.circuitOpenUntil = this.clock() + this.circuitOpenMs;
       }
-
       await this.persistence.updateSyncState(this.providerId, {
         provider: this.providerId,
         lastErrorAt: new Date(this.clock()).toISOString(),
         consecutiveFailures: this.consecutiveFailures,
         circuitState: this.consecutiveFailures >= this.circuitFailureThreshold ? 'open' : 'closed',
       });
-      await this.recordRun(runId, 'failed', 1, [message], nowMs);
-
-      // Nothing is written on failure: the last good snapshots remain.
-      return { outcome: 'failed', requestsUsed: 1, snapshotsWritten: 0 };
+      await this.recordRun(runId, 'failed', requestsUsed, [firstError], nowMs);
+      // Nothing is written on a total failure: the last good snapshots remain.
+      return { outcome: 'failed', requestsUsed, snapshotsWritten: 0 };
     }
+
+    const outcome: 'success' | 'partial' = anyFailure || anyStale ? 'partial' : 'success';
+    this.metrics.lastSuccessAt = this.clock();
+    this.metrics.lastLatencyMs = this.clock() - startedAll;
+    this.metrics.identityConflicts = lastIdentityConflicts;
+    this.metrics.activeMatches = countActive(allMatches);
+    this.metrics.fieldCoverage = computeFieldCoverage(allMatches);
+    this.metrics.staleSnapshots = anyStale ? allMatches.length : computeStaleCount(allMatches, this.clock(), this.stalenessMs);
+    this.metrics.queueSize = snapshotsWritten;
+    this.metrics.health = anyFailure || anyStale || this.consecutiveFailures > 0 ? 'degraded' : 'ok';
+    this.consecutiveFailures = 0;
+    this.coordinator.publish(allMatches);
+
+    await this.persistence.updateSyncState(this.providerId, {
+      provider: this.providerId,
+      lastSuccessAt: new Date(this.clock()).toISOString(),
+      consecutiveFailures: 0,
+      quotaConsumedToday: this.budget.consumedToday(),
+      quotaResetAt: new Date(this.budget.snapshot().quotaResetAt).toISOString(),
+      circuitState: 'closed',
+    });
+    await this.recordRun(runId, outcome, requestsUsed, [], nowMs);
+
+    return {
+      outcome,
+      requestsUsed,
+      snapshotsWritten,
+      nextPollIntervalMs: this.nextPollIntervalMs,
+      buckets: bucketCounts(allMatches, this.clock(), this.scheduler),
+      competitions: perCompetition,
+    } as TickResult;
   }
 
   private isCircuitOpen(nowMs: number): boolean {
