@@ -295,6 +295,14 @@ html[data-theme='dark'] {
   --portal-text-muted: var(--spotify-silver);
   --portal-text-faint: #727272;
 
+  /* M14-R7: the light-theme accent text tokens are dark colours chosen for a light surface; on the dark
+     surfaces (#181818 … #1f1f1f) they measured 2.50–3.02:1 and failed WCAG AA. The dark theme gets its own
+     light-on-dark variants, which measure 8.17–10.49:1. The *-bg/border tokens are untouched. */
+  --accent-live-text: #ff9aa4;
+  --accent-discover-text: #4ade80;
+  --accent-sports-text: #ffc46b;
+  --accent-streaming-text: #7cc0ff;
+
   --assistant-chip-bg: var(--spotify-bg-elevated);
   --assistant-chip-text: var(--spotify-white);
   --assistant-chip-border: var(--spotify-border-gray);

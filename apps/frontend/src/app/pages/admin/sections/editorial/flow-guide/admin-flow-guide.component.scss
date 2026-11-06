@@ -267,23 +267,10 @@ a {
   flex-wrap: wrap;
   gap: 6px;
 }
-/* M14-R7 · WCAG 1.4.3: los textos de los badges usan los alias `-text` de los tokens,
-   que los define el:root pero fijan un valor apto SOLO para la superficie clara
-   (#0f7a33, #8a5200, #1a5fa8, #a8323d miden 2.7–3.2:1 sobre #181818 en tema oscuro).
-   Aquí se re-mapean a los primitivos claros, que sí cumplen AA sobre las superficies oscuras. */
-// Un host encadenado a :host-context rompe la encapsulación del padre: todos los
-// badges del host son hijos directos, así que `:host-context(...) app-admin-status-badge`
-// basta y además cubre los badges de los drawers del componente.
-:host-context(html[data-theme='dark']) app-admin-status-badge {
-  --accent-discover-text: #4ade80;
-  --spotify-green-text: #4ade80;
-  --accent-streaming-text: #7cc0ff;
-  --spotify-announce-text: #7cc0ff;
-  --accent-sports-text: #ffc46b;
-  --spotify-warning-text: #ffc46b;
-  --accent-live-text: #ff9aa4;
-  --spotify-negative-text: #ff9aa4;
-}
+/* M14-R7 · WCAG 1.4.3: los alias `-text` ya tienen variante clara en tema oscuro
+   dentro de design-tokens.scss (medido: 8,17–10,49:1 sobre #181818–#1f1f1f), así que
+   este componente NO re-mapea tokens: hereda el arreglo global y el sistema queda
+   consistente con el resto del panel. */
 
 /* Los textos de estado propios de la guía (`No disponible` y el motivo de la etapa) usan
    los alias de advertencia; se re-declaran en el host para que también cumplan AA sobre
