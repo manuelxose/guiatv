@@ -80,9 +80,15 @@ export class SnapshotFootballDataProvider implements FootballDataProvider {
   async getMatch(idOrSlug: string): Promise<FootballMatch | null> {
     const key = String(idOrSlug ?? '').trim();
     if (!key) return null;
-    // Exact identity first (canonical slug or provider match id), never a wide scan.
-    let doc = await FootballSnapshotModel.findOne({ canonicalKey: key }).lean().exec();
-    if (!doc) doc = await FootballSnapshotModel.findOne({ matchId: key }).lean().exec();
+    // Resolve by stable identity first (provider match id, then the internal
+    // canonical key), and by the display slug LAST. This keeps public semantic
+    // routes unchanged (the display slug still resolves, including for legacy
+    // slug-keyed records) while guaranteeing a duplicate-slug situation never
+    // returns the wrong match when a stable id is available. The internal
+    // canonical identity must never leak into a user-visible URL.
+    let doc = await FootballSnapshotModel.findOne({ matchId: key }).lean().exec();
+    if (!doc) doc = await FootballSnapshotModel.findOne({ canonicalKey: key }).lean().exec();
+    if (!doc) doc = await FootballSnapshotModel.findOne({ 'match.slug': key }).lean().exec();
     if (!doc) return null;
     return (doc as any).match as FootballMatch;
   }

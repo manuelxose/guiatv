@@ -48,7 +48,13 @@ export interface ProviderSyncState {
   circuitState: 'closed' | 'open' | 'half_open';
 }
 
-export type IngestionRunOutcome = 'success' | 'partial' | 'failed' | 'skipped';
+/**
+ * F03: `empty` is a first-class, truthful outcome — a successful FETCH that
+ * acquired zero useful records. It is distinct from `success` (acquired records)
+ * and `failed` (the fetch itself failed). An all-empty run must never advance
+ * `lastSuccessAt` or report healthy.
+ */
+export type IngestionRunOutcome = 'success' | 'partial' | 'failed' | 'skipped' | 'empty';
 
 export interface IngestionRunRecord {
   runId: string;

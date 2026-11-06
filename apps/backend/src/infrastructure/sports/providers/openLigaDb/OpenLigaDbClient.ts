@@ -9,6 +9,8 @@
  * returns HTTP 200, no auth, no documented rate limit.
  */
 
+import { assertEligible } from '../eligibility/providerEligibilityRegistry';
+
 export type OpenLigaDbFailureKind = 'timeout' | 'rate_limited' | 'auth' | 'http' | 'malformed';
 
 export interface OpenLigaDbFailure {
@@ -55,6 +57,14 @@ export class OpenLigaDbClient {
   private readonly options: OpenLigaDbClientOptions;
 
   constructor(fetchImpl: FetchLike, options: OpenLigaDbClientOptions = {}) {
+    // F05: the single enforced admission boundary. A provider client can only be
+    // constructed AFTER the eligibility registry admits the provider, so a
+    // blocked/prototype provider can never be constructed, issue a request, or
+    // write. This runs before `fetchImpl` is retained and before any external
+    // call, and it is the ONLY gate the ingestion paths pass through (scheduled
+    // loop, manual sync, CLI, startup/recovery all build this client via the
+    // factory — there is no separate fallback adapter).
+    assertEligible('openligadb');
     this.fetchImpl = fetchImpl;
     this.options = options;
   }

@@ -1,6 +1,8 @@
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildFootballIngestionService, resolveCompetitionPlan } from './factory';
+import * as eligibility from '@/infrastructure/sports/providers/eligibility/providerEligibilityRegistry';
+import { ProviderNotEligibleError } from '@/infrastructure/sports/providers/eligibility/providerEligibilityRegistry';
 
 /**
  * These tests run without a MongoDB connection, so they exercise the explicitly
@@ -87,4 +89,43 @@ test('M06: the competition plan never widens beyond the verified competitions', 
   assert.equal(narrowed.length, 2);
   const unknown = resolveCompetitionPlan('la1,nope');
   assert.equal(unknown.length, 0, 'an unknown code must never reach the provider');
+});
+
+// ─────────────────────────────────────────────────────────────────── F05
+
+test('F05: constructing the client passes the eligibility boundary before any request', () => {
+  const gate = mock.method(eligibility, 'assertEligible');
+  try {
+    withLocalQuota(() => {
+      buildFootballIngestionService({
+        fetch: async () => ({ ok: true, status: 200, json: async () => [] }),
+      });
+    });
+    assert.ok(gate.mock.calls.length >= 1, 'the admission boundary must run at construction');
+    assert.equal(gate.mock.calls[0].arguments[0], 'openligadb');
+  } finally {
+    gate.mock.restore();
+  }
+});
+
+test('F05: a refused provider cannot construct a client, issue a request or write', () => {
+  const gate = mock.method(eligibility, 'assertEligible', () => {
+    throw new ProviderNotEligibleError('openligadb', 'blocked', 'test: provider blocked');
+  });
+  let fetchCalled = false;
+  try {
+    assert.throws(
+      () =>
+        buildFootballIngestionService({
+          fetch: async () => {
+            fetchCalled = true;
+            throw new Error('must not be called');
+          },
+        }),
+      ProviderNotEligibleError
+    );
+    assert.equal(fetchCalled, false, 'no request may be issued when the admission boundary refuses');
+  } finally {
+    gate.mock.restore();
+  }
 });

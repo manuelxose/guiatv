@@ -28,6 +28,7 @@ import {
   FootballDiagnosticsReport,
   FootballPersistencePort,
   IngestionBucket,
+  IngestionRunOutcome,
   ProviderDiagnostics,
   TickResult,
 } from './types';
@@ -245,6 +246,7 @@ export class FootballIngestionService {
     let anySuccess = false;
     let anyFailure = false;
     let anyStale = false;
+    let anyEmpty = false;
     let budgetRefused = false;
     const allMatches: FootballMatch[] = [];
     let lastIdentityConflicts = 0;
@@ -275,6 +277,7 @@ export class FootballIngestionService {
         // fixtures aged out of the provider's window). Reporting 'success' with zero
         // matches would be a false-healthy signal.
         if (matches.length === 0) {
+          anyEmpty = true;
           perCompetition.push({
             leagueShortcut: shortcut,
             season: competition.season,
@@ -323,7 +326,10 @@ export class FootballIngestionService {
         this.metrics.health = 'degraded';
         this.metrics.staleSnapshots = 0;
         this.cachedBudget = await this.budget.snapshot(this.clock());
-        await this.recordRun(runId, 'partial', requestsUsed, [], nowMs);
+        // F03: an all-empty run is a successful FETCH that acquired no records.
+        // It is persisted truthfully as 'empty' — never 'success' or 'partial' —
+        // and it must not advance lastSuccessAt or report healthy.
+        await this.recordRun(runId, 'empty', requestsUsed, [], nowMs);
         return {
           outcome: 'empty',
           reason: 'every competition returned no matches',
@@ -351,7 +357,11 @@ export class FootballIngestionService {
       return { outcome: 'failed', requestsUsed, snapshotsWritten: 0 };
     }
 
-    const outcome: 'success' | 'partial' = anyFailure || anyStale ? 'partial' : 'success';
+    // F03: a run that acquired at least one record is 'success' only when every
+    // competition fetched useful records. A competition that answered empty, a
+    // stale-served value, or a failure each make the run 'partial' — never a
+    // false 'success'.
+    const outcome: 'success' | 'partial' = anyFailure || anyStale || anyEmpty ? 'partial' : 'success';
     this.metrics.lastSuccessAt = this.clock();
     this.metrics.lastLatencyMs = this.clock() - startedAll;
     this.metrics.identityConflicts = lastIdentityConflicts;
@@ -390,7 +400,7 @@ export class FootballIngestionService {
 
   private async recordRun(
     runId: string,
-    outcome: 'success' | 'partial' | 'failed',
+    outcome: IngestionRunOutcome,
     requestsUsed: number,
     errors: string[],
     nowMs: number

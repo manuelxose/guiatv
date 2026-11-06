@@ -242,3 +242,57 @@ test('the tick reports bucket counts and a next poll interval', async () => {
   assert.equal(result.buckets?.live, 1);
   assert.equal(result.nextPollIntervalMs, 30_000);
 });
+
+// ─────────────────────────────────────────────────────────────────── F03
+
+test('F03: an all-empty run records `empty` and does not advance lastSuccessAt or report healthy', async () => {
+  const persistence = new FakePersistence();
+  const service = makeService({ adapter: fakeAdapter([]), persistence });
+
+  const result = await service.runTick();
+  assert.equal(result.outcome, 'empty', 'a successful fetch with zero records is empty, not success');
+  assert.equal(result.snapshotsWritten, 0);
+
+  // The run record persisted the truthful empty outcome.
+  assert.equal(persistence.runs.length, 1);
+  assert.equal(persistence.runs[0].outcome, 'empty');
+
+  // No success clock, no healthy state.
+  const provider = service.diagnostics().providers[0];
+  assert.equal(provider.lastSuccessAt, undefined);
+  assert.notEqual(provider.health, 'ok');
+
+  // No sync state wrote lastSuccessAt either.
+  assert.equal(persistence.states.get('openligadb')?.lastSuccessAt, undefined);
+});
+
+test('F03: a mixed run (one real competition + one empty) is partial and advances lastSuccessAt', async () => {
+  const persistence = new FakePersistence();
+  let call = 0;
+  const service = new FootballIngestionService({
+    providerId: 'openligadb',
+    competitions: [
+      { shortcuts: ['bl1'], season: '2026' },
+      { shortcuts: ['ucl'], season: '2026' },
+    ],
+    adapter: {
+      fetchMatches: async () => {
+        call += 1;
+        return call === 1 ? [match('1', 'a', 'b', '2026-08-14T19:30:00Z')] : [];
+      },
+    },
+    persistence,
+    lock: new InMemoryLock(),
+    budget: new LocalBudgetAdapter(
+      new RequestBudget(
+        { dailyBudget: 100, liveReserve: 0, perRunCap: 10, throttleBackoffMs: 0 },
+        { clock: () => T0, resetAt: T0 + 24 * 60 * 60 * 1000 }
+      )
+    ),
+    clock: () => T0,
+  });
+
+  const result = await service.runTick();
+  assert.equal(result.outcome, 'partial', 'one real competition plus one empty is a partial success');
+  assert.ok(service.diagnostics().providers[0].lastSuccessAt, 'a run that ingested real matches advances lastSuccessAt');
+});
