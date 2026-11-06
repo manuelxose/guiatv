@@ -96,3 +96,6 @@ mcp.json
 # Deploy bookkeeping on the server
 /.deploy-lock-sha256
 /.artifact-incoming
+
+# AgentTeams runtime state (local only, never committed)
+.agent-teams/
