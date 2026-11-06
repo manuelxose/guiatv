@@ -55,7 +55,7 @@
         <caption class="sr-only">Cuadrícula de indexación de URLs públicas</caption>
         <thead>
           <tr>
-            <th><input type="checkbox" [checked]="allSelected" (change)="toggleSelectAll()" aria-label="Seleccionar todo" /></th>
+            <th><input class="h-6 w-6" type="checkbox" [checked]="allSelected" (change)="toggleSelectAll()" aria-label="Seleccionar todo" /></th>
             <th><button (click)="sortBy('url')">URL</button></th>
             <th><button (click)="sortBy('publishedAt')">Publicación</button></th>
             <th><button (click)="sortBy('state')">Estado Google</button></th>
@@ -66,7 +66,7 @@
         </thead>
         <tbody>
           <tr *ngFor="let row of page.rows; trackBy: trackUrl">
-            <td><input type="checkbox" [checked]="selected.has(row.url)" (change)="toggleSelect(row.url)" [attr.aria-label]="'Seleccionar ' + row.url" /></td>
+            <td><input class="h-6 w-6" type="checkbox" [checked]="selected.has(row.url)" (change)="toggleSelect(row.url)" [attr.aria-label]="'Seleccionar ' + row.url" /></td>
             <td class="cell-url">
               <span class="url">{{ row.url }}</span>
               <span class="type">{{ row.contentType }}</span>

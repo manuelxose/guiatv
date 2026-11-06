@@ -98,6 +98,7 @@ export class AdminJobLedgerComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.subs.unsubscribe();
     if (this.timer) clearInterval(this.timer);
+    document.body.style.overflow = '';
   }
 
   /** WCAG 2.2: Escape closes the topmost layer without trapping focus. */
@@ -282,6 +283,7 @@ export class AdminJobLedgerComponent implements OnInit, OnDestroy {
     const ids = job ? [job.jobId] : [...this.selected];
     if (!ids.length) return;
     this.rememberFocus();
+    document.body.style.overflow = 'hidden';
     const label = {
       pause: 'Pausar', resume: 'Reanudar', cancel: 'Cancelar', retry: 'Reintentar', recover: 'Recuperar', archive: 'Archivar', delete: 'Borrar metadatos',
     }[action];
@@ -296,6 +298,7 @@ export class AdminJobLedgerComponent implements OnInit, OnDestroy {
     if (this.pendingBusy) return;
     this.pending = null;
     this.pendingReason = '';
+    if (!this.detailOpen) document.body.style.overflow = '';
     this.restoreFocus();
   }
 
@@ -362,11 +365,17 @@ export class AdminJobLedgerComponent implements OnInit, OnDestroy {
 
   openDetail(job: EditorialLedgerJob): void {
     this.rememberFocus();
+    document.body.style.overflow = 'hidden';
     this.detail = job;
     this.detailOpen = true;
     this.refreshDetail();
   }
-  closeDetail(): void { this.detailOpen = false; this.detail = null; this.restoreFocus(); }
+  closeDetail(): void {
+    this.detailOpen = false;
+    this.detail = null;
+    if (!this.pending) document.body.style.overflow = '';
+    this.restoreFocus();
+  }
   private refreshDetail(): void {
     if (!this.detail) return;
     this.detailLoading = true;

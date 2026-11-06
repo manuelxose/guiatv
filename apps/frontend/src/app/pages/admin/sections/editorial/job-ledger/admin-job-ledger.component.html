@@ -36,7 +36,7 @@
         <option value="">Todos</option>
       </select>
     </div>
-    <label class="check"><input type="checkbox" name="stale" [(ngModel)]="stale" (ngModelChange)="applyFilters()" /> Solo lease expirado</label>
+    <label class="check"><input class="h-6 w-6" type="checkbox" name="stale" [(ngModel)]="stale" (ngModelChange)="applyFilters()" /> Solo lease expirado</label>
     <button type="button" class="button secondary" (click)="clearFilters()">Limpiar</button>
   </form>
 
@@ -56,7 +56,7 @@
       <caption class="sr-only">Trabajos del motor editorial, {{ page.total }} en total</caption>
       <thead>
         <tr>
-          <th scope="col" class="select"><input type="checkbox" [checked]="allSelected" (change)="toggleAll()" aria-label="Seleccionar todos los trabajos de esta página" /></th>
+          <th scope="col" class="select"><input class="h-6 w-6" type="checkbox" [checked]="allSelected" (change)="toggleAll()" aria-label="Seleccionar todos los trabajos de esta página" /></th>
           <th scope="col" [attr.aria-sort]="sortAria('slug')"><button type="button" class="sort-btn" (click)="toggleSort('slug')">Trabajo<span aria-hidden="true">{{ sortKey === 'slug' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '' }}</span></button></th>
           <th scope="col" [attr.aria-sort]="sortAria('state')"><button type="button" class="sort-btn" (click)="toggleSort('state')">Estado<span aria-hidden="true">{{ sortKey === 'state' ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '' }}</span></button></th>
           <th scope="col">Etapa</th>
@@ -69,7 +69,7 @@
       </thead>
       <tbody>
         <tr *ngFor="let job of sortedItems; trackBy: trackJob" [class.selected]="isSelected(job.jobId)">
-          <td class="select"><input type="checkbox" [checked]="isSelected(job.jobId)" (change)="toggle(job.jobId)" [attr.aria-label]="'Seleccionar ' + job.slug" /></td>
+          <td class="select"><input class="h-6 w-6" type="checkbox" [checked]="isSelected(job.jobId)" (change)="toggle(job.jobId)" [attr.aria-label]="'Seleccionar ' + job.slug" /></td>
           <td>
             <button type="button" class="table-link" (click)="openDetail(job)">{{ job.slug }}</button>
             <small>{{ shortJob(job.jobId) }} · {{ job.kind }}</small>

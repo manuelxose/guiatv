@@ -37,10 +37,12 @@ const STATUS_TONE: Record<string, AdminStatusTone> = {
 // Tailwind palette hues, so status colors stay in lockstep with the rest of
 // the reskin across both themes.
 const TONE_CLASSES: Record<AdminStatusTone, string> = {
-  positive: 'border-[var(--accent-discover)]/40 text-[var(--accent-discover)] bg-[var(--accent-discover)]/10',
-  warning: 'border-[var(--spotify-warning)]/40 text-[var(--spotify-warning)] bg-[var(--spotify-warning)]/10',
-  critical: 'border-[var(--spotify-negative)]/40 text-[var(--spotify-negative)] bg-[var(--spotify-negative)]/10',
-  neutral: 'border-[var(--accent-streaming)]/40 text-[var(--accent-streaming)] bg-[var(--accent-streaming)]/10',
+  // Text uses the text-safe accent aliases (WCAG 1.4.3): the raw accents measure 1.65–2.80:1 on the
+  // light admin surfaces; borders and fills keep the original tokens.
+  positive: 'border-[var(--accent-discover)]/40 text-[var(--accent-discover-text)] bg-[var(--accent-discover)]/10',
+  warning: 'border-[var(--spotify-warning)]/40 text-[var(--spotify-warning-text)] bg-[var(--spotify-warning)]/10',
+  critical: 'border-[var(--spotify-negative)]/40 text-[var(--spotify-negative-text)] bg-[var(--spotify-negative)]/10',
+  neutral: 'border-[var(--accent-streaming)]/40 text-[var(--accent-streaming-text)] bg-[var(--accent-streaming)]/10',
   unknown: 'border-[var(--portal-border-strong)] text-[var(--portal-text-soft)] bg-[var(--portal-surface-strong)]',
 };
 

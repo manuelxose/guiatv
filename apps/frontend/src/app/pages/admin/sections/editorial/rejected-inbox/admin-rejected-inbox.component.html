@@ -29,7 +29,7 @@
       <caption class="sr-only">Borradores rechazados o bloqueados, {{ rejectedPosts.length }} en total</caption>
       <thead class="text-left text-[var(--portal-text-muted)]">
         <tr>
-          <th scope="col" class="p-4 w-11"><input type="checkbox" [checked]="allSelected" (change)="toggleAll()" aria-label="Seleccionar todos los borradores rechazados" /></th>
+          <th scope="col" class="p-4 w-11"><input class="h-6 w-6" type="checkbox" [checked]="allSelected" (change)="toggleAll()" aria-label="Seleccionar todos los borradores rechazados" /></th>
           <th scope="col" class="p-4">Artículo</th>
           <th scope="col">Estado</th>
           <th scope="col">Crítico</th>
@@ -40,13 +40,13 @@
       </thead>
       <tbody>
         <tr *ngFor="let post of rejectedPosts; trackBy: trackPost" class="border-t border-[var(--portal-border)]">
-          <td class="p-4"><input type="checkbox" [checked]="isSelected(post.id)" (change)="toggle(post.id)" [attr.aria-label]="'Seleccionar ' + post.title" /></td>
+          <td class="p-4"><input class="h-6 w-6" type="checkbox" [checked]="isSelected(post.id)" (change)="toggle(post.id)" [attr.aria-label]="'Seleccionar ' + post.title" /></td>
           <td class="p-4"><button type="button" class="text-left font-semibold text-[var(--portal-text)] underline underline-offset-2" (click)="openPost(post.id)">{{ post.title || post.slug }}</button><small class="block text-[var(--portal-text-muted)]">{{ post.slug }} · {{ post.updatedAt | date: 'short' }}</small></td>
           <td><app-admin-status-badge [status]="post.pipelineState" [label]="stateLabel(post.pipelineState)"></app-admin-status-badge></td>
           <td>{{ stateLabel(post.criticVerdict) }}</td>
           <td class="numeric">${{ post.costUsd | number: '1.2-4' }}</td>
           <td><span class="text-xs" [ngClass]="canRetry(post) ? 'text-[var(--accent-discover-text)]' : 'text-[var(--portal-text-muted)]'">{{ eligibilityText(post) }}</span></td>
-          <td><div class="flex flex-wrap gap-3"><button type="button" class="text-[var(--portal-text)] underline text-xs" (click)="openPost(post.id)">Revisar</button><button *ngIf="canRetry(post)" type="button" class="text-[var(--portal-text)] underline text-xs" (click)="requeue(post.id)" [disabled]="busy === post.id">Reintentar</button><button type="button" class="text-[var(--spotify-negative-text)] underline text-xs" (click)="requestDelete(post)">Eliminar borrador</button></div></td>
+          <td><div class="flex flex-wrap gap-3"><button type="button" class="text-[var(--portal-text)] underline text-xs inline-flex items-center min-h-6 px-0.5" (click)="openPost(post.id)">Revisar</button><button *ngIf="canRetry(post)" type="button" class="text-[var(--portal-text)] underline text-xs inline-flex items-center min-h-6 px-0.5" (click)="requeue(post.id)" [disabled]="busy === post.id">Reintentar</button><button type="button" class="text-[var(--spotify-negative-text)] underline text-xs inline-flex items-center min-h-6 px-0.5" (click)="requestDelete(post)">Eliminar borrador</button></div></td>
         </tr>
       </tbody>
     </table>
