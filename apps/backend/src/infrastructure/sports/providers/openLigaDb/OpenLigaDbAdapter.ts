@@ -34,8 +34,10 @@ export interface OpenLigaDbGoalEvent {
   providerEventId: string;
   /** The goal's own minute (`matchMinute`), not the live match clock. */
   minute: number | null;
-  scorer: string;
-  teamId: string;
+  /** Scorer name, absent when the provider did not report one (never an empty string). */
+  scorer?: string;
+  /** Scoring team's provider id, absent when the provider did not report it. */
+  teamId?: string;
   penalty: boolean;
   ownGoal: boolean;
   overtime: boolean;
@@ -173,8 +175,8 @@ function mapGoalEvents(goals: unknown): OpenLigaDbGoalEvent[] {
     events.push({
       providerEventId: String(record.goalID),
       minute: isFinite(record.matchMinute) ? record.matchMinute : null,
-      scorer: typeof record.goalGetterName === 'string' ? record.goalGetterName : '',
-      teamId: record.scoringTeamId != null ? String(record.scoringTeamId) : '',
+      scorer: typeof record.goalGetterName === 'string' && record.goalGetterName.trim() ? record.goalGetterName : undefined,
+      teamId: record.scoringTeamId != null ? String(record.scoringTeamId) : undefined,
       penalty: record.isPenalty === true,
       ownGoal: record.isOwnGoal === true,
       overtime: record.isOvertime === true,
