@@ -122,6 +122,7 @@ export interface EditorialLedgerBulkResult {
 
 export interface EditorialPostSummary {
   id: string;
+  version: number | null;
   slug: string;
   title: string;
   status: 'draft' | 'publish';

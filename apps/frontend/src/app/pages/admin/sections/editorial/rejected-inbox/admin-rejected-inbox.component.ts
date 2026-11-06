@@ -3,7 +3,7 @@ import { A11yModule } from '@angular/cdk/a11y';
 import { Component, DestroyRef, ElementRef, EventEmitter, HostListener, OnDestroy, OnInit, Output, ViewChild, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { Observable, catchError, concatMap, from, interval, map, of } from 'rxjs';
+import { Observable, catchError, concatMap, from, interval, map, of, throwError } from 'rxjs';
 import {
   AdminEditorialService,
   EditorialOverview,
@@ -48,7 +48,7 @@ export class AdminRejectedInboxComponent implements OnInit, OnDestroy {
   editBusy = false;
   editError = '';
   editDraft: { title: string; excerpt: string; content: string; metaTitle: string; metaDescription: string } | null = null;
-  deleteTarget: EditorialPostSummary | null = null;
+  deleteTarget: { id: string; title: string; version: number | null } | null = null;
   deleteBusy = false;
   bulkBusy: '' | 'requeue' | 'delete' = '';
   bulkResults: BulkResult[] = [];
@@ -138,20 +138,21 @@ export class AdminRejectedInboxComponent implements OnInit, OnDestroy {
     this.detailError = '';
     document.body.style.overflow = '';
   }
-  @HostListener('document:keydown.escape') onEscape(): void { if (this.detailOpen) this.closeDetail(); }
+  @HostListener('document:keydown.escape') onEscape(): void { if (this.detailOpen && !this.deleteTarget) this.closeDetail(); }
 
   startEdit(): void { this.editOpen = true; this.editError = ''; }
-  cancelEdit(): void { this.editOpen = false; this.editError = ''; }
+  cancelEdit(): void { if (this.editDraft && this.detail) this.editDraft.content = this.detail.post.content; this.editOpen = false; this.editError = ''; }
   saveEdit(): void {
     if (!this.detail || !this.editDraft || this.editBusy) return;
     this.editBusy = true;
     this.editError = '';
-    this.service.updatePost(this.detail.post.id, this.editDraft).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    const id = this.detail.post.id;
+    this.service.updatePost(id, { ...this.editDraft, expectedVersion: this.detail.version, expectedStatus: this.detail.post.status }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.editBusy = false;
         this.editOpen = false;
         this.notice = 'Borrador reescrito; vuelve a revisión sin aprobar';
-        this.openPost(this.detail!.post.id);
+        if (this.detailOpen && this.detail?.post.id === id) this.openPost(id);
         this.load(true);
       },
       error: (e) => { this.editBusy = false; this.editError = errorMessage(e, 'No se pudo guardar la reescritura'); },
@@ -171,13 +172,16 @@ export class AdminRejectedInboxComponent implements OnInit, OnDestroy {
 
   /** The confirmation only needs identity, so it accepts both the ledger summary and the drawer's post shape. */
   requestDelete(post: { id: string; title: string }): void {
-    this.deleteTarget = post as EditorialPostSummary;
+    const summary = this.overview?.posts.find((p) => p.id === post.id);
+    const version = this.detail?.post.id === post.id ? this.detail.version : summary?.version;
+    if (version === undefined) { this.error = 'Vuelve a cargar el artículo antes de eliminarlo'; return; }
+    this.deleteTarget = { ...post, version };
   }
   confirmDelete(): void {
     const id = this.deleteTarget?.id;
     if (!id || this.deleteBusy) return;
     this.deleteBusy = true;
-    this.service.deletePost(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.service.deletePost(id, this.deleteTarget!.version, 'draft').pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => { this.deleteBusy = false; this.deleteTarget = null; this.selected.delete(id); this.notice = 'Borrador eliminado'; this.closeDetail(); this.load(true); },
       error: (e) => { this.deleteBusy = false; this.deleteTarget = null; this.error = errorMessage(e, 'No se pudo eliminar el borrador'); },
     });
@@ -188,7 +192,11 @@ export class AdminRejectedInboxComponent implements OnInit, OnDestroy {
     this.runBulk('requeue', [...this.selected], (id) => this.service.requeuePost(id), 'recuperados');
   }
   bulkDelete(): void {
-    this.runBulk('delete', [...this.selected], (id) => this.service.deletePost(id), 'eliminados');
+    const posts = new Map((this.overview?.posts ?? []).map((post) => [post.id, post]));
+    this.runBulk('delete', [...this.selected], (id) => {
+      const post = posts.get(id);
+      return post ? this.service.deletePost(id, post.version, 'draft') : throwError(() => new Error('Artículo no disponible; vuelve a cargar la lista'));
+    }, 'eliminados');
   }
   private runBulk(kind: 'requeue' | 'delete', ids: string[], call: (id: string) => Observable<unknown>, verb: string): void {
     if (!ids.length || this.bulkBusy) return;

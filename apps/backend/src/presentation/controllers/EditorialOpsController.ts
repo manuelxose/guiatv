@@ -148,7 +148,7 @@ export class EditorialOpsController {
       // startedAt is the runner's ISO string, so a string range is the UTC day.
       jobs().find({ startedAt: { $gte: today } }, { projection: { _id: 0, state: 1, revisions: 1, costUsd: 1, costEntries: 1, blockingCodes: 1 } }).toArray(),
       BlogPostModel.find({ origin: 'ai-assisted', editorial: { $exists: true } })
-        .select({ title: 1, slug: 1, status: 1, reviewState: 1, reviewedBy: 1, updatedAt: 1, featuredImage: 1, editorial: 1 })
+        .select({ title: 1, slug: 1, status: 1, reviewState: 1, reviewedBy: 1, updatedAt: 1, featuredImage: 1, editorial: 1, __v: 1 })
         .sort({ updatedAt: -1 }).limit(50).lean().exec(),
       jobs().aggregate<{ _id: string; usd: number }>([
         // startedAt is stored as the runner's ISO string, so the day is its first 10 characters.
@@ -206,7 +206,7 @@ export class EditorialOpsController {
         const p = post.editorial as EditorialProvenance;
         const count = (status: string) => p.bundle.claims.filter((c) => (c.status ?? 'unverified') === status).length;
         return {
-          id: String(post._id), slug: post.slug, title: post.title, status: post.status, reviewState: post.reviewState ?? 'unreviewed',
+          id: String(post._id), version: post.__v ?? null, slug: post.slug, title: post.title, status: post.status, reviewState: post.reviewState ?? 'unreviewed',
           reviewedBy: post.reviewedBy ?? null, updatedAt: post.updatedAt, pipelineState: p.state, backend: p.backend ?? null,
           signed: Boolean(p.signature), costUsd: usdOf(p),
           claims: { supported: count('supported'), conflicting: count('conflicting'), unverified: count('unverified') },
