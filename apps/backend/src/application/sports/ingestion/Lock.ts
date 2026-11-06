@@ -49,13 +49,18 @@ export class InMemoryLock implements LockPort {
 
 let nextOwnerId = 1;
 
-/** Minimal native-Mongo collection surface the Mongo lock needs. */
+/**
+ * Minimal native-Mongo collection surface the Mongo lock needs.
+ *
+ * The native driver returns the document directly (or `null`), not a
+ * `{ value }` wrapper — that is the shape this port declares.
+ */
 export interface LockCollection {
   findOneAndUpdate(
     filter: Record<string, unknown>,
     update: Record<string, unknown>,
     options?: Record<string, unknown>
-  ): Promise<{ value: { owner?: string } | null }>;
+  ): Promise<{ owner?: string } | null>;
   deleteOne(filter: Record<string, unknown>): Promise<unknown>;
 }
 
@@ -87,11 +92,36 @@ export class MongoLock implements LockPort {
         { $set: { key, owner: this.owner, expiresAt } },
         { upsert: true, returnDocument: 'after' }
       );
-      return result?.value?.owner === this.owner;
+      return result?.owner === this.owner;
     } catch (error) {
       // A non-expired lock held by another owner matches nothing, so the upsert
       // collides with the unique `key` index — that means "not acquired".
       if (isDuplicateKeyError(error)) return false;
+      throw error;
+    }
+  }
+
+  /**
+   * Acquire and report whether this lease was recovered from an expired holder.
+   *
+   * Uses `returnDocument: 'before'`: a fresh upsert returns `null` (not a
+   * recovery), while taking over an expired lease returns the previous holder
+   * (a recovery). The `recovered` signal is the measured input for the
+   * "recovered jobs" counter; correctness of mutual exclusion does not depend
+   * on it — the atomic `findOneAndUpdate` + unique `key` index does.
+   */
+  async acquireReport(key: string, ttlMs: number): Promise<{ acquired: boolean; recovered: boolean }> {
+    const now = this.clock();
+    const expiresAt = now + ttlMs;
+    try {
+      const result = await this.collection.findOneAndUpdate(
+        { key, $or: [{ expiresAt: { $lte: now } }] },
+        { $set: { key, owner: this.owner, expiresAt } },
+        { upsert: true, returnDocument: 'before' }
+      );
+      return { acquired: true, recovered: result != null };
+    } catch (error) {
+      if (isDuplicateKeyError(error)) return { acquired: false, recovered: false };
       throw error;
     }
   }

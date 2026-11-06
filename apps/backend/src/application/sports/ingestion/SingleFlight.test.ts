@@ -53,3 +53,21 @@ test('a settled request can be issued again', async () => {
   assert.equal(await flight.do('k', fetch), 1);
   assert.equal(await flight.do('k', fetch), 2);
 });
+
+test('dedupe hits are counted and reported through the callback', async () => {
+  let reported = 0;
+  const flight = new SingleFlight({ onDedupe: () => (reported += 1) });
+  const fetch = async (): Promise<string> => {
+    await delay(10);
+    return 'value';
+  };
+
+  await Promise.all([
+    flight.do('k', fetch),
+    flight.do('k', fetch),
+    flight.do('k', fetch),
+  ]);
+
+  assert.equal(flight.dedupeCount(), 2); // one real call, two avoided
+  assert.equal(reported, 2);
+});

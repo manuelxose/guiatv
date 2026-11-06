@@ -125,3 +125,129 @@ function nextUtcMidnight(t: number): number {
   d.setUTCHours(24, 0, 0, 0);
   return d.getTime();
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function utcDayStart(t: number): number {
+  return Math.floor(t / DAY_MS) * DAY_MS;
+}
+
+/**
+ * Durable quota store port.
+ *
+ * Implemented by the Mongo store (`infrastructure/sports/persistence`). The
+ * contract is deliberately small so the authority can be driven by a real
+ * MongoDB (atomic `findOneAndUpdate` reservations) or, in tests, by an
+ * in-memory store that shares one counter between several instances.
+ */
+export interface DurableQuotaStore {
+  /** Ensure the per-window document exists (idempotent, concurrent-safe). */
+  ensureWindow(provider: string, windowStart: number, expiresAt: number): Promise<void>;
+  /**
+   * Atomically reserve one request in the window when `consumed < limit`.
+   * Returns true only when THIS call performed the atomic increment — the
+   * single-owner guarantee two instances rely on to never exceed the budget.
+   */
+  reserve(provider: string, windowStart: number, limit: number): Promise<boolean>;
+  /** Consumed count for the window (0 when the window has no document yet). */
+  consumedInWindow(provider: string, windowStart: number): Promise<number>;
+  /** Emergency-disable flag — durable, so it survives a restart. */
+  isDisabled(provider: string): Promise<boolean>;
+  setDisabled(provider: string, disabled: boolean): Promise<void>;
+  /** Persisted retry-after (ms epoch); 0 means "not throttled". */
+  getThrottleUntil(provider: string): Promise<number>;
+  setThrottleUntil(provider: string, until: number): Promise<void>;
+}
+
+/**
+ * Cluster-safe request budget backed by a durable `DurableQuotaStore`.
+ *
+ * Unlike `RequestBudget` (process-local), the daily consumption, retry-after
+ * and emergency-disable flag live in the shared store, so several instances
+ * against one store can never exceed `dailyBudget`: the store's `reserve`
+ * performs a single atomic `findOneAndUpdate` whose filter rejects the request
+ * once `consumed` has reached the importance-specific limit.
+ *
+ * Cluster-safe: the daily budget and the live reserve are enforced by the
+ * store's single atomic `findOneAndUpdate` `$inc`. The emergency-disable flag
+ * and the persisted retry-after are durable read-checks: every reservation
+ * attempt reads them first, so a persisted disable stops new reservations
+ * across instances (a reservation already past the read is not a *new* one).
+ * NOT cluster-safe: `perRunCap` (a per-tick, process-local bound) and the
+ * caller's circuit breaker.
+ */
+export class DurableRequestBudget {
+  constructor(
+    private readonly config: RequestBudgetConfig,
+    private readonly store: DurableQuotaStore,
+    private readonly provider: string,
+    private readonly clock: () => number = Date.now
+  ) {}
+
+  /** Resets the process-local per-run state (no-op durably); ensures the window exists. */
+  async beginRun(now?: number): Promise<void> {
+    const t = now ?? this.clock();
+    const windowStart = utcDayStart(t);
+    await this.store.ensureWindow(this.provider, windowStart, windowStart + DAY_MS);
+  }
+
+  async isDisabled(): Promise<boolean> {
+    return this.store.isDisabled(this.provider);
+  }
+
+  async tryAcquire(importance: RequestImportance, now?: number): Promise<boolean> {
+    const t = now ?? this.clock();
+    // Durable read-checks first: the emergency-disable flag and the persisted
+    // retry-after are consulted before any reservation attempt, so a disable
+    // stops new reservations across every instance.
+    if (await this.store.isDisabled(this.provider)) return false;
+    if ((await this.store.getThrottleUntil(this.provider)) > t) return false;
+
+    const windowStart = utcDayStart(t);
+    const limit =
+      importance === 'normal' ? this.config.dailyBudget - this.config.liveReserve : this.config.dailyBudget;
+    if (limit <= 0) {
+      await this.store.setThrottleUntil(this.provider, t + this.config.throttleBackoffMs);
+      return false;
+    }
+    await this.beginRun(t);
+    const reserved = await this.store.reserve(this.provider, windowStart, limit);
+    if (reserved) return true;
+    // Persist the retry-after so every instance backs off together.
+    await this.store.setThrottleUntil(this.provider, t + this.config.throttleBackoffMs);
+    return false;
+  }
+
+  async snapshot(now?: number): Promise<BudgetSnapshot> {
+    const t = now ?? this.clock();
+    const windowStart = utcDayStart(t);
+    const [consumed, disabled, throttleUntil] = await Promise.all([
+      this.store.consumedInWindow(this.provider, windowStart),
+      this.store.isDisabled(this.provider),
+      this.store.getThrottleUntil(this.provider),
+    ]);
+    const remaining = Math.max(0, this.config.dailyBudget - consumed);
+    return {
+      remaining,
+      reserveRemaining: Math.max(0, Math.min(this.config.liveReserve, remaining)),
+      availableForNormal: Math.max(0, remaining - this.config.liveReserve),
+      runConsumed: 0, // per-run cap is process-local, not tracked durably
+      throttleUntil,
+      disabled,
+      quotaResetAt: windowStart + DAY_MS,
+    };
+  }
+
+  async consumedToday(now?: number): Promise<number> {
+    const t = now ?? this.clock();
+    return this.store.consumedInWindow(this.provider, utcDayStart(t));
+  }
+
+  async disable(): Promise<void> {
+    await this.store.setDisabled(this.provider, true);
+  }
+
+  async enable(): Promise<void> {
+    await this.store.setDisabled(this.provider, false);
+  }
+}

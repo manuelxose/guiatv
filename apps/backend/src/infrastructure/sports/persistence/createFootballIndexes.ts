@@ -57,4 +57,37 @@ export async function createFootballIndexes(db = mongoose.connection.db): Promis
 
   const locks = db.collection('football_ingestion_locks');
   await locks.createIndex({ key: 1 }, { unique: true, name: 'idx_football_lock_key', background: true });
+
+  // Durable quota authority: one per-UTC-day window document per provider.
+  // The TTL index expires a window once its day has passed (crash recovery and
+  // storage hygiene); the unique index makes the window key atomic.
+  const quota = db.collection('football_quota');
+  await quota.createIndex(
+    { provider: 1, windowStart: 1 },
+    { unique: true, name: 'idx_football_quota_provider_window', background: true }
+  );
+  await quota.createIndex(
+    { expiresAt: 1 },
+    { expireAfterSeconds: 0, name: 'idx_football_quota_ttl', background: true }
+  );
+
+  // Provider-level control flags (emergency disable + retry-after) that survive
+  // restarts and window rollovers.
+  const control = db.collection('football_ingestion_control');
+  await control.createIndex(
+    { provider: 1 },
+    { unique: true, name: 'idx_football_control_provider', background: true }
+  );
+
+  // Job idempotency keys: the unique index is the "one winner" guarantee.
+  const jobs = db.collection('football_ingestion_jobs');
+  await jobs.createIndex({ jobKey: 1 }, { unique: true, name: 'idx_football_job_key', background: true });
+  await jobs.createIndex(
+    { providerId: 1, claimedAt: -1 },
+    { name: 'idx_football_jobs_provider_claimed', background: true }
+  );
+  await jobs.createIndex(
+    { expiresAt: 1 },
+    { expireAfterSeconds: 0, name: 'idx_football_jobs_ttl', background: true }
+  );
 }
