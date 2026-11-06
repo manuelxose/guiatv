@@ -96,3 +96,8 @@ mcp.json
 # Deploy bookkeeping on the server
 /.deploy-lock-sha256
 /.artifact-incoming
+
+# M14-R7 staging runtime data (never commit a database or uploaded media)
+artifacts/m14r7/mongo-data/
+artifacts/m14r7/storage/
+artifacts/m14r7/logs/
