@@ -1,0 +1,55 @@
+{
+  "ranAt": "2026-11-06T15:24:31.795Z",
+  "runnerExitCode": 1,
+  "isolation": "none",
+  "testFiles": 203,
+  "tests": 1152,
+  "pass": 1086,
+  "fail": 11,
+  "skipped": 55,
+  "failingTests": [
+    {
+      "name": "links the programme page when its lookup resolves to a visible airing of the same TMDB work and kind",
+      "file": "application\\services\\CatalogService.programme-path.test.js"
+    },
+    {},
+    {
+      "name": "the committed real manifest is reproducible from the committed inputs and respects every bound",
+      "file": "application\\services\\ContentCanaryManifest.test.js"
+    },
+    {
+      "name": "3D: the refreshed manifest is reproducible, keeps nothing whose legacy page became indexable, and needs a new grant",
+      "file": "application\\services\\ContentCanaryManifest.test.js"
+    },
+    {
+      "name": "editorial runner process starts, reports, logs and stops only the configured command",
+      "file": "application\\services\\EditorialRunnerService.test.js"
+    },
+    {
+      "name": "Claude Code refuses research and relative profile paths before starting a process",
+      "file": "infrastructure\\external\\ClaudeCodeEditorialModel.test.js"
+    },
+    {
+      "name": "Phase 3A entity detail paths are excluded while enabled, including warmed sitemap caches",
+      "file": "presentation\\controllers\\SitemapController.test.js"
+    },
+    {
+      "name": "sitemap-programs.xml only queries the same today/tomorrow window the slug resolver supports",
+      "file": "presentation\\controllers\\SitemapController.test.js"
+    },
+    {
+      "name": "sitemap-programs.xml uses the public TV read model instead of repository-only rows",
+      "file": "presentation\\controllers\\SitemapController.test.js"
+    },
+    {
+      "name": "sitemap lastmod is a real change date: never in the future, absent when unknown",
+      "file": "presentation\\controllers\\SitemapController.test.js"
+    },
+    {
+      "name": "owner flow: only the owner key can authorise the exact committed batch; a stale, edited or foreign grant is refused",
+      "file": "scripts\\content-certify.cli.test.js"
+    }
+  ],
+  "junit": "..\\tmp-storage\\diag\\runs\\r1low-nomongo\\junit.xml",
+  "zeroTestGuard": true
+}

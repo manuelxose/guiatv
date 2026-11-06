@@ -107,7 +107,8 @@ export interface FootballDashboardDTO {
 
 export interface FootballProviderSummaryDTO {
   provider: string;
-  health: 'ok' | 'degraded' | 'down';
+  /** `unknown` = the failure counter was not measured; never rendered as healthy. */
+  health: 'ok' | 'degraded' | 'down' | 'unknown';
   lastSuccessAt?: string;
   lastErrorAt?: string;
   consecutiveFailures: number | null;
@@ -301,7 +302,8 @@ export interface FootballSyncResultDTO {
   idempotencyKey?: string;
   queuedAt?: string;
   startedAt?: string;
-  finishedAt?: string;
+  /** The backend names the operation end time completedAt. */
+  completedAt?: string;
   /** Null with state `not_measured` when the run never measured records. */
   recordsFetched?: number | null;
   recordsFetchedState?: string;
@@ -399,3 +401,4 @@ export function broadcastAvailabilityLabel(availability: string): string {
       return 'Desconocida';
   }
 }
+

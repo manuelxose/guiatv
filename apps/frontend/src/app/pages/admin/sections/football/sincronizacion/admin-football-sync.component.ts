@@ -127,6 +127,9 @@ export class AdminFootballSyncComponent implements OnInit, OnDestroy {
         return 'Degradado';
       case 'down':
         return 'Caído';
+      // R1-7: never render an unmeasured health as if it were a measurement.
+      case 'unknown':
+        return 'Sin medir';
       default:
         return health;
     }
@@ -205,5 +208,6 @@ export class AdminFootballSyncComponent implements OnInit, OnDestroy {
     }
   }
 }
+
 
 

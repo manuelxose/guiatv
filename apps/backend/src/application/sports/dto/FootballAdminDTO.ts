@@ -195,7 +195,12 @@ export interface FootballDashboardDTO {
 
 export interface FootballProviderSummaryDTO {
   provider: string;
-  health: 'ok' | 'degraded' | 'down';
+  /**
+   * `unknown` means the failure counter was not measured (legacy/partial
+   * document). It is deliberately part of the type so the value is never an
+   * unsafe cast and can never masquerade as a measured `ok`.
+   */
+  health: 'ok' | 'degraded' | 'down' | 'unknown';
   lastSuccessAt?: string;
   lastErrorAt?: string;
   consecutiveFailures: number | null;

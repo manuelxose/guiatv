@@ -97,6 +97,10 @@ export class AdminFootballProvidersComponent implements OnInit, OnDestroy {
         return 'Degradado';
       case 'down':
         return 'Caído';
+      // R1-7: an unmeasured health is stated explicitly, never rendered blank.
+      case 'unknown':
+      default:
+        return 'Sin medir';
     }
   }
 
@@ -108,6 +112,9 @@ export class AdminFootballProvidersComponent implements OnInit, OnDestroy {
         return 'degraded';
       case 'down':
         return 'critical';
+      case 'unknown':
+      default:
+        return 'unknown';
     }
   }
 
