@@ -49,11 +49,31 @@ export interface FlowView {
   provenance: FlowProvenance;
   /** true solo cuando el registro quedó bloqueado por un error técnico ('error: …'). */
   technicalFailure: boolean;
+  /** Tipo de trabajo de origen (T1c). Solo `generation` puede informar la publicación desde un job. */
+  jobKind: JobKind;
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
  * TABLAS DE MAPEO EXPLÍCITAS (documentadas y exportadas para las pruebas)
  * ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Tipo de trabajo de un `editorial_jobs` (T1c).
+ *
+ * Un estado `maintenance-*` NO es un ciclo de generación: es la re-verificación periódica de una guía YA
+ * PUBLICADA (`editorial-agents.mjs`: maintainPublished). El job no publica nada — su `publicUrl` es null — y
+ * la publicación la posee `blog_posts`. Confundirlos producía un diagnóstico contradictorio ("publicado" y a
+ * la vez "bloqueado") en los cuatro registros legacy cuyo mantenimiento no pudo re-verificarse.
+ */
+export type JobKind = 'generation' | 'maintenance' | 'discovery';
+
+/** jobId → tipo de trabajo. Los jobs de mantenimiento llevan `-maint-` y el de descubrimiento termina en `-discovery`. */
+export function jobKindOf(jobId: unknown): JobKind {
+  const id = typeof jobId === 'string' ? jobId : '';
+  if (id.endsWith('-discovery')) return 'discovery';
+  if (id.includes('-maint-')) return 'maintenance';
+  return 'generation';
+}
 
 /** editorial_jobs.state → dimensión de ejecución (valor terminal del pipeline). */
 export const JOB_STATE_TO_EXECUTION: Record<string, ExecutionState | DimensionMarker> = {
@@ -61,16 +81,22 @@ export const JOB_STATE_TO_EXECUTION: Record<string, ExecutionState | DimensionMa
   discovery: 'completed',
   published: 'completed',
   'maintenance-verified': 'completed',
-  'maintenance-unverifiable': 'blocked',
+  // T1c: la re-verificación falló; no es un ciclo de generación bloqueado.
+  'maintenance-unverifiable': 'failed',
 };
 
-/** editorial_jobs.state → dimensión de publicación. */
+/**
+ * editorial_jobs.state → dimensión de publicación.
+ *
+ * SOLO los jobs de generación pueden informar la publicación. Los `maintenance-*` y `discovery` no publican
+ * nada y su publicación se lee de `blog_posts`, así que devuelven NO_DATA en lugar de inventar 'published'.
+ */
 export const JOB_STATE_TO_PUBLICATION: Record<string, PublicationState | DimensionMarker> = {
   blocked: 'unpublished',
-  discovery: 'unpublished',
+  discovery: NO_DATA,
   published: 'published',
-  'maintenance-verified': 'published',
-  'maintenance-unverifiable': 'published',
+  'maintenance-verified': NO_DATA,
+  'maintenance-unverifiable': NO_DATA,
 };
 
 /** editorial_jobs.state → dimensión editorial (refinada por el motivo cuando es 'blocked'). */
@@ -114,6 +140,7 @@ export const QUEUE_REASON_PREFIX_TO_CANDIDATE: Record<string, CandidateState> = 
   'invalid-candidate:': 'invalid',
   'duplicate:': 'duplicate',
   'manual:': 'rejected',
+  'blocked:': 'retained',
 };
 
 /** editorial_queue_snapshot.items[].state → dimensión de ejecución. */
@@ -252,7 +279,7 @@ export function classifyJobBlockedReason(
   return 'other';
 }
 
-/** Extrae el prefijo de motivo de la cola: 'insufficient-evidence:', 'invalid-candidate:', 'duplicate:', 'manual:'. */
+/** Extrae el prefijo de motivo de la cola: 'insufficient-evidence:', 'invalid-candidate:', 'duplicate:', 'manual:', 'blocked:'. */
 export function queueReasonPrefix(reason: string | null | undefined): string | null {
   const r = (reason ?? '').trim();
   const colon = r.indexOf(':');
@@ -308,6 +335,7 @@ export function mapJobRecord(record: JobRecord): FlowView {
     reason,
     provenance: provenanceOf('editorial_jobs', record),
     technicalFailure,
+    jobKind: jobKindOf(record.jobId),
   };
 }
 
@@ -348,6 +376,7 @@ export function mapQueueItem(item: QueueItem): FlowView {
     reason,
     provenance: { collection: 'editorial_queue_snapshot', workflowVersion: 'no-consta' },
     technicalFailure: false,
+    jobKind: 'generation',
   };
 }
 
@@ -379,6 +408,7 @@ export function mapBlogPost(post: BlogPost): FlowView {
     reason: null,
     provenance: { collection: 'blog_posts', workflowVersion: 'no-consta' },
     technicalFailure: false,
+    jobKind: 'generation',
   };
 }
 
@@ -426,6 +456,7 @@ export function mapLedgerJob(job: LedgerJob): FlowView {
     reason: null,
     provenance: { collection: 'editorial_job_ledger', workflowVersion: 'no-consta' },
     technicalFailure: false,
+    jobKind: jobKindOf(job.jobId),
   };
 }
 

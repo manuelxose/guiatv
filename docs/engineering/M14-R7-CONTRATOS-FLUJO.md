@@ -1,12 +1,13 @@
 # M14-R7 — Contratos de estado del flujo editorial (versión `m14-r7.1`)
 
 > Documento de referencia del Observatorio del flujo editorial. Define las **cuatro dimensiones
-> de estado** (candidato, editorial, ejecución, publicación) y un **estado SEO separado**, con las
-> funciones puras de mapeo desde los datos reales existentes. Es la fuente de verdad de la que
-> consumen la guía (View A, "Cómo funciona") y el diagnóstico (View B, "Diagnóstico"), a través de
-> la constante exportada `FLOW_STATE_GUIDE` en `apps/backend/src/application/editorialflow/`.
+> de estado** (candidato, editorial, ejecución, publicación), un **estado SEO separado** y el
+> **estado del planificador** (generación programada), con las funciones puras de mapeo desde los
+> datos reales existentes. Es la fuente de verdad de la que consumen la guía (View A, "Cómo
+> funciona") y el diagnóstico (View B, "Diagnóstico"), a través de las constantes exportadas en
+> `apps/backend/src/application/editorialflow/` (`FLOW_STATE_GUIDE` y `PLANNER_META`).
 
-## 1. Por qué cuatro dimensiones + SEO
+## 1. Por qué cuatro dimensiones + SEO + planificador
 
 El flujo editorial mezcla en los datos actuales estados de naturalezas distintas. Para no
 confundirlos, cada registro se descompone en **dimensiones independientes**:
@@ -18,10 +19,11 @@ confundirlos, cada registro se descompone en **dimensiones independientes**:
 | **Ejecución** | ¿Qué hace el *trabajo* (cola, arrendamiento, reintentos)? | `queued, running, paused, retrying, blocked, cancelled, failed, completed` |
 | **Publicación** | ¿El artículo está *publicado*? | `unpublished, ready, scheduled, publishing, published, unpublished-after-publication` |
 | **SEO** | ¿Google *indexa* la URL? | `no-inspeccionado, no-reconocida, descubierta-sin-indexar, crawleada-sin-indexar, indexada, error-de-fetch, bloqueada, evidencia-insuficiente` |
+| **Planificador** | ¿La *generación programada* está activada? | `enabled, disabled` |
 
-Cada estado declara, en `FLOW_STATE_GUIDE`, su **etiqueta española**, su **definición**, la lista
-explícita de **lo que NO implica** y las **acciones de recuperación admitidas**. El resto de
-acciones del catálogo "no aplican" para ese estado.
+Cada estado declara su **etiqueta española**, su **definición**, la lista explícita de **lo que NO
+implica** y las **acciones de recuperación admitidas**. El resto de acciones del catálogo "no
+aplican" para ese estado.
 
 ### 1.1 Candidato (descubrimiento y elegibilidad)
 
@@ -57,6 +59,22 @@ El estado de indexación vive en `editorial_gsc_inspections`, **no** en `blog_po
 existe porque publicar no garantiza indexar: Google puede no reconocer, descubrir sin indexar o
 bloquear una URL ya publicada.
 
+### 1.6 Planificador (generación programada, independiente)
+
+El estado del planificador mapea el interruptor persistido
+`editorial_settings._id:'generation'.settings.enabled`:
+
+- `enabled` (Generación activada): `enabled:true`. El runner automático puede arrancar según el
+  horario. Observado así en la build desplegada.
+- `disabled` (Generación desactivada): `enabled:false`. Es el **valor por defecto fail-closed del
+  candidato** (`DEFAULT_GENERATION_SETTINGS.enabled = false`): un despliegue sin ajustes persistidos
+  no publica por omisión.
+
+La publicación **manual** está disponible de forma independiente del interruptor: en el código
+candidato, `runnerStartAllowed(settings, 'manual')` siempre permite el arranque manual, mientras que
+el automático exige `enabled:true`. El estado `disabled` **no implica** que la publicación manual
+esté bloqueada.
+
 ---
 
 ## 2. Las seis distinciones exigidas
@@ -77,14 +95,16 @@ Estas seis distinciones son invariantes del contrato y están codificadas en los
 5. **Publicado vs indexado.** `published` no implica `indexada`: un artículo publicado puede estar
    `no-reconocida` o `descubierta-sin-indexar` en Google.
 6. **Ejecución programada vs manual.** La generación programada (ciclo de descubrimiento con
-   `scheduleHours`) es una vía; la intervención manual (aprobación/rechazo de cola) es otra. El
-   contrato distingue `origin`/`kind` y no las confunde en una misma dimensión.
+   `scheduleHours` y `enabled`) es una vía; la intervención manual (aprobación/rechazo de cola) es
+   otra, disponible con independencia de `enabled`. El contrato distingue `origin`/`kind` y no las
+   confunde en una misma dimensión.
 
 ---
 
 ## 3. Mapeo desde los datos reales (sin inventar historia)
 
-Cuatro funciones puras producen una vista compuesta (`FlowView`) sin mutar la entrada:
+Funciones puras producen una vista compuesta (`FlowView`) o un estado (`PlannerState`) sin mutar la
+entrada:
 
 | Función | Colección de origen | Dimensiones que rellena |
 |---|---|---|
@@ -93,11 +113,13 @@ Cuatro funciones puras producen una vista compuesta (`FlowView`) sin mutar la en
 | `mapBlogPost` | `blog_posts` | editorial, publicación |
 | `mapLedgerJob` | `editorial_job_ledger` | candidato, editorial, ejecución, publicación |
 | `mapGscInspection` | `editorial_gsc_inspections` | seo |
+| `mapGenerationSettings` | `editorial_settings._id:'generation'.settings` | planificador |
 
 Reglas comunes:
 
 - Cada mapeo pasa por una **tabla explícita exportada** (p. ej. `JOB_STATE_TO_EXECUTION`,
-  `QUEUE_REASON_PREFIX_TO_CANDIDATE`, `GSC_COVERAGE_TO_SEO`), nunca por heurísticas ocultas.
+  `QUEUE_REASON_PREFIX_TO_CANDIDATE`, `GSC_COVERAGE_TO_SEO`, `GENERATION_ENABLED_TO_PLANNER`),
+  nunca por heurísticas ocultas.
 - **Lo que no consta** se representa como `'sin-datos'`; un valor presente pero **no reconocido**
   se representa como `'desconocido'`. Nunca se afirma un estado completado sin evidencia.
 - Cada vista lleva su **procedencia** (`collection` + `workflowVersion`, o `'no-consta'` si el
@@ -136,6 +158,7 @@ Reglas comunes:
 | `invalid-candidate:` | `invalid` |
 | `duplicate:` | `duplicate` |
 | `manual:` | `rejected` |
+| `blocked:` | `retained` |
 
 El ítem retenido usa `state=held` con motivo `blocked: agotados los ciclos de revisión (5)` →
 candidato `retained`, editorial `rejected`, ejecución `blocked` (no pausado, no fallo técnico).
@@ -146,6 +169,7 @@ candidato `retained`, editorial `rejected`, ejecución `blocked` (no pausado, no
   `reviewState: approved`).
 - `reviewState`: `approved`→`approved`, `rejected`→`rejected`, `in-review`→`reviewing`,
   `unreviewed`→`drafting`, ausente→`sin-datos`.
+- Invariante: `approved` **no** produce `published`; `published` **no** produce `indexada`.
 
 ### 3.5 `editorial_job_ledger`
 
@@ -167,6 +191,14 @@ candidato `retained`, editorial `rejected`, ejecución `blocked` (no pausado, no
 | clase `fetch-error` | `error-de-fetch` |
 | sin inspección | `no-inspeccionado` |
 | sin datos suficientes | `evidencia-insuficiente` |
+
+### 3.7 Planificador (`editorial_settings._id:'generation'.settings`)
+
+| `settings.enabled` | estado planificador |
+|---|---|
+| `true` | `enabled` (observado en la build desplegada) |
+| `false` | `disabled` (valor por defecto fail-closed del candidato) |
+| ausente / sin documento | `disabled` (se aplica el defecto) |
 
 ---
 
@@ -224,6 +256,13 @@ independiente de la publicación.
   `rejected` con `reason="duplicate: misma intención que protección-menores-control-parental-plataformas (0.47)"`,
   que se mapea a candidato `duplicate`, distinto de un rechazo por evidencia.
 
+### Ejemplo E — El planificador desactivado es el defecto del candidato
+
+El ajuste persistido en producción (`editorial_settings._id:'generation'`) observa
+`settings.enabled=true`, pero el defecto del código candidato (`DEFAULT_GENERATION_SETTINGS`) es
+`enabled:false`. Un despliegue sin ajustes persistidos queda en `disabled` (fail-closed) y su
+`nextRunAt` es `null`; la publicación manual sigue disponible de forma independiente.
+
 ---
 
 ## 5. Acciones de recuperación
@@ -239,16 +278,20 @@ Catálogo cerrado (clave → etiqueta española) que el backend (T2) expone como
 Cada estado declara en `FLOW_STATE_GUIDE` cuáles **admite**; las no declaradas **no aplican**. Por
 ejemplo: `invalid` admite `fix-slug` (y `archive`), no `add-evidence`; `duplicate` admite
 `inspect-duplicate`, no `targeted-rewrite`; `blocked` admite la gama amplia de recuperación;
-`published` solo `archive`.
+`published` solo `archive`. Los estados del planificador (`enabled`/`disabled`) no admiten acciones
+de recuperación de tema: se gestionan con su propio interruptor `enabled`.
 
 ---
 
 ## 6. Archivos
 
 - `apps/backend/src/application/editorialflow/flow-states.ts` — enums, metadatos, `FLOW_STATE_GUIDE`.
+- `apps/backend/src/application/editorialflow/flow-planner.ts` — `PLANNER_STATES`, `PLANNER_META`,
+  `DEFAULT_PLANNER_ENABLED`, `mapGenerationSettings`.
 - `apps/backend/src/application/editorialflow/flow-mapping.ts` — funciones puras y tablas de mapeo.
 - `apps/backend/src/application/editorialflow/index.ts` — punto de entrada único.
-- `apps/backend/src/application/editorialflow/flow-states.test.ts` y `flow-mapping.test.ts` — pruebas.
+- `apps/backend/src/application/editorialflow/*.test.ts` — pruebas (`flow-states`, `flow-planner`,
+  `flow-mapping`, `flow-corrections`).
 
 No se cambia el esquema de base de datos, no se toca el frontend, no se añaden dependencias y no se
 reactiva la generación programada.

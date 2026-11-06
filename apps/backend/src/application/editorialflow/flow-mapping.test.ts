@@ -105,7 +105,8 @@ test('mapJobRecord: discovery → candidato discovered, ejecución completed, si
   assert.equal(view.candidate, 'discovered');
   assert.equal(view.execution, 'completed');
   assert.equal(view.editorial, 'sin-datos');
-  assert.equal(view.publication, 'unpublished');
+  // T1c: el job de descubrimiento no informa la publicación.
+  assert.equal(view.publication, 'sin-datos');
 });
 
 test('mapJobRecord: published → editorial approved, ejecución completed, publicación published', () => {
@@ -116,18 +117,21 @@ test('mapJobRecord: published → editorial approved, ejecución completed, publ
   assert.equal(view.publication, 'published');
 });
 
-test('mapJobRecord: maintenance-verified → aprobado y publicado, verificación completada', () => {
+test('mapJobRecord: maintenance-verified aprueba y completa, pero no informa publicación', () => {
   const view = mapJobRecord({ state: 'maintenance-verified', reason: '22 afirmaciones verificadas' });
   assert.equal(view.editorial, 'approved');
   assert.equal(view.execution, 'completed');
-  assert.equal(view.publication, 'published');
+  // T1c: el job de mantenimiento no publica; la publicación la posee blog_posts.
+  assert.equal(view.publication, 'sin-datos');
 });
 
-test('mapJobRecord: maintenance-unverifiable → no fabrica "verificado" (ejecución blocked)', () => {
+test('mapJobRecord: maintenance-unverifiable es un fallo de re-verificación, no un ciclo bloqueado', () => {
   const view = mapJobRecord({ state: 'maintenance-unverifiable', reason: 'sin el fichero de ejecución de la versión publicada: no se puede re-verificar' });
-  assert.equal(view.execution, 'blocked');
+  // T1c: la re-verificación no pudo ejecutarse -> 'failed' (antes se mapeaba a 'blocked', incorrecto).
+  assert.equal(view.execution, 'failed');
   assert.equal(view.editorial, 'approved'); // la versión publicada sí consta en el motivo
-  assert.equal(view.publication, 'published');
+  // T1c: el job tiene publicUrl null, así que la publicación no se inventa.
+  assert.equal(view.publication, 'sin-datos');
   assert.notEqual(view.execution, 'completed', 'no se puede dar por completada una re-verificación que no corrió');
 });
 
