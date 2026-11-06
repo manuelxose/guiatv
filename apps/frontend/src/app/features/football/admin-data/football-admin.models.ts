@@ -1,8 +1,9 @@
 /**
  * Football admin bounded context — frontend contracts for the Futbol control
  * center. These DTOs mirror the t7 admin API (`/v2/sports/football/admin/*`)
- * exactly (see docs/sports-v2/M06-R1-F01-F09-BACKEND.md and
+ * exactly (see the M06-R1 admin API contract in the docs/ tree and
  * apps/backend/src/application/sports/dto/FootballAdminDTO.ts).
+ * This module imports nothing from the sports view layer.
  *
  * Every measurement that can be unknown carries an explicit `AvailabilityState`
  * companion field; the value field is `null`/`undefined` when it is not a real
