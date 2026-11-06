@@ -1,0 +1,44 @@
+<div class="space-y-6">
+  <div *ngIf="error" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative)]">
+    {{ error }}
+  </div>
+
+  <p *ngIf="loading && !report" class="text-sm text-[var(--portal-text-muted)]">Cargando calidad de los datos…</p>
+
+  <ng-container *ngIf="report">
+    <div class="grid sm:grid-cols-3 gap-4">
+      <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-4 min-w-0">
+        <p class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Desactualizadas</p>
+        <p class="text-xl font-semibold mt-2 text-[var(--portal-text)]">{{ staleTotal }}</p>
+      </div>
+      <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-4 min-w-0">
+        <p class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Sin mapear</p>
+        <p class="text-xl font-semibold mt-2 text-[var(--portal-text)]">{{ unmappedTotal }}</p>
+      </div>
+      <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-4 min-w-0">
+        <p class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Sin retransmisión</p>
+        <p class="text-xl font-semibold mt-2 text-[var(--portal-text)]">{{ report.overview.fixturesMissingBroadcast }}</p>
+      </div>
+    </div>
+
+    <div *ngIf="report.staleEntities.length" class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-5">
+      <h4 class="text-base font-semibold text-[var(--portal-text)]">Entidades desactualizadas</h4>
+      <ul class="mt-3 space-y-1 text-sm">
+        <li *ngFor="let entity of report.staleEntities" class="text-[var(--portal-text-soft)]">
+          {{ entity.name }} <span class="text-[var(--portal-text-muted)]">({{ entity.kind === 'competition' ? 'competición' : 'equipo' }})</span>
+        </li>
+      </ul>
+    </div>
+
+    <div *ngIf="report.unmappedEntities.length" class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-5">
+      <h4 class="text-base font-semibold text-[var(--portal-text)]">Entidades sin mapear</h4>
+      <ul class="mt-3 space-y-1 text-sm">
+        <li *ngFor="let entity of report.unmappedEntities" class="text-[var(--portal-text-soft)]">
+          {{ entity.name }} <span class="text-[var(--portal-text-muted)]">({{ entity.kind === 'competition' ? 'competición' : 'equipo' }})</span>
+        </li>
+      </ul>
+    </div>
+
+    <p *ngIf="!hasIssues" class="text-sm text-[var(--portal-text-muted)]">Sin incidencias de calidad.</p>
+  </ng-container>
+</div>

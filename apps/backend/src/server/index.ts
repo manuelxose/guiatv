@@ -49,6 +49,7 @@ async function startServer() {
       catalogController: container.get('catalogController'),
       tvController: container.get('tvController'),
       footballController: container.get('footballController'),
+      footballOpsController: container.get('footballOpsController'),
       blogController: container.get('blogController'),
       editorialOpsController: container.get('editorialOpsController'),
       analyticsController: container.get('analyticsController'),
@@ -73,6 +74,25 @@ async function startServer() {
         // minMs: the per-minute refresh is only stored when it is slow; the first run (set at boot) always is.
         refreshFootballHome: () => timeStep('background.football_home_refresh', () => container.get<any>('footballQueryService').getHome(), { minMs: 50 }),
       }));
+
+      // M05 football ingestion: create its indexes once, then start the adaptive loop.
+      // A failure here must never stop the server from serving TV data, so it is logged
+      // and retried by the loop's own backoff rather than thrown.
+      try {
+        const { createFootballIndexes } = await timeStep('boot.import_football_indexes', () =>
+          import('../infrastructure/sports/persistence/createFootballIndexes')
+        );
+        await timeStep('boot.football_indexes', () => createFootballIndexes());
+      } catch (error) {
+        logger.warn('Football ingestion indexes could not be created; ingestion will retry', { error: String(error) });
+      }
+      const { startFootballIngestionLoop } = await timeStep('boot.import_football_loop', () =>
+        import('../jobs/football/footballIngestionLoop')
+      );
+      const footballLoop = startFootballIngestionLoop({ runOnStart: true });
+      const shutdownFootballLoop = () => footballLoop.stop();
+      process.once('SIGTERM', shutdownFootballLoop);
+      process.once('SIGINT', shutdownFootballLoop);
     }
 
     const httpServer = createServer(app);

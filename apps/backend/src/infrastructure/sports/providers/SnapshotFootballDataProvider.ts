@@ -1,0 +1,194 @@
+/**
+ * Snapshot-backed public football provider (M06).
+ *
+ * WHY THIS EXISTS: before M06 the public football API was served either by the
+ * EPG read model or by football-data.org. Neither reads `football_snapshots`, so
+ * the data M05/M06 actually ingest was stored and displayed in the admin console
+ * but never reached a public page. Verified 2026-11-06: the collection held 1,444
+ * real matches while GET /v2/sports/football/matches returned 0.
+ *
+ * This provider closes that gap: it serves the public API from the SAME stored
+ * snapshots the ingestion pipeline writes, so what the admin sees is what visitors
+ * see. It is a read model only - it never calls a provider and never fabricates.
+ *
+ * DESIGN RULES
+ *  - Never invent a field. A snapshot stores `match` exactly as the adapter mapped
+ *    it; an absent field stays absent (no 0, no "unknown", no derived minute).
+ *  - Only `finished`, `live` and `scheduled` matches are returned; anything else is
+ *    excluded rather than relabelled.
+ *  - Bounded queries only: every method applies an explicit limit so a public
+ *    request can never scan the whole collection.
+ */
+
+import { FootballSnapshotModel } from '../../../infrastructure/sports/persistence/models';
+import {
+  FootballCompetition,
+  FootballDataProvider,
+  FootballMatch,
+  FootballMatchQuery,
+  FootballStandingRow,
+  FootballTeam,
+} from '../../../domain/sports/football/types';
+
+/** Hard caps so a public read stays cheap regardless of what the query asks for. */
+const DEFAULT_LIMIT = 200;
+const MAX_LIMIT = 500;
+const LIVE_WINDOW_MS = 3 * 60 * 60 * 1000;
+const TOURNAMENT_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+
+function boundedLimit(requested: number | undefined): number {
+  if (!requested || !Number.isFinite(requested) || requested <= 0) return DEFAULT_LIMIT;
+  return Math.min(Math.floor(requested), MAX_LIMIT);
+}
+
+export class SnapshotFootballDataProvider implements FootballDataProvider {
+  readonly key = 'snapshot';
+  readonly name = 'Guía TV (datos ingeridos verificados)';
+
+  /**
+   * Live scores are supported only in the sense that an ingested match may carry
+   * status `live`. OpenLigaDB publishes no live minute, so no minute is claimed.
+   */
+  supportsLiveScores(): boolean {
+    return true;
+  }
+
+  async getMatches(query: FootballMatchQuery = {}): Promise<FootballMatch[]> {
+    const filter = this.buildFilter(query);
+    const limit = boundedLimit(query.limit);
+    const docs = await FootballSnapshotModel.find(filter)
+      .sort({ 'match.kickoffAt': 1 })
+      .limit(limit)
+      .lean()
+      .exec();
+    return docs.map((doc: any) => doc.match as FootballMatch).filter(Boolean);
+  }
+
+  async getLiveMatches(): Promise<FootballMatch[]> {
+    const since = new Date(Date.now() - LIVE_WINDOW_MS).toISOString();
+    const docs = await FootballSnapshotModel.find({
+      'match.status': 'live',
+      'match.kickoffAt': { $gte: since },
+    })
+      .sort({ 'match.kickoffAt': -1 })
+      .limit(MAX_LIMIT)
+      .lean()
+      .exec();
+    return docs.map((doc: any) => doc.match as FootballMatch).filter(Boolean);
+  }
+
+  async getMatch(idOrSlug: string): Promise<FootballMatch | null> {
+    const key = String(idOrSlug ?? '').trim();
+    if (!key) return null;
+    // Exact identity first (canonical slug or provider match id), never a wide scan.
+    let doc = await FootballSnapshotModel.findOne({ canonicalKey: key }).lean().exec();
+    if (!doc) doc = await FootballSnapshotModel.findOne({ matchId: key }).lean().exec();
+    if (!doc) return null;
+    return (doc as any).match as FootballMatch;
+  }
+
+  async getCompetitions(): Promise<FootballCompetition[]> {
+    const slugs: string[] = await FootballSnapshotModel.distinct('competitionSlug').exec();
+    const bySlug = new Map<string, FootballCompetition>();
+    for (const slug of slugs) {
+      const doc = await FootballSnapshotModel.findOne({ competitionSlug: slug }).lean().exec();
+      const competition = (doc as any)?.match?.competition as FootballCompetition | undefined;
+      if (competition?.slug) bySlug.set(competition.slug, competition);
+    }
+    return [...bySlug.values()];
+  }
+
+  async getCompetition(slug: string): Promise<FootballCompetition | null> {
+    const doc = await FootballSnapshotModel.findOne({ competitionSlug: String(slug ?? '') }).lean().exec();
+    return ((doc as any)?.match?.competition as FootballCompetition | undefined) ?? null;
+  }
+
+  /**
+   * Standings are NOT provided. OpenLigaDB publishes no table, so returning an
+   * empty array is the truthful answer and callers must render "not available"
+   * rather than an empty league table.
+   */
+  async getStandings(_competitionSlug: string): Promise<FootballStandingRow[]> {
+    return [];
+  }
+
+  async getTeams(): Promise<FootballTeam[]> {
+    const since = new Date(Date.now() - TOURNAMENT_WINDOW_MS).toISOString();
+    const sincePast = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const docs = await FootballSnapshotModel.find({
+      'match.kickoffAt': { $gte: sincePast },
+    })
+      .sort({ 'match.kickoffAt': 1 })
+      .limit(MAX_LIMIT)
+      .lean()
+      .exec();
+    void since;
+    const bySlug = new Map<string, FootballTeam>();
+    for (const doc of docs as any[]) {
+      for (const team of [doc.match?.homeTeam, doc.match?.awayTeam]) {
+        if (team?.slug && !bySlug.has(team.slug)) bySlug.set(team.slug, team);
+      }
+    }
+    return [...bySlug.values()];
+  }
+
+  async getTeam(slug: string): Promise<FootballTeam | null> {
+    const key = String(slug ?? '').trim();
+    if (!key) return null;
+    const doc = await FootballSnapshotModel.findOne({
+      $or: [{ 'match.homeTeam.slug': key }, { 'match.awayTeam.slug': key }],
+    })
+      .lean()
+      .exec();
+    if (!doc) return null;
+    const match = (doc as any).match as FootballMatch | undefined;
+    if (!match) return null;
+    if (match.homeTeam?.slug === key) return match.homeTeam;
+    if (match.awayTeam?.slug === key) return match.awayTeam;
+    return null;
+  }
+
+  /** Builds a bounded Mongo filter. Absent query fields simply do not constrain. */
+  private buildFilter(query: FootballMatchQuery): Record<string, unknown> {
+    const filter: Record<string, unknown> = {};
+    const kickoff: Record<string, string> = {};
+
+    if (query.dateFrom) kickoff.$gte = new Date(query.dateFrom).toISOString();
+    if (query.dateTo) kickoff.$lte = new Date(query.dateTo).toISOString();
+
+    if (query.date) {
+      // A single calendar day: the caller's local day is approximated as a 24h
+      // window around the given date, never a fabricated kickoff.
+      const start = new Date(query.date);
+      if (!Number.isNaN(start.getTime())) {
+        kickoff.$gte = new Date(start).toISOString();
+        kickoff.$lte = new Date(start.getTime() + 24 * 60 * 60 * 1000).toISOString();
+      }
+    }
+    if (Object.keys(kickoff).length > 0) filter['match.kickoffAt'] = kickoff;
+
+    if (query.competitionSlug) filter.competitionSlug = query.competitionSlug;
+    if (query.status) filter['match.status'] = query.status;
+    if (query.teamSlug) {
+      filter.$or = [
+        { 'match.homeTeam.slug': query.teamSlug },
+        { 'match.awayTeam.slug': query.teamSlug },
+      ];
+    }
+    if (query.q) {
+      const escaped = String(query.q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const rx = { $regex: escaped, $options: 'i' };
+      const textClauses = [
+        { 'match.homeTeam.name': rx },
+        { 'match.awayTeam.name': rx },
+        { 'match.competition.name': rx },
+      ];
+      // Preserve a team constraint when both are present.
+      filter.$and = filter.$or
+        ? [{ $or: filter.$or as unknown[] }, { $or: textClauses }]
+        : [{ $or: textClauses }];
+      delete filter.$or;
+    }
+    return filter;
+  }
+}

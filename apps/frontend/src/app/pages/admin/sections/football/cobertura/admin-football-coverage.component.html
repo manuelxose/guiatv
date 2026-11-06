@@ -1,0 +1,60 @@
+<div class="space-y-6">
+  <div *ngIf="error" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative)]">
+    {{ error }}
+  </div>
+
+  <p *ngIf="loading && !report" class="text-sm text-[var(--portal-text-muted)]">Cargando cobertura…</p>
+
+  <ng-container *ngIf="report">
+    <div *ngIf="!providerApproved" class="rounded-xl border border-[var(--spotify-warning)]/40 bg-[var(--spotify-warning)]/10 p-4 text-sm text-[var(--portal-text)]">
+      No hay ningún proveedor aprobado: ninguna competición tiene cobertura.
+    </div>
+
+    <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="text-left text-[var(--portal-text-muted)]">
+          <tr>
+            <th class="p-4">Competición</th>
+            <th>País</th>
+            <th>Temporada</th>
+            <th>Cobertura</th>
+            <th>Actualizado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let competition of report.competitions" class="border-t border-[var(--portal-border)]">
+            <td class="p-4 text-[var(--portal-text)]">{{ competition.name }}</td>
+            <td class="text-[var(--portal-text-soft)]">{{ competition.country || '—' }}</td>
+            <td class="text-[var(--portal-text-soft)]">{{ competition.currentSeason || '—' }}</td>
+            <td>
+              <app-admin-status-badge
+                [status]="coverageStatus(competition.state)"
+                [label]="stateLabel(competition.state)"
+              ></app-admin-status-badge>
+            </td>
+            <td class="text-[var(--portal-text-soft)]">{{ competition.lastUpdatedAt ? (competition.lastUpdatedAt | date:'short') : 'Nunca' }}</td>
+          </tr>
+          <tr *ngIf="!report.competitions.length">
+            <td colspan="5" class="p-4 text-[var(--portal-text-muted)]">No hay competiciones registradas.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-5">
+      <h4 class="text-base font-semibold text-[var(--portal-text)]">Matriz de cobertura por dato</h4>
+      <p class="text-sm text-[var(--portal-text-soft)] mt-1">
+        Capacidad del proveedor para cada tipo de dato. Un valor no medido nunca se muestra como disponible.
+      </p>
+      <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div *ngFor="let cell of report.matrix" class="flex items-center justify-between gap-3 border border-[var(--portal-border)] rounded-xl p-3 min-w-0">
+          <span class="text-sm text-[var(--portal-text)]">{{ aspectLabel(cell.aspect) }}</span>
+          <app-admin-status-badge
+            [status]="coverageStatus(cell.state)"
+            [label]="stateLabel(cell.state)"
+          ></app-admin-status-badge>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+</div>

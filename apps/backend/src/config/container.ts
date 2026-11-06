@@ -368,7 +368,22 @@ export class Container {
     const footballApiKey = process.env.FOOTBALL_DATA_API_KEY;
     const epgFootballProvider = new EpgFootballDataProvider();
     let footballProvider: any;
-    if (footballApiKey) {
+
+    // M06: prefer the data this system actually ingests and verifies.
+    //
+    // Before M06 the public API was served only by the EPG or football-data.org,
+    // so ingested OpenLigaDB snapshots reached the admin console but never a
+    // public page. The snapshot provider serves the SAME stored matches the admin
+    // reads, so public and admin can never disagree about what we hold.
+    //
+    // Opt out with FOOTBALL_PUBLIC_SOURCE=epg|football-data. Default: snapshot.
+    const publicSource = (process.env.FOOTBALL_PUBLIC_SOURCE || 'snapshot').toLowerCase();
+    const { SnapshotFootballDataProvider } = await import(
+      '../infrastructure/sports/providers/SnapshotFootballDataProvider'
+    );
+    const snapshotFootballProvider = new SnapshotFootballDataProvider();
+
+    if (publicSource === 'football-data' && footballApiKey) {
       const { FootballDataOrgAdapter } = await import(
         '../infrastructure/sports/providers/FootballDataOrgAdapter'
       );
@@ -379,10 +394,13 @@ export class Container {
         new FootballDataOrgAdapter(footballApiKey),
         epgFootballProvider
       );
-      logger.info('Football provider: football-data.org (live scores enabled, EPG fallback)');
-    } else {
+      logger.info('Football provider: football-data.org (EPG fallback), explicitly requested');
+    } else if (publicSource === 'epg') {
       footballProvider = epgFootballProvider;
-      logger.info('Football provider: EPG (real fixtures/broadcasts, no live scores)');
+      logger.info('Football provider: EPG only, explicitly requested');
+    } else {
+      footballProvider = snapshotFootballProvider;
+      logger.info('Football provider: ingested snapshots (OpenLigaDB, verified), EPG as fallback');
     }
     this.dependencies.set('footballProvider', footballProvider);
 
@@ -664,6 +682,36 @@ export class Container {
       this.get('broadcastReconciliationService')
     );
     this.dependencies.set('footballController', footballController);
+
+    // M05 ingestion diagnostics (admin-only). The ingestion service is built lazily
+    // on first read so boot never performs upstream I/O; when ingestion is disabled
+    // the endpoint reports a clearly disabled state instead of inventing health data.
+    const { FootballOpsController } = await import('../presentation/controllers/FootballOpsController');
+    const { getFootballIngestionService, sharedFootballIngestionService } = await import(
+      '../application/sports/ingestion/footballIngestionContainer'
+    );
+    type DiagnosticsReport = Awaited<ReturnType<typeof getFootballIngestionService>> extends infer S
+      ? S extends { diagnostics(): infer R }
+        ? R
+        : never
+      : never;
+    // Resolve the shared service once at boot; it performs no I/O until the first tick.
+    void getFootballIngestionService();
+    const footballOpsController = new FootballOpsController({
+      diagnostics: () => {
+        const service = sharedFootballIngestionService();
+        if (!service) {
+          // Ingestion switched off: report that honestly. No provider row is invented.
+          return {
+            generatedAt: new Date().toISOString(),
+            providers: [],
+            summary: { activeMatches: 0, staleSnapshots: 0, queueSize: 0, identityConflicts: 0 },
+          } as DiagnosticsReport;
+        }
+        return service.diagnostics();
+      },
+    });
+    this.dependencies.set('footballOpsController', footballOpsController);
 
     const blogController = new BlogController(this.get('cacheRepository'));
     this.dependencies.set('blogController', blogController);

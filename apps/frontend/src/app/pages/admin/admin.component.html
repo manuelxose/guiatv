@@ -76,6 +76,11 @@
             [activeItem]="activeItem"
             (lastUpdatedChange)="onLastUpdated($event)"
           ></app-admin-operations-section>
+          <app-admin-football-section
+            *ngIf="activeGroup === 'futbol'"
+            [activeItem]="activeItem"
+            (lastUpdatedChange)="onLastUpdated($event)"
+          ></app-admin-football-section>
           <ng-container *ngIf="activeGroup === 'users'">
             <app-admin-users-section
               *ngIf="activeItem !== 'moderation'"
