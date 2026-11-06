@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// ENGINE-03 confined gate for the M05 worktrees.
-//   node scripts/test.mjs  [backend|frontend]
-// Mirrors the npm scripts without needing the npm CLI inside the confined child.
+// ENGINE-03 confined gate for the backends worktree.
+//   node scripts/test.mjs     -> typecheck + build + backend unit tests
+// Behaviour: M05_GATE_TARGET=backend (default) | frontend
 import { spawnSync } from 'node:child_process';
 
-const target = process.argv[2] ?? 'backend';
+const target = process.env.M05_GATE_TARGET ?? 'backend';
 
 const runIn = (cwd, cmd, args) => {
   const r = spawnSync(cmd, args, { stdio: 'inherit', shell: true, cwd });
@@ -26,5 +26,5 @@ if (target === 'frontend') {
   process.exit(runIn('apps/frontend', `${ng} test --watch=false --browsers=ChromeHeadlessNoSandbox`, []));
 }
 
-console.error(`unknown target "${target}" (expected backend|frontend)`);
+console.error(`unknown M05_GATE_TARGET "${target}" (expected backend|frontend)`);
 process.exit(2);
