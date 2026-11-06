@@ -25,7 +25,7 @@ import {
 } from './football-admin.models';
 
 /** Admin read API base (t7). Same-origin; the BFF routes it to the internal admin controller. */
-const ADMIN_API_BASE = '/v2/sports/football/admin';
+const ADMIN_API_BASE = '/sports/football/admin';
 
 /** Query accepted by the entity-mappings and broadcasts list endpoints (page/limit + free-text q). */
 type SearchListQuery = PagedQuery & { q?: string };
@@ -161,3 +161,4 @@ export class FootballAdminDataService {
     }
   }
 }
+

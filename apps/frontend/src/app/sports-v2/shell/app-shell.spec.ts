@@ -77,10 +77,12 @@ describe('sports-v2 Sv2AppShellComponent', () => {
     expect(links.map((a) => a.getAttribute('href'))).toEqual([ODBL_DATABASE_URL, ODBL_LICENSE_URL]);
   });
 
-  it('keeps the ODbL attribution visible in the full-page Match Center', async () => {
-    const fixture = await render();
-    TestBed.inject(SportsStore).matchPageOpen.set(true);
-    fixture.detectChanges();
-    expect((fixture.nativeElement as HTMLElement).querySelector('footer[role="contentinfo"]')).toBeTruthy();
+  it('shows no ODbL attribution for demo (fictitious) data', async () => {
+    // The shell test store renders demo data, so attributing it to OpenLigaDB
+    // would be a false statement. The full-page Match Center renders OUTSIDE the
+    // shell and carries its own notice (see match-page.ts).
+    const el = (await render()).nativeElement as HTMLElement;
+    expect(el.querySelector('.demo')).toBeTruthy();
+    expect(el.querySelector('footer[role="contentinfo"]')).toBeNull();
   });
 });
