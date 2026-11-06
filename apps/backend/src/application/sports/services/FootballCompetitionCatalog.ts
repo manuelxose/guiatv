@@ -49,6 +49,15 @@ const entries: CompetitionCatalogEntry[] = [
     aliases: ['copa del rey'],
   },
   {
+    slug: 'dfb-pokal',
+    name: 'DFB-Pokal',
+    shortName: 'DFB-Pokal',
+    country: 'Alemania',
+    type: 'cup',
+    titleHints: ['dfb pokal', 'dfb-pokal', 'copa de alemania', 'pokal'],
+    aliases: ['dfb pokal', 'dfb-pokal', 'copa alemana'],
+  },
+  {
     slug: 'champions-league',
     name: 'UEFA Champions League',
     shortName: 'Champions',
@@ -101,6 +110,15 @@ const entries: CompetitionCatalogEntry[] = [
     type: 'league',
     titleHints: ['bundesliga', 'bundesliga 1'],
     aliases: ['bundesliga'],
+  },
+  {
+    slug: 'bundesliga-2',
+    name: 'Bundesliga 2',
+    shortName: 'Bundesliga 2',
+    country: 'Alemania',
+    type: 'league',
+    titleHints: ['bundesliga 2', '2. bundesliga', '2. fußball-bundesliga', 'segunda bundesliga', 'zweite bundesliga'],
+    aliases: ['bundesliga 2', '2. bundesliga', 'segunda division alemana', 'zweite liga'],
   },
   {
     slug: 'ligue-1',

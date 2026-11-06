@@ -6,11 +6,14 @@ import {
   OpenLigaDbError,
 } from './OpenLigaDbClient';
 import {
+  classifyOpenLigaDbFetch,
   mapOpenLigaDbMatch,
   OpenLigaDbAdapter,
   OpenLigaDbGoalEvent,
   OPENLIGADB_COMPETITION_MAP,
+  openLigaDbSeasonLabel,
   resolveCompetitionSlug,
+  resolveOpenLigaDbCoverage,
   validateOpenLigaDbPayload,
 } from './OpenLigaDbAdapter';
 
@@ -113,11 +116,134 @@ test('live minute is always undefined — never derived from kickoff', () => {
   assert.equal('minute' in match, false);
 });
 
+test('every verified competition shortcut maps to its catalog slug', () => {
+  const expected: Record<string, string> = {
+    bl1: 'bundesliga',
+    ucl: 'champions-league',
+    uel2026: 'europa-league',
+    uecl2026: 'conference-league',
+    pl: 'premier-league',
+    dfb: 'dfb-pokal',
+    bl2: 'bundesliga-2',
+  };
+  assert.deepEqual({ ...OPENLIGADB_COMPETITION_MAP }, expected);
+  for (const [shortcut, slug] of Object.entries(expected)) {
+    assert.equal(resolveCompetitionSlug(shortcut), slug);
+    const match = mapOpenLigaDbMatch(rawMatch({ leagueShortcut: shortcut }), NOW);
+    assert.ok(match, `shortcut ${shortcut} should map`);
+    assert.equal(match.competition.slug, slug);
+  }
+});
+
+test('an unsupported shortcut never falls back to another competition', () => {
+  // Real OpenLigaDB shortcuts that are NOT part of the verified map. Each must
+  // resolve to null, never to a look-alike slug.
+  for (const shortcut of ['bl3', 'wm2026', 'pl1', 'la1', 'esp']) {
+    assert.equal(resolveCompetitionSlug(shortcut), null, `shortcut ${shortcut}`);
+    assert.equal(mapOpenLigaDbMatch(rawMatch({ leagueShortcut: shortcut }), NOW), null);
+  }
+  // `ucl2026` is a DIFFERENT OpenLigaDB league (leagueId 5997) than the verified
+  // `ucl` (leagueId 4946); it must not be guessed into champions-league.
+  assert.equal(resolveCompetitionSlug('ucl2026'), null);
+  assert.equal(mapOpenLigaDbMatch(rawMatch({ leagueShortcut: 'ucl2026' }), NOW), null);
+});
+
 test('unknown leagues are skipped, never guessed', () => {
-  assert.equal(resolveCompetitionSlug('bl2'), null);
   assert.equal(resolveCompetitionSlug(undefined), null);
-  assert.deepEqual(OPENLIGADB_COMPETITION_MAP, { bl1: 'bundesliga' });
-  assert.equal(mapOpenLigaDbMatch(rawMatch({ leagueShortcut: 'bl2' }), NOW), null);
+  assert.equal(resolveCompetitionSlug(''), null);
+  assert.equal(mapOpenLigaDbMatch(rawMatch({ leagueShortcut: 'nope' }), NOW), null);
+});
+
+test('absent provider fields stay absent — no referee, lineups, statistics, standings or live minute', () => {
+  const match = mapOpenLigaDbMatch(rawMatch(), NOW)!;
+  assert.equal('minute' in match, false);
+  assert.equal(match.lineups, undefined);
+  assert.equal('lineups' in match, false);
+  // The only statistics entry is the real halftime result, never a team stat.
+  assert.deepEqual(Object.keys(match.statistics ?? {}), ['halftime']);
+  assert.equal('referee' in (match as any), false);
+  assert.equal('standings' in (match as any), false);
+});
+
+test('no score or statistic is fabricated when the provider supplies no results', () => {
+  const match = mapOpenLigaDbMatch(rawMatch({ matchResults: undefined, matchIsFinished: false }), NOW)!;
+  assert.deepEqual(match.score, { home: null, away: null });
+  assert.equal(match.statistics, undefined);
+});
+
+test('a side-less goal is preserved with teamId undefined, never guessed', () => {
+  const match = mapOpenLigaDbMatch(rawMatch({
+    goals: [{
+      goalID: 70003,
+      scoreTeam1: 1,
+      scoreTeam2: 0,
+      matchMinute: 30,
+      goalGetterName: undefined,
+      scoringTeamId: null,
+      isPenalty: false,
+      isOwnGoal: false,
+      isOvertime: false,
+    }],
+  }), NOW)!;
+  const events = match.events as OpenLigaDbGoalEvent[];
+  assert.equal(events.length, 1);
+  assert.equal(events[0].providerEventId, '70003');
+  assert.equal(events[0].teamId, undefined);
+});
+
+test('a running-score/final-result disagreement is surfaced, not repaired', () => {
+  // Final result says 3-0, but the last goal's running score says 2-0. Both must
+  // be preserved verbatim so a consumer can detect the conflict.
+  const match = mapOpenLigaDbMatch(rawMatch({
+    matchResults: [{ resultTypeKind: 'After90Minutes', pointsTeam1: 3, pointsTeam2: 0 }],
+    goals: [{
+      goalID: 70010,
+      scoreTeam1: 2,
+      scoreTeam2: 0,
+      matchMinute: 60,
+      goalGetterName: 'X',
+      scoringTeamId: 1,
+      isPenalty: false,
+      isOwnGoal: false,
+      isOvertime: false,
+    }],
+  }), NOW)!;
+  assert.deepEqual(match.score, { home: 3, away: 0 });
+  const events = match.events as OpenLigaDbGoalEvent[];
+  assert.deepEqual(events[0].scoreAfter, { home: 2, away: 0 });
+});
+
+test('openLigaDbSeasonLabel derives 2026/27 from a 2026 start year', () => {
+  assert.equal(openLigaDbSeasonLabel(2026), '2026/27');
+  assert.equal(openLigaDbSeasonLabel('2026'), '2026/27');
+  assert.equal(openLigaDbSeasonLabel(2025), '2025/26');
+  assert.equal(openLigaDbSeasonLabel(undefined), undefined);
+  assert.equal(openLigaDbSeasonLabel('nope'), undefined);
+});
+
+test('resolveOpenLigaDbCoverage distinguishes covered from not-covered', () => {
+  const ucl = resolveOpenLigaDbCoverage('ucl', 2026);
+  assert.equal(ucl.state, 'provider_supported');
+  assert.equal(ucl.competitionSlug, 'champions-league');
+  assert.equal(ucl.seasonLabel, '2026/27');
+
+  const uncovered = resolveOpenLigaDbCoverage('bl3', 2026);
+  assert.equal(uncovered.state, 'competition_not_covered');
+  assert.equal(uncovered.competitionSlug, undefined);
+});
+
+test('classifyOpenLigaDbFetch maps empty payload to no-fixtures and error to unavailable', () => {
+  const supported = resolveOpenLigaDbCoverage('dfb', 2026);
+  assert.equal(classifyOpenLigaDbFetch(supported, { matches: [] }).state, 'provider_supported_no_fixtures');
+  assert.equal(
+    classifyOpenLigaDbFetch(supported, { matches: [mapOpenLigaDbMatch(rawMatch(), NOW)!] }).state,
+    'provider_supported'
+  );
+  assert.equal(
+    classifyOpenLigaDbFetch(supported, { error: new OpenLigaDbError({ kind: 'timeout', message: 'x' }) }).state,
+    'provider_unavailable'
+  );
+  assert.equal(classifyOpenLigaDbFetch(supported, { error: new Error('net') }).state, 'provider_unavailable');
 });
 
 test('malformed individual records are skipped, not thrown', () => {
@@ -140,12 +266,53 @@ test('adapter.fetchMatches maps, skips malformed, and never throws raw parse err
   const client = new OpenLigaDbClient(async () => response(200, [
     rawMatch(),
     null,
-    rawMatch({ matchID: 51001, leagueShortcut: 'bl2' }),
+    rawMatch({ matchID: 51001, leagueShortcut: 'bl3' }),
   ]));
   const adapter = new OpenLigaDbAdapter(client);
   const matches = await adapter.fetchMatches('bl1', '2026', NOW);
   assert.equal(matches.length, 1);
   assert.equal(matches[0].id, '51000');
+});
+
+test('adapter.fetchMatches skips an unknown shortcut without issuing a request', async () => {
+  let calls = 0;
+  const client = new OpenLigaDbClient(async () => {
+    calls += 1;
+    return response(200, []);
+  });
+  const adapter = new OpenLigaDbAdapter(client);
+  const matches = await adapter.fetchMatches('bl3', '2026', NOW);
+  assert.equal(matches.length, 0);
+  assert.equal(calls, 0);
+});
+
+test('adapter.fetchMatchesWithCoverage folds provider errors into the descriptor', async () => {
+  const client = new OpenLigaDbClient(async () => response(500));
+  const adapter = new OpenLigaDbAdapter(client);
+  const result = await adapter.fetchMatchesWithCoverage('pl', '2026', NOW);
+  assert.equal(result.coverage.state, 'provider_unavailable');
+  assert.deepEqual(result.matches, []);
+});
+
+test('adapter.fetchMatchesWithCoverage reports no-fixtures for an empty season', async () => {
+  const client = new OpenLigaDbClient(async () => response(200, []));
+  const adapter = new OpenLigaDbAdapter(client);
+  const result = await adapter.fetchMatchesWithCoverage('dfb', '2026', NOW);
+  assert.equal(result.coverage.state, 'provider_supported_no_fixtures');
+  assert.deepEqual(result.matches, []);
+});
+
+test('adapter.fetchMatchesWithCoverage reports competition_not_covered without a request', async () => {
+  let calls = 0;
+  const client = new OpenLigaDbClient(async () => {
+    calls += 1;
+    return response(200, []);
+  });
+  const adapter = new OpenLigaDbAdapter(client);
+  const result = await adapter.fetchMatchesWithCoverage('bl3', '2026', NOW);
+  assert.equal(result.coverage.state, 'competition_not_covered');
+  assert.deepEqual(result.matches, []);
+  assert.equal(calls, 0);
 });
 
 test('client classifies 429 as rate_limited, 403 as auth, 500 as http', async () => {
