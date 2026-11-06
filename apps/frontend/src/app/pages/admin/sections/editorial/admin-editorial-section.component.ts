@@ -367,8 +367,9 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
     this.editError = '';
     this.editNotice = '';
     const published = this.detail.post.status === 'publish';
-    this.service.updatePost(this.detail.post.id, { ...this.editDraft, expectedVersion: this.detail.version, expectedStatus: this.detail.post.status }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.editBusy = false; this.editNotice = published ? 'Borrador de cambios guardado. La versión publicada sigue intacta.' : 'Borrador guardado; queda pendiente de revisión.'; this.openPost(this.detail!.post.id); this.refresh(true); },
+    const id = this.detail.post.id;
+    this.service.updatePost(id, { ...this.editDraft, expectedVersion: this.detail.version, expectedStatus: this.detail.post.status }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => { this.editBusy = false; if (this.detailOpen && this.detail?.post.id === id) { this.editNotice = published ? 'Borrador de cambios guardado. La versión publicada sigue intacta.' : 'Borrador guardado; queda pendiente de revisión.'; this.openPost(id); } this.refresh(true); },
       error: (e) => { this.editBusy = false; this.editError = errorMessage(e, 'No se pudo guardar el artículo'); },
     });
   }
