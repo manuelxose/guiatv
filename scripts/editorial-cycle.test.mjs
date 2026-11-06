@@ -225,6 +225,44 @@ test('daily limit reached leaves a manual generation request queued', async () =
   }
 });
 
+test('manual generation: a claimed request reaches seed validation and is finished on a source error', async () => {
+  const dir = fresh();
+  writeFileSync(join(dir, 'topic-queue.json'), JSON.stringify({ version: 1, lastDiscoveryAt: new Date().toISOString(), topics: [] }));
+  const topic = { ...queued('nuevo-manual').topic, title: 'Consulta de streaming', intent: 'Verificar fuentes oficiales', category: 'Streaming', length: 'short', seedUrls: [`${base}/missing-source`] };
+  work = { policy, settings: { enabled: true }, ownershipProtocols: ['v1'], requests: [{ id: 'mine', kind: 'generate', topic }] };
+  const before = finishes.length;
+  try {
+    const r = await cycle(dir);
+    assert.equal(r.code, 0, r.output);
+    assert.equal(finishes.length - before, 1, 'claimed request must be reconciled exactly once');
+    assert.equal(finishes[before].body.status, 'failed');
+    assert.match(finishes[before].body.reason, /missing-source/);
+    assert.equal(finishes[before].token, 'owner-token');
+    assert.doesNotMatch(r.output, /Cannot access 'manualTopic' before initialization/);
+  } finally {
+    work = null;
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test('manual generation: invalid claimed payload is finished as failed instead of being stranded active', async () => {
+  const dir = fresh();
+  writeFileSync(join(dir, 'topic-queue.json'), JSON.stringify({ version: 1, lastDiscoveryAt: new Date().toISOString(), topics: [] }));
+  work = { policy, settings: { enabled: true }, ownershipProtocols: ['v1'], requests: [{ id: 'mine', kind: 'generate' }] };
+  const before = finishes.length;
+  try {
+    const r = await cycle(dir);
+    assert.equal(r.code, 0, r.output);
+    assert.equal(finishes.length - before, 1, 'even malformed requests must be reconciled');
+    assert.equal(finishes[before].body.status, 'failed');
+    assert.match(finishes[before].body.reason, /manual request missing topic/);
+    assert.equal(finishes[before].token, 'owner-token');
+  } finally {
+    work = null;
+    rmSync(dir, { recursive: true });
+  }
+});
+
 test('provider outage: discovery failure is reported when the queue is empty', async () => {
   const dir = fresh();
   const r = await cycle(dir);
