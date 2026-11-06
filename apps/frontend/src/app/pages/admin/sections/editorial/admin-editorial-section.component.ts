@@ -175,6 +175,14 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
     });
   }
 
+  recordIndexingRequest(slug: string): void {
+    if (!window.confirm('¿Has solicitado la indexación de esta guía en Search Console? Esta marca es manual y no confirma que Google la haya indexado.')) return;
+    this.service.recordIndexingRequest(slug).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => { this.notice = 'Solicitud anotada manualmente.'; this.refresh(true); },
+      error: (e) => { this.error = errorMessage(e, 'No se pudo guardar la anotación'); },
+    });
+  }
+
   loadProviders(refresh = false): void {
     this.providersLoading = true;
     this.providersError = '';
@@ -203,13 +211,13 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
   get runnerStatusText(): string {
     const runner = this.overview?.runner;
     if (!runner?.lastSeenAt) return 'Sin señal: el proceso externo nunca ha contactado con este servidor';
-    if (runner.status === 'error') return `Error reportado: ${runner.lastError || 'sin detalle'}`;
+    if (runner.status === 'error') return `Último error comunicado: ${runner.lastError || 'sin detalle'}`;
     return runner.online ? 'Conectado' : 'Sin señal reciente';
   }
   get runnerDetailText(): string {
     const runner = this.overview?.runner;
     if (!runner?.lastSeenAt) return 'Comprueba que el runner está iniciado, actualizado y que puede autenticarse contra esta API.';
-    return runner.online ? `Versión ${runner.version || 'sin informar'} · última señal ${formatDate(runner.lastSeenAt)}` : `Última señal ${formatDate(runner.lastSeenAt)}${runner.lastError ? ` · ${runner.lastError}` : ''}`;
+    return runner.online ? `Versión ${runner.version || 'sin informar'} · última señal ${formatDate(runner.lastSeenAt)}` : `Última señal ${formatDate(runner.lastSeenAt)}${runner.lastError ? ` · último error comunicado: ${runner.lastError}` : ''}`;
   }
   /** Plain-language reason nothing is being produced, so the operator never has to read logs to learn it. */
   get diagnosis(): string | null {

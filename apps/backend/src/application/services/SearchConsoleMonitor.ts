@@ -237,7 +237,7 @@ export async function searchConsoleOverview(now = new Date()) {
   const guides = await BlogPostModel.find(PUBLIC_EDITORIAL_FILTER).select({ slug: 1, title: 1, publishedAt: 1, updatedAt: 1, categories: 1, 'editorial.pipelineVersion': 1, 'editorial.bundle.sources.kind': 1 }).sort({ publishedAt: -1 }).limit(100).lean().exec();
   const urls = guides.filter((g) => g.slug).map((g) => guideUrl(String(g.slug)));
   const pageRows = { query: null, date: { $gte: windowStart } };
-  const [lastRun, inspected, perf, siteDays] = await Promise.all([
+  const [lastRun, inspected, perf, siteDays, requests] = await Promise.all([
     runs().find({}, { projection: { _id: 0 } }).sort({ startedAt: -1 }).limit(1).next(),
     inspections().find({ url: { $in: urls } }, { projection: { _id: 0 } }).toArray(),
     performance().aggregate<{ _id: string; clicks: number; impressions: number; weighted: number; days: string[]; preliminary: boolean }>([
@@ -245,6 +245,11 @@ export async function searchConsoleOverview(now = new Date()) {
       { $group: { _id: '$page', clicks: { $sum: '$clicks' }, impressions: { $sum: '$impressions' }, weighted: { $sum: { $multiply: ['$position', '$impressions'] } }, days: { $addToSet: '$date' }, preliminary: { $max: '$preliminary' } } },
     ]).toArray(),
     performance().distinct('date', pageRows),
+    db().collection('editorial_audit').aggregate<{ _id: string; at: Date }>([
+      { $match: { action: 'indexing-request-recorded', postId: { $in: guides.map((g) => String(g._id)) } } },
+      { $sort: { at: -1 } },
+      { $group: { _id: '$postId', at: { $first: '$at' } } },
+    ]).toArray(),
   ]);
   const byUrl = new Map(inspected.map((i) => [i.url, i]));
   const perfByUrl = new Map(perf.map((p) => [p._id, p]));
@@ -259,6 +264,7 @@ export async function searchConsoleOverview(now = new Date()) {
       const ageDays = days(g.publishedAt);
       return {
         slug: g.slug, title: g.title, url,
+        indexingRequestRecordedAt: requests.find((r) => r._id === String(g._id))?.at ?? null,
         publishedAt: g.publishedAt ?? null, lastUpdatedAt: g.updatedAt ?? null, ageDays, ageBand: ageBand(ageDays),
         categories: ((g as { categories?: Array<{ name?: string }> }).categories ?? []).map((c) => c?.name).filter(Boolean),
         // Editorial source strategy: who wrote it and whether GuíaTV's own data is among its evidence.

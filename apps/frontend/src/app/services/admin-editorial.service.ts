@@ -139,7 +139,7 @@ export interface EditorialPostSummary {
   nextReviewAt: string | null;
 }
 
-/** Read-only Search Console observations; `indexed` comes only from Google's inspection verdict. */
+/** Google observations plus separately recorded manual request annotations. */
 export interface EditorialSearchConsole {
   enabled: boolean;
   windowDays: number;
@@ -157,6 +157,7 @@ export interface EditorialSearchConsole {
     slug: string;
     title: string;
     url: string;
+    indexingRequestRecordedAt: string | null;
     inspection: {
       inspectedAt: string | null; verdict: string | null; coverageState: string | null; indexed: boolean;
       lastCrawlTime: string | null; googleCanonical: string | null; canonicalMatch: boolean | null; error: string | null;
@@ -336,6 +337,11 @@ export class AdminEditorialService {
   runSearchConsole(): Observable<{ running: boolean; started: boolean }> {
     return this.http
       .post<ApiResponse<{ running: boolean; started: boolean }>>(`${this.baseUrl}/search-console/run`, {})
+      .pipe(map((resp) => resp.data));
+  }
+
+  recordIndexingRequest(slug: string): Observable<{ recordedAt: string }> {
+    return this.http.post<ApiResponse<{ recordedAt: string }>>(`${this.baseUrl}/search-console/indexing-request`, { slug })
       .pipe(map((resp) => resp.data));
   }
 

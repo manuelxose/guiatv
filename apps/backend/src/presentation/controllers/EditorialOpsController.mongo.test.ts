@@ -70,6 +70,11 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
 
     // Publication once; a second attempt (or a re-approval after it is taken down) is refused, not counted again.
     assert.equal((await call(blog.approveByPolicy, { params: { id } })).body?.data.post.status, 'publish');
+    const recorded = await call(ops.recordIndexingRequest, { body: { slug: 'el-padrino-m11c' } });
+    assert.equal(recorded.code, 200);
+    assert.ok(recorded.body.data.recordedAt);
+    assert.equal(await mongoose.connection.collection('editorial_audit').countDocuments({ action: 'indexing-request-recorded', slug: 'el-padrino-m11c', by: 'admin-key' }), 1);
+    assert.ok((await call(ops.recordIndexingRequest, { body: { slug: 'no-existe' } })).error);
     assert.match(String((await call(blog.approveByPolicy, { params: { id } })).error), /already published/);
     await BlogPostModel.updateOne({ _id: id }, { status: 'draft', reviewState: 'unreviewed' });
     assert.match(String((await call(blog.approveByPolicy, { params: { id } })).error), /already published by policy once/);

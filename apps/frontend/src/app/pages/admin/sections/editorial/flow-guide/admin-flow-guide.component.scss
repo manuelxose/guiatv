@@ -57,8 +57,63 @@ a {
 
 .flow-guide {
   display: grid;
-  gap: 20px;
+  gap: 24px;
   min-width: 0;
+}
+
+/* Organise the guide as an operational workspace while retaining portal tokens. */
+.flow-guide .fg-heading {
+  padding: clamp(20px, 3vw, 32px);
+  border: 1px solid var(--portal-border);
+  border-radius: var(--radius-lg);
+  background: var(--portal-surface-strong);
+}
+.fg-heading h2 { font-size: clamp(1.6rem, 2.5vw, 2.1rem); line-height: 1.15; }
+.flow-guide .fg-heading__text { gap: 10px; }
+.flow-guide .fg-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  border: 0;
+  padding: 0;
+}
+.flow-guide .fg-tab { padding: 16px 18px; min-height: 76px; }
+.fg-tab__label { font-size: 1rem; font-weight: 700; }
+.fg-tab[aria-selected='true'] { box-shadow: inset 4px 0 0 var(--spotify-green); }
+.flow-guide .fg-panel { gap: 28px; }
+.flow-guide .fg-block { gap: 16px; }
+.fg-block h3, .fg-diagnostic-heading h3 { font-size: 1.2rem; }
+.flow-guide .stage-card { padding: 20px; align-content: start; }
+.stage-card__index { background: var(--portal-surface-strong); font-weight: 700; }
+.fg-disclosure {
+  border: 1px solid var(--portal-border);
+  border-radius: var(--radius-lg);
+  background: var(--portal-surface);
+  overflow: hidden;
+}
+.fg-disclosure > summary {
+  min-height: 64px;
+  padding: 18px 20px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.fg-disclosure > summary span { margin-left: 10px; color: var(--portal-text-soft); font-size: 0.875rem; font-weight: 400; }
+.fg-disclosure[open] > summary { border-bottom: 1px solid var(--portal-border); }
+.fg-disclosure > .fg-block { padding: 20px; }
+.fg-diagnostic-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.fg-diagnostic-heading > div { display: grid; gap: 6px; }
+.fg-diagnostic-heading p:last-child, .fg-filters__heading span { color: var(--portal-text-soft); line-height: 1.5; }
+.fg-filters__heading { grid-column: 1 / -1; display: grid; gap: 4px; }
+.fg-filters__heading strong { font-size: 1rem; }
+.fg-advanced { grid-column: 1 / -1; }
+.fg-advanced summary { min-height: 44px; padding: 12px 0; cursor: pointer; font-weight: 700; }
+.fg-advanced summary:focus-visible { outline: 2px solid var(--portal-text); outline-offset: 3px; }
+.fg-advanced__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 12px; }
+.metric { border-radius: var(--radius-lg); }
+.fg-disclosure > summary:focus-visible { outline: 2px solid var(--portal-text); outline-offset: -4px; }
+@media (max-width: 600px) {
+  .flow-guide .fg-tabs { grid-template-columns: 1fr; }
+  .fg-disclosure > summary span { display: block; margin: 6px 0 0; }
 }
 
 /* ── Cabecera ─────────────────────────────────────────────────────────── */

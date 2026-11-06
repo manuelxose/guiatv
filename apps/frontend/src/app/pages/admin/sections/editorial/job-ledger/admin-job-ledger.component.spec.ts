@@ -33,8 +33,9 @@ describe('AdminJobLedgerComponent', () => {
     expect(component.can('cancel', job())).toBeTrue();
     expect(component.can('retry', job())).toBeFalse();
     expect(component.can('archive', job({ state: 'completed' }))).toBeTrue();
-    expect(component.can('delete', job({ state: 'completed' }))).toBeFalse();
+    expect(component.can('delete', job({ state: 'completed' }))).toBeTrue();
     expect(component.can('delete', job({ state: 'completed', archivedAt: '2026-11-05T18:00:00Z' }))).toBeTrue();
+    expect(component.can('delete', job({ state: 'blocked', publication: { key: 'k', state: 'published', url: null, at: '2026-11-05T18:00:00Z' } }))).toBeFalse();
   });
 
   it('shows a live lease in seconds and an expired one explicitly', () => {

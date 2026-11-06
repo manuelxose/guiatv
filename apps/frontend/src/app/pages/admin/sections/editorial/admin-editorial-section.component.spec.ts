@@ -71,6 +71,8 @@ describe('Operaciones IA', () => {
     expect(rows[0]).toContain('3/28');
     expect(rows[1]).toContain('Discovered - currently not indexed');
     expect(rows[1]).toContain('Sin datos de Google');
+    expect(fixture.nativeElement.textContent).toContain('estado de solicitud desconocido');
+    expect(fixture.nativeElement.textContent).toContain('Una solicitud no garantiza');
   });
 
   it('uses accessible tabs with arrow-key navigation', () => {

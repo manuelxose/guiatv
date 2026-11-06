@@ -41,7 +41,10 @@ class MemoryLedger implements JobLedgerRepository {
     const skip = query.skip ?? 0;
     return { items: rows.slice(skip, skip + limit).map((job) => structuredClone(job)), total: rows.length, limit, skip };
   }
-  async remove(jobId: string): Promise<boolean> { return this.rows.delete(jobId); }
+  async remove(jobId: string, revision: number): Promise<boolean> {
+    if (this.rows.get(jobId)?.revision !== revision) return false;
+    return this.rows.delete(jobId);
+  }
 }
 
 function bed() {
@@ -167,17 +170,33 @@ test('retry respects the attempt cap and preserves stage history', async () => {
   await assert.rejects(() => b.service.retry('job-i', 'admin'), /Maximum attempts/);
 });
 
-test('archiving and deleting execution metadata are separate and guarded', async () => {
+test('deleting terminal metadata does not require archiving and rejects active jobs', async () => {
   const b = bed();
   await b.service.register({ jobId: 'job-j', slug: 'guia-borrado', stageMs: 60_000, articleMs: 600_000 });
   const claimed = await b.service.claim('job-j', worker);
   await assert.rejects(() => b.service.archive('job-j', 'admin'), /terminal/);
+  await assert.rejects(() => b.service.deleteMetadata('job-j'), /terminal/);
   await b.service.finish('job-j', claimed.lease!.token, claimed.lease!.generation, 'completed');
-  await assert.rejects(() => b.service.deleteMetadata('job-j'), /Archive/);
-  const archived = await b.service.archive('job-j', 'admin');
-  assert.ok(archived.archivedAt);
   await b.service.deleteMetadata('job-j');
   await assert.rejects(() => b.service.get('job-j'), /not found/);
+});
+
+test('deletion refuses a concurrent retry and preserves publication fences', async () => {
+  const b = bed();
+  await b.service.register({ jobId: 'job-race', slug: 'guia-race', maxAttempts: 2 });
+  const claimed = await b.service.claim('job-race', worker);
+  await b.service.finish('job-race', claimed.lease!.token, claimed.lease!.generation, 'failed');
+  const remove = b.repo.remove.bind(b.repo);
+  b.repo.remove = async (id, revision) => { await b.service.retry(id, 'admin'); return remove(id, revision); };
+  await assert.rejects(() => b.service.deleteMetadata('job-race'), /changed/);
+  assert.equal((await b.service.get('job-race')).state, 'queued');
+
+  await b.service.register({ jobId: 'job-published', slug: 'guia-publicada' });
+  const owner = await b.service.claim('job-published', worker);
+  await b.service.beginPublication('job-published', owner.lease!.token, owner.lease!.generation, 'guia:hash', null);
+  await b.service.finishPublication('job-published', owner.lease!.token, owner.lease!.generation, 'published', null);
+  await b.service.finish('job-published', owner.lease!.token, owner.lease!.generation, 'completed');
+  await assert.rejects(() => b.service.deleteMetadata('job-published'), /Publication metadata/);
 });
 
 test('a completed publication key cannot be reused by another job', async () => {
