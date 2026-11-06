@@ -128,12 +128,12 @@ export const createV2Routes = (dependencies: RoutesDependencies): Router => {
   );
   router.use(
     '/sports/football',
-    createFootballRoutes(dependencies.footballController)
+    createFootballRoutes(dependencies.footballController, dependencies.authService)
   );
   // M05: ingestion diagnostics. Admin-guarded inside the router and never public.
   router.use(
     '/sports/football/admin',
-    createFootballAdminRoutes(dependencies.footballOpsController)
+    createFootballAdminRoutes(dependencies.footballOpsController, dependencies.authService)
   );
   router.use('/user', createUserRoutes(dependencies.userController, dependencies.authService));
   router.use('/social', createSocialRoutes(dependencies.socialController, dependencies.authService));

@@ -2,6 +2,10 @@
  * Football admin read models — every read is served from stored snapshots and
  * projections only. No method here issues an upstream provider call; that is a
  * hard invariant (see FootballAdminService.readsAreProjectionOnly).
+ *
+ * Every measurement that can be unknown carries an explicit `AvailabilityState`
+ * companion field; the value field is `null`/`undefined` when it is not a real
+ * measured value (never a fabricated zero). See M06-R1-F01-F09-BACKEND.md.
  */
 
 import mongoose from 'mongoose';
@@ -22,6 +26,7 @@ import { getCompetitionCatalog } from '@/application/sports/services/FootballCom
 import { resolveOpenLigaDbCoverage, OPENLIGADB_COMPETITION_MAP } from '@/infrastructure/sports/providers/openLigaDb/OpenLigaDbAdapter';
 import { sharedFootballIngestionService } from '@/application/sports/ingestion/footballIngestionContainer';
 import {
+  AvailabilityState,
   FootballAdminMatchDTO,
   FootballAdminMatchesDTO,
   FootballAuditDTO,
@@ -54,10 +59,23 @@ function iso(value?: Date | string | null): string | undefined {
   return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
 }
 
+/** `observed` when a stored value exists; `missing` when the field is absent. */
+function measuredState(value: unknown): AvailabilityState {
+  return value === undefined || value === null ? 'missing' : 'observed';
+}
+
+interface DurableQuota {
+  consumed: number | null;
+  disabled: boolean | null;
+  throttleUntil: number | undefined;
+  state: AvailabilityState;
+}
+
 /** Quota numbers come from the durable authority, never a process-local budget. */
-async function durableQuota(): Promise<{ consumed: number; disabled: boolean; throttleUntil: number }> {
+async function durableQuota(): Promise<DurableQuota> {
   const db = mongoose.connection.db;
-  if (!db) return { consumed: 0, disabled: false, throttleUntil: 0 };
+  // Fail truthful: no database means the quota is unavailable, not zero.
+  if (!db) return { consumed: null, disabled: null, throttleUntil: undefined, state: 'unavailable' };
   const store = new MongoDurableQuotaStore(db.collection('football_quota'), db.collection('football_ingestion_control'));
   const windowStart = Math.floor(Date.now() / 86_400_000) * 86_400_000;
   const [consumed, disabled, throttleUntil] = await Promise.all([
@@ -65,7 +83,7 @@ async function durableQuota(): Promise<{ consumed: number; disabled: boolean; th
     store.isDisabled('openligadb'),
     store.getThrottleUntil('openligadb'),
   ]);
-  return { consumed, disabled, throttleUntil };
+  return { consumed, disabled, throttleUntil, state: 'observed' };
 }
 
 export class FootballAdminService {
@@ -85,6 +103,12 @@ export class FootballAdminService {
       FootballIngestionRunModel.findOne().sort({ startedAt: -1 }).lean().exec(),
     ]);
     const failedOrEmpty = await FootballIngestionRunModel.countDocuments({ outcome: { $in: ['failed', 'empty'] } }).exec();
+    const lastStartedAt = lastRun?.startedAt;
+    const lastSyncState: AvailabilityState = lastStartedAt
+      ? new Date(lastStartedAt).getTime() < staleAt.getTime()
+        ? 'stale'
+        : 'observed'
+      : 'not_measured';
     return {
       generatedAt: now.toISOString(),
       competitions,
@@ -94,8 +118,10 @@ export class FootballAdminService {
       broadcastMappings: mappings,
       staleSnapshots,
       lastSyncAt: iso(lastRun?.startedAt),
-      lastSyncOutcome: lastRun?.outcome,
+      lastSyncOutcome: lastRun?.outcome as FootballDashboardDTO['lastSyncOutcome'],
       openQualityIssues: failedOrEmpty,
+      countsState: 'observed',
+      lastSyncState,
     };
   }
 
@@ -103,11 +129,13 @@ export class FootballAdminService {
     const docs = await FootballProviderSyncStateModel.find().lean().exec();
     return docs.map((d) => ({
       provider: d.provider,
-      health: d.consecutiveFailures > 0 ? 'degraded' : d.circuitState === 'open' ? 'down' : 'ok',
+      health: (d.consecutiveFailures > 0 ? 'degraded' : d.circuitState === 'open' ? 'down' : 'ok') as FootballProviderSummaryDTO['health'],
       lastSuccessAt: iso(d.lastSuccessAt),
       lastErrorAt: iso(d.lastErrorAt),
-      consecutiveFailures: d.consecutiveFailures ?? 0,
-      quotaConsumedToday: d.quotaConsumedToday ?? 0,
+      consecutiveFailures: d.consecutiveFailures ?? null,
+      consecutiveFailuresState: measuredState(d.consecutiveFailures),
+      quotaConsumedToday: d.quotaConsumedToday ?? null,
+      quotaConsumedTodayState: measuredState(d.quotaConsumedToday),
       circuitState: d.circuitState ?? 'closed',
     }));
   }
@@ -118,14 +146,22 @@ export class FootballAdminService {
     const runs = await FootballIngestionRunModel.find({ providerId: provider }).sort({ startedAt: -1 }).limit(10).lean().exec();
     return {
       provider: doc.provider,
-      health: doc.consecutiveFailures > 0 ? 'degraded' : doc.circuitState === 'open' ? 'down' : 'ok',
+      health: (doc.consecutiveFailures > 0 ? 'degraded' : doc.circuitState === 'open' ? 'down' : 'ok') as FootballProviderDetailDTO['health'],
       lastSuccessAt: iso(doc.lastSuccessAt),
       lastErrorAt: iso(doc.lastErrorAt),
-      consecutiveFailures: doc.consecutiveFailures ?? 0,
-      quotaConsumedToday: doc.quotaConsumedToday ?? 0,
+      consecutiveFailures: doc.consecutiveFailures ?? null,
+      consecutiveFailuresState: measuredState(doc.consecutiveFailures),
+      quotaConsumedToday: doc.quotaConsumedToday ?? null,
+      quotaConsumedTodayState: measuredState(doc.quotaConsumedToday),
       quotaResetAt: iso(doc.quotaResetAt),
       circuitState: doc.circuitState ?? 'closed',
-      lastRuns: runs.map((r) => ({ runId: r.runId, startedAt: iso(r.startedAt) ?? '', outcome: r.outcome, requestsUsed: r.requestsUsed ?? 0 })),
+      lastRuns: runs.map((r) => ({
+        runId: r.runId,
+        startedAt: iso(r.startedAt) ?? '',
+        outcome: r.outcome,
+        requestsUsed: r.requestsUsed ?? null,
+        requestsUsedState: measuredState(r.requestsUsed),
+      })),
     };
   }
 
@@ -137,16 +173,30 @@ export class FootballAdminService {
     const countBySlug = new Map<string, number>((slugCounts as Array<{ _id: string; count: number }>).map((r) => [r._id, r.count]));
     const rows: FootballCoverageRowDTO[] = catalog.map((entry) => {
       const shortcut = Object.keys(OPENLIGADB_COMPETITION_MAP).find((key) => OPENLIGADB_COMPETITION_MAP[key] === entry.slug);
-      const coverage = shortcut
+      const coverage: ReturnType<typeof resolveOpenLigaDbCoverage> = shortcut
         ? resolveOpenLigaDbCoverage(shortcut, 2026)
-        : { state: 'competition_not_covered' as const, leagueShortcut: '', season: '2026', competitionSlug: entry.slug };
+        : { state: 'competition_not_covered', leagueShortcut: '', season: '2026', competitionSlug: entry.slug };
+      const count = countBySlug.get(entry.slug);
+      const snapshotCountState: AvailabilityState =
+        coverage.state === 'competition_not_covered'
+          ? 'not_covered'
+          : coverage.state === 'provider_unavailable'
+            ? 'unavailable'
+            : coverage.state === 'provider_supported_no_fixtures'
+              ? 'empty'
+              : 'observed';
+      const snapshotCount =
+        coverage.state === 'competition_not_covered' || coverage.state === 'provider_unavailable'
+          ? null
+          : (count ?? 0);
       return {
         competitionSlug: entry.slug,
         name: entry.name,
         type: entry.type,
         coverageState: coverage.state,
         seasonLabel: coverage.seasonLabel,
-        snapshotCount: countBySlug.get(entry.slug) ?? 0,
+        snapshotCount,
+        snapshotCountState,
       };
     });
     return { generatedAt: new Date().toISOString(), rows };
@@ -243,9 +293,20 @@ export class FootballAdminService {
       enabled: service != null,
       providers: providersDetail,
       lastRun: lastRun
-        ? { startedAt: iso(lastRun.startedAt) ?? '', finishedAt: iso(lastRun.finishedAt), outcome: lastRun.outcome, requestsUsed: lastRun.requestsUsed ?? 0 }
+        ? {
+            startedAt: iso(lastRun.startedAt) ?? '',
+            finishedAt: iso(lastRun.finishedAt),
+            outcome: lastRun.outcome,
+            requestsUsed: lastRun.requestsUsed ?? null,
+            requestsUsedState: measuredState(lastRun.requestsUsed),
+          }
         : undefined,
-      quota: { consumed: quota.consumed, disabled: quota.disabled, throttleUntil: quota.throttleUntil || undefined },
+      quota: {
+        consumed: quota.consumed,
+        disabled: quota.disabled,
+        throttleUntil: quota.throttleUntil || undefined,
+        state: quota.state,
+      },
     };
   }
 
@@ -330,15 +391,21 @@ export class FootballAdminService {
 
   private toMatchDTO(d: { matchId: string; canonicalKey: string; competitionSlug: string; sourceTimestamp: Date; ingestedAt: Date; contentHash: string; match: Record<string, any> }): FootballAdminMatchDTO {
     const m = d.match ?? {};
+    const hasScore = typeof m.score?.home === 'number' || typeof m.score?.away === 'number';
     return {
       matchId: d.matchId,
       canonicalKey: d.canonicalKey,
       competitionSlug: d.competitionSlug,
       kickoffAt: typeof m.kickoffAt === 'string' ? m.kickoffAt : undefined,
+      kickoffState: measuredState(typeof m.kickoffAt === 'string' ? m.kickoffAt : undefined),
       status: typeof m.status === 'string' ? m.status : undefined,
+      statusState: measuredState(typeof m.status === 'string' ? m.status : undefined),
       homeTeam: typeof m.homeTeam?.name === 'string' ? m.homeTeam.name : undefined,
+      homeTeamState: measuredState(typeof m.homeTeam?.name === 'string' ? m.homeTeam.name : undefined),
       awayTeam: typeof m.awayTeam?.name === 'string' ? m.awayTeam.name : undefined,
+      awayTeamState: measuredState(typeof m.awayTeam?.name === 'string' ? m.awayTeam.name : undefined),
       score: m.score ? { home: m.score.home ?? null, away: m.score.away ?? null } : undefined,
+      scoreState: hasScore ? 'observed' : 'missing',
       ingestedAt: iso(d.ingestedAt) ?? '',
       contentHash: d.contentHash,
     };

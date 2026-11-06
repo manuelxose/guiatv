@@ -1,10 +1,12 @@
 import { Router } from 'express';
+import { AuthService } from '../../domain/services/AuthService';
 import { FootballController } from '../controllers/FootballController';
 import { asyncHandler } from '../../shared/utils/asyncHandler';
-import { analyticsAdminGuard } from '../middlewares/analyticsAdminGuard';
+import { createAdminAccessGuard } from '../middlewares/adminAccessGuard';
 
-export const createFootballRoutes = (controller: FootballController): Router => {
+export const createFootballRoutes = (controller: FootballController, authService: AuthService): Router => {
   const router = Router();
+  const adminAccessGuard = createAdminAccessGuard(authService);
 
   router.get('/home', asyncHandler(controller.home.bind(controller)));
 
@@ -20,15 +22,15 @@ export const createFootballRoutes = (controller: FootballController): Router => 
   router.get('/news', asyncHandler(controller.news.bind(controller)));
   router.get('/search', asyncHandler(controller.search.bind(controller)));
 
-  // Broadcast reconciliation overrides (admin-only).
+  // Broadcast reconciliation overrides (admin-only, shared admin boundary).
   router.post(
     '/broadcasts/override',
-    analyticsAdminGuard,
+    adminAccessGuard,
     asyncHandler(controller.upsertBroadcastOverride.bind(controller))
   );
   router.delete(
     '/broadcasts/override',
-    analyticsAdminGuard,
+    adminAccessGuard,
     asyncHandler(controller.clearBroadcastOverride.bind(controller))
   );
 

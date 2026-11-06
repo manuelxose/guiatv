@@ -1,7 +1,7 @@
 /**
  * Football ops controller — admin-only diagnostics + read-model surface.
  *
- * Mounted behind `analyticsAdminGuard` (never public). Every handler answers
+ * Mounted behind `createAdminAccessGuard` (never public). Every handler answers
  * from stored projections only: no handler ever triggers an upstream provider
  * call. Query parameters are validated with the hand-rolled parsers in
  * `FootballAdminDTO`; a malformed value is answered 400 before any database

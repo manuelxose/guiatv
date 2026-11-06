@@ -101,7 +101,36 @@ export function parseAuditQuery(query: Record<string, unknown>): ParseResult<Aud
   return ok({ ...base.value, severity: severity.value, subsystem: subsystem.value });
 }
 
+// ---- Availability contract (F09) ----
+
+/**
+ * Explicit availability state for every admin read-model value that could
+ * otherwise be mistaken for a measured number (see M06-R1-F01-F09-BACKEND.md).
+ *
+ * Semantics:
+ *  - `observed`      a real measured value; `0` is a real observed zero.
+ *  - `empty`         the read/run succeeded but produced no rows/records.
+ *  - `missing`       the field is absent from the stored model (unsupported).
+ *  - `unavailable`   could not be measured: no database or provider unreachable.
+ *  - `not_covered`   no eligible provider covers this competition/entity.
+ *  - `not_measured`  the measurement has not been performed yet.
+ *  - `stale`         measured, but older than the freshness threshold.
+ *
+ * A value field is `null`/`undefined` whenever its state is anything other than
+ * `observed` or `empty` — never a fabricated zero.
+ */
+export type AvailabilityState =
+  | 'observed'
+  | 'empty'
+  | 'missing'
+  | 'unavailable'
+  | 'not_covered'
+  | 'not_measured'
+  | 'stale';
+
 // ---- Response DTOs (the shape the admin UI consumes) ----
+
+export type FootballIngestionRunOutcome = 'success' | 'partial' | 'failed' | 'skipped' | 'empty';
 
 export interface FootballDashboardDTO {
   generatedAt: string;
@@ -112,23 +141,43 @@ export interface FootballDashboardDTO {
   broadcastMappings: number;
   staleSnapshots: number;
   lastSyncAt?: string;
-  lastSyncOutcome?: string;
+  lastSyncOutcome?: FootballIngestionRunOutcome;
   openQualityIssues: number;
+  /**
+   * Availability of the counter block (`competitions`, `teams`, `snapshots`,
+   * `providers`, `broadcastMappings`, `staleSnapshots`, `openQualityIssues`).
+   * All counters share one database read: they are `observed` together, or the
+   * endpoint errors (never a fabricated zero).
+   */
+  countsState: AvailabilityState;
+  /** Availability of `lastSyncAt` / `lastSyncOutcome`. */
+  lastSyncState: AvailabilityState;
 }
 
 export interface FootballProviderSummaryDTO {
   provider: string;
-  health: string;
+  health: 'ok' | 'degraded' | 'down';
   lastSuccessAt?: string;
   lastErrorAt?: string;
-  consecutiveFailures: number;
-  quotaConsumedToday: number;
+  consecutiveFailures: number | null;
+  /** `observed` when the stored model carries the counter; `missing` otherwise. */
+  consecutiveFailuresState: AvailabilityState;
+  quotaConsumedToday: number | null;
+  /** `observed` when the stored model carries the counter; `missing` otherwise. */
+  quotaConsumedTodayState: AvailabilityState;
   circuitState: string;
 }
 
 export interface FootballProviderDetailDTO extends FootballProviderSummaryDTO {
   quotaResetAt?: string;
-  lastRuns: Array<{ runId: string; startedAt: string; outcome: string; requestsUsed: number }>;
+  lastRuns: Array<{
+    runId: string;
+    startedAt: string;
+    outcome: string;
+    requestsUsed: number | null;
+    /** `observed` when the run record carries the counter; `missing` otherwise. */
+    requestsUsedState: AvailabilityState;
+  }>;
 }
 
 export interface FootballCoverageRowDTO {
@@ -136,7 +185,9 @@ export interface FootballCoverageRowDTO {
   name: string;
   type: string;
   coverageState: 'competition_not_covered' | 'provider_supported' | 'provider_supported_no_fixtures' | 'provider_unavailable';
-  snapshotCount: number;
+  snapshotCount: number | null;
+  /** Derives from `coverageState`: not_covered / unavailable / empty / observed. */
+  snapshotCountState: AvailabilityState;
   seasonLabel?: string;
 }
 
@@ -150,10 +201,20 @@ export interface FootballAdminMatchDTO {
   canonicalKey: string;
   competitionSlug: string;
   kickoffAt?: string;
+  /** `observed` when the snapshot carries a kickoff; `missing` otherwise. */
+  kickoffState: AvailabilityState;
   status?: string;
+  /** `observed` when the snapshot carries a status; `missing` otherwise. */
+  statusState: AvailabilityState;
   homeTeam?: string;
+  /** `observed` when the snapshot carries a home team name; `missing` otherwise. */
+  homeTeamState: AvailabilityState;
   awayTeam?: string;
+  /** `observed` when the snapshot carries an away team name; `missing` otherwise. */
+  awayTeamState: AvailabilityState;
   score?: { home: number | null; away: number | null };
+  /** `observed` when the snapshot carries a score object (0-0 included); `missing` otherwise. */
+  scoreState: AvailabilityState;
   ingestedAt: string;
   contentHash: string;
 }
@@ -200,10 +261,24 @@ export interface FootballBroadcastsDTO {
 
 export interface FootballIngestionStatusDTO {
   generatedAt: string;
+  /** Boolean flag (not a measurement): `false` means ingestion is disabled. */
   enabled: boolean;
   providers: FootballProviderDetailDTO[];
-  lastRun?: { startedAt: string; finishedAt?: string; outcome: string; requestsUsed: number };
-  quota: { consumed: number; disabled: boolean; throttleUntil?: number; resetAt?: string };
+  lastRun?: {
+    startedAt: string;
+    finishedAt?: string;
+    outcome: string;
+    requestsUsed: number | null;
+    requestsUsedState: AvailabilityState;
+  };
+  quota: {
+    consumed: number | null;
+    disabled: boolean | null;
+    throttleUntil?: number;
+    resetAt?: string;
+    /** `observed` when the durable quota authority answered; `unavailable` when there is no database. */
+    state: AvailabilityState;
+  };
 }
 
 export interface FootballQualityIssueDTO {
