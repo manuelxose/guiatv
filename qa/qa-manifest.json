@@ -1,20 +1,35 @@
 {
   "schemaVersion": "engine-04-manifest/1",
-  "id": "guiatv-sports-v2",
+  "id": "guiatv",
+  "description": "Guiatv verification stages. Unit stages invoke npm through node because the engine runs argv without a shell and npm is not vendored under node_modules (M05 D-01); the Node install provides npm-cli.js.",
   "stages": [
     {
-      "id": "backend-build",
-      "argv": ["node", "node_modules/typescript/bin/tsc", "-p", "apps/backend/tsconfig.json"],
+      "id": "backend-unit",
+      "argv": ["node", "C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js", "run", "test:backend"],
       "required": true,
-      "timeoutMs": 300000,
-      "kind": "build"
+      "timeoutMs": 600000,
+      "kind": "unit"
     },
     {
-      "id": "backend-typecheck",
+      "id": "typecheck",
       "argv": ["node", "scripts/run-tsc.mjs"],
       "required": true,
       "timeoutMs": 300000,
-      "kind": "static"
+      "kind": "typecheck"
+    },
+    {
+      "id": "frontend-unit",
+      "argv": ["node", "C:/Program Files/nodejs/node_modules/npm/bin/npm-cli.js", "run", "test:frontend"],
+      "required": true,
+      "timeoutMs": 600000,
+      "kind": "unit"
+    },
+    {
+      "id": "isolation-check",
+      "argv": ["node", "apps/frontend/scripts/check-sports-v2-isolation.mjs"],
+      "required": true,
+      "timeoutMs": 120000,
+      "kind": "static-analysis"
     }
   ]
 }
