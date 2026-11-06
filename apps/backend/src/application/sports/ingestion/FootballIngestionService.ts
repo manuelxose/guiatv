@@ -89,9 +89,6 @@ let runCounter = 0;
 
 export class FootballIngestionService {
   readonly providerId: string;
-
-  private readonly leagueShortcut: string;
-  private readonly season: string;
   private readonly competitions: readonly IngestionCompetition[];
   private readonly adapter: MatchFetcher;
   private readonly persistence: FootballPersistencePort;
@@ -119,8 +116,6 @@ export class FootballIngestionService {
       options.competitions && options.competitions.length > 0
         ? options.competitions
         : [{ shortcuts: [options.leagueShortcut ?? 'bl1'], season: options.season ?? '2026' }];
-    this.leagueShortcut = this.competitions[0]?.shortcuts[0] ?? 'bl1';
-    this.season = this.competitions[0]?.season ?? '2026';
     this.adapter = options.adapter;
     this.persistence = options.persistence;
     this.lock = options.lock;
@@ -153,11 +148,6 @@ export class FootballIngestionService {
     }
   }
 
-  /** SWR read path: cached snapshot immediately, background revalidation. */
-  async getSnapshot(): Promise<FootballMatch[] | null> {
-    const entry = await this.coordinator.get(() => this.adapter.fetchMatches(this.leagueShortcut, this.season));
-    return entry ? entry.value : null;
-  }
 
   diagnostics(): FootballDiagnosticsReport {
     const nowMs = this.clock();
