@@ -1,0 +1,34 @@
+{
+  "ranAt": "2026-11-06T13:18:07.977Z",
+  "runnerExitCode": 1,
+  "isolation": "none",
+  "testFiles": 6,
+  "tests": 39,
+  "pass": 34,
+  "fail": 5,
+  "skipped": 0,
+  "failingTests": [
+    {
+      "name": "the committed real manifest is reproducible from the committed inputs and respects every bound",
+      "file": "application\\services\\ContentCanaryManifest.test.js"
+    },
+    {
+      "name": "3D: the refreshed manifest is reproducible, keeps nothing whose legacy page became indexable, and needs a new grant",
+      "file": "application\\services\\ContentCanaryManifest.test.js"
+    },
+    {
+      "name": "editorial runner process starts, reports, logs and stops only the configured command",
+      "file": "application\\services\\EditorialRunnerService.test.js"
+    },
+    {
+      "name": "Claude Code refuses research and relative profile paths before starting a process",
+      "file": "infrastructure\\external\\ClaudeCodeEditorialModel.test.js"
+    },
+    {
+      "name": "owner flow: only the owner key can authorise the exact committed batch; a stale, edited or foreign grant is refused",
+      "file": "scripts\\content-certify.cli.test.js"
+    }
+  ],
+  "junit": "..\\tmp-storage\\diag\\runs\\iso6\\junit.xml",
+  "zeroTestGuard": true
+}
