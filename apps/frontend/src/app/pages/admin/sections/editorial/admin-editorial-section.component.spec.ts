@@ -113,6 +113,25 @@ describe('topic control', () => {
 });
 
 describe('review helpers', () => {
+  it('edits a published article as a separate draft and keeps the public article', () => {
+    const calls: unknown[][] = [];
+    const detail = { post: { id: 'p1', status: 'publish', title: 'Título publicado de veinte caracteres', slug: 's', content: '<p>Publicado</p>', excerpt: '', metaTitle: '', metaDescription: '' }, pendingEdit: null, provenance: { state: 'published', bundle: { sources: [], claims: [] } }, findings: [], policyBlockers: [], revisions: [], previous: null } as any;
+    TestBed.configureTestingModule({ imports: [AdminEditorialSectionComponent], providers: [{ provide: AdminEditorialService, useValue: {
+      getOverview: () => of(overview), getProviders: () => of({ checkedAt: new Date().toISOString(), providers: [] }), getPost: () => of(detail), updatePost: (...args: unknown[]) => { calls.push(args); return of({ updated: true }); },
+    } }] });
+    const fixture = TestBed.createComponent(AdminEditorialSectionComponent);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    component.openPost('p1');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Borrador de cambios');
+    component.editDraft!.content = '<p>Pendiente</p>';
+    component.savePostEdit();
+    expect(calls[0][0]).toBe('p1');
+    expect((calls[0][1] as { content: string }).content).toBe('<p>Pendiente</p>');
+    expect(component.editNotice).toContain('versión publicada sigue intacta');
+  });
+
   it('diffs HTML by element and marks additions and removals', () => {
     const d = diffLines('<p>uno</p><p>dos</p><p>tres</p>', '<p>uno</p><p>dos cambiado</p><p>tres</p><p>cuatro</p>');
     expect(d.filter((l) => l.kind === 'del').map((l) => l.text)).toEqual(['<p>dos</p>']);

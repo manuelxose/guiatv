@@ -265,6 +265,7 @@ export interface EditorialFinding {
 }
 
 export interface EditorialPostDetail {
+  pendingEdit: { title: string; excerpt: string; content: string; metaTitle: string; metaDescription: string; savedAt: string } | null;
   post: {
     id: string; slug: string; title: string; status: string; reviewState: string;
     reviewedBy: string | null; reviewNotes: string | null;

@@ -70,6 +70,21 @@ test('M11-C Admin: emergency stop, duplicates, jobs, overview, detail, covers an
 
     // Publication once; a second attempt (or a re-approval after it is taken down) is refused, not counted again.
     assert.equal((await call(blog.approveByPolicy, { params: { id } })).body?.data.post.status, 'publish');
+    const original = await BlogPostModel.findById(id).lean().exec();
+    const changedTitle = 'Una versión revisada de la guía sin publicarla todavía';
+    assert.equal((await call(ops.updatePost, { params: { id }, body: { title: changedTitle, content: '<p>Cambios pendientes</p>' } })).code, 200);
+    const staged = await BlogPostModel.findById(id).lean().exec();
+    assert.equal(staged?.status, 'publish');
+    assert.equal(staged?.title, original?.title);
+    assert.equal(staged?.content, original?.content);
+    assert.equal(staged?.pendingEdit?.title, changedTitle);
+    assert.equal((await call(ops.post, { params: { id } })).body?.data.pendingEdit.title, changedTitle);
+    assert.equal((await call(ops.deletePost, { params: { id } })).code, 200);
+    const afterDiscard = await BlogPostModel.findById(id).lean().exec();
+    assert.equal(afterDiscard?.pendingEdit, undefined);
+    assert.equal(afterDiscard?.status, 'publish');
+    assert.equal(afterDiscard?.title, original?.title);
+    assert.ok((await call(ops.deletePost, { params: { id } })).error);
     const recorded = await call(ops.recordIndexingRequest, { body: { slug: 'el-padrino-m11c' } });
     assert.equal(recorded.code, 200);
     assert.ok(recorded.body.data.recordedAt);

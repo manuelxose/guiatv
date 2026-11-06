@@ -124,6 +124,7 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
   editDraft: { title: string; excerpt: string; content: string; metaTitle: string; metaDescription: string } | null = null;
   editBusy = false;
   editError = '';
+  editNotice = '';
   postActionBusy = '';
   deleteDialogOpen = false;
   runnerBusy = '';
@@ -336,7 +337,7 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
     this.detailOpen = true;
     document.body.style.overflow = 'hidden';
     this.service.getPost(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (data) => { this.diffCache = null; this.ackCodes = []; this.reviewError = ''; this.reviewDetails = []; this.detail = data; this.sourceIndex = new Map(data.provenance.bundle.sources.map((s) => [s.id, s])); this.editDraft = { title: data.post.title, excerpt: data.post.excerpt, content: data.post.content, metaTitle: data.post.metaTitle, metaDescription: data.post.metaDescription }; this.editError = ''; this.detailLoading = false; },
+      next: (data) => { this.diffCache = null; this.ackCodes = []; this.reviewError = ''; this.reviewDetails = []; this.detail = data; this.sourceIndex = new Map(data.provenance.bundle.sources.map((s) => [s.id, s])); this.editDraft = { title: data.pendingEdit?.title ?? data.post.title, excerpt: data.pendingEdit?.excerpt ?? data.post.excerpt, content: data.pendingEdit?.content ?? data.post.content, metaTitle: data.pendingEdit?.metaTitle ?? data.post.metaTitle, metaDescription: data.pendingEdit?.metaDescription ?? data.post.metaDescription }; this.editError = ''; this.detailLoading = false; },
       error: (e) => { this.detailLoading = false; this.detailError = errorMessage(e, 'No se pudo cargar el artículo'); },
     });
   }
@@ -348,11 +349,12 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
     this.detailLoading = false;
     this.editDraft = null;
     this.editError = '';
+    this.editNotice = '';
     document.body.style.overflow = '';
     this.returnFocus?.focus();
   }
 
-  @HostListener('document:keydown.escape') onEscape(): void { if (this.detailOpen) this.closeDetail(); }
+  @HostListener('document:keydown.escape') onEscape(): void { if (this.detailOpen && !this.deleteDialogOpen) this.closeDetail(); }
   source(id: string) { return this.sourceIndex.get(id); }
   bySeverity(list: EditorialFinding[], severity: EditorialSeverity): EditorialFinding[] { return list.filter((f) => f.severity === severity); }
 
@@ -360,10 +362,13 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
 
   savePostEdit(): void {
     if (!this.detail || !this.editDraft || this.editBusy) return;
+    if (this.editDraft.title.trim().length < 20) { this.editError = 'El título debe tener al menos 20 caracteres.'; return; }
     this.editBusy = true;
     this.editError = '';
+    this.editNotice = '';
+    const published = this.detail.post.status === 'publish';
     this.service.updatePost(this.detail.post.id, this.editDraft).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.editBusy = false; this.notice = 'Artículo actualizado; vuelve a revisión sin aprobar'; this.openPost(this.detail!.post.id); this.refresh(); },
+      next: () => { this.editBusy = false; this.editNotice = published ? 'Borrador de cambios guardado. La versión publicada sigue intacta.' : 'Borrador guardado; queda pendiente de revisión.'; this.openPost(this.detail!.post.id); this.refresh(true); },
       error: (e) => { this.editBusy = false; this.editError = errorMessage(e, 'No se pudo guardar el artículo'); },
     });
   }
@@ -374,7 +379,7 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
     if (!id || this.postActionBusy) return;
     this.postActionBusy = id;
     this.service.deletePost(id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.postActionBusy = ''; this.deleteDialogOpen = false; this.notice = 'Borrador eliminado'; this.closeDetail(); this.refresh(); },
+      next: () => { const published = this.detail?.post.status === 'publish'; this.postActionBusy = ''; this.deleteDialogOpen = false; this.notice = published ? 'Borrador de cambios descartado; el artículo sigue publicado.' : 'Borrador eliminado'; this.closeDetail(); this.refresh(); },
       error: (e) => { this.postActionBusy = ''; this.deleteDialogOpen = false; this.detailError = errorMessage(e, 'No se pudo eliminar el borrador'); },
     });
   }

@@ -90,6 +90,8 @@ export interface IBlogPostDocument {
   publishedAt?: Date;
   /** M11-B provenance of AI-written posts (EditorialProvenance): evidence, critic review, cost, freshness. */
   editorial?: EditorialProvenance;
+  /** Unpublished edits to a live article; never used for public rendering. */
+  pendingEdit?: { title: string; excerpt: string; content: string; metaTitle: string; metaDescription: string; savedAt: Date };
   /** Earlier versions, newest last (capped): what a rollback restores. */
   revisions?: IBlogPostRevision[];
   createdAt?: Date;
@@ -193,6 +195,7 @@ const BlogPostSchema = new Schema<IBlogPostDocument>(
     },
     publishedAt: { type: Date, index: true },
     editorial: { type: Schema.Types.Mixed },
+    pendingEdit: { type: Schema.Types.Mixed, default: undefined },
     revisions: { type: [Schema.Types.Mixed], default: undefined },
   },
   {
