@@ -22,6 +22,7 @@ import { AdminAffiliateSectionComponent } from './sections/affiliate/admin-affil
 import { AdminEditorialSectionComponent } from './sections/editorial/admin-editorial-section.component';
 import { AdminRejectedInboxComponent } from './sections/editorial/rejected-inbox/admin-rejected-inbox.component';
 import { AdminSeoSectionComponent } from './sections/seo/admin-seo-section.component';
+import { AdminFlowGuideComponent } from './sections/editorial/flow-guide/admin-flow-guide.component';
 
 @Component({
   selector: 'app-admin-panel',
@@ -44,6 +45,7 @@ import { AdminSeoSectionComponent } from './sections/seo/admin-seo-section.compo
     AdminEditorialSectionComponent,
     AdminRejectedInboxComponent,
     AdminSeoSectionComponent,
+    AdminFlowGuideComponent,
   ],
   templateUrl: './admin.component.html',
   styleUrls: ['./admin.component.scss'],
@@ -171,6 +173,14 @@ export class AdminComponent implements OnInit, OnDestroy {
       ],
     },
     {
+      id: 'administration',
+      label: 'Administración',
+      icon: 'M4 6h16 M4 12h16 M4 18h8 M17 15l2 2 3-3',
+      items: [
+        { id: 'flow-guide', label: 'Guía de flujos', description: 'Editorial: cómo funciona el flujo y diagnóstico en vivo' },
+      ],
+    },
+    {
       id: 'system',
       label: 'System',
       icon: 'M4 4h16v6H4z M4 14h16v6H4z M7 7h.01 M7 17h.01',
@@ -193,6 +203,8 @@ export class AdminComponent implements OnInit, OnDestroy {
   public ledgerInitialState = '';
   public ledgerInitialQ = '';
   public ledgerInitialSkip = 0;
+  /** Pestaña inicial de la Guía de flujos (`how` | `diagnostics`), para enlaces directos. */
+  public flowGuideInitialView = '';
 
   public readonly environmentLabel = environment.production
     ? 'Production'
@@ -228,6 +240,8 @@ export class AdminComponent implements OnInit, OnDestroy {
       this.ledgerInitialQ = get('q') ?? '';
       const skip = Number(get('skip'));
       this.ledgerInitialSkip = Number.isFinite(skip) && skip > 0 ? skip : 0;
+      const view = get('view');
+      this.flowGuideInitialView = view === 'diagnostics' || view === 'how' ? view : '';
     }
   }
 
@@ -266,6 +280,7 @@ export class AdminComponent implements OnInit, OnDestroy {
     this.ledgerInitialState = target?.state ?? '';
     this.ledgerInitialQ = target?.q ?? '';
     this.ledgerInitialSkip = target?.skip ?? 0;
+    this.flowGuideInitialView = '';
 
     if (this.isBrowser) {
       const queryParams: Record<string, string | null> = {
