@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "engine-04-manifest/1",
+  "id": "guiatv-sports-v2",
+  "stages": [
+    {
+      "id": "backend-build",
+      "argv": ["node", "node_modules/typescript/bin/tsc", "-p", "apps/backend/tsconfig.json"],
+      "required": true,
+      "timeoutMs": 300000,
+      "kind": "build"
+    },
+    {
+      "id": "sports-provider-tests",
+      "argv": ["node", "scripts/sports-provider-gate.mjs"],
+      "required": true,
+      "timeoutMs": 300000,
+      "kind": "unit"
+    }
+  ]
+}
