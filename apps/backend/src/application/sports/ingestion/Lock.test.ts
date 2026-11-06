@@ -39,16 +39,16 @@ test('MongoLock uses an atomic findOneAndUpdate with expiry and unique-key seman
       const expired = existing && existing.expiresAt <= (filter.$or as any[])[0].expiresAt.$lte;
       if (options?.upsert && !existing) {
         docs.set(key, { key, owner, expiresAt });
-        return { value: { owner } };
+        return { owner };
       }
       if (options?.upsert && existing && expired) {
         docs.set(key, { key, owner, expiresAt });
-        return { value: { owner } };
+        return { owner };
       }
       if (options?.upsert && existing && !expired) {
         throw duplicateKey; // unique index collision → not acquired
       }
-      return { value: existing ? { owner: existing.owner } : null };
+      return existing ? { owner: existing.owner } : null;
     },
     async deleteOne(filter: Record<string, any>) {
       if (docs.get(filter.key)?.owner === filter.owner) docs.delete(filter.key);
@@ -65,6 +65,52 @@ test('MongoLock uses an atomic findOneAndUpdate with expiry and unique-key seman
 
   await lockA.release('k');
   assert.equal(await lockB.acquire('k', 10_000), true);
+});
+
+test('MongoLock.acquireReport flags a lease recovered from an expired holder', async () => {
+  // Fake collection that honours `returnDocument: 'before'`: null on a fresh
+  // upsert, the prior holder when it replaced an expired lease.
+  const docs = new Map<string, { key: string; owner: string; expiresAt: number }>();
+  const duplicateKey = Object.assign(new Error('E11000 duplicate key error'), { code: 11000 });
+  const collection = {
+    async findOneAndUpdate(filter: Record<string, any>, update: Record<string, any>, options?: Record<string, any>) {
+      const key = filter.key as string;
+      const owner = (update.$set as any).owner as string;
+      const expiresAt = (update.$set as any).expiresAt as number;
+      const existing = docs.get(key);
+      const expired = existing && existing.expiresAt <= (filter.$or as any[])[0].expiresAt.$lte;
+      const before = options?.returnDocument === 'before';
+      if (options?.upsert && !existing) {
+        docs.set(key, { key, owner, expiresAt });
+        return before ? null : { owner };
+      }
+      if (options?.upsert && existing && expired) {
+        const previous = { owner: existing.owner };
+        docs.set(key, { key, owner, expiresAt });
+        return before ? previous : { owner };
+      }
+      if (options?.upsert && existing && !expired) {
+        throw duplicateKey;
+      }
+      return null;
+    },
+    async deleteOne(filter: Record<string, any>) {
+      if (docs.get(filter.key)?.owner === filter.owner) docs.delete(filter.key);
+      return {};
+    },
+  };
+
+  let now = 1000;
+  const clock = () => now;
+  const lockA = new MongoLock(collection, 'a', clock);
+  const lockB = new MongoLock(collection, 'b', clock);
+
+  const fresh = await lockA.acquireReport('k', 10_000);
+  assert.deepEqual(fresh, { acquired: true, recovered: false });
+
+  now = 11_000; // ttl elapsed, holder A crashed without releasing
+  const recovered = await lockB.acquireReport('k', 10_000);
+  assert.deepEqual(recovered, { acquired: true, recovered: true });
 });
 
 test('LockPort type stays minimal', async () => {
