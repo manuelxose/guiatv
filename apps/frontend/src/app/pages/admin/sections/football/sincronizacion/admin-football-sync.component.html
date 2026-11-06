@@ -78,5 +78,31 @@
         </tbody>
       </table>
     </div>
+    <h3 class="mt-6 text-sm font-semibold text-[var(--portal-text)]">Historial de sincronizaciones</h3>
+    <p *ngIf="historyError" class="mt-2 text-sm text-[var(--portal-danger)]">{{ historyError }}</p>
+    <div class="mt-2 overflow-x-auto" *ngIf="!historyError">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-[var(--portal-text-soft)]">
+            <th class="p-3">Operación</th>
+            <th class="p-3">Estado</th>
+            <th class="p-3">Registros leídos</th>
+            <th class="p-3">Motivo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let op of history" class="border-t border-[var(--portal-border)]">
+            <td class="p-3 text-[var(--portal-text)]">{{ op.id }}</td>
+            <td><app-admin-status-badge [status]="op.status" [label]="SYNC_STATUS_LABELS[op.status]"></app-admin-status-badge></td>
+            <td class="text-[var(--portal-text-soft)]">{{ numberLabel(op.recordsFetched ?? null, op.recordsFetchedState ?? 'not_measured') }}</td>
+            <td class="text-[var(--portal-text-soft)]">{{ op.skipReason || '—' }}</td>
+          </tr>
+          <tr *ngIf="!history.length">
+            <td colspan="4" class="p-4 text-[var(--portal-text-muted)]">Todavía no hay sincronizaciones registradas.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </ng-container>
 </div>
+

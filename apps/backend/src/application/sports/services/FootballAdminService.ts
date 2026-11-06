@@ -92,6 +92,17 @@ async function durableQuota(): Promise<DurableQuota> {
   return { consumed, disabled, throttleUntil, state: 'observed' };
 }
 
+/**
+ * R1-6: health is NEVER 'ok' when the failure counter was not measured. A legacy
+ * or partial document without consecutiveFailures cannot justify a healthy
+ * verdict, so it reports 'unknown' (never a fabricated 'ok').
+ */
+function providerHealth(consecutiveFailures: number | null | undefined, circuitState: string | null | undefined): string {
+  if (circuitState === 'open') return 'down';
+  if (consecutiveFailures == null) return 'unknown';
+  return consecutiveFailures > 0 ? 'degraded' : 'ok';
+}
+
 /** Maps a tick outcome to a truthful terminal operation status (F06). */
 function mapTickToOperation(tick: TickResult): {
   status: FootballSyncStatus;
@@ -123,10 +134,14 @@ function mapTickToOperation(tick: TickResult): {
     case 'failed':
       return { status: 'failed', recordsFetched, errors: tick.reason ? [tick.reason] : [], quotaOutcome: 'allowed' };
     case 'skipped':
+      // R1-2: a skipped/throttled run NEVER measured records — it did not run.
+      // Reporting 0 with state "observed" would be the exact
+      // "unavailable-as-zero" anti-pattern F09 removes. Only 'empty' is a
+      // MEASURED zero (the fetch succeeded and found nothing).
       if (tick.reason === 'budget_exhausted') {
-        return { status: 'throttled', recordsFetched: 0, errors: [], skipReason: tick.reason, quotaOutcome: 'exhausted' };
+        return { status: 'throttled', recordsFetched: null, errors: [], skipReason: tick.reason, quotaOutcome: 'exhausted' };
       }
-      return { status: 'skipped', recordsFetched: 0, errors: [], skipReason: tick.reason ?? 'skipped', quotaOutcome: 'allowed' };
+      return { status: 'skipped', recordsFetched: null, errors: [], skipReason: tick.reason ?? 'skipped', quotaOutcome: 'allowed' };
   }
 }
 
@@ -180,7 +195,7 @@ export class FootballAdminService {
     const docs = await FootballProviderSyncStateModel.find().lean().exec();
     return docs.map((d) => ({
       provider: d.provider,
-      health: (d.consecutiveFailures > 0 ? 'degraded' : d.circuitState === 'open' ? 'down' : 'ok') as FootballProviderSummaryDTO['health'],
+      health: providerHealth(d.consecutiveFailures, d.circuitState) as FootballProviderSummaryDTO['health'],
       lastSuccessAt: iso(d.lastSuccessAt),
       lastErrorAt: iso(d.lastErrorAt),
       consecutiveFailures: d.consecutiveFailures ?? null,
@@ -197,7 +212,7 @@ export class FootballAdminService {
     const runs = await FootballIngestionRunModel.find({ providerId: provider }).sort({ startedAt: -1 }).limit(10).lean().exec();
     return {
       provider: doc.provider,
-      health: (doc.consecutiveFailures > 0 ? 'degraded' : doc.circuitState === 'open' ? 'down' : 'ok') as FootballProviderDetailDTO['health'],
+      health: providerHealth(doc.consecutiveFailures, doc.circuitState) as FootballProviderDetailDTO['health'],
       lastSuccessAt: iso(doc.lastSuccessAt),
       lastErrorAt: iso(doc.lastErrorAt),
       consecutiveFailures: doc.consecutiveFailures ?? null,
@@ -575,3 +590,4 @@ export class FootballAdminService {
     };
   }
 }
+

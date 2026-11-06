@@ -9,6 +9,7 @@ import {
   FootballIngestionStatusDTO,
   FootballSyncResultDTO,
   INGESTION_OUTCOME_LABELS,
+  isSyncTerminal,
   SYNC_STATUS_LABELS,
 } from '@app/features/football/admin-data/football-admin.models';
 import { AdminStatusBadgeComponent } from '@app/pages/admin/components/admin-status-badge/admin-status-badge.component';
@@ -40,6 +41,9 @@ export class AdminFootballSyncComponent implements OnInit, OnDestroy {
 
   syncing = false;
   syncResult: FootballSyncResultDTO | null = null;
+  history: FootballSyncResultDTO[] = [];
+  historyError: string | null = null;
+  private historySub?: Subscription;
   syncMessage: string | null = null;
   syncError: string | null = null;
 
@@ -67,10 +71,31 @@ export class AdminFootballSyncComponent implements OnInit, OnDestroy {
         this.status = status;
         this.loading = false;
         this.lastUpdatedChange.emit(new Date());
+        this.loadHistory();
       },
       error: (err: unknown) => {
         this.loading = false;
         this.handleError(err);
+      },
+    });
+  }
+
+  /**
+   * R1-5: the truthful operation history. A failure here must NOT blank the whole
+   * section (the status above already loaded); it is reported in its own message.
+   */
+  private loadHistory(): void {
+    this.historySub?.unsubscribe();
+    this.historySub = this.data.getSyncOperations({ limit: 10 }).subscribe({
+      next: (ops) => {
+        this.history = ops.items ?? [];
+        this.historyError = null;
+      },
+      error: (err: unknown) => {
+        this.history = [];
+        this.historyError = err instanceof AdminApiError
+          ? adminApiErrorMessage(err)
+          : 'No se ha podido cargar el historial de sincronizaciones.';
       },
     });
   }
@@ -130,20 +155,39 @@ export class AdminFootballSyncComponent implements OnInit, OnDestroy {
     this.syncSub = this.data.sync(idempotencyKey).subscribe({
       next: (result) => {
         this.syncResult = result;
-        if (result.status === 'completed') {
-          this.syncing = false;
-          this.syncMessage = `Sincronización completada (operación ${result.id}).`;
-          this.load();
-        } else if (result.status === 'failed') {
-          this.syncing = false;
-          this.syncError = `La sincronización falló (operación ${result.id}).`;
-          this.load();
-        } else if (attempt < MAX_SYNC_POLLS) {
-          this.syncSub = timer(2500).subscribe(() => this.pollSync(idempotencyKey, attempt + 1));
-        } else {
-          this.syncing = false;
-          this.syncMessage = `Operación ${result.id} sigue ${SYNC_STATUS_LABELS[result.status].toLowerCase()}. Revisa el estado más adelante.`;
+        // R1-1: treat EVERY terminal backend state as terminal. The old code only
+        // knew 'completed'/'failed', so a real 'succeeded' was polled until it
+        // timed out and was then rendered as "sigue undefined".
+        if (!isSyncTerminal(result.status)) {
+          if (attempt < MAX_SYNC_POLLS) {
+            this.syncSub = timer(2500).subscribe(() => this.pollSync(idempotencyKey, attempt + 1));
+          } else {
+            this.syncing = false;
+            this.syncMessage = `La operación ${result.id} sigue en curso. Vuelve a consultar el historial más adelante.`;
+          }
+          return;
         }
+        this.syncing = false;
+        const label = SYNC_STATUS_LABELS[result.status];
+        switch (result.status) {
+          case 'succeeded':
+            this.syncMessage = `Sincronización completada (operación ${result.id}).`;
+            break;
+          case 'empty':
+            this.syncMessage = `La sincronización no devolvió partidos nuevos (operación ${result.id}).`;
+            break;
+          case 'skipped':
+            this.syncError = `La sincronización se omitió${result.skipReason ? `: ${result.skipReason}` : ''} (operación ${result.id}).`;
+            break;
+          case 'throttled':
+            this.syncError = `La sincronización se limitó por cuota (operación ${result.id}).`;
+            break;
+          case 'failed':
+          default:
+            this.syncError = `La sincronización falló (operación ${result.id}): ${label.toLowerCase()}.`;
+            break;
+        }
+        this.load();
       },
       error: (err: unknown) => {
         this.syncing = false;
@@ -161,3 +205,5 @@ export class AdminFootballSyncComponent implements OnInit, OnDestroy {
     }
   }
 }
+
+

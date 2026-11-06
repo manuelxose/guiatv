@@ -261,18 +261,72 @@ export interface FootballAuditDTO {
   items: FootballAuditEntryDTO[];
 }
 
-export type FootballSyncStatus = 'queued' | 'running' | 'completed' | 'failed';
+/**
+ * F06/R1-1: the REAL operation lifecycle the backend reports. These seven states
+ * are deliberately distinct: a queued request is not a success, an empty run is
+ * not a failure, and a skipped/throttled run ingested nothing at all. The UI must
+ * never collapse them into "completada".
+ */
+export type FootballSyncStatus =
+  | 'queued'
+  | 'running'
+  | 'succeeded'
+  | 'empty'
+  | 'skipped'
+  | 'throttled'
+  | 'failed';
+
+/** States after which the operation will not change again. */
+export const SYNC_TERMINAL_STATUSES: readonly FootballSyncStatus[] = [
+  'succeeded',
+  'empty',
+  'skipped',
+  'throttled',
+  'failed',
+];
+
+/** True once the operation reached a terminal status (polling can stop). */
+export function isSyncTerminal(status: FootballSyncStatus): boolean {
+  return SYNC_TERMINAL_STATUSES.includes(status);
+}
 
 export interface FootballSyncResultDTO {
   id: string;
   status: FootballSyncStatus;
+  /** Raw ingestion run outcome once finished (success|partial|failed|skipped|empty). */
+  outcome?: string;
+  scope?: string;
+  triggeredBy?: string;
   correlationId: string;
+  idempotencyKey?: string;
+  queuedAt?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  /** Null with state `not_measured` when the run never measured records. */
+  recordsFetched?: number | null;
+  recordsFetchedState?: string;
+  recordsPersisted?: number | null;
+  recordsPersistedState?: string;
+  errors?: string[];
+  skipReason?: string;
+  quotaOutcome?: string;
+}
+
+/** R1-5: paginated operation history returned by GET /ingestion/sync. */
+export interface FootballSyncOperationsDTO {
+  page: number;
+  limit: number;
+  total: number;
+  items: FootballSyncResultDTO[];
 }
 
 export const SYNC_STATUS_LABELS: Record<FootballSyncStatus, string> = {
   queued: 'Encolada',
   running: 'En ejecución',
-  completed: 'Completada',
+  succeeded: 'Completada',
+  empty: 'Sin resultados',
+  skipped: 'Omitida',
+  throttled: 'Limitada por cuota',
   failed: 'Fallida',
 };
 

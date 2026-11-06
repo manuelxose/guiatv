@@ -19,6 +19,7 @@ import {
   FootballProviderDetailDTO,
   FootballProviderSummaryDTO,
   FootballQualityIssuesDTO,
+  FootballSyncOperationsDTO,
   FootballSyncResultDTO,
   PagedQuery,
 } from './football-admin.models';
@@ -98,6 +99,14 @@ export class FootballAdminDataService {
   /** Queues a manual sync. Idempotency-keyed: re-POSTing the same key returns the current job state. */
   sync(idempotencyKey: string): Observable<FootballSyncResultDTO> {
     return this.post<FootballSyncResultDTO>('/ingestion/sync', { idempotencyKey });
+  }
+
+  /**
+   * R1-5: the truthful operation history (F06). The backend exposes it and nothing
+   * consumed it, so the real outcome of every run was invisible in the UI.
+   */
+  getSyncOperations(params: { page?: number; limit?: number } = {}): Observable<FootballSyncOperationsDTO> {
+    return this.get<FootballSyncOperationsDTO>('/ingestion/sync', params);
   }
 
   // ── HTTP plumbing ───────────────────────────────────────────────────────

@@ -40,5 +40,9 @@
     }
   </nav>
 
-  <app-sv2-odbl-attribution class="attribution" />
+  <!-- R1-4: the ODbL notice must never be shown for demo (fictitious) data:
+       claiming that fictitious data comes from OpenLigaDB would be false. -->
+  @if (!store.isDemo) {
+    <app-sv2-odbl-attribution class="attribution" />
+  }
 </div>

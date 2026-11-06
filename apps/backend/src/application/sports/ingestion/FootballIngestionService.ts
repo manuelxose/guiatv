@@ -338,6 +338,27 @@ export class FootballIngestionService {
           competitions: perCompetition,
         } as unknown as TickResult;
       }
+      // R1-3: a run in which NOTHING failed but nothing was acquired either (some
+      // competitions answered empty, the rest were skipped for budget) is NOT a
+      // provider failure. Labelling it 'failed' would claim an error that never
+      // happened and would trip the provider circuit breaker. It still must not
+      // advance lastSuccessAt, because no useful record was acquired.
+      const anyProviderFailure = perCompetition.some((c) => c.outcome === 'failed');
+      if (!anyProviderFailure) {
+        this.metrics.health = 'degraded';
+        this.metrics.staleSnapshots = 0;
+        this.cachedBudget = await this.budget.snapshot(this.clock());
+        await this.recordRun(runId, 'empty', requestsUsed, [], nowMs);
+        return {
+          outcome: 'empty',
+          reason: perCompetition.every((c) => c.outcome === 'skipped')
+            ? 'every competition was skipped'
+            : 'no competition acquired records (empty or skipped, no provider failure)',
+          requestsUsed,
+          snapshotsWritten: 0,
+          competitions: perCompetition,
+        } as unknown as TickResult;
+      }
       const firstError = perCompetition.find((c) => c.outcome === 'failed')?.reason ?? 'no competitions ingested';
       this.consecutiveFailures += 1;
       this.metrics.lastErrorAt = this.clock();
