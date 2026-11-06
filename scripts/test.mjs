@@ -10,7 +10,7 @@
 // M05_GATE_TARGET=backend (default) | frontend
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 
 const target = process.env.M05_GATE_TARGET ?? 'backend';
 
@@ -53,9 +53,11 @@ if (target === 'backend') {
     process.exit(1);
   }
   console.log(`== in-process sports gate: ${sports.length} file(s) ==`);
-  const r = spawnSync('node', ['--require', './test-setup.cjs', '--test', ...sports], {
+  const backendDir = join('apps', 'backend');
+  const args = sports.map((f) => relative(backendDir, f));
+  const r = spawnSync('node', ['--require', './test-setup.cjs', '--test', ...args], {
     stdio: 'inherit',
-    cwd: join('apps', 'backend'),
+    cwd: backendDir,
   });
   process.exit(r.status ?? 1);
 }
