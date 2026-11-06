@@ -242,6 +242,7 @@
       <section *ngIf="d.post.status === 'draft' || d.pendingEdit"><h3>Acciones del borrador</h3><div class="queue-actions"><button *ngIf="canManagePost({ status: d.post.status, pipelineState: d.provenance.state })" type="button" class="button secondary" (click)="requeuePost(d.post.id)" [disabled]="postActionBusy === d.post.id">Recuperar y volver a encolar</button><button type="button" class="button danger" (click)="requestDeletePost()" [disabled]="postActionBusy === d.post.id">{{ d.post.status === 'publish' ? 'Descartar borrador de cambios' : 'Eliminar borrador' }}</button></div></section>
       <section class="review-panel"><h3>Publicación y revisión</h3>
         <p class="detail-meta">Estado: <strong>{{ d.post.status === 'publish' ? 'Publicado' : 'Borrador' }}</strong> · revisión {{ d.post.reviewState }}<ng-container *ngIf="d.post.reviewedBy"> por {{ d.post.reviewedBy }}</ng-container><ng-container *ngIf="d.post.reviewNotes"> — {{ d.post.reviewNotes }}</ng-container></p>
+        <p *ngIf="d.pendingEdit" class="notice-box">Para despublicar o restaurar una versión, descarta primero el borrador de cambios pendiente.</p>
         <div *ngIf="d.policyBlockers.length" class="notice-box"><strong>La política automática no lo publicaría:</strong> {{ d.policyBlockers.length }} control(es) pendientes. Una persona puede aprobarlo si los reconoce.</div>
         <fieldset *ngIf="humanFindings().length" class="ack-list"><legend>Reconozco estos avisos de revisión humana</legend>
           <label *ngFor="let f of humanFindings()"><input class="h-6 w-6" type="checkbox" [checked]="ackCodes.includes(f.code)" (change)="toggleAck(f.code)" /><span><strong>{{ f.code }}</strong> {{ f.message }}</span></label>
@@ -252,7 +253,7 @@
         </div>
         <div class="queue-actions review-actions">
           <button *ngIf="d.post.status === 'draft'" type="button" class="button primary" [disabled]="!canAct" (click)="approve()">{{ reviewBusy === 'approve' ? 'Aprobando…' : 'Aprobar y publicar' }}</button>
-          <button *ngIf="d.post.status === 'publish'" type="button" class="button danger" [disabled]="!canAct" (click)="unpublish()">{{ reviewBusy === 'unpublish' ? 'Despublicando…' : 'Despublicar' }}</button>
+          <button *ngIf="d.post.status === 'publish'" type="button" class="button danger" [disabled]="!canAct || !!d.pendingEdit" (click)="unpublish()">{{ reviewBusy === 'unpublish' ? 'Despublicando…' : 'Despublicar' }}</button>
         </div>
         <div *ngIf="d.post.status === 'publish'"><label for="rv-unpub">Motivo para despublicar (opcional)</label><input id="rv-unpub" [(ngModel)]="unpublishReason" name="rvUnpub" maxlength="300" /></div>
         <form *ngIf="d.post.status === 'draft'" (ngSubmit)="reject()" class="inline-form">
@@ -268,7 +269,7 @@
         <div *ngIf="diffOpen" class="diff" role="region" aria-label="Diferencias" tabindex="0"><div *ngFor="let l of diff" class="diff-line" [class.add]="l.kind === 'add'" [class.del]="l.kind === 'del'"><span aria-hidden="true">{{ l.kind === 'add' ? '+' : l.kind === 'del' ? '−' : ' ' }}</span><span class="sr-only">{{ l.kind === 'add' ? 'Añadido' : l.kind === 'del' ? 'Eliminado' : 'Sin cambios' }}:</span><code>{{ l.text }}</code></div><p *ngIf="!diffChanged" class="empty">Sin diferencias.</p></div>
       </section>
       <section *ngIf="d.revisions.length"><h3>Versiones guardadas</h3>
-        <ol class="claims"><li *ngFor="let r of d.revisions.slice().reverse()"><strong>v{{ r.version }}</strong> · {{ r.savedAt | date: 'short' }} · {{ r.reason }} ({{ r.status }})<button type="button" class="table-link" [disabled]="!canAct" (click)="restore(r.version)">Restaurar</button></li></ol>
+        <ol class="claims"><li *ngFor="let r of d.revisions.slice().reverse()"><strong>v{{ r.version }}</strong> · {{ r.savedAt | date: 'short' }} · {{ r.reason }} ({{ r.status }})<button type="button" class="table-link" [disabled]="!canAct || !!d.pendingEdit" (click)="restore(r.version)">Restaurar</button></li></ol>
         <small>Restaurar usa la misma clave de revisión; solo vuelve público lo que ya estuvo aprobado y sigue vigente.</small>
       </section>
       <section><h3>Controles de publicación</h3><ul *ngIf="d.findings.length; else noFindings"><li *ngFor="let f of d.findings"><strong>{{ severityLabels[f.severity] }} · {{ f.code }}</strong><p>{{ f.message }}</p></li></ul><ng-template #noFindings><p>Sin hallazgos.</p></ng-template></section>
