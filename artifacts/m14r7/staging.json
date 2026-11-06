@@ -1,0 +1,56 @@
+{
+  "schema": "m14r7-staging/1",
+  "ports": {
+    "mongo": 27139,
+    "api": 3329,
+    "ssr": 4329,
+    "integrity": 4339
+  },
+  "db": "guiatv_m14r7",
+  "services": [
+    {
+      "name": "mongod",
+      "pid": 40244
+    },
+    {
+      "name": "backend",
+      "pid": 38280
+    },
+    {
+      "name": "ssr",
+      "pid": 21948
+    }
+  ],
+  "seed": {
+    "queueItems": 22,
+    "legacyPosts": 4,
+    "gscUrls": 14,
+    "jobs": 35,
+    "ledger": 6,
+    "approvals": 4
+  },
+  "checks": {
+    "checkedAt": "2026-11-06T13:05:41.890Z",
+    "data": {
+      "queueItems": 22,
+      "queueByState": {
+        "rejected": 21,
+        "held": 1
+      },
+      "publishedLegacy": 4,
+      "hasIptvPirataPost": false,
+      "gscUrls": 14,
+      "gscIndexed": 0,
+      "jobs": 35,
+      "jobsBlocked": 17,
+      "jobsPublished": 4
+    },
+    "http": {
+      "apiHealth": {
+        "status": 200,
+        "body": "{\"success\":true,\"data\":{\"status\":\"healthy\",\"timestamp\":\"2026-11-06T13:05:41.913Z\",\"uptime\":\"8s\",\"version\":\"2.0.0\",\"realtime\":{\"activeSockets\":0,\"onlineUsers\":0,"
+      }
+    },
+    "ok": true
+  }
+}

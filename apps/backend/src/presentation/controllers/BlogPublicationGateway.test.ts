@@ -81,9 +81,9 @@ function callHandler(
       },
     };
     const request = { params, body: {}, query: {}, header: () => undefined };
-    Promise.resolve(handler(request as never, res as never, ((error: unknown) => resolve({ code: 500, body: null, error })) as never)).catch(
-      (error: unknown) => resolve({ code: 500, body: null, error })
-    );
+    Promise.resolve(
+      handler(request as never, res as never, ((error: unknown) => resolve({ code: 500, body: null, error })) as never)
+    ).catch((error: unknown) => resolve({ code: 500, body: null, error }));
   });
 }
 
@@ -131,8 +131,16 @@ test('M14-R7 T7-LOW-1: GET eligibility responde 200 con los bloqueos, no un 500'
   assert.equal(outcome.code, 200, `la consulta informativa no debe romper: ${String(outcome.error)}`);
   assert.equal(outcome.body.success, true);
   assert.equal(outcome.body.data.eligible, false);
+  // El endpoint devuelve el bloqueo editorial nombrado y en español. El detalle fino
+  // (bundle/draftMarkdown) lo aporta el gateway y lo fija el test anterior; el servicio
+  // de publicación normaliza el mensaje por código.
   const blockers = outcome.body.data.blockers as Array<{ code: string; message: string }>;
-  assert.ok(blockers.some((blocker) => blocker.code === 'editorial' && /bundle de evidencia/.test(blocker.message)));
+  const editorial = blockers.filter((blocker) => blocker.code === 'editorial');
+  assert.ok(editorial.length > 0, `debe haber un bloqueo editorial: ${JSON.stringify(blockers)}`);
+  assert.ok(
+    editorial.every((blocker) => /procedencia editorial/.test(blocker.message)),
+    `los bloqueos deben estar en español: ${JSON.stringify(editorial)}`
+  );
   assert.equal(outcome.body.data.status, 'draft');
 });
 

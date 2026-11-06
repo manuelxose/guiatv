@@ -1,0 +1,100 @@
+{
+  "results": [
+    {
+      "name": "1a. URL directa view=how renderiza",
+      "pass": true,
+      "detail": "body=21453 chars, title=\"Admin - Guia TV\""
+    },
+    {
+      "name": "1b. view=how muestra guía de estados",
+      "pass": true,
+      "detail": "texto de guía presente"
+    },
+    {
+      "name": "1c. view=diagnostics renderiza embudo/diagnóstico",
+      "pass": true,
+      "detail": "body=14617 chars"
+    },
+    {
+      "name": "2. axe 390px how sin critical/serious",
+      "pass": true,
+      "detail": "violations=0, critical=0, serious=0"
+    },
+    {
+      "name": "2. axe 390px diagnostics sin critical/serious",
+      "pass": true,
+      "detail": "violations=0, critical=0, serious=0"
+    },
+    {
+      "name": "2. axe 1440px how sin critical/serious",
+      "pass": true,
+      "detail": "violations=0, critical=0, serious=0"
+    },
+    {
+      "name": "2. axe 1440px diagnostics sin critical/serious",
+      "pass": true,
+      "detail": "violations=0, critical=0, serious=0"
+    },
+    {
+      "name": "3a. objetivos táctiles >=24x24",
+      "pass": true,
+      "detail": "targets<24px: 0"
+    },
+    {
+      "name": "3b. contraste AA (>=4.5:1) en texto visible",
+      "pass": true,
+      "detail": "pares medidos=56, bajos=0"
+    },
+    {
+      "name": "4. sin desbordamiento horizontal (1440px)",
+      "pass": true,
+      "detail": "scrollWidth=1440"
+    },
+    {
+      "name": "5. conteos embudo UI = Mongo (número a número)",
+      "pass": true,
+      "detail": "23 etapas medidas, desajustes=0"
+    },
+    {
+      "name": "6. planificador enabled=false representado (sin afirmar activo)",
+      "pass": true,
+      "detail": "texto scheduler: CONTROL CENTER\n\nGuíaTV Admin\n\nOperational control plane\n\nProduction\nOVERVIEW\nAttention & health\nWhat needs attention rig"
+    },
+    {
+      "name": "7a. /admin sirve noindex",
+      "pass": true,
+      "detail": "X-Robots-Tag=\"noindex, follow\", meta=\"noindex, follow\""
+    },
+    {
+      "name": "7b. /admin ausente del sitemap",
+      "pass": true,
+      "detail": "sitemap 517 bytes, contiene /admin=false"
+    },
+    {
+      "name": "8a. recuperación individual vía API real + persistida",
+      "pass": true,
+      "detail": "HTTP 409 (200=ok, 409=idempotente sin cambios), generation_requests=1"
+    },
+    {
+      "name": "8b. recuperación en lote vía API real (resultado por ítem)",
+      "pass": true,
+      "detail": "results=2"
+    },
+    {
+      "name": "9a. publicación idempotente E2E (misma clave → sin duplicar)",
+      "pass": true,
+      "detail": "HTTP 500/500, reservas=0, published=1"
+    },
+    {
+      "name": "9b. ningún artículo publicado aparece indexado",
+      "pass": true,
+      "detail": "GSC indexadas=0"
+    },
+    {
+      "name": "10. capturas guardadas",
+      "pass": true,
+      "detail": "artifacts/m14r7/ui-diagnostics-{1440,390}.png"
+    }
+  ],
+  "failed": []
+}
