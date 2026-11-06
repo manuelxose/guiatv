@@ -8,7 +8,8 @@ export type AdminGroupId =
   | 'users'
   | 'operations'
   | 'system'
-  | 'seo';
+  | 'seo'
+  | 'administration';
 
 export interface AdminNavItem {
   id: string;
