@@ -197,25 +197,106 @@ export function closestCoverage(p: Pick<TopicProposal, 'title' | 'intent' | 'slu
 
 export interface SeedCheck { url: string; status: number; ok: boolean; note: string }
 
+/** Text a reader would actually see: drops script/style/svg bodies, tags and whitespace runs. */
+export function readableText(html: string): string {
+  return String(html ?? '')
+    .replace(/<script\b[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, ' ')
+    .replace(/<svg\b[\s\S]*?<\/svg>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * How a seed failed, so the operator sees the real cause instead of one generic "no evidence".
+ *
+ * M14-R7: `checkSeeds` used to require `status===200 && rawHtml.length>=800 && 3 topic terms`, which
+ * conflates "I could not read this URL" with "there is no evidence here". Measured on the production
+ * queue, 15 of 19 `insufficient-evidence` rejections were technical: 9 dead URLs, 4 JavaScript-rendered
+ * documents, 2 poor extractions and 2 HTTP problems. Discarding the whole topic for one unreadable
+ * source out of three is what emptied the funnel.
+ */
+export type SeedFailure =
+  /** The server answered with a client error (404/410): the URL the model recalled does not exist. */
+  | 'broken-url'
+  /** The document answered 200 but carries almost no readable text: rendered by JavaScript. */
+  | 'javascript-rendered'
+  /** Readable but below the evidence floor: extraction kept too little. */
+  | 'poor-extraction'
+  /** Transient HTTP problem (0 network, 429, 5xx) even after retry. */
+  | 'http-retrieval'
+  /** Readable but does not talk about the topic (wrong page, not missing evidence). */
+  | 'off-topic'
+  | null;
+
+export const SEED_FAILURE_LABEL: Record<Exclude<SeedFailure, null>, string> = {
+  'broken-url': 'URL rota (el servidor responde con error de cliente)',
+  'javascript-rendered': 'documento renderizado por JavaScript (sin texto en el HTML)',
+  'poor-extraction': 'extracción de texto pobre',
+  'http-retrieval': 'problema HTTP de recuperación',
+  'off-topic': 'fuente legible pero no trata el tema',
+};
+
+/** Minimum readable characters for a seed to count as evidence. */
+export const SEED_MIN_TEXT = 800;
+
+/** Classify one seed result. `readable` is text a reader would see, already the basis for both checks. */
+export function classifySeed(status: number, readable: string, hits: number, wordCount: number): SeedFailure {
+  if (status === 0 || status === 429 || status >= 500) return 'http-retrieval';
+  if (status !== 200) return 'broken-url';
+  if (readable.length < 120) return 'javascript-rendered';
+  if (readable.length < SEED_MIN_TEXT) return 'poor-extraction';
+  if (hits < Math.min(3, wordCount)) return 'off-topic';
+  return null;
+}
+
 /**
  * Evidence completeness: each seed must be readable without JavaScript and actually talk about the topic
  * (a model can name a plausible URL that does not exist, or a page about something else).
+ *
+ * Both are still required — a source counts only if a reader can see it AND it is on topic — but the
+ * check now reads the *visible* text (so a JavaScript shell no longer looks like evidence by its markup)
+ * and reports the concrete failure instead of a single generic reason.
  */
 export async function checkSeeds(p: TopicProposal, fetchSource: (url: string) => Promise<{ status: number; text: string }>): Promise<SeedCheck[]> {
-  const words = [...topicTokens(`${p.title} ${p.intent}`)];
+  const words = topicTokens(`${p.title} ${p.intent}`);
+  const wordList = [...words];
   const out: SeedCheck[] = [];
   for (const url of p.seedUrls) {
     const get = () => fetchSource(url.split('#')[0]).catch(() => ({ status: 0, text: '' }));
     let res = await get();
     // Network errors, rate limits and 5xx are transient: one retry before a good source is discarded.
     if (res.status === 0 || res.status === 429 || res.status >= 500) res = await get();
-    const text = res.text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-    const hits = words.filter((w) => text.includes(w)).length;
-    const ok = res.status === 200 && text.length >= 800 && hits >= Math.min(3, words.length);
-    out.push({ url, status: res.status, ok, note: res.status !== 200 ? `HTTP ${res.status}` : text.length < 800 ? 'página sin texto legible (¿SPA?)' : `${hits}/${words.length} términos del tema` });
+    const readable = readableText(res.text).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    const hits = wordList.filter((w) => readable.includes(w)).length;
+    const failure = classifySeed(res.status, readable, hits, wordList.length);
+    const rawLooksLikeApp = /<script\b/i.test(String(res.text ?? '')) && readable.length < 120;
+    const note = failure === null
+      ? `${hits}/${wordList.length} términos del tema`
+      : failure === 'javascript-rendered' && rawLooksLikeApp
+        ? `${SEED_FAILURE_LABEL[failure]} (¿SPA?)`
+        : SEED_FAILURE_LABEL[failure];
+    out.push({ url, status: res.status, ok: failure === null, note });
   }
   return out;
 }
+
+/**
+ * Which seed failures are worth retrying or replacing, versus a genuine editorial decision.
+ *
+ * A topic is only rejected for evidence when the *readable* sources cannot support it. Technical
+ * failures are recoverable and must not be presented to the operator as "falta de evidencia".
+ */
+export function seedRecoveryHint(seeds: SeedCheck[]): { recoverable: SeedCheck[]; genuine: SeedCheck[] } {
+  return {
+    recoverable: seeds.filter((s) => !s.ok && s.note !== SEED_FAILURE_LABEL['off-topic']),
+    genuine: seeds.filter((s) => !s.ok && s.note === SEED_FAILURE_LABEL['off-topic']),
+  };
+}
+
 
 /** Explainable 0-100 score. Every component is reported with its reason. */
 export function scoreProposal(p: TopicProposal, ctx: ScreenContext & { seeds: SeedCheck[]; linkTargets: number; publishedCategories: string[] }): { score: number; explanation: string[] } {

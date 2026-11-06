@@ -11,13 +11,17 @@
     presenta aquí como indexación y no se promete indexación.
   </p>
 
-  <!-- M14-R6 (R2/P2-04): complete tab pattern — roving tabindex, arrow keys and aria-controls. -->
-  <nav class="tabs" role="tablist" aria-label="Vistas SEO" (keydown)="onTabKeydown($event)">
+  <!-- M14-R6 (R2/P2-04): complete tab pattern — roving tabindex, arrow keys and aria-controls.
+       M14-R7: the keydown lives on the buttons, not on the tablist container. A roving-tabindex tablist
+       is a single focus stop (only the active tab is in the tab order), so a handler on the container was
+       unreachable by keyboard and tripped interactive-supports-focus. Per-listener focusability is the
+       correct pattern here: the key is handled where the focus actually is. -->
+  <div class="tabs" role="tablist" aria-label="Vistas SEO">
     <button role="tab" id="seo-tab-indexation" aria-controls="seo-panel-indexation" [attr.tabindex]="tab === 'indexation' ? 0 : -1"
-      [attr.aria-selected]="tab === 'indexation'" (click)="selectTab('indexation')">Cuadrícula</button>
+      [attr.aria-selected]="tab === 'indexation'" (keydown)="onTabKeydown($event)" (click)="selectTab('indexation')">Cuadrícula</button>
     <button role="tab" id="seo-tab-issues" aria-controls="seo-panel-issues" [attr.tabindex]="tab === 'issues' ? 0 : -1"
-      [attr.aria-selected]="tab === 'issues'" (click)="selectTab('issues')">Incidencias ({{ issues.length }})</button>
-  </nav>
+      [attr.aria-selected]="tab === 'issues'" (keydown)="onTabKeydown($event)" (click)="selectTab('issues')">Incidencias ({{ issues.length }})</button>
+  </div>
 
   <p class="seo__notice" *ngIf="notice" role="status">{{ notice }}</p>
   <p class="seo__error" *ngIf="error" role="alert">{{ error }}</p>

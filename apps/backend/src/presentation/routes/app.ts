@@ -5,6 +5,8 @@ import { editorialMediaGate, storageRoot } from '../middlewares/editorialMediaGa
 import { createV2Routes, RoutesDependencies } from './index';
 import { createBlogRoutes } from './blog.routes';
 import { createSitemapRoutes } from './sitemap.routes';
+import { createAdminEditorialFlowRoutes } from './admin-editorial-flow.routes';
+import { buildEditorialFlowController } from './editorial-flow-wiring';
 import { corsMiddleware } from '../middlewares/cors';
 import { compressionMiddleware } from '../middlewares/compression';
 import { requestLogger } from '../middlewares/requestLogger';
@@ -52,6 +54,14 @@ export const createApp = (dependencies: RoutesDependencies): Application => {
 
   // Rutas Blog (Legacy / separate from V2)
   app.use('/blog', createBlogRoutes(dependencies.blogController, dependencies.authService));
+
+  // M14-R7 - Observatorio editorial (Administracion -> Editorial -> Guia de flujos).
+  // Se monta antes del router v2 y comparte el guard de admin del panel; la publicacion
+  // manual reutiliza el BlogController real (gates, limite diario e invalidacion de cache).
+  app.use(
+    '/v2/admin/editorial/flow',
+    createAdminEditorialFlowRoutes(buildEditorialFlowController(dependencies.blogController), dependencies.authService)
+  );
 
   // Rutas v2
   const v2Router = createV2Routes(dependencies);

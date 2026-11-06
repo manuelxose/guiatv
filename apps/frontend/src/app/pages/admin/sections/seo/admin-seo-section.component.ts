@@ -121,7 +121,8 @@ export class AdminSeoSectionComponent implements OnInit {
   }
 
   toggleSelect(url: string): void {
-    this.selected.has(url) ? this.selected.delete(url) : this.selected.add(url);
+    if (this.selected.has(url)) this.selected.delete(url);
+    else this.selected.add(url);
   }
   toggleSelectAll(): void {
     if (this.allSelected) this.page.rows.forEach((r) => this.selected.delete(r.url));

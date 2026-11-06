@@ -1,0 +1,145 @@
+{
+  "countPairs": [
+    {
+      "stage": "candidate.eligible",
+      "ui": 0,
+      "mongo": 0,
+      "ok": true
+    },
+    {
+      "stage": "candidate.invalid",
+      "ui": 1,
+      "mongo": 1,
+      "ok": true
+    },
+    {
+      "stage": "candidate.duplicate",
+      "ui": 1,
+      "mongo": 1,
+      "ok": true
+    },
+    {
+      "stage": "candidate.rejected-insufficient-evidence",
+      "ui": 19,
+      "mongo": 19,
+      "ok": true
+    },
+    {
+      "stage": "candidate.rejected",
+      "ui": 0,
+      "mongo": 0,
+      "ok": true
+    },
+    {
+      "stage": "candidate.retained",
+      "ui": 1,
+      "mongo": 1,
+      "ok": true
+    },
+    {
+      "stage": "candidate.expired",
+      "ui": 0,
+      "mongo": 0,
+      "ok": true
+    },
+    {
+      "stage": "editorial.drafting",
+      "ui": 0,
+      "mongo": 0,
+      "ok": true
+    },
+    {
+      "stage": "editorial.reviewing",
+      "ui": 0,
+      "mongo": 0,
+      "ok": true
+    },
+    {
+      "stage": "editorial.approved",
+      "ui": 0,
+      "mongo": 0,
+      "ok": true
+    },
+    {
+      "stage": "editorial.rejected",
+      "ui": 0,
+      "mongo": 0,
+      "ok": true
+    },
+    {
+      "stage": "execution.discovery",
+      "ui": 6,
+      "mongo": 6,
+      "ok": true
+    },
+    {
+      "stage": "execution.failed",
+      "ui": 8,
+      "mongo": 8,
+      "ok": true
+    },
+    {
+      "stage": "execution.blocked",
+      "ui": 9,
+      "mongo": 9,
+      "ok": true
+    },
+    {
+      "stage": "execution.completed",
+      "ui": 8,
+      "mongo": 8,
+      "ok": true
+    },
+    {
+      "stage": "publication.published",
+      "ui": 4,
+      "mongo": 4,
+      "ok": true
+    },
+    {
+      "stage": "publication.unpublished",
+      "ui": 0,
+      "mongo": 0,
+      "ok": true
+    },
+    {
+      "stage": "publication.attempts",
+      "ui": 0,
+      "mongo": 0,
+      "ok": true
+    },
+    {
+      "stage": "seo.indexed",
+      "ui": 0,
+      "mongo": 0,
+      "ok": true
+    },
+    {
+      "stage": "seo.discovered-not-indexed",
+      "ui": 7,
+      "mongo": 7,
+      "ok": true
+    },
+    {
+      "stage": "seo.crawled-not-indexed",
+      "ui": 0,
+      "mongo": 0,
+      "ok": true
+    },
+    {
+      "stage": "seo.not-recognized",
+      "ui": 7,
+      "mongo": 7,
+      "ok": true
+    },
+    {
+      "stage": "seo.pending-inspection",
+      "ui": 0,
+      "mongo": 0,
+      "ok": true
+    }
+  ],
+  "jobs": 35,
+  "publishedPosts": 4,
+  "gscIndexed": 0
+}

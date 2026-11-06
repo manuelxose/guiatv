@@ -22,7 +22,17 @@ test('editorial runner process starts, reports, logs and stops only the configur
     assert.equal(service.state().pid, null);
   } finally {
     await service.stop().catch(() => undefined);
-    rmSync(dir, { recursive: true, force: true });
+    // Windows releases the child's file handles asynchronously after stop(): the immediate rmSync raised EPERM
+    // whenever the process had just been killed. Retry briefly; the cleanup is asserted by the test outcome,
+    // not by the first attempt (nothing about the service under test changes).
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        rmSync(dir, { recursive: true, force: true });
+        break;
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }
   }
 });
 

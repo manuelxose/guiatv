@@ -1,0 +1,728 @@
+<div class="flow-guide">
+  <header class="fg-heading">
+    <div class="fg-heading__text">
+      <p class="eyebrow">ADMINISTRACIÓN · EDITORIAL</p>
+      <h2>Guía de flujos</h2>
+      <p>
+        Cómo funciona el flujo editorial de principio a fin y, al mismo tiempo, el diagnóstico real del embudo:
+        qué se ha ejecutado, dónde se pierde caudal y qué se puede recuperar sin inventar nada.
+      </p>
+    </div>
+    <button type="button" class="button secondary" (click)="loadGuide()" [disabled]="guideLoading">
+      {{ guideLoading ? 'Actualizando…' : 'Actualizar guía' }}
+    </button>
+  </header>
+
+  <div class="contract-chip" *ngIf="contractVersion as version" role="note">
+    <strong>Contrato de estados</strong>
+    <span>Versión {{ version }}</span>
+    <span class="contract-chip__note">La guía se genera a partir de este contrato compartido; las definiciones de estado no se escriben en el componente.</span>
+  </div>
+
+  <div class="fg-tabs" role="tablist" aria-label="Vistas de la guía de flujos">
+    <button
+      *ngFor="let view of views"
+      type="button"
+      role="tab"
+      class="fg-tab"
+      [id]="'flow-view-tab-' + view.id"
+      [attr.aria-selected]="activeView === view.id"
+      [attr.aria-controls]="'flow-view-panel-' + view.id"
+      [tabindex]="activeView === view.id ? 0 : -1"
+      (click)="selectView(view.id)"
+    >
+      <span class="fg-tab__label">{{ view.label }}</span>
+      <span class="fg-tab__hint">{{ view.hint }}</span>
+    </button>
+  </div>
+
+  <!-- ══════════ VISTA A · CÓMO FUNCIONA ══════════ -->
+  <section
+    *ngIf="activeView === 'how'"
+    role="tabpanel"
+    id="flow-view-panel-how"
+    aria-labelledby="flow-view-tab-how"
+    class="fg-panel"
+  >
+    <p *ngIf="guideLoading && !guide" class="fg-state" role="status" aria-busy="true">Cargando el contrato de estados…</p>
+
+    <div *ngIf="guideError" class="fg-error" role="alert">
+      <p>No se pudo cargar el contrato de estados: {{ guideError }}</p>
+      <p class="fg-error__hint">
+        Sin el contrato no se muestran definiciones ni estados: no se rellenan con textos alternativos que puedan contradecir
+        la versión que usa el servidor.
+      </p>
+      <button type="button" class="button secondary" (click)="loadGuide()">Reintentar</button>
+    </div>
+
+    <ng-container *ngIf="guide as flowGuide">
+      <section class="fg-block" aria-labelledby="fg-flow-title">
+        <h3 id="fg-flow-title">El recorrido, etapa por etapa</h3>
+        <p class="fg-intro">
+          Diez puntos del flujo, en el orden en que ocurren. Cada etapa indica la dimensión del contrato que gobierna sus
+          estados: son dimensiones independientes y nunca se suman entre sí.
+        </p>
+        <ol class="stage-flow" aria-label="Etapas del flujo editorial en orden">
+          <li *ngFor="let stage of flowStages; let i = index; trackBy: trackStage" class="stage-card">
+            <div class="stage-card__head">
+              <span class="stage-card__index" aria-hidden="true">{{ i + 1 }}</span>
+              <div>
+                <h4>{{ stage.title }}</h4>
+                <p class="stage-card__dimension">{{ dimensionLabels[stage.dimension] }}</p>
+              </div>
+            </div>
+            <p class="stage-card__body">{{ stage.body }}</p>
+            <ul class="stage-card__states" aria-label="Estados del contrato que intervienen">
+              <li *ngFor="let state of stage.states; trackBy: trackId">
+                <ng-container *ngIf="citesState(stage.dimension, state); else unknownState">
+                  <app-admin-status-badge [status]="badgeStatusOf(stage.dimension, state)" [label]="labelOf(stage.dimension, state)" />
+                </ng-container>
+                <ng-template #unknownState>
+                  <span class="state-missing">«{{ state }}» no existe en la versión {{ contractVersion }} del contrato</span>
+                </ng-template>
+              </li>
+            </ul>
+          </li>
+        </ol>
+      </section>
+
+      <section class="fg-block" aria-labelledby="fg-distinctions-title">
+        <h3 id="fg-distinctions-title">Las seis distinciones del contrato</h3>
+        <p class="fg-intro">
+          Son invariantes del contrato, no matices de redacción: cada una impide leer un estado como si fuera otro. Los
+          metadatos de cada estado (su lista de «lo que no implica») son la fuente de estas distinciones.
+        </p>
+        <ul class="distinctions">
+          <li *ngFor="let distinction of distinctions; trackBy: trackDistinction" class="distinction">
+            <h4>{{ distinction.title }}</h4>
+            <p>{{ distinction.plain }}</p>
+            <p class="distinction__pair">
+              <span class="distinction__side">
+                <span class="distinction__dimension">{{ dimensionLabels[distinction.example.leftDimension] }}</span>
+                <span class="state-missing" *ngIf="!citesState(distinction.example.leftDimension, distinction.example.leftState)">
+                  «{{ distinction.example.leftState }}» no consta en la versión {{ contractVersion }}
+                </span>
+                <app-admin-status-badge
+                  *ngIf="citesState(distinction.example.leftDimension, distinction.example.leftState)"
+                  [status]="badgeStatusOf(distinction.example.leftDimension, distinction.example.leftState)"
+                  [label]="labelOf(distinction.example.leftDimension, distinction.example.leftState)"
+                />
+              </span>
+              <span class="distinction__versus" aria-hidden="true">≠</span>
+              <span class="sr-only">no es lo mismo que</span>
+              <span class="distinction__side">
+                <span class="distinction__dimension">{{ dimensionLabels[distinction.example.rightDimension] }}</span>
+                <span class="state-missing" *ngIf="!citesState(distinction.example.rightDimension, distinction.example.rightState)">
+                  «{{ distinction.example.rightState }}» no consta en la versión {{ contractVersion }}
+                </span>
+                <app-admin-status-badge
+                  *ngIf="citesState(distinction.example.rightDimension, distinction.example.rightState)"
+                  [status]="badgeStatusOf(distinction.example.rightDimension, distinction.example.rightState)"
+                  [label]="labelOf(distinction.example.rightDimension, distinction.example.rightState)"
+                />
+              </span>
+            </p>
+          </li>
+        </ul>
+      </section>
+
+      <section class="fg-block" aria-labelledby="fg-legend-title">
+        <h3 id="fg-legend-title">Leyenda de estados</h3>
+        <p class="fg-intro">
+          Cada dimensión es un enum cerrado. Para cada estado se muestra su etiqueta, su definición y lo que no implica,
+          tal como los declara el contrato. Las acciones admitidas indican qué recuperación acepta ese estado.
+        </p>
+        <div *ngFor="let dimension of dimensionOrder" class="dimension-card">
+          <div class="dimension-card__head">
+            <h4>{{ dimensionLabels[dimension] }}</h4>
+            <p>{{ dimensionQuestions[dimension] }}</p>
+          </div>
+          <ul class="state-list">
+            <li *ngFor="let entry of statesFor(dimension); trackBy: trackKey" class="state-item">
+              <app-admin-status-badge [status]="badgeStatusOf(dimension, entry.key)" [label]="entry.meta.label" />
+              <p class="state-item__definition">{{ entry.meta.definition }}</p>
+              <div class="state-item__noimpl" *ngIf="entry.meta.notImplies.length">
+                <p class="state-item__label">No implica</p>
+                <ul>
+                  <li *ngFor="let line of entry.meta.notImplies">{{ line }}</li>
+                </ul>
+              </div>
+              <p class="state-item__actions" *ngIf="entry.meta.admittedActions.length">
+                <span class="state-item__label">Acciones admitidas:</span>
+                <ng-container *ngFor="let action of entry.meta.admittedActions; let last = last">
+                  {{ flowGuide.recoveryActions[action]?.label || action }}<ng-container *ngIf="!last">, </ng-container>
+                </ng-container>
+              </p>
+              <p class="state-item__actions" *ngIf="!entry.meta.admittedActions.length">
+                <span class="state-item__label">Acciones admitidas:</span> ninguna (este estado se gestiona desde su propio control).
+              </p>
+            </li>
+          </ul>
+          <div class="absence-note">
+            <p class="state-item__label">Fuera de la enumeración</p>
+            <ul>
+              <li *ngFor="let marker of absenceMarkers">
+                <app-admin-status-badge status="unknown" [label]="marker.label" /> {{ marker.definition }}
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="fg-block" aria-labelledby="fg-examples-title">
+        <h3 id="fg-examples-title">Ejemplos anclados al sistema</h3>
+        <p class="fg-intro">
+          Situaciones que el contrato resuelve de una forma concreta, con la referencia a la regla de mapeo que las
+          gobierna. Un ejemplo cuya regla o estado no exista en la versión cargada deja de mostrarse.
+        </p>
+        <ul class="examples">
+          <li *ngFor="let example of examples; trackBy: trackExample" class="example">
+            <h4>{{ example.title }}</h4>
+            <p>{{ example.body }}</p>
+            <p class="example__anchor"><span class="state-item__label">Referencia:</span> {{ example.anchor }}</p>
+            <ul class="example__states" aria-label="Estados citados por el ejemplo">
+              <li *ngFor="let cite of example.cites; trackBy: trackCite">
+                <ng-container *ngIf="citesState(cite.dimension, cite.state); else citeMissing">
+                  <app-admin-status-badge [status]="badgeStatusOf(cite.dimension, cite.state)" [label]="labelOf(cite.dimension, cite.state)" />
+                </ng-container>
+                <ng-template #citeMissing>
+                  <span class="state-missing">Estado no presente en la versión {{ contractVersion }}</span>
+                </ng-template>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </section>
+    </ng-container>
+  </section>
+
+  <!-- ══════════ VISTA B · DIAGNÓSTICO ══════════ -->
+  <section
+    *ngIf="activeView === 'diagnostics'"
+    role="tabpanel"
+    id="flow-view-panel-diagnostics"
+    aria-labelledby="flow-view-tab-diagnostics"
+    class="fg-panel"
+  >
+    <div class="fg-subtabs" role="tablist" aria-label="Secciones del diagnóstico">
+      <button
+        *ngFor="let tab of diagnosticsTabs"
+        type="button"
+        role="tab"
+        class="fg-subtab"
+        [id]="'flow-diag-tab-' + tab.id"
+        [attr.aria-selected]="diagnosticsTab === tab.id"
+        [attr.aria-controls]="'flow-diag-panel-' + tab.id"
+        [tabindex]="diagnosticsTab === tab.id ? 0 : -1"
+        (click)="selectDiagnosticsTab(tab.id)"
+      >
+        {{ tab.label }}
+      </button>
+    </div>
+
+    <!-- ── Embudo en vivo ── -->
+    <div
+      *ngIf="diagnosticsTab === 'funnel'"
+      role="tabpanel"
+      id="flow-diag-panel-funnel"
+      aria-labelledby="flow-diag-tab-funnel"
+      class="fg-diag"
+    >
+      <form class="fg-filters" (ngSubmit)="applyFilters()" aria-label="Filtros del diagnóstico">
+        <div class="fg-filter">
+          <label for="fg-from">Desde</label>
+          <input id="fg-from" type="date" name="from" [(ngModel)]="filters['from']" />
+        </div>
+        <div class="fg-filter">
+          <label for="fg-to">Hasta</label>
+          <input id="fg-to" type="date" name="to" [(ngModel)]="filters['to']" />
+        </div>
+        <div class="fg-filter">
+          <label for="fg-origin">Origen</label>
+          <select id="fg-origin" name="origin" [(ngModel)]="filters['origin']">
+            <option value="">Todos</option>
+            <option value="automatic">Automático</option>
+            <option value="manual">Manual</option>
+          </select>
+        </div>
+        <div class="fg-filter">
+          <label for="fg-category">Categoría</label>
+          <select id="fg-category" name="category" [(ngModel)]="filters['category']">
+            <option value="">Todas</option>
+            <option *ngFor="let category of categories" [value]="category">{{ category }}</option>
+          </select>
+        </div>
+        <div class="fg-filter">
+          <label for="fg-stage">Etapa</label>
+          <select id="fg-stage" name="stage" [(ngModel)]="filters['stage']" [disabled]="!stageOptions.length">
+            <option value="">Todas las etapas</option>
+            <option *ngFor="let option of stageOptions; trackBy: trackKey" [value]="option.key">{{ option.label }}</option>
+          </select>
+        </div>
+        <div class="fg-filter">
+          <label for="fg-publication">Estado de publicación</label>
+          <select id="fg-publication" name="publicationStatus" [(ngModel)]="filters['publicationStatus']">
+            <option value="">Todos</option>
+            <option value="publish">Publicado</option>
+            <option value="draft">Borrador</option>
+          </select>
+        </div>
+        <div class="fg-filter">
+          <label for="fg-cycle">Ciclo</label>
+          <input id="fg-cycle" name="cycleId" [(ngModel)]="filters['cycleId']" maxlength="120" placeholder="Identificador del ciclo" />
+        </div>
+        <div class="fg-filter">
+          <label for="fg-state">Estado</label>
+          <input id="fg-state" name="state" [(ngModel)]="filters['state']" maxlength="80" placeholder="Estado de la dimensión" />
+        </div>
+        <div class="fg-filter">
+          <label for="fg-failure">Motivo de fallo</label>
+          <input id="fg-failure" name="failureReason" [(ngModel)]="filters['failureReason']" maxlength="200" placeholder="Texto del motivo" />
+        </div>
+        <div class="fg-filter">
+          <label for="fg-model">Modelo</label>
+          <input id="fg-model" name="model" [(ngModel)]="filters['model']" maxlength="80" placeholder="p. ej. claude-sonnet" />
+        </div>
+        <div class="fg-filter">
+          <label for="fg-provider">Proveedor</label>
+          <input id="fg-provider" name="provider" [(ngModel)]="filters['provider']" maxlength="40" placeholder="p. ej. anthropic" />
+        </div>
+        <div class="fg-filter-actions">
+          <button type="submit" class="button primary" [disabled]="funnelLoading">{{ funnelLoading ? 'Consultando…' : 'Aplicar filtros' }}</button>
+          <button type="button" class="button secondary" (click)="clearFilters()" [disabled]="funnelLoading || !hasFilters">Limpiar</button>
+        </div>
+      </form>
+
+      <p class="fg-note">
+        El mismo ámbito se aplica a todas las etapas. Si una etapa no puede aplicar un filtro, se marca como no disponible
+        con su motivo; nunca se devuelve un número de otra población ni un cero de relleno.
+      </p>
+
+      <div class="fg-live" role="status" aria-live="polite">
+        <span *ngIf="funnelLoading">Consultando el embudo en vivo…</span>
+        <span *ngIf="!funnelLoading && funnel">
+          {{ measuredStages.length }} etapa(s) medidas · {{ unavailableStages.length }} no disponible(s) · generado
+          {{ formatDate(funnel.generatedAt) }}
+        </span>
+      </div>
+      <div class="sr-only" role="status" aria-live="polite">{{ liveMessage }}</div>
+
+      <div *ngIf="funnelError" class="fg-error" role="alert">
+        <p>No se pudo cargar el embudo: {{ funnelError }}</p>
+        <button type="button" class="button secondary" (click)="loadFunnel()">Reintentar</button>
+      </div>
+
+      <p *ngIf="funnelLoading && !funnel" class="fg-state" aria-busy="true">Cargando el embudo del flujo editorial…</p>
+
+      <ng-container *ngIf="funnel as report">
+        <div class="fg-scope" *ngIf="appliedScope.length">
+          <p class="state-item__label">Ámbito aplicado</p>
+          <ul class="scope-list">
+            <li *ngFor="let entry of appliedScope; trackBy: trackScopeKey"><strong>{{ entry.label }}:</strong> {{ entry.value }}</li>
+          </ul>
+        </div>
+        <p class="fg-note" *ngIf="report.availability.note" role="note">{{ report.availability.note }}</p>
+
+        <div *ngIf="isEmptyFunnel" class="fg-empty" role="status">
+          <h3>Sin recuentos disponibles</h3>
+          <p>
+            Ninguna etapa del embudo se pudo medir en este ámbito. Puede deberse a que la base de datos no está accesible o a
+            que los filtros no se pueden aplicar a ninguna etapa. No se muestra ningún cero: cada motivo aparece en su etapa.
+          </p>
+        </div>
+        <div *ngIf="isPartialFunnel" class="fg-partial" role="status">
+          <h3>Datos parciales</h3>
+          <p>
+            {{ measuredStages.length }} etapa(s) se midieron y {{ unavailableStages.length }} no se pudieron medir. La cabecera
+            de cada dimensión y la lista final explican por qué; esas etapas no se suman ni se estiman.
+          </p>
+        </div>
+        <p *ngIf="allMeasuredEmpty" class="fg-note" role="note">
+          Todas las etapas medidas devuelven cero registros en este ámbito: es un cero real leído de la base, no un dato ausente.
+        </p>
+
+        <div *ngFor="let group of stageGroups" class="fg-dimension">
+          <div class="fg-dimension__head">
+            <h3>{{ group.label }}</h3>
+            <p>No se suma un total de dimensión. {{ group.note }}</p>
+          </div>
+          <ul class="metric-list">
+            <li *ngFor="let view of group.stages; trackBy: trackStageView" class="metric">
+              <div class="metric__head">
+                <button
+                  *ngIf="view.drillable; else notClickable"
+                  type="button"
+                  class="metric__button"
+                  [attr.data-stage-key]="view.stage.key"
+                  (click)="openList(view, $event)"
+                 
+                >
+                  <span class="metric__label">{{ view.stage.label }}</span>
+                  <span class="metric__count">{{ view.stage.count }}</span>
+                </button>
+                <ng-template #notClickable>
+                  <div class="metric__button metric__button--static">
+                    <span class="metric__label">{{ view.stage.label }}</span>
+                    <span class="metric__count metric__count--unavailable">No disponible</span>
+                  </div>
+                </ng-template>
+                <span class="metric__drill" *ngIf="view.drillable">Ver registros</span>
+              </div>
+              <div class="metric__bar" *ngIf="view.drillable" aria-hidden="true">
+                <span [style.width.%]="view.barPercent"></span>
+              </div>
+              <p class="metric__description">{{ view.stage.description }}</p>
+              <p class="metric__conversion" *ngIf="view.conversionText">{{ view.conversionText }}</p>
+              <p class="metric__unavailable" *ngIf="!view.drillable">{{ view.stage.unavailableReason }}</p>
+              <p class="metric__conversion" *ngIf="view.drillable && view.conversionBroken">{{ view.conversionBroken }}</p>
+              <p class="metric__notes" *ngFor="let note of view.stage.notes">{{ note }}</p>
+            </li>
+          </ul>
+        </div>
+
+        <section class="fg-block" aria-labelledby="fg-waits-title" *ngIf="waits.length">
+          <h3 id="fg-waits-title">Dónde se pierde caudal</h3>
+          <p class="fg-intro">
+            Solo se muestran los saltos entre etapas que no comparan la misma población (cruzan dimensiones) o cuya tasa no
+            se puede calcular. El resto de tasas aparecen junto a su etapa.
+          </p>
+          <ul class="waits">
+            <li *ngFor="let wait of waits; trackBy: trackWait" class="wait">
+              <p><strong>{{ wait.from }}</strong> → <strong>{{ wait.to }}</strong>
+                <span *ngIf="wait.crossDimension" class="wait__tag">cruza dimensiones</span>
+              </p>
+              <p *ngIf="wait.reason">{{ wait.reason }}</p>
+              <p *ngIf="!wait.reason && wait.ratioLabel">Conversión {{ wait.ratioLabel }}; se pierden {{ wait.lost }}.</p>
+            </li>
+          </ul>
+        </section>
+
+        <section class="fg-block" aria-labelledby="fg-unavailable-title" *ngIf="unavailableStages.length">
+          <h3 id="fg-unavailable-title">Etapas no disponibles y por qué</h3>
+          <ul class="waits">
+            <li *ngFor="let stage of unavailableStages; trackBy: trackStage" class="wait">
+              <p><strong>{{ stage.label }}</strong> · {{ stage.dimensionLabel }}</p>
+              <p>{{ stage.unavailableReason }}</p>
+            </li>
+          </ul>
+        </section>
+
+        <section class="fg-bulk" aria-labelledby="fg-bulk-title">
+          <h3 id="fg-bulk-title">Recuperación en lote</h3>
+          <p>
+            {{ selected.size }} registro(s) seleccionados. La recuperación valida cada registro contra su estado real y
+            devuelve un resultado por ítem; un 409 explica en español por qué una acción no aplica.
+          </p>
+          <div class="fg-bulk__actions">
+            <button type="button" class="button secondary" (click)="selectAllVisible()">Seleccionar lo visible</button>
+            <button type="button" class="button secondary" (click)="clearSelection()" [disabled]="!selected.size">Limpiar selección</button>
+          </div>
+          <label for="fg-bulk-action">Acción común para la selección</label>
+          <select id="fg-bulk-action" name="bulkAction" [(ngModel)]="bulkAction">
+            <option *ngFor="let action of bulkActions; trackBy: trackKey" [value]="action.key">{{ action.label }}</option>
+          </select>
+          <button type="button" class="button primary" [disabled]="!selected.size" (click)="askRecovery(bulkAction, selectedList)">
+            Abrir recuperación ({{ selected.size }})
+          </button>
+        </section>
+
+        <div *ngIf="bulkItems.length" class="fg-results" role="status">
+          <h3>Resultado por ítem</h3>
+          <ul class="waits">
+            <li *ngFor="let item of bulkItems; trackBy: trackBulkItem" class="wait">
+              <p>
+                <strong>{{ item.topicId }}</strong>
+                <app-admin-status-badge [status]="item.ok ? 'completed' : 'failed'" [label]="bulkCodeLabel(item)" />
+              </p>
+              <p>{{ item.detail }}</p>
+            </li>
+          </ul>
+        </div>
+      </ng-container>
+    </div>
+
+    <!-- ── Registros legacy ── -->
+    <div
+      *ngIf="diagnosticsTab === 'legacy'"
+      role="tabpanel"
+      id="flow-diag-panel-legacy"
+      aria-labelledby="flow-diag-tab-legacy"
+      class="fg-legacy"
+    >
+      <div class="fg-block__head">
+        <div>
+          <h3>Reconciliación de registros legacy</h3>
+          <p class="fg-intro">
+            Artículos aprobados o en revisión analizados contra los documentos reales. El veredicto puede ser «desconocido» y
+            eso es un resultado: nunca se convierte en «publicado» por omisión.
+          </p>
+        </div>
+        <button type="button" class="button secondary" (click)="loadReconciliation()" [disabled]="reconciliationLoading">
+          {{ reconciliationLoading ? 'Consultando…' : 'Actualizar' }}
+        </button>
+      </div>
+
+      <p *ngIf="reconciliationError" class="fg-error" role="alert">{{ reconciliationError }}</p>
+      <p *ngIf="reconciliationLoading && !reconciliation" class="fg-state" aria-busy="true">Cargando la reconciliación…</p>
+
+      <ng-container *ngIf="reconciliation as block">
+        <div class="mass" role="list" aria-label="Masa de registros por veredicto">
+          <div class="mass__item" role="listitem"><span>Total</span><strong>{{ block.mass.total }}</strong></div>
+          <div class="mass__item" role="listitem"><span>Publicado</span><strong>{{ block.mass.published }}</strong></div>
+          <div class="mass__item" role="listitem"><span>No publicado</span><strong>{{ block.mass.notPublished }}</strong></div>
+          <div class="mass__item" role="listitem"><span>Desconocido</span><strong>{{ block.mass.unknown }}</strong></div>
+        </div>
+        <p class="fg-note">{{ block.mass.note }}</p>
+
+        <p *ngIf="!block.records.length" class="fg-empty" role="status">
+          Sin registros con el motivo de la reconciliación en este ámbito. No se muestra ninguna cifra estimada.
+        </p>
+
+        <div class="fg-table-scroll" tabindex="0" role="region" aria-label="Registros legacy, tabla con desplazamiento" *ngIf="block.records.length">
+          <table>
+            <caption class="sr-only">Registros legacy analizados, con su veredicto y los motivos por los que no consta</caption>
+            <thead>
+              <tr>
+                <th scope="col">Artículo</th>
+                <th scope="col">Veredicto</th>
+                <th scope="col">Sitemap</th>
+                <th scope="col">SEO</th>
+                <th scope="col">Motivo</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let record of block.records; trackBy: trackRecord">
+                <td>
+                  <button type="button" class="table-link" [attr.data-topic-id]="record.slug" (click)="openTopicFromList(record.slug, $event)">
+                    {{ record.title || record.slug }}
+                  </button>
+                  <small>{{ record.slug }}</small>
+                </td>
+                <td><app-admin-status-badge [status]="verdictBadge(record.verdict).status" [label]="verdictBadge(record.verdict).label" /></td>
+                <td>{{ record.inSitemap ? 'Cumple la regla' : 'No cumple la regla' }}</td>
+                <td>{{ record.gsc?.coverageState || 'Sin inspección' }}</td>
+                <td>
+                  <p>{{ record.verdictReason }}</p>
+                  <ul *ngIf="record.unknowns.length">
+                    <li *ngFor="let unknown of record.unknowns">{{ unknown }}</li>
+                  </ul>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="fg-note">
+          <li *ngFor="let gap of block.dataGaps">{{ gap }}</li>
+        </ul>
+      </ng-container>
+    </div>
+  </section>
+
+  <!-- ══════════ Capas: lista, ficha del tema, diálogo de recuperación ══════════ -->
+
+  <button *ngIf="listOpen" type="button" class="fg-backdrop" aria-label="Cerrar la lista de registros" tabindex="-1" (click)="closeList()"></button>
+  <aside *ngIf="listOpen && listStage as stage" class="fg-drawer" role="dialog" aria-modal="true" aria-labelledby="fg-list-title" cdkTrapFocus cdkTrapFocusAutoCapture>
+    <header>
+      <div>
+        <p class="eyebrow">REGISTROS DE LA ETAPA</p>
+        <h3 id="fg-list-title">{{ stage.label }}</h3>
+        <small>
+          {{ listTotal }} registro(s) reales · {{ stage.dimensionLabel }}
+          <ng-container *ngIf="listTruncated"> · se listan los primeros {{ listIds.length }}; no se inventan los restantes</ng-container>
+        </small>
+      </div>
+      <button type="button" class="button secondary" cdkFocusInitial (click)="closeList()">Cerrar</button>
+    </header>
+    <p class="fg-note">{{ stage.description }}</p>
+    <p class="fg-note">Consulta de origen: <code>{{ stage.queries[0]?.collection || 'no consta' }}</code> — {{ stage.queries[0]?.note || 'sin nota' }}</p>
+
+    <div class="fg-list-actions" *ngIf="listIds.length">
+      <button type="button" class="button secondary" (click)="toggleAllInList()">{{ listAllSelected ? 'Quitar la selección' : 'Seleccionar todo' }}</button>
+      <span>{{ selected.size }} seleccionados en total</span>
+    </div>
+
+    <ul class="fg-record-list" *ngIf="listIds.length">
+      <li *ngFor="let id of listIds; trackBy: trackId">
+        <input
+          class="h-6 w-6"
+          type="checkbox"
+          [checked]="isSelected(id)"
+          (change)="toggleSelected(id)"
+          [attr.aria-label]="'Seleccionar el registro ' + id"
+        />
+        <button type="button" class="table-link" [attr.data-topic-id]="id" (click)="openTopicFromList(id, $event)">{{ id }}</button>
+      </li>
+    </ul>
+    <p *ngIf="!listIds.length" class="fg-empty" role="status">La etapa no devolvió identificadores de registros.</p>
+
+    <footer class="fg-drawer__actions" *ngIf="listIds.length">
+      <button type="button" class="button primary" [disabled]="!selected.size" (click)="askRecovery('add-evidence', selectedList)">
+        Recuperar selección ({{ selected.size }})
+      </button>
+    </footer>
+  </aside>
+
+  <button *ngIf="topicOpen" type="button" class="fg-backdrop" aria-label="Cerrar la ficha del tema" tabindex="-1" (click)="closeTopic()"></button>
+  <aside *ngIf="topicOpen" class="fg-drawer fg-drawer--wide" role="dialog" aria-modal="true" aria-labelledby="fg-topic-title" cdkTrapFocus cdkTrapFocusAutoCapture>
+    <header>
+      <div>
+        <p class="eyebrow">FICHA DEL TEMA</p>
+        <h3 id="fg-topic-title">{{ topic?.identity?.title || topicReturnId }}</h3>
+        <small>{{ topicReturnId }}</small>
+      </div>
+      <button type="button" class="button secondary" cdkFocusInitial (click)="closeTopic()">Cerrar</button>
+    </header>
+
+    <p *ngIf="topicLoading" role="status" aria-busy="true">Cargando la ficha del tema…</p>
+    <div *ngIf="topicError" class="fg-error" role="alert">
+      <p>{{ topicError }}</p>
+      <button type="button" class="button secondary" (click)="openTopic(topicReturnId)">Reintentar</button>
+    </div>
+
+    <ng-container *ngIf="topic as view">
+      <dl class="topic-meta">
+        <div><dt>Origen</dt><dd>{{ originLabels[view.origin.kind] || view.origin.kind }} · {{ view.origin.detail }}</dd></div>
+        <div><dt>Categoría</dt><dd>{{ view.identity.category || 'No consta' }}</dd></div>
+        <div><dt>Job</dt><dd>{{ view.identity.jobId || 'No consta' }}</dd></div>
+        <div><dt>Artículo</dt><dd>{{ view.identity.postId || 'No consta' }}</dd></div>
+        <div><dt>URL pública</dt><dd><a *ngIf="view.identity.publicUrl as url" [href]="url" target="_blank" rel="noopener">{{ url }}</a><ng-container *ngIf="!view.identity.publicUrl">No consta</ng-container></dd></div>
+        <div><dt>Última actualización</dt><dd>{{ formatDate(view.updatedAt) }}</dd></div>
+      </dl>
+
+      <section aria-labelledby="fg-topic-dims" class="topic-dims">
+        <h4 id="fg-topic-dims">Las cuatro dimensiones y el SEO, por separado</h4>
+        <p class="fg-note">Cada dimensión se lee de su colección de origen. No se combinan entre sí ni se deduce una de otra.</p>
+        <ul class="topic-dim-list">
+          <li *ngFor="let row of dimensionRows(); trackBy: trackRow" class="topic-dim">
+            <div class="topic-dim__head">
+              <h5>{{ row.label }}</h5>
+              <app-admin-status-badge [status]="badgeStatusOf(row.dimension, view.dimensions[row.dimension]?.state || 'sin-datos')" [label]="topicStateLabel(view, row.dimension)" />
+            </div>
+            <p class="fg-note">{{ row.question }}</p>
+            <p *ngIf="definitionFor(row.dimension, view.dimensions[row.dimension]?.state || '') as definition" class="topic-dim__definition">
+              {{ definition }}
+            </p>
+            <p *ngIf="!definitionFor(row.dimension, view.dimensions[row.dimension]?.state || '')" class="topic-dim__definition">
+              {{ view.dimensions[row.dimension]?.definition }}
+            </p>
+            <ul class="topic-dim__noimpl" *ngIf="notImpliesFor(row.dimension, view.dimensions[row.dimension]?.state || '') as lines">
+              <li *ngFor="let line of lines">{{ line }}</li>
+            </ul>
+            <p class="fg-note">
+              Procedencia: <code>{{ view.dimensions[row.dimension]?.provenance?.collection || 'no consta' }}</code>
+              · versión {{ view.dimensions[row.dimension]?.provenance?.workflowVersion || 'no-consta' }}
+              <ng-container *ngIf="view.dimensions[row.dimension]?.rawState"> · valor origen «{{ view.dimensions[row.dimension]?.rawState }}»</ng-container>
+            </p>
+          </li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="fg-topic-block" class="topic-block">
+        <h4 id="fg-topic-block">Motivo de bloqueo</h4>
+        <p *ngIf="view.blockingReason as block">
+          <app-admin-status-badge [status]="block.technical ? 'failed' : 'warning'" [label]="block.technical ? 'Fallo técnico' : 'Bloqueo editorial'" />
+          {{ block.reason }}
+        </p>
+        <p *ngIf="view.blockingReason">{{ view.blockingReason.source }}</p>
+        <p *ngIf="!view.blockingReason" class="fg-note">No consta un motivo de bloqueo en los documentos consultados.</p>
+        <p class="fg-note">
+          Reintentos: {{ view.retries.attempts ?? 'no consta' }}<ng-container *ngIf="view.retries.maxAttempts !== null"> de {{ view.retries.maxAttempts }}</ng-container>
+          · Ciclos de revisión: {{ view.reviewCycles.count ?? 'no consta' }}
+        </p>
+      </section>
+
+      <section aria-labelledby="fg-topic-actions" class="topic-actions">
+        <h4 id="fg-topic-actions">Recuperación disponible</h4>
+        <p *ngIf="view.unavailableActionsNote" class="fg-note" role="note">{{ view.unavailableActionsNote }}</p>
+        <p *ngIf="!view.availableActions.length && !view.unavailableActionsNote" class="fg-note">
+          Ningún estado real del tema admite una acción de recuperación.
+        </p>
+        <ul class="action-list" *ngIf="view.availableActions.length">
+          <li *ngFor="let action of view.availableActions; trackBy: trackKey">
+            <button type="button" class="button secondary" (click)="askRecovery(action.key, [view.topicId])">{{ action.label }}</button>
+            <span class="fg-note">{{ action.definition }}</span>
+          </li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="fg-topic-publish" class="topic-publish" *ngIf="view.identity.postId">
+        <h4 id="fg-topic-publish">Publicación manual inmediata</h4>
+        <p class="fg-note">
+          Publica por la ruta real de publicación por política: el servidor repite todos los gates, el límite diario y la parada
+          de emergencia. Repetir con la misma clave no publica dos veces.
+        </p>
+        <div class="publish-form">
+          <div>
+            <label for="fg-publish-reviewer">Revisor</label>
+            <input id="fg-publish-reviewer" name="publishReviewer" [(ngModel)]="publishReviewer" autocomplete="off" />
+          </div>
+          <div>
+            <label for="fg-publish-key">Clave humana (no se guarda)</label>
+            <input id="fg-publish-key" name="publishKey" type="password" [(ngModel)]="publishKey" autocomplete="off" />
+          </div>
+          <button type="button" class="button primary" [disabled]="!publishReviewer.trim() || !publishKey || publishBusy" (click)="confirmPublish()">
+            {{ publishBusy ? 'Publicando…' : 'Publicar ahora' }}
+          </button>
+        </div>
+        <p *ngIf="publishError" role="alert" class="fg-field-error">{{ publishError }}</p>
+        <p *ngIf="publishNotice" role="status" class="fg-field-ok">{{ publishNotice }}</p>
+      </section>
+
+      <section aria-labelledby="fg-topic-history" class="topic-history">
+        <h4 id="fg-topic-history">Línea de tiempo registrada</h4>
+        <p *ngIf="!view.history.length" class="fg-note">No consta ningún evento fechado: no se rellena una historia inventada.</p>
+        <ol *ngIf="view.history.length" class="history">
+          <li *ngFor="let entry of view.history; trackBy: trackEntry">
+            <time>{{ formatDate(entry.at) }}</time>
+            <strong>{{ entry.what }}</strong>
+            <small>{{ entry.detail || 'sin detalle' }} · {{ entry.source }}</small>
+          </li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="fg-topic-gaps" *ngIf="view.dataGaps.length">
+        <h4 id="fg-topic-gaps">Huecos de datos declarados</h4>
+        <ul><li *ngFor="let gap of view.dataGaps">{{ gap }}</li></ul>
+      </section>
+    </ng-container>
+  </aside>
+
+  <div
+    *ngIf="recoveryDialog as dialog"
+    class="fg-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="fg-rec-title"
+    aria-describedby="fg-rec-description"
+    cdkTrapFocus
+    cdkTrapFocusAutoCapture
+  >
+    <h3 id="fg-rec-title">{{ dialog.label }}</h3>
+    <p id="fg-rec-description">{{ dialog.definition }}</p>
+    <p class="fg-note">
+      Sobre {{ dialog.topicIds.length }} registro(s):
+      <ng-container *ngFor="let id of dialog.topicIds; let last = last">{{ id }}<ng-container *ngIf="!last">, </ng-container></ng-container>
+    </p>
+
+    <label for="fg-rec-sources">Fuentes nuevas (una URL https por línea)</label>
+    <textarea id="fg-rec-sources" name="recoverySources" rows="3" [(ngModel)]="recoverySources" [attr.aria-required]="recoveryNeedsInput"></textarea>
+    <p class="fg-note" *ngIf="recoveryNeedsInput">Esta acción exige cambiar la causa: sin fuentes nuevas el servidor rechazará la misma petición.</p>
+
+    <label for="fg-rec-note">Nota para la auditoría (opcional)</label>
+    <input id="fg-rec-note" name="recoveryNote" [(ngModel)]="recoveryNote" maxlength="500" />
+
+    <p *ngIf="recoveryError" role="alert" class="fg-field-error">{{ recoveryError }}</p>
+
+    <div class="fg-dialog__actions">
+      <button type="button" class="button secondary" (click)="cancelRecovery()" [disabled]="recoveryBusy">Cancelar</button>
+      <button type="button" class="button primary" (click)="confirmRecovery()" [disabled]="recoveryBusy">
+        {{ recoveryBusy ? 'Aplicando…' : 'Confirmar recuperación' }}
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="recoveryNotice || recoveryResultError" class="fg-feedback">
+    <p *ngIf="recoveryNotice" role="status" class="fg-field-ok">{{ recoveryNotice }}</p>
+    <p *ngIf="recoveryResultError" role="alert" class="fg-field-error">{{ recoveryResultError }}</p>
+  </div>
+</div>

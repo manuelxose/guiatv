@@ -1,0 +1,34 @@
+[
+  {
+    "viewport": 390,
+    "view": "how",
+    "violations": 0,
+    "critical": 0,
+    "serious": 0,
+    "ids": []
+  },
+  {
+    "viewport": 390,
+    "view": "diagnostics",
+    "violations": 0,
+    "critical": 0,
+    "serious": 0,
+    "ids": []
+  },
+  {
+    "viewport": 1440,
+    "view": "how",
+    "violations": 0,
+    "critical": 0,
+    "serious": 0,
+    "ids": []
+  },
+  {
+    "viewport": 1440,
+    "view": "diagnostics",
+    "violations": 0,
+    "critical": 0,
+    "serious": 0,
+    "ids": []
+  }
+]

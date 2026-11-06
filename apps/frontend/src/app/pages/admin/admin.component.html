@@ -112,6 +112,12 @@
             (lastUpdatedChange)="onLastUpdated($event)"
           ></app-admin-seo-section>
 
+          <app-admin-flow-guide
+            *ngIf="activeGroup === 'administration'"
+            [initialView]="flowGuideInitialView"
+            (lastUpdatedChange)="onLastUpdated($event)"
+          ></app-admin-flow-guide>
+
         </div>
       </main>
     </div>
