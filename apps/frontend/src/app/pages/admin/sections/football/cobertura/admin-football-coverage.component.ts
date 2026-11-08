@@ -3,15 +3,21 @@ import { Component, EventEmitter, OnDestroy, OnInit, Output } from '@angular/cor
 import { Subscription } from 'rxjs';
 import { FootballAdminDataService } from '@app/features/football/admin-data/football-admin-data.service';
 import {
-  COVERAGE_LABELS,
-  CompetitionCoverageState,
-  FootballCoverageReport,
-  FootballDataAspect,
-  FOOTBALL_DATA_ASPECT_LABELS,
-  isProviderApproved,
+  AdminApiError,
+  adminApiErrorMessage,
+  COVERAGE_STATE_LABELS,
+  coverageStateBadgeStatus,
+  FootballCoverageMatrixDTO,
+  FootballCoverageRowDTO,
+  FootballCoverageState,
 } from '@app/features/football/admin-data/football-admin.models';
 import { AdminStatusBadgeComponent } from '@app/pages/admin/components/admin-status-badge/admin-status-badge.component';
 
+/**
+ * Cobertura de datos — the server-computed per-competition coverage matrix.
+ * The four-value `coverageState` and the companion `snapshotCountState` come
+ * from the backend; nothing here derives availability client-side.
+ */
 @Component({
   selector: 'app-admin-football-coverage',
   standalone: true,
@@ -22,9 +28,10 @@ import { AdminStatusBadgeComponent } from '@app/pages/admin/components/admin-sta
 export class AdminFootballCoverageComponent implements OnInit, OnDestroy {
   @Output() lastUpdatedChange = new EventEmitter<Date>();
 
-  report: FootballCoverageReport | null = null;
+  report: FootballCoverageMatrixDTO | null = null;
   loading = false;
   error: string | null = null;
+  unauthorized = false;
 
   private sub?: Subscription;
 
@@ -41,6 +48,7 @@ export class AdminFootballCoverageComponent implements OnInit, OnDestroy {
   load(): void {
     this.loading = true;
     this.error = null;
+    this.unauthorized = false;
     this.sub?.unsubscribe();
     this.sub = this.data.getCoverage().subscribe({
       next: (report) => {
@@ -48,48 +56,43 @@ export class AdminFootballCoverageComponent implements OnInit, OnDestroy {
         this.loading = false;
         this.lastUpdatedChange.emit(new Date());
       },
-      error: () => {
-        this.error = 'No se han podido cargar la cobertura';
+      error: (err: unknown) => {
         this.loading = false;
+        this.handleError(err);
       },
     });
   }
 
-  get providerApproved(): boolean {
-    return isProviderApproved(this.report?.provider);
+  stateLabel(state: FootballCoverageState): string {
+    return COVERAGE_STATE_LABELS[state];
   }
 
-  stateLabel(state: CompetitionCoverageState): string {
-    return COVERAGE_LABELS[state];
+  stateStatus(state: FootballCoverageState): string {
+    return coverageStateBadgeStatus(state);
   }
 
-  aspectLabel(aspect: FootballDataAspect): string {
-    return FOOTBALL_DATA_ASPECT_LABELS[aspect];
-  }
-
-  /** Maps a coverage state to the admin badge vocabulary (never color-only). */
-  coverageStatus(state: CompetitionCoverageState): string {
-    switch (state) {
-      case 'available':
-        return 'configured';
-      case 'partial':
-        return 'degraded';
-      case 'missing':
-        return 'missing';
-      case 'not-supported':
-        return 'info';
-      case 'not-covered':
-        return 'unconfigured';
-      case 'stale':
-        return 'stale';
-      case 'temporarily-unavailable':
-        return 'degraded';
-      case 'legally-blocked':
-        return 'critical';
-      case 'not-yet-measured':
-        return 'unknown';
+  /** Snapshots are a real count only when the backend says `observed`/`empty` — never a fabricated zero. */
+  snapshotLabel(row: FootballCoverageRowDTO): string {
+    switch (row.snapshotCountState) {
+      case 'observed':
+        return String(row.snapshotCount ?? 0);
+      case 'empty':
+        return 'Sin partidos';
+      case 'not_covered':
+        return 'Sin cobertura';
+      case 'unavailable':
+        return 'No disponible';
       default:
-        return 'unknown';
+        return 'No disponible';
+    }
+  }
+
+  private handleError(err: unknown): void {
+    if (err instanceof AdminApiError) {
+      this.unauthorized = err.kind === 'unauthorized';
+      this.error = adminApiErrorMessage(err);
+    } else {
+      this.error = 'No se ha podido cargar la cobertura.';
     }
   }
 }

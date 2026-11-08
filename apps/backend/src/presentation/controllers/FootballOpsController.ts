@@ -1,7 +1,7 @@
 /**
  * Football ops controller — admin-only diagnostics + read-model surface.
  *
- * Mounted behind `analyticsAdminGuard` (never public). Every handler answers
+ * Mounted behind `createAdminAccessGuard` (never public). Every handler answers
  * from stored projections only: no handler ever triggers an upstream provider
  * call. Query parameters are validated with the hand-rolled parsers in
  * `FootballAdminDTO`; a malformed value is answered 400 before any database
@@ -16,7 +16,9 @@ import { FootballAdminService } from '@/application/sports/services/FootballAdmi
 import {
   parseMatchListQuery,
   parseAuditQuery,
+  parseEntityMappingQuery,
   parseSearch,
+  parseSyncListQuery,
 } from '@/application/sports/dto/FootballAdminDTO';
 
 export interface FootballDiagnosticsSource {
@@ -87,7 +89,7 @@ export class FootballOpsController {
   }
 
   async listEntityMappings(req: Request, res: Response): Promise<void> {
-    const query = parseMatchListQuery(req.query as Record<string, unknown>);
+    const query = parseEntityMappingQuery(req.query as Record<string, unknown>);
     if (!query.ok) {
       res.status(400).json(errorResponse('INVALID_PARAMS', query.message));
       return;
@@ -126,13 +128,27 @@ export class FootballOpsController {
     res.status(200).json(successResponse(await this.adminService.listAudit(query.value)));
   }
 
+  async listSyncOperations(req: Request, res: Response): Promise<void> {
+    const query = parseSyncListQuery(req.query as Record<string, unknown>);
+    if (!query.ok) {
+      res.status(400).json(errorResponse('INVALID_PARAMS', query.message));
+      return;
+    }
+    res.status(200).json(successResponse(await this.adminService.listSyncOperations(query.value)));
+  }
+
   async sync(req: Request, res: Response): Promise<void> {
     const idempotencyKey = parseSearch(req.body?.idempotencyKey, 'idempotencyKey');
     if (!idempotencyKey.ok) {
       res.status(400).json(errorResponse('INVALID_PARAMS', idempotencyKey.message));
       return;
     }
+    const scope = parseSearch(req.body?.scope, 'scope');
+    if (!scope.ok) {
+      res.status(400).json(errorResponse('INVALID_PARAMS', scope.message));
+      return;
+    }
     const actor = typeof req.header('x-admin-key') === 'string' ? 'admin-key' : 'admin';
-    res.status(202).json(successResponse(await this.adminService.enqueueSync(actor, idempotencyKey.value)));
+    res.status(202).json(successResponse(await this.adminService.enqueueSync(actor, idempotencyKey.value, scope.value)));
   }
 }

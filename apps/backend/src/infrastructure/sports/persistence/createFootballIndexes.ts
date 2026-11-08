@@ -26,6 +26,13 @@ export async function createFootballIndexes(db = mongoose.connection.db): Promis
     { canonicalKey: 1, providerId: 1 },
     { unique: true, name: 'idx_football_snapshot_key', background: true }
   );
+  // F04: the stable identity is (providerId, matchId). This unique index is the
+  // additive, backward-compatible guarantee that a re-sent match collapses to ONE
+  // record across the old (slug-keyed) and new (provider-anchored) key schemes.
+  await snapshots.createIndex(
+    { providerId: 1, matchId: 1 },
+    { unique: true, name: 'idx_football_snapshot_provider_match', background: true }
+  );
   await snapshots.createIndex(
     { contentHash: 1 },
     { unique: true, name: 'idx_football_snapshot_contentHash', background: true }

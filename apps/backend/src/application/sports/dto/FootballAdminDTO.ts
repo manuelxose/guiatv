@@ -101,7 +101,75 @@ export function parseAuditQuery(query: Record<string, unknown>): ParseResult<Aud
   return ok({ ...base.value, severity: severity.value, subsystem: subsystem.value });
 }
 
+// ---- Entity mappings (F08): bounded pagination, sort allow-list, kind filter ----
+
+const ENTITY_KINDS = ['team', 'competition'] as const;
+const ENTITY_SORT_FIELDS = ['lastUpdatedAt', 'name', 'slug'] as const;
+const SORT_ORDERS = ['asc', 'desc'] as const;
+
+/**
+ * Query for `/entity-mappings`. `sort` is an explicit allow-list; any other
+ * field is rejected with a 400 before the database is touched. The default
+ * order is `lastUpdatedAt` desc; the service appends deterministic tiebreakers
+ * (`slug`, then `_id`) so pages are stable across page boundaries.
+ */
+export interface EntityMappingQuery extends PageQuery {
+  q?: string;
+  kind?: (typeof ENTITY_KINDS)[number];
+  sort: (typeof ENTITY_SORT_FIELDS)[number];
+  order: (typeof SORT_ORDERS)[number];
+}
+
+export function parseEntityMappingQuery(query: Record<string, unknown>): ParseResult<EntityMappingQuery> {
+  const base = parsePageQuery(query);
+  if (!base.ok) return base;
+  const q = parseSearch(query.q, 'q');
+  if (!q.ok) return q;
+  const kind = parseEnum(query.kind, ENTITY_KINDS, 'kind');
+  if (!kind.ok) return kind;
+  const sort = parseEnum(query.sort, ENTITY_SORT_FIELDS, 'sort');
+  if (!sort.ok) return sort;
+  const order = parseEnum(query.order, SORT_ORDERS, 'order');
+  if (!order.ok) return order;
+  return ok({
+    ...base.value,
+    q: q.value,
+    kind: kind.value,
+    sort: sort.value ?? 'lastUpdatedAt',
+    order: order.value ?? 'desc',
+  });
+}
+
+// ---- Availability contract (F09) ----
+
+/**
+ * Explicit availability state for every admin read-model value that could
+ * otherwise be mistaken for a measured number (see M06-R1-F01-F09-BACKEND.md).
+ *
+ * Semantics:
+ *  - `observed`      a real measured value; `0` is a real observed zero.
+ *  - `empty`         the read/run succeeded but produced no rows/records.
+ *  - `missing`       the field is absent from the stored model (unsupported).
+ *  - `unavailable`   could not be measured: no database or provider unreachable.
+ *  - `not_covered`   no eligible provider covers this competition/entity.
+ *  - `not_measured`  the measurement has not been performed yet.
+ *  - `stale`         measured, but older than the freshness threshold.
+ *
+ * A value field is `null`/`undefined` whenever its state is anything other than
+ * `observed` or `empty` — never a fabricated zero.
+ */
+export type AvailabilityState =
+  | 'observed'
+  | 'empty'
+  | 'missing'
+  | 'unavailable'
+  | 'not_covered'
+  | 'not_measured'
+  | 'stale';
+
 // ---- Response DTOs (the shape the admin UI consumes) ----
+
+export type FootballIngestionRunOutcome = 'success' | 'partial' | 'failed' | 'skipped' | 'empty';
 
 export interface FootballDashboardDTO {
   generatedAt: string;
@@ -112,23 +180,48 @@ export interface FootballDashboardDTO {
   broadcastMappings: number;
   staleSnapshots: number;
   lastSyncAt?: string;
-  lastSyncOutcome?: string;
+  lastSyncOutcome?: FootballIngestionRunOutcome;
   openQualityIssues: number;
+  /**
+   * Availability of the counter block (`competitions`, `teams`, `snapshots`,
+   * `providers`, `broadcastMappings`, `staleSnapshots`, `openQualityIssues`).
+   * All counters share one database read: they are `observed` together, or the
+   * endpoint errors (never a fabricated zero).
+   */
+  countsState: AvailabilityState;
+  /** Availability of `lastSyncAt` / `lastSyncOutcome`. */
+  lastSyncState: AvailabilityState;
 }
 
 export interface FootballProviderSummaryDTO {
   provider: string;
-  health: string;
+  /**
+   * `unknown` means the failure counter was not measured (legacy/partial
+   * document). It is deliberately part of the type so the value is never an
+   * unsafe cast and can never masquerade as a measured `ok`.
+   */
+  health: 'ok' | 'degraded' | 'down' | 'unknown';
   lastSuccessAt?: string;
   lastErrorAt?: string;
-  consecutiveFailures: number;
-  quotaConsumedToday: number;
+  consecutiveFailures: number | null;
+  /** `observed` when the stored model carries the counter; `missing` otherwise. */
+  consecutiveFailuresState: AvailabilityState;
+  quotaConsumedToday: number | null;
+  /** `observed` when the stored model carries the counter; `missing` otherwise. */
+  quotaConsumedTodayState: AvailabilityState;
   circuitState: string;
 }
 
 export interface FootballProviderDetailDTO extends FootballProviderSummaryDTO {
   quotaResetAt?: string;
-  lastRuns: Array<{ runId: string; startedAt: string; outcome: string; requestsUsed: number }>;
+  lastRuns: Array<{
+    runId: string;
+    startedAt: string;
+    outcome: string;
+    requestsUsed: number | null;
+    /** `observed` when the run record carries the counter; `missing` otherwise. */
+    requestsUsedState: AvailabilityState;
+  }>;
 }
 
 export interface FootballCoverageRowDTO {
@@ -136,7 +229,9 @@ export interface FootballCoverageRowDTO {
   name: string;
   type: string;
   coverageState: 'competition_not_covered' | 'provider_supported' | 'provider_supported_no_fixtures' | 'provider_unavailable';
-  snapshotCount: number;
+  snapshotCount: number | null;
+  /** Derives from `coverageState`: not_covered / unavailable / empty / observed. */
+  snapshotCountState: AvailabilityState;
   seasonLabel?: string;
 }
 
@@ -150,10 +245,20 @@ export interface FootballAdminMatchDTO {
   canonicalKey: string;
   competitionSlug: string;
   kickoffAt?: string;
+  /** `observed` when the snapshot carries a kickoff; `missing` otherwise. */
+  kickoffState: AvailabilityState;
   status?: string;
+  /** `observed` when the snapshot carries a status; `missing` otherwise. */
+  statusState: AvailabilityState;
   homeTeam?: string;
+  /** `observed` when the snapshot carries a home team name; `missing` otherwise. */
+  homeTeamState: AvailabilityState;
   awayTeam?: string;
+  /** `observed` when the snapshot carries an away team name; `missing` otherwise. */
+  awayTeamState: AvailabilityState;
   score?: { home: number | null; away: number | null };
+  /** `observed` when the snapshot carries a score object (0-0 included); `missing` otherwise. */
+  scoreState: AvailabilityState;
   ingestedAt: string;
   contentHash: string;
 }
@@ -200,10 +305,24 @@ export interface FootballBroadcastsDTO {
 
 export interface FootballIngestionStatusDTO {
   generatedAt: string;
+  /** Boolean flag (not a measurement): `false` means ingestion is disabled. */
   enabled: boolean;
   providers: FootballProviderDetailDTO[];
-  lastRun?: { startedAt: string; finishedAt?: string; outcome: string; requestsUsed: number };
-  quota: { consumed: number; disabled: boolean; throttleUntil?: number; resetAt?: string };
+  lastRun?: {
+    startedAt: string;
+    finishedAt?: string;
+    outcome: string;
+    requestsUsed: number | null;
+    requestsUsedState: AvailabilityState;
+  };
+  quota: {
+    consumed: number | null;
+    disabled: boolean | null;
+    throttleUntil?: number;
+    resetAt?: string;
+    /** `observed` when the durable quota authority answered; `unavailable` when there is no database. */
+    state: AvailabilityState;
+  };
 }
 
 export interface FootballQualityIssueDTO {
@@ -235,8 +354,64 @@ export interface FootballAuditDTO {
   items: FootballAuditEntryDTO[];
 }
 
-export interface FootballSyncResultDTO {
+// ---- Manual sync operation lifecycle (F06) ----
+
+/**
+ * Truthful operation lifecycle. A queued job is never collapsed into a generic
+ * success; every tick outcome maps to a distinct terminal status.
+ * `cancelled` is intentionally absent: there is no cancel operation.
+ */
+export type FootballSyncStatus =
+  | 'queued'
+  | 'running'
+  | 'succeeded'
+  | 'empty'
+  | 'skipped'
+  | 'throttled'
+  | 'failed';
+
+export interface FootballSyncOperationDTO {
   id: string;
-  status: 'queued' | 'running' | 'completed' | 'failed';
+  status: FootballSyncStatus;
+  /** Raw tick outcome once the run has finished (success|partial|failed|skipped|empty). */
+  outcome?: FootballIngestionRunOutcome;
+  /** Requested scope (defaults to "full"). */
+  scope: string;
+  triggeredBy: string;
   correlationId: string;
+  idempotencyKey?: string;
+  queuedAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+  recordsFetched: number | null;
+  recordsFetchedState: AvailabilityState;
+  recordsPersisted: number | null;
+  recordsPersistedState: AvailabilityState;
+  errors: string[];
+  skipReason?: string;
+  quotaOutcome?: 'allowed' | 'exhausted';
+}
+
+export interface FootballSyncOperationsDTO {
+  page: number;
+  limit: number;
+  total: number;
+  items: FootballSyncOperationDTO[];
+}
+
+/** `POST /ingestion/sync` returns the operation snapshot; HTTP 202 = queued, never success. */
+export type FootballSyncResultDTO = FootballSyncOperationDTO;
+
+const SYNC_STATUSES = ['queued', 'running', 'succeeded', 'empty', 'skipped', 'throttled', 'failed'] as const;
+
+export interface SyncListQuery extends PageQuery {
+  status?: (typeof SYNC_STATUSES)[number];
+}
+
+export function parseSyncListQuery(query: Record<string, unknown>): ParseResult<SyncListQuery> {
+  const base = parsePageQuery(query);
+  if (!base.ok) return base;
+  const status = parseEnum(query.status, SYNC_STATUSES, 'status');
+  if (!status.ok) return status;
+  return ok({ ...base.value, status: status.value });
 }

@@ -24,7 +24,7 @@ type Side = 'home' | 'away';
               <ol class="xi">
                 @for (p of starters(side); track $index) {
                   <li [class.subbed]="p.substitutedOut">
-                    @if (p.number != null) { <span class="num">{{ p.number }}</span> }
+                    @if (p.number !== null) { <span class="num">{{ p.number }}</span> }
                     <span class="name">{{ p.name }}</span>
                     @if (p.position) { <small>{{ p.position }}</small> }
                     @if (p.substitutedOut) { <span class="sr">, sustituido</span> }
@@ -37,7 +37,7 @@ type Side = 'home' | 'away';
               <ol class="bench">
                 @for (p of bench(side); track $index) {
                   <li>
-                    @if (p.number != null) { <span class="num">{{ p.number }}</span> }
+                    @if (p.number !== null) { <span class="num">{{ p.number }}</span> }
                     <span class="name">{{ p.name }}</span>
                     @if (p.position) { <small>{{ p.position }}</small> }
                   </li>
@@ -105,3 +105,4 @@ export class Sv2MatchLineupsComponent {
     return this.lineup(side)?.bench ?? [];
   }
 }
+

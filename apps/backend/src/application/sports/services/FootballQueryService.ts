@@ -1,3 +1,4 @@
+import { getCompetitionCatalog, toCompetitionEntity } from '@/application/sports/services/FootballCompetitionCatalog';
 /**
  * Football query service — the BFF for the football vertical.
  *
@@ -60,6 +61,25 @@ const CACHE_POLICIES = {
 // limit their free tier around 10 req/min, so this cache decouples N
 // concurrent pollers from N upstream calls — short enough that scores
 // still feel live, long enough to absorb a fleet of open tabs.
+
+/**
+ * F21: list EVERY catalogue competition, then overlay the ones we actually have
+ * snapshots for. A competition with no data must still appear (honest "sin datos"),
+ * never vanish from the public list.
+ */
+export function mergeCompetitionsWithCatalogue(ingested: readonly FootballCompetition[]): FootballCompetition[] {
+  const bySlug = new Map<string, FootballCompetition>();
+  for (const entry of getCompetitionCatalog()) {
+    bySlug.set(entry.slug, toCompetitionEntity(entry));
+  }
+  for (const competition of ingested) {
+    if (!competition?.slug) continue;
+    const base = bySlug.get(competition.slug);
+    bySlug.set(competition.slug, base ? { ...base, ...competition } : competition);
+  }
+  return [...bySlug.values()];
+}
+
 export class FootballQueryService {
   private readonly swrCache: StaleWhileRevalidateCache;
 
@@ -203,13 +223,25 @@ export class FootballQueryService {
       `${CACHE_PREFIX}:competitions`,
       CACHE_POLICIES.metadata,
       async () => {
-        const competitions = await measureTiming('provider', () => settle(this.provider.getCompetitions(), []));
+        // The public competitions list is the FULL catalogue, not just what has
+        // been ingested. Building it from stored snapshots alone made every
+        // competition without a current fixture disappear from /competiciones
+        // (Serie A, Ligue 1, Eredivisie, Brasileirão...). Ingested records are
+        // merged ON TOP so real data wins, and the rest keep their catalogue
+        // entry (name, country, type) so the page can still list them.
+        const ingested = await measureTiming('provider', () => settle(this.provider.getCompetitions(), []));
+        const competitions = mergeCompetitionsWithCatalogue(ingested);
         return {
           competitions,
           meta: { total: competitions.length, generatedAt: new Date().toISOString() },
+          // Whether the PROVIDER actually answered, not whether the list is long.
+          // The catalogue always makes the list non-empty, so caching on length
+          // would freeze a provider failure for the whole TTL.
+          ingestedCount: ingested.length,
         };
       },
-      (result) => result.competitions.length > 0
+      // Only cache a result that carries real provider data.
+      (result) => Number((result as unknown as { ingestedCount?: number }).ingestedCount ?? 0) > 0
     );
   }
 

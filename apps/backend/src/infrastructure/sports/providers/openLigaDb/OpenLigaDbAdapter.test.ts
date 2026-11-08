@@ -125,6 +125,7 @@ test('every verified competition shortcut maps to its catalog slug', () => {
     pl: 'premier-league',
     dfb: 'dfb-pokal',
     bl2: 'bundesliga-2',
+    la1: 'laliga', // verified 2026-11-06: 380 real 2026/27 fixtures
   };
   assert.deepEqual({ ...OPENLIGADB_COMPETITION_MAP }, expected);
   for (const [shortcut, slug] of Object.entries(expected)) {
@@ -138,7 +139,9 @@ test('every verified competition shortcut maps to its catalog slug', () => {
 test('an unsupported shortcut never falls back to another competition', () => {
   // Real OpenLigaDB shortcuts that are NOT part of the verified map. Each must
   // resolve to null, never to a look-alike slug.
-  for (const shortcut of ['bl3', 'wm2026', 'pl1', 'la1', 'esp']) {
+  // `la1` is NOT here any more: it was verified on 2026-11-06 (380 real
+  // 2026/27 LaLiga fixtures) and is now part of the approved map.
+  for (const shortcut of ['bl3', 'wm2026', 'pl1', 'esp']) {
     assert.equal(resolveCompetitionSlug(shortcut), null, `shortcut ${shortcut}`);
     assert.equal(mapOpenLigaDbMatch(rawMatch({ leagueShortcut: shortcut }), NOW), null);
   }

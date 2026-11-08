@@ -1,0 +1,68 @@
+{
+  "totalSnapshots": 1444,
+  "pageSample": 100,
+  "byCompetition": {
+    "conference-league": {
+      "count": 35,
+      "withScore": 35,
+      "withKickoff": 35
+    },
+    "europa-league": {
+      "count": 18,
+      "withScore": 18,
+      "withKickoff": 18
+    },
+    "bundesliga-2": {
+      "count": 29,
+      "withScore": 0,
+      "withKickoff": 29
+    },
+    "premier-league": {
+      "count": 6,
+      "withScore": 6,
+      "withKickoff": 6
+    },
+    "bundesliga": {
+      "count": 12,
+      "withScore": 0,
+      "withKickoff": 12
+    }
+  },
+  "coverageRowsWithData": [
+    {
+      "slug": "dfb-pokal",
+      "state": "provider_supported",
+      "snapshots": 56
+    },
+    {
+      "slug": "champions-league",
+      "state": "provider_supported",
+      "snapshots": 144
+    },
+    {
+      "slug": "europa-league",
+      "state": "provider_supported",
+      "snapshots": 144
+    },
+    {
+      "slug": "conference-league",
+      "state": "provider_supported",
+      "snapshots": 108
+    },
+    {
+      "slug": "premier-league",
+      "state": "provider_supported",
+      "snapshots": 380
+    },
+    {
+      "slug": "bundesliga",
+      "state": "provider_supported",
+      "snapshots": 306
+    },
+    {
+      "slug": "bundesliga-2",
+      "state": "provider_supported",
+      "snapshots": 306
+    }
+  ]
+}

@@ -48,7 +48,13 @@ export interface ProviderSyncState {
   circuitState: 'closed' | 'open' | 'half_open';
 }
 
-export type IngestionRunOutcome = 'success' | 'partial' | 'failed' | 'skipped';
+/**
+ * F03: `empty` is a first-class, truthful outcome — a successful FETCH that
+ * acquired zero useful records. It is distinct from `success` (acquired records)
+ * and `failed` (the fetch itself failed). An all-empty run must never advance
+ * `lastSuccessAt` or report healthy.
+ */
+export type IngestionRunOutcome = 'success' | 'partial' | 'failed' | 'skipped' | 'empty';
 
 export interface IngestionRunRecord {
   runId: string;
@@ -77,6 +83,13 @@ export interface TickResult {
   snapshotsWritten: number;
   /** Minimum poll interval (ms) the scheduler computed for the matches just ingested. */
   nextPollIntervalMs?: number;
+  /**
+   * F06: number of provider matches actually fetched in this tick (the raw count
+   * before any dedupe/upsert). This is a MEASUREMENT, not a derivation: an
+   * operation report must state what was fetched, never infer it from bucket
+   * counts, which classify match status and would silently misreport.
+   */
+  matchesFetched?: number;
   buckets?: Partial<Record<IngestionBucket, number>>;
 }
 
@@ -114,3 +127,4 @@ export interface FootballDiagnosticsReport {
     lastRunAt?: string;
   };
 }
+

@@ -1,0 +1,12 @@
+{
+  "workflow": "Build, test, and performance budgets",
+  "runId": 42257151869,
+  "sha": "d6bbb8ad",
+  "branch": "feat/m06-r1-recovery",
+  "pullRequest": 195,
+  "conclusion": "success",
+  "jobs": { "changes": "success", "backend": "success", "frontend": "success", "verify": "success" },
+  "backend": { "tests": 1238, "pass": 1232, "fail": 0, "skipped": 6, "database": "real MongoDB service in CI" },
+  "frontend": { "karma": "Executed 687 of 687 SUCCESS", "bundle": "Browser application bundle generation complete", "lint": "0 errors, 744 warnings" },
+  "note": "This is the clean-runner execution of the three gates the local Windows sandbox could not run."
+}

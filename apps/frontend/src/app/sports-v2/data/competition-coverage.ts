@@ -4,9 +4,10 @@
  * Sourced from docs/sports-v2/M06-PROVIDER-ELIGIBILITY.md (captain-authored):
  * OpenLigaDB is APPROVED_LIMITED_COVERAGE (ODbL, with attribution) and supplies
  * real 2026/27 fixtures/results/goal timelines for exactly the competitions
- * listed below. §3 of that document lists the competitions that MUST be
- * reported as `competition_not_covered` (LaLiga and the rest); they are absent
- * here, so a match in one of them never reads as "approved provider".
+ * listed below. LaLiga was added after a direct provider probe on 2026-11-06
+ * (shortcut `la1`, 380 real fixtures from 2026-08-15); Copa del Rey, LaLiga
+ * Hypermotion and the rest stay OUT because the provider returns no fixtures
+ * for them, so a match in one of those never reads as "approved provider".
  *
  * Unknown slugs fail closed (not covered): a competition we have not measured
  * must not be presented as covered. A fixture surfaced only through the EPG is
@@ -21,6 +22,7 @@ const COVERED_COMPETITIONS: ReadonlySet<string> = new Set([
   'europa-league',     // uel2026
   'conference-league', // uecl2026
   'dfb-pokal',         // dfb
+  'laliga',            // la1 (verified 2026-11-06: 380 fixtures)
   'mundial',           // wm2026 (World Cup 2026)
 ]);
 

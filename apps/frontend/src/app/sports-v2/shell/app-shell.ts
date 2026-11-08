@@ -6,6 +6,7 @@ import { kickoffTime } from '../domain/calendar';
 import { sv2Link } from '../sports-v2.paths';
 import { SportsStore } from '../state/sports-store';
 import { Sv2IconComponent } from '../ui/icon';
+import { Sv2OdblAttributionComponent } from '../ui/odbl-attribution';
 import { Sv2ContextPanelComponent } from './context-panel';
 import { Sv2LiveTrackerShellComponent } from './live-tracker-shell';
 import { NAV_ITEMS } from './nav-items';
@@ -20,7 +21,7 @@ import { Sv2TopNavigationComponent } from './top-navigation';
 @Component({
   selector: 'app-sv2-app-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, Sv2TopNavigationComponent, Sv2SidebarNavigationComponent, Sv2ContextPanelComponent, Sv2LiveTrackerShellComponent, Sv2IconComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, Sv2TopNavigationComponent, Sv2SidebarNavigationComponent, Sv2ContextPanelComponent, Sv2LiveTrackerShellComponent, Sv2IconComponent, Sv2OdblAttributionComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app-shell.html',
   styleUrl: './app-shell.scss',

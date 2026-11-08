@@ -1,11 +1,27 @@
 /**
  * Mongo persistence for the football ingestion — idempotent, safe to run twice.
  *
- * Snapshot upserts pre-dedupe the batch by `(providerId, canonicalKey)` and
- * rely on the unique `{canonicalKey, providerId}` index for cross-run
- * idempotency; a duplicate-key error from a concurrent writer is swallowed
- * (same pattern as `MongoAnalyticsRepository.createEvents`). Runs and sync
- * state use `$setOnInsert` upserts keyed by their own unique ids.
+ * Snapshot upserts pre-dedupe the batch by `(providerId, canonicalKey)` and rely
+ * on the unique `{providerId, matchId}` index for cross-run idempotency; a
+ * duplicate-key error from a concurrent writer is swallowed (same pattern as
+ * `MongoAnalyticsRepository.createEvents`). Runs and sync state use `$setOnInsert`
+ * upserts keyed by their own unique ids.
+ *
+ * F04 identity + additive reconciliation:
+ *  - The stable snapshot identity is `(providerId, matchId)`. The upsert is keyed
+ *    on that pair (NOT on the mutable display slug), and it `$set`s `canonicalKey`
+ *    to the provider-anchored value (`${providerId}:${matchId}`).
+ *  - Records written by the OLD scheme (slug-keyed `canonicalKey`) are NOT deleted
+ *    and NOT batch-rewritten. On the next ingestion of the same match, the upsert
+ *    finds the legacy document by its already-stored `(providerId, matchId)` and
+ *    transitions it to the new identity in place (a lossless field update). Until
+ *    then the legacy document keeps working for public reads: lookups resolve by
+ *    `matchId`, by `canonicalKey` (which equals the display slug for legacy
+ *    records), and by the display `match.slug`.
+ *  - The new unique `{providerId, matchId}` index (created at boot in
+ *    `createFootballIndexes.ts` and declared on the schema in `models.ts`) is the
+ *    additive guarantee that one logical match never becomes two documents across
+ *    the two schemes.
  */
 
 import {
@@ -28,9 +44,13 @@ export class FootballIngestionRepository implements FootballPersistencePort {
     const deduped = dedupeSnapshots(snapshots);
     const ops = deduped.map((s) => ({
       updateOne: {
-        filter: { canonicalKey: s.canonicalKey, providerId: s.providerId },
+        // Stable identity, independent of the mutable display slug. A re-sent
+        // match (legacy slug-keyed or already provider-anchored) collapses to ONE
+        // document; `canonicalKey` is transitioned to the new identity below.
+        filter: { providerId: s.providerId, matchId: s.matchId },
         update: {
           $set: {
+            canonicalKey: s.canonicalKey,
             matchId: s.matchId,
             competitionSlug: s.competitionSlug,
             match: s.match as unknown as Record<string, unknown>,

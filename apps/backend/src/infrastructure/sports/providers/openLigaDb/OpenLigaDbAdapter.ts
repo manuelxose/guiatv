@@ -70,6 +70,8 @@ export const OPENLIGADB_COMPETITION_MAP: Readonly<Record<string, string>> = {
   pl: 'premier-league',
   dfb: 'dfb-pokal',
   bl2: 'bundesliga-2',
+  // Verified by probe 2026-11-06: 380 real 2026/27 fixtures since 2026-08-15.
+  la1: 'laliga',
 };
 
 export function resolveCompetitionSlug(leagueShortcut: unknown): string | null {
@@ -206,11 +208,16 @@ export function mapOpenLigaDbMatch(raw: unknown, now: Date): FootballMatch | nul
     id: String(record.matchID),
     slug: buildMatchSlug(homeTeam.name, awayTeam.name, record.matchDateTimeUTC),
     providerIds: { openligadb: String(record.matchID) },
+    // Keep the catalogue's type and country: the public competitions list is
+    // built FROM these stored snapshots, so dropping them here made every
+    // competition render as an untyped "Copa" with no country.
     competition: {
       id: `catalog:${catalogEntry.slug}`,
       slug: catalogEntry.slug,
       name: catalogEntry.name,
       shortName: catalogEntry.shortName,
+      country: catalogEntry.country,
+      type: catalogEntry.type,
     },
     season: record.leagueSeason != null ? String(record.leagueSeason) : undefined,
     round: typeof record.group?.groupName === 'string' ? record.group.groupName : undefined,
