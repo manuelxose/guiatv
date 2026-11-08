@@ -62,6 +62,29 @@ const FootballProviderSyncStateSchema = new Schema<IFootballProviderSyncStateDoc
   },
   { collection: 'football_provider_sync_state' }
 );
+/**
+ * F27: the provider's OWN league table (OpenLigaDB getbltable), stored per
+ * competition. Kept separately from the snapshots so the public provider can
+ * prefer the OFFICIAL table over one we derive from the matches we happen to
+ * have fetched.
+ */
+const FootballStandingsTableSchema = new Schema(
+  {
+    competitionSlug: { type: String, required: true },
+    providerId: { type: String, required: true },
+    season: { type: String },
+    rows: { type: [Schema.Types.Mixed], default: [] },
+    fetchedAt: { type: Date, required: true },
+  },
+  { collection: 'football_standings' }
+);
+FootballStandingsTableSchema.index(
+  { competitionSlug: 1, providerId: 1, season: 1 },
+  { unique: true, name: 'idx_football_standings_competition' }
+);
+export const FootballStandingsTableModel = mongoose.models.FootballStandingsTable
+  ?? mongoose.model('FootballStandingsTable', FootballStandingsTableSchema);
+
 FootballProviderSyncStateSchema.index(
   { provider: 1 },
   { unique: true, name: 'idx_football_sync_provider' }

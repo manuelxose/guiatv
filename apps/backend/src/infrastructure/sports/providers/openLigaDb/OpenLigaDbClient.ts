@@ -75,6 +75,16 @@ export class OpenLigaDbClient {
     return this.fetchJson(url);
   }
 
+  /**
+   * The provider's OWN league table (getbltable). Prefer this over a table we
+   * derive ourselves: it covers rounds we never fetched, so points and played
+   * counts are the official ones.
+   */
+  async getTable(leagueShortcut: string, season: string | number): Promise<unknown> {
+    const url = `${this.baseUrl()}/getbltable/${encodeURIComponent(String(leagueShortcut))}/${encodeURIComponent(String(season))}`;
+    return this.fetchJson(url);
+  }
+
   private baseUrl(): string {
     return this.options.baseUrl ?? DEFAULT_BASE_URL;
   }
@@ -116,3 +126,4 @@ export class OpenLigaDbClient {
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError');
 }
+

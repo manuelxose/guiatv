@@ -20,7 +20,7 @@
  *    request can never scan the whole collection.
  */
 
-import { FootballSnapshotModel } from '../../../infrastructure/sports/persistence/models';
+import { FootballSnapshotModel, FootballStandingsTableModel } from '../../../infrastructure/sports/persistence/models';
 
 /** Madrid is UTC+1 in winter and UTC+2 in summer; the day window uses the current offset. */
 const MADRID_OFFSET_MS = (() => {
@@ -135,6 +135,11 @@ export class SnapshotFootballDataProvider implements FootballDataProvider {
   async getStandings(competitionSlug: string): Promise<FootballStandingRow[]> {
     const slug = String(competitionSlug ?? '').trim();
     if (!slug) return [];
+    // F27: prefer the provider's OWN table when we have stored it. It covers the
+    // whole season, while a table derived from the fixtures we fetched does not.
+    const stored = await FootballStandingsTableModel.findOne({ competitionSlug: slug }).sort({ fetchedAt: -1 }).lean().exec();
+    const official = (stored as any)?.rows;
+    if (Array.isArray(official) && official.length) return official as FootballStandingRow[];
     const docs = await FootballSnapshotModel.find({
       competitionSlug: slug,
       'match.status': 'finished',
