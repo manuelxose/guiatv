@@ -1,0 +1,126 @@
+{
+  "unauthorized": 401,
+  "/dashboard": {
+    "status": 200,
+    "sampleKeys": [
+      "generatedAt",
+      "competitions",
+      "teams",
+      "snapshots",
+      "providers",
+      "broadcastMappings",
+      "staleSnapshots",
+      "lastSyncAt"
+    ]
+  },
+  "/providers": {
+    "status": 200,
+    "sampleKeys": [
+      "providers"
+    ]
+  },
+  "/coverage": {
+    "status": 200,
+    "sampleKeys": [
+      "generatedAt",
+      "rows"
+    ]
+  },
+  "/matches": {
+    "status": 200,
+    "sampleKeys": [
+      "page",
+      "limit",
+      "total",
+      "items"
+    ]
+  },
+  "/entity-mappings": {
+    "status": 200,
+    "sampleKeys": [
+      "page",
+      "limit",
+      "total",
+      "items"
+    ]
+  },
+  "/broadcasts": {
+    "status": 200,
+    "sampleKeys": [
+      "page",
+      "limit",
+      "total",
+      "items"
+    ]
+  },
+  "/ingestion/status": {
+    "status": 200,
+    "sampleKeys": [
+      "generatedAt",
+      "enabled",
+      "providers",
+      "lastRun",
+      "quota"
+    ]
+  },
+  "/quality-issues": {
+    "status": 200,
+    "sampleKeys": [
+      "page",
+      "limit",
+      "total",
+      "items"
+    ]
+  },
+  "/audit": {
+    "status": 200,
+    "sampleKeys": [
+      "page",
+      "limit",
+      "total",
+      "items"
+    ]
+  },
+  "/diagnostics": {
+    "status": 200,
+    "sampleKeys": [
+      "generatedAt",
+      "providers",
+      "summary"
+    ]
+  },
+  "syncQueued": {
+    "status": 202,
+    "body": {
+      "id": "6aede7610c1710f5938b48bd",
+      "status": "queued",
+      "scope": "full",
+      "triggeredBy": "admin-key",
+      "correlationId": "cap-1793976161659",
+      "idempotencyKey": "cap-1793976161659",
+      "queuedAt": "2026-11-06T14:42:41.733Z",
+      "recordsFetched": null,
+      "recordsFetchedState": "not_measured",
+      "recordsPersisted": null,
+      "recordsPersistedState": "not_measured",
+      "errors": []
+    }
+  },
+  "idempotency": {
+    "first": "6aede7610c1710f5938b48c2",
+    "second": "6aede7610c1710f5938b48c2",
+    "same": true
+  },
+  "badQuery": 400,
+  "syncHistory": [
+    {
+      "status": "skipped",
+      "recordsFetched": 0,
+      "skipReason": "lock_held"
+    },
+    {
+      "status": "succeeded",
+      "recordsFetched": 1444
+    }
+  ]
+}

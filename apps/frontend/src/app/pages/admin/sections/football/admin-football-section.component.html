@@ -1,0 +1,49 @@
+<section class="space-y-6">
+  <div class="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <p class="text-[10px] uppercase tracking-[0.3em] text-[var(--portal-text-muted)]">Futbol</p>
+      <h3 class="text-2xl font-semibold text-[var(--portal-text)]">Centro de control de fútbol</h3>
+      <p class="text-sm text-[var(--portal-text-soft)]">Cobertura, proveedores, partidos y calidad de los datos.</p>
+    </div>
+  </div>
+
+  <app-admin-football-control-center
+    *ngIf="activeItem === 'centro-de-control'"
+    (lastUpdatedChange)="lastUpdatedChange.emit($event)"
+  ></app-admin-football-control-center>
+
+  <app-admin-football-providers
+    *ngIf="activeItem === 'proveedores'"
+    (lastUpdatedChange)="lastUpdatedChange.emit($event)"
+  ></app-admin-football-providers>
+
+  <app-admin-football-coverage
+    *ngIf="activeItem === 'cobertura'"
+    (lastUpdatedChange)="lastUpdatedChange.emit($event)"
+  ></app-admin-football-coverage>
+
+  <app-admin-football-matches
+    *ngIf="activeItem === 'partidos'"
+    (lastUpdatedChange)="lastUpdatedChange.emit($event)"
+  ></app-admin-football-matches>
+
+  <app-admin-football-entities
+    *ngIf="activeItem === 'entidades'"
+    (lastUpdatedChange)="lastUpdatedChange.emit($event)"
+  ></app-admin-football-entities>
+
+  <app-admin-football-broadcasts
+    *ngIf="activeItem === 'retransmisiones'"
+    (lastUpdatedChange)="lastUpdatedChange.emit($event)"
+  ></app-admin-football-broadcasts>
+
+  <app-admin-football-sync
+    *ngIf="activeItem === 'sincronizacion'"
+    (lastUpdatedChange)="lastUpdatedChange.emit($event)"
+  ></app-admin-football-sync>
+
+  <app-admin-football-quality
+    *ngIf="activeItem === 'calidad'"
+    (lastUpdatedChange)="lastUpdatedChange.emit($event)"
+  ></app-admin-football-quality>
+</section>

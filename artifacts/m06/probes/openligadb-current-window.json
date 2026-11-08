@@ -1,0 +1,113 @@
+{
+  "at": "2026-11-06T09:51:44.939Z",
+  "fixtures": [
+    {
+      "id": 83234,
+      "utc": "2026-11-06T19:30:00Z",
+      "local": "2026-11-06T20:30:00",
+      "tz": "W. Europe Standard Time",
+      "home": "Hamburger SV",
+      "away": "Borussia Mönchengladbach",
+      "league": "1. Fußball-Bundesliga 2026/2027",
+      "season": 2026,
+      "finished": false,
+      "results": []
+    },
+    {
+      "id": 83228,
+      "utc": "2026-11-07T14:30:00Z",
+      "local": "2026-11-07T15:30:00",
+      "tz": "W. Europe Standard Time",
+      "home": "Borussia Dortmund",
+      "away": "SV 07 Elversberg",
+      "league": "1. Fußball-Bundesliga 2026/2027",
+      "season": 2026,
+      "finished": false,
+      "results": []
+    },
+    {
+      "id": 83229,
+      "utc": "2026-11-07T14:30:00Z",
+      "local": "2026-11-07T15:30:00",
+      "tz": "W. Europe Standard Time",
+      "home": "RB Leipzig",
+      "away": "FC Augsburg",
+      "league": "1. Fußball-Bundesliga 2026/2027",
+      "season": 2026,
+      "finished": false,
+      "results": []
+    },
+    {
+      "id": 83233,
+      "utc": "2026-11-07T14:30:00Z",
+      "local": "2026-11-07T15:30:00",
+      "tz": "W. Europe Standard Time",
+      "home": "1. FSV Mainz 05",
+      "away": "FC Bayern München",
+      "league": "1. Fußball-Bundesliga 2026/2027",
+      "season": 2026,
+      "finished": false,
+      "results": []
+    },
+    {
+      "id": 83236,
+      "utc": "2026-11-07T14:30:00Z",
+      "local": "2026-11-07T15:30:00",
+      "tz": "W. Europe Standard Time",
+      "home": "SC Paderborn 07",
+      "away": "Eintracht Frankfurt",
+      "league": "1. Fußball-Bundesliga 2026/2027",
+      "season": 2026,
+      "finished": false,
+      "results": []
+    },
+    {
+      "id": 83230,
+      "utc": "2026-11-07T17:30:00Z",
+      "local": "2026-11-07T18:30:00",
+      "tz": "W. Europe Standard Time",
+      "home": "VfB Stuttgart",
+      "away": "SV Werder Bremen",
+      "league": "1. Fußball-Bundesliga 2026/2027",
+      "season": 2026,
+      "finished": false,
+      "results": []
+    },
+    {
+      "id": 83235,
+      "utc": "2026-11-08T14:30:00Z",
+      "local": "2026-11-08T15:30:00",
+      "tz": "W. Europe Standard Time",
+      "home": "1. FC Köln",
+      "away": "Bayer 04 Leverkusen",
+      "league": "1. Fußball-Bundesliga 2026/2027",
+      "season": 2026,
+      "finished": false,
+      "results": []
+    },
+    {
+      "id": 83232,
+      "utc": "2026-11-08T16:30:00Z",
+      "local": "2026-11-08T17:30:00",
+      "tz": "W. Europe Standard Time",
+      "home": "SC Freiburg",
+      "away": "1. FC Union Berlin",
+      "league": "1. Fußball-Bundesliga 2026/2027",
+      "season": 2026,
+      "finished": false,
+      "results": []
+    },
+    {
+      "id": 83231,
+      "utc": "2026-11-08T18:30:00Z",
+      "local": "2026-11-08T19:30:00",
+      "tz": "W. Europe Standard Time",
+      "home": "TSG Hoffenheim",
+      "away": "FC Schalke 04",
+      "league": "1. Fußball-Bundesliga 2026/2027",
+      "season": 2026,
+      "finished": false,
+      "results": []
+    }
+  ]
+}

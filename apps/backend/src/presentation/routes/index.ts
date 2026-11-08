@@ -20,6 +20,8 @@ import { TvController } from '../controllers/TvController';
 import { createTvRoutes } from './tv.routes';
 import { FootballController } from '../controllers/FootballController';
 import { createFootballRoutes } from './football.routes';
+import { createFootballAdminRoutes } from './football-admin.routes';
+import { FootballOpsController } from '../controllers/FootballOpsController';
 import { BlogController } from '../controllers/BlogController';
 import { createBlogRoutes } from './blog.routes';
 import { AnalyticsController } from '../controllers/AnalyticsController';
@@ -67,6 +69,7 @@ export interface RoutesDependencies {
 
   tvController: TvController;
   footballController: FootballController;
+  footballOpsController: FootballOpsController;
   blogController: BlogController;
   editorialOpsController: EditorialOpsController;
   analyticsController: AnalyticsController;
@@ -125,7 +128,12 @@ export const createV2Routes = (dependencies: RoutesDependencies): Router => {
   );
   router.use(
     '/sports/football',
-    createFootballRoutes(dependencies.footballController)
+    createFootballRoutes(dependencies.footballController, dependencies.authService)
+  );
+  // M05: ingestion diagnostics. Admin-guarded inside the router and never public.
+  router.use(
+    '/sports/football/admin',
+    createFootballAdminRoutes(dependencies.footballOpsController, dependencies.authService)
   );
   router.use('/user', createUserRoutes(dependencies.userController, dependencies.authService));
   router.use('/social', createSocialRoutes(dependencies.socialController, dependencies.authService));

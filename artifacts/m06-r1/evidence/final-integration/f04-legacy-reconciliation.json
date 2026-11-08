@@ -1,0 +1,7 @@
+{
+  "legacyPublicUrlResolves": true,
+  "legacyResolvesByMatchId": true,
+  "docsAfterNewSync": 1,
+  "canonicalKeyAfterReconcile": "openligadb:555",
+  "publicUrlStillResolvesAfterReconcile": true
+}

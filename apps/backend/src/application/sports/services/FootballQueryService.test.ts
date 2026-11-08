@@ -174,8 +174,15 @@ test('getCompetitions() degrades to an empty list instead of a 500 when the prov
   });
   const service = new FootballQueryService(provider, fakeReconciliation);
   const result = await service.getCompetitions();
-  assert.deepEqual(result.competitions, []);
-  assert.equal(result.meta.total, 0);
+  // F21: the public list is the FULL catalogue, so a provider rejection returns
+  // the catalogue (with no ingested overlay) instead of a bare empty list. It
+  // must never be a 500, and never an empty page.
+  assert.ok(result.competitions.length > 0, 'the catalogue must still be listed');
+  assert.equal(result.meta.total, result.competitions.length);
+  assert.ok(
+    result.competitions.some((x) => x.slug === 'serie-a'),
+    'a competition with no ingested data stays listed',
+  );
 });
 
 test('getCompetitions() caches a successful result so a later rate-limit hit still serves real data', async () => {
@@ -191,10 +198,13 @@ test('getCompetitions() caches a successful result so a later rate-limit hit sti
   const service = new FootballQueryService(provider, fakeReconciliation, cache as any);
 
   const first = await service.getCompetitions();
-  assert.equal(first.competitions.length, 1);
+  const catalogueSize = first.competitions.length;
+  assert.ok(catalogueSize > 1, 'the full catalogue is listed');
+  assert.ok(first.competitions.some((x) => x.slug === 'laliga'), 'the ingested competition is merged in');
 
   const second = await service.getCompetitions();
-  assert.equal(second.competitions.length, 1);
+  assert.equal(second.competitions.length, catalogueSize, 'the cached result is served again');
+  assert.equal(callCount, 1, 'the provider is not hit twice');
   assert.equal(callCount, 1, 'the second call should be served from cache, not hit the provider again');
 });
 
@@ -211,10 +221,14 @@ test('getCompetitions() never caches an empty/failed result — a transient 429 
   const service = new FootballQueryService(provider, fakeReconciliation, cache as any);
 
   const first = await service.getCompetitions();
-  assert.deepEqual(first.competitions, []);
+  // F21: the catalogue is always listed, so a provider failure degrades to the
+  // catalogue rather than to an empty page - and the failed result is not cached.
+  const catalogueSize = first.competitions.length;
+  assert.ok(catalogueSize > 1);
 
   const second = await service.getCompetitions();
-  assert.equal(second.competitions.length, 1, 'a real result on the next call should not have been blocked by a cached empty list');
+  assert.equal(second.competitions.length, catalogueSize, 'a real result on the next call was not blocked by a cached failure');
+  assert.equal(callCount, 2, 'a failed result must not be cached, so the provider is retried');
   assert.equal(callCount, 2);
 });
 

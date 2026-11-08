@@ -1,0 +1,583 @@
+[
+ {
+  "leagueId": 4897,
+  "name": "WM 2026",
+  "shortcut": "wm26",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 4900,
+  "name": "Hallenstadtmeisterschaft 2026 Bottrop",
+  "shortcut": "HSM",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 4922,
+  "name": "tem26",
+  "shortcut": "mwtem26",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 4923,
+  "name": "WM 2026 USA",
+  "shortcut": "wm2026",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 4927,
+  "name": "Testspiele Eintracht Frankfurt 26/27",
+  "shortcut": "ef-ts",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 4935,
+  "name": "NOFV Oberliga Nord",
+  "shortcut": "nofvon",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 4936,
+  "name": "LaLiga EA Sports 2026/2027",
+  "shortcut": "la1",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 4937,
+  "name": "1. Fußball-Bundesliga 2026/2027",
+  "shortcut": "bl1",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 4938,
+  "name": "2. Fußball-Bundesliga 2026/2027",
+  "shortcut": "bl2",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 4939,
+  "name": "3. Liga 2026/2027",
+  "shortcut": "bl3",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 4941,
+  "name": "Freundschafts-und Testspiele",
+  "shortcut": "FTS",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 4942,
+  "name": "WM2026",
+  "shortcut": "wm_mueller",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 4943,
+  "name": "Testliga Outi77 2026",
+  "shortcut": "tst1",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 4944,
+  "name": "Testspiele2026",
+  "shortcut": "ts2026",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 4945,
+  "name": "DFB Pokal 2026/2027",
+  "shortcut": "dfb",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 4946,
+  "name": "Champions League 2026/2027",
+  "shortcut": "ucl",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 4949,
+  "name": "FIFA World Cup 2026",
+  "shortcut": "wm2026_xlife",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 4950,
+  "name": "WC2026",
+  "shortcut": "WC2026",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 4955,
+  "name": "Nations League 2026/27",
+  "shortcut": "unl",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5957,
+  "name": "Bundesliga",
+  "shortcut": "bl1test",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5958,
+  "name": "2. Bundesliga 2026/27 (Herren)",
+  "shortcut": "bl2h",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5959,
+  "name": "Empty Stands Spendenliga 2026/2027 (https://emptystands.me/aktivismus/spendenliga)",
+  "shortcut": "essl",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5960,
+  "name": "BLClaude",
+  "shortcut": "blclaude",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5970,
+  "name": "Regionalliga Bayern",
+  "shortcut": "regio-bayern",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5972,
+  "name": "1. Frauen Fußballbundesliga 2025/2026",
+  "shortcut": "ffb1",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5974,
+  "name": "AgODMUSIC ",
+  "shortcut": "1x2",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5975,
+  "name": "MB TL",
+  "shortcut": "mbtl",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5966,
+  "name": "Franz-Beckenbauer-Supercup",
+  "shortcut": "BLSupercup",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5977,
+  "name": "Skaldit",
+  "shortcut": "Bundesliga 1",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5978,
+  "name": "Nations League A 2026",
+  "shortcut": "nla",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5980,
+  "name": "2. Fußball-Bundesliga (Frauen)",
+  "shortcut": "ffb2",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5981,
+  "name": "DFB Nationalspiele",
+  "shortcut": "DFBN",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5982,
+  "name": "Thüringenliga",
+  "shortcut": "thüli-26",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5983,
+  "name": "Frauen-Nationalmannschaft",
+  "shortcut": "fna",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5984,
+  "name": "DFB U21",
+  "shortcut": "u21dfb",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5985,
+  "name": "DFB Frauen Supercup",
+  "shortcut": "wsc",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5988,
+  "name": "BL12026",
+  "shortcut": "bl12026",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5990,
+  "name": "Admiral Bundesliga",
+  "shortcut": "BLÖ",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5991,
+  "name": "NOFV Regionalliga NordOst",
+  "shortcut": "rlno",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5992,
+  "name": "Spiele mit Arminia Bielefeld Beteiligung",
+  "shortcut": "dsc",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5993,
+  "name": "Permier League England",
+  "shortcut": "pl1",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5994,
+  "name": "Regionalliga West Frauen",
+  "shortcut": "rlw-frauen",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5996,
+  "name": "Premier League 2026/2027",
+  "shortcut": "pl",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5997,
+  "name": "Champions League 2026/27",
+  "shortcut": "ucl2026",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 5998,
+  "name": "Fußball-Regionalliga Nord",
+  "shortcut": "rln",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 6000,
+  "name": "Europa League 2026/27",
+  "shortcut": "uel2026",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 6001,
+  "name": "??",
+  "shortcut": "A",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 6010,
+  "name": "NOFV-Oberliga Süd",
+  "shortcut": "nofvos",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 6015,
+  "name": "Conference League 2026/27",
+  "shortcut": "uecl2026",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 6016,
+  "name": "Oberliga Niederrhein",
+  "shortcut": "OL1",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 6020,
+  "name": "DFB-Pokal Frauen 2026/2027",
+  "shortcut": "dfbf",
+  "season": "2026",
+  "sport": "Fußball"
+ },
+ {
+  "leagueId": 6007,
+  "name": "Oberliga Nord 2026/2027",
+  "shortcut": "OLN",
+  "season": "2026",
+  "sport": "Eishockey"
+ },
+ {
+  "leagueId": 5979,
+  "name": "DEG Vorbereitung",
+  "shortcut": "DEG-V",
+  "season": "2026",
+  "sport": "Eishockey"
+ },
+ {
+  "leagueId": 5962,
+  "name": "DEL2 Hauptrunde",
+  "shortcut": "DEL2",
+  "season": "2026",
+  "sport": "Eishockey"
+ },
+ {
+  "leagueId": 4951,
+  "name": "Champions Hockey League 2026/2027",
+  "shortcut": "CHL",
+  "season": "2026",
+  "sport": "Eishockey"
+ },
+ {
+  "leagueId": 4947,
+  "name": "DEL 2026/2027",
+  "shortcut": "del",
+  "season": "2026",
+  "sport": "Eishockey"
+ },
+ {
+  "leagueId": 4893,
+  "name": "Darts WM 2026",
+  "shortcut": "darts-wm-26",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 4894,
+  "name": "PDC Darts-WM",
+  "shortcut": "PDCWM",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 4906,
+  "name": "PDC World Masters 2026",
+  "shortcut": "PDCWOMA",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 4908,
+  "name": "Poland Darts Open 2026",
+  "shortcut": "EUPDO",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 4925,
+  "name": "Austrian Darts Open 2026",
+  "shortcut": "PDCADO",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 4918,
+  "name": "German Darts Grand Prix",
+  "shortcut": "gdgr",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 4921,
+  "name": "European Darts Grand Prix",
+  "shortcut": "PDCEDGP",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 4912,
+  "name": "UK Open 2026",
+  "shortcut": "PDCUKO",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 4914,
+  "name": "Belgian Darts Open",
+  "shortcut": "ETBDO",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 4948,
+  "name": "PDC World Cup 2026",
+  "shortcut": "PDCWC",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 4940,
+  "name": "Baltic Sea Darts Open",
+  "shortcut": "PDCBSDO",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 4934,
+  "name": "International Darts Open 2026",
+  "shortcut": "PDCIDO",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 4953,
+  "name": "Slovak Darts Open 2026",
+  "shortcut": "PDCSDO",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 4954,
+  "name": "WM (K.o. mit Platzhalter)",
+  "shortcut": "mb",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 5963,
+  "name": "ESP8266",
+  "shortcut": "esp",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 5968,
+  "name": "European Darts Open 2026",
+  "shortcut": "PDCEDO",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 5976,
+  "name": "World Matchplay 2026",
+  "shortcut": "PDCWMP",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 5999,
+  "name": "Hungarian Darts Trophy 2026",
+  "shortcut": "PDCHDT",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 6008,
+  "name": "Flanders Darts Trophy 2026",
+  "shortcut": "PDCFDT",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 6009,
+  "name": "World Series of Darts Finals 2026",
+  "shortcut": "PDCWSDF",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 6018,
+  "name": "Dutch Darts Champion­ship 2026",
+  "shortcut": "ddc26",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 6019,
+  "name": "European Darts Championship 2026",
+  "shortcut": "PDCEDC",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 6011,
+  "name": "World Grand Prix",
+  "shortcut": "wgp26",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 6012,
+  "name": "World Grand Prix 2026",
+  "shortcut": "PDCWGP",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 6013,
+  "name": "Swiss Darts Trophy 2026",
+  "shortcut": "PDCSDT",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 6005,
+  "name": "Czech Darts Open 2026",
+  "shortcut": "PDCCDO",
+  "season": "2026",
+  "sport": "Test"
+ },
+ {
+  "leagueId": 6006,
+  "name": "FlapDisplay Liga",
+  "shortcut": "fdl",
+  "season": "2026",
+  "sport": "Test"
+ }
+]
