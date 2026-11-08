@@ -51,6 +51,6 @@ export class Sv2LivePageComponent {
   protected readonly count = computed(() => this.shown().length);
 
   constructor() {
-    usePageTitle(() => 'En directo');
+    usePageTitle(() => 'En directo', 'Marcadores de los partidos en juego y de los que están a punto de empezar. Los datos pueden ir con retraso.');
   }
 }

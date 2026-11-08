@@ -68,7 +68,13 @@ export interface FootballMatch {
   /** Stable, collision-safe public slug (e.g. "real-madrid-barcelona-2026-10-25"). */
   slug: string;
   providerIds: Record<string, string>;
-  competition: Pick<FootballCompetition, 'id' | 'slug' | 'name' | 'shortName' | 'logo'>;
+  /**
+   * `type` and `country` are carried here because the public competitions list is
+   * derived from the stored snapshots: without them every competition rendered
+   * as an untyped "Copa" with no country.
+   */
+  competition: Pick<FootballCompetition, 'id' | 'slug' | 'name' | 'shortName' | 'logo'> &
+    Partial<Pick<FootballCompetition, 'type' | 'country'>>;
   season?: string;
   round?: string;
   /** ISO timestamp in Europe/Madrid (stored as UTC internally). */

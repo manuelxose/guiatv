@@ -7,6 +7,7 @@ import { dayKey, kickoffTime, longDay } from '../domain/calendar';
 import { sv2Link } from '../sports-v2.paths';
 import { SportsStore } from '../state/sports-store';
 import { Sv2IconComponent } from '../ui/icon';
+import { Sv2OdblAttributionComponent } from '../ui/odbl-attribution';
 import { Sv2EmptyStateComponent, Sv2ErrorStateComponent, Sv2LoadingSkeletonComponent } from '../ui/states';
 import { MATCH_TABS, MatchTab, Sv2MatchDetailsComponent } from './match-details';
 import { Sv2MatchHeroComponent } from './match-hero';
@@ -16,7 +17,7 @@ import { breadcrumbs, sportsEvent, SPORTS_SITE_URL, sv2Path, useNotFound, useSeo
 @Component({
   selector: 'app-sv2-match-page',
   standalone: true,
-  imports: [RouterLink, Sv2IconComponent, Sv2MatchHeroComponent, Sv2MatchDetailsComponent, Sv2EmptyStateComponent, Sv2ErrorStateComponent, Sv2LoadingSkeletonComponent],
+  imports: [RouterLink, Sv2IconComponent, Sv2MatchHeroComponent, Sv2MatchDetailsComponent, Sv2EmptyStateComponent, Sv2ErrorStateComponent, Sv2LoadingSkeletonComponent, Sv2OdblAttributionComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="bar">
@@ -42,10 +43,15 @@ import { breadcrumbs, sportsEvent, SPORTS_SITE_URL, sv2Path, useNotFound, useSeo
         } @else if (store.resolving()) {
           <app-sv2-loading-skeleton [count]="3" />
         } @else {
-          <app-sv2-empty-state title="No encontramos este partido" hint="Puede que el enlace sea antiguo o que el partido ya no esté disponible." actionLabel="Ver el calendario" [actionLink]="fixtures" />
+          <app-sv2-empty-state page title="No encontramos este partido" hint="Puede que el enlace sea antiguo o que el partido ya no esté disponible." actionLabel="Ver el calendario" [actionLink]="fixtures" />
         }
       }
       @default { <app-sv2-loading-skeleton [count]="3" /> }
+    }
+    <!-- F02/R1-4: the Match Center opens OUTSIDE the shell, so the page carries
+         the ODbL notice itself. Never shown for demo (fictitious) data. -->
+    @if (!store.isDemo) {
+      <app-sv2-odbl-attribution />
     }
   `,
   styles: `
@@ -54,6 +60,7 @@ import { breadcrumbs, sportsEvent, SPORTS_SITE_URL, sv2Path, useNotFound, useSeo
     .back { display: inline-grid; place-items: center; flex: none; width: 40px; height: 40px; border: 0; border-radius: 50%; background: var(--sv2-surface-2); color: var(--sv2-text); cursor: pointer; }
     .back:hover { background: var(--sv2-surface-3); }
     ol { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; padding: 0; list-style: none; font-size: var(--sv2-fs-sm); color: var(--sv2-text-muted); min-width: 0; }
+    ol a { display: inline-flex; align-items: center; min-block-size: 24px; }
     li + li::before { content: '›'; margin-right: 8px; color: var(--sv2-text-faint); }
     li a { color: var(--sv2-text-muted); text-decoration: none; border-radius: 4px; } li a:hover { color: var(--sv2-text); text-decoration: underline; }
     li[aria-current] { color: var(--sv2-text); font-weight: 600; }
@@ -128,3 +135,4 @@ export class Sv2MatchPageComponent {
 }
 
 const asTab = (value: string | null): MatchTab => (MATCH_TABS.some((t) => t.id === value) ? (value as MatchTab) : 'resumen');
+

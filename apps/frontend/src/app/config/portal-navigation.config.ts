@@ -215,7 +215,7 @@ export const PORTAL_DISCOVER_DESTINATIONS: readonly PortalContextDestination[] =
 // `resolveActive()` in portal-context-nav.component.ts.
 export const PORTAL_SPORTS_DESTINATIONS: readonly PortalContextDestination[] = [
   { id: 'home', label: 'Portada', kind: 'route', path: APP_PATHS.football },
-  { id: 'matches', label: 'Partidos', kind: 'route', path: `${APP_PATHS.football}/partidos-hoy` },
+  { id: 'matches', label: 'Partidos', kind: 'route', path: `${APP_PATHS.football}/partidos` },
   { id: 'competitions', label: 'Competiciones', kind: 'route', path: `${APP_PATHS.football}/competiciones` },
   { id: 'watch', label: 'Dónde ver', kind: 'route', path: APP_PATHS.football, fragment: 'donde-ver' },
   { id: 'news', label: 'Noticias', kind: 'route', path: `${APP_PATHS.football}/noticias` },

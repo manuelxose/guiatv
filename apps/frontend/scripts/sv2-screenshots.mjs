@@ -8,19 +8,19 @@ const out = new URL('../../../docs/sports-v2/evidence/m02/', import.meta.url).pa
 mkdirSync(out, { recursive: true });
 const sizes = { mobile: [390, 844], tablet: [768, 1024], desktop: [1440, 900] };
 const pages = [
-  ['home', '/laboratorio/futbol'],
-  ['live', '/laboratorio/futbol/en-directo'],
-  ['fixtures', '/laboratorio/futbol/partidos'],
-  ['results', '/laboratorio/futbol/resultados'],
-  ['competition', '/laboratorio/futbol/competiciones/liga-demo-a'],
-  ['competition-table', '/laboratorio/futbol/competiciones/liga-demo-a?tab=clasificacion'],
-  ['team', '/laboratorio/futbol/equipos/real-costa'],
-  ['standings', '/laboratorio/futbol/clasificaciones/liga-demo-a'],
-  ['match', '/laboratorio/futbol/partido/PLACEHOLDER'],
-  ['news', '/laboratorio/futbol/noticias'],
-  ['article', '/laboratorio/futbol/noticias/claves-del-duelo-real-costa-racing-sur'],
-  ['search', '/laboratorio/futbol/buscar?q=real'],
-  ['following', '/laboratorio/futbol/siguiendo'],
+  ['home', '/deportes/futbol'],
+  ['live', '/deportes/futbol/en-directo'],
+  ['fixtures', '/deportes/futbol/partidos'],
+  ['results', '/deportes/futbol/resultados'],
+  ['competition', '/deportes/futbol/competiciones/liga-demo-a'],
+  ['competition-table', '/deportes/futbol/competiciones/liga-demo-a?tab=clasificacion'],
+  ['team', '/deportes/futbol/equipos/real-costa'],
+  ['standings', '/deportes/futbol/clasificaciones/liga-demo-a'],
+  ['match', '/deportes/futbol/partido/PLACEHOLDER'],
+  ['news', '/deportes/futbol/noticias'],
+  ['article', '/deportes/futbol/noticias/claves-del-duelo-real-costa-racing-sur'],
+  ['search', '/deportes/futbol/buscar?q=real'],
+  ['following', '/deportes/futbol/siguiendo'],
 ];
 const browser = await chromium.launch();
 const report = [];
@@ -30,7 +30,7 @@ for (const [device, [width, height]] of Object.entries(sizes)) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => m.type() === 'error' && !/502|Failed to load resource/.test(m.text()) && errors.push(m.text()));
-  await page.goto(`${base}/laboratorio/futbol`, { waitUntil: 'networkidle' });
+  await page.goto(`${base}/deportes/futbol`, { waitUntil: 'networkidle' });
   await page.waitForSelector('app-sv2-match-card, app-sv2-match-row');
   const live = await page.$eval('app-sv2-match-card', (el) => el.querySelector('.body').getAttribute('aria-label')).catch(() => '');
   const slug = await page.evaluate(() => document.querySelector('app-sv2-context-panel a[aria-label^="Abrir el partido"]')?.getAttribute('href')?.split('/').pop());
@@ -45,7 +45,7 @@ for (const [device, [width, height]] of Object.entries(sizes)) {
   }
   if (device === 'desktop') {
     // Contextual Match Center: select a live row on the live page.
-    await page.goto(`${base}/laboratorio/futbol/en-directo`, { waitUntil: 'networkidle' });
+    await page.goto(`${base}/deportes/futbol/en-directo`, { waitUntil: 'networkidle' });
     await page.click('app-sv2-match-row .body >> nth=1');
     await page.waitForTimeout(300);
     await page.screenshot({ path: `${out}desktop-match-sidebar.png` });

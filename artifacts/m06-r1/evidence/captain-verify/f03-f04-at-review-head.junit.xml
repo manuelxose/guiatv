@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testcase name="F03: an ALL-EMPTY run must not advance lastSuccessAt or report healthy" time="0.002467" classname="test" file="C:\Users\Admin\Documents\workspace\guiatv\.m06-r1\apps\backend\dist\application\sports\ingestion\M06R1CaptainVerify.test.js"/>
+	<testcase name="F03b: the persisted run record must be able to express `empty`" time="0.000999" classname="test" file="C:\Users\Admin\Documents\workspace\guiatv\.m06-r1\apps\backend\dist\application\sports\ingestion\M06R1CaptainVerify.test.js" failure="an all-empty run must persist outcome &amp;quot;empty&amp;quot;, got &amp;quot;partial&amp;quot;">
+		<failure type="testCodeFailure" message="an all-empty run must persist outcome &amp;quot;empty&amp;quot;, got &amp;quot;partial&amp;quot;">
+[Error [ERR_TEST_FAILURE]: an all-empty run must persist outcome "empty", got "partial"] {
+  code: 'ERR_TEST_FAILURE',
+  failureType: 'testCodeFailure',
+  cause: AssertionError [ERR_ASSERTION]: an all-empty run must persist outcome "empty", got "partial"
+      at TestContext.&lt;anonymous> (C:\Users\Admin\Documents\workspace\guiatv\.m06-r1\apps\backend\dist\application\sports\ingestion\M06R1CaptainVerify.test.js:110:22)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+}
+		</failure>
+	</testcase>
+	<testcase name="F03c: a MIXED run (one success, one empty) keeps the success semantics" time="0.003455" classname="test" file="C:\Users\Admin\Documents\workspace\guiatv\.m06-r1\apps\backend\dist\application\sports\ingestion\M06R1CaptainVerify.test.js" failure="one real competition plus one empty is a partial success&#10;+ actual - expected&#10;&#10;+ 'success'&#10;- 'partial'&#10;">
+		<failure type="testCodeFailure" message="one real competition plus one empty is a partial success&#10;+ actual - expected&#10;&#10;+ 'success'&#10;- 'partial'">
+[Error [ERR_TEST_FAILURE]: one real competition plus one empty is a partial success
++ actual - expected
+
++ 'success'
+- 'partial'
+] {
+  code: 'ERR_TEST_FAILURE',
+  failureType: 'testCodeFailure',
+  cause: AssertionError [ERR_ASSERTION]: one real competition plus one empty is a partial success
+  + actual - expected
+  
+  + 'success'
+  - 'partial'
+  
+      at TestContext.&lt;anonymous> (C:\Users\Admin\Documents\workspace\guiatv\.m06-r1\apps\backend\dist\application\sports\ingestion\M06R1CaptainVerify.test.js:133:22)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'success',
+    expected: 'partial',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+}
+		</failure>
+	</testcase>
+	<testcase name="F04: snapshot identity must not depend on batch order" time="0.001394" classname="test" file="C:\Users\Admin\Documents\workspace\guiatv\.m06-r1\apps\backend\dist\application\sports\ingestion\M06R1CaptainVerify.test.js" failure="the same provider match must get the same canonical key regardless of batch order&#10;+ actual - expected&#10;&#10;  {&#10;+   '111': 'bayern-dortmund-2026-11-06',&#10;-   '111': 'bayern-dortmund-2026-11-06-openligadb-111',&#10;    '222': 'bayern-dortmund-2026-11-06-openligadb-222',&#10;+   '333': 'bayern-dortmund-2026-11-06-openligadb-333'&#10;-   '333': 'bayern-dortmund-2026-11-06'&#10;  }&#10;">
+		<failure type="testCodeFailure" message="the same provider match must get the same canonical key regardless of batch order&#10;+ actual - expected&#10;&#10;  {&#10;+   '111': 'bayern-dortmund-2026-11-06',&#10;-   '111': 'bayern-dortmund-2026-11-06-openligadb-111',&#10;    '222': 'bayern-dortmund-2026-11-06-openligadb-222',&#10;+   '333': 'bayern-dortmund-2026-11-06-openligadb-333'&#10;-   '333': 'bayern-dortmund-2026-11-06'&#10;  }">
+[Error [ERR_TEST_FAILURE]: the same provider match must get the same canonical key regardless of batch order
++ actual - expected
+
+  {
++   '111': 'bayern-dortmund-2026-11-06',
+-   '111': 'bayern-dortmund-2026-11-06-openligadb-111',
+    '222': 'bayern-dortmund-2026-11-06-openligadb-222',
++   '333': 'bayern-dortmund-2026-11-06-openligadb-333'
+-   '333': 'bayern-dortmund-2026-11-06'
+  }
+] {
+  code: 'ERR_TEST_FAILURE',
+  failureType: 'testCodeFailure',
+  cause: AssertionError [ERR_ASSERTION]: the same provider match must get the same canonical key regardless of batch order
+  + actual - expected
+  
+    {
+  +   '111': 'bayern-dortmund-2026-11-06',
+  -   '111': 'bayern-dortmund-2026-11-06-openligadb-111',
+      '222': 'bayern-dortmund-2026-11-06-openligadb-222',
+  +   '333': 'bayern-dortmund-2026-11-06-openligadb-333'
+  -   '333': 'bayern-dortmund-2026-11-06'
+    }
+  
+      at TestContext.&lt;anonymous> (C:\Users\Admin\Documents\workspace\guiatv\.m06-r1\apps\backend\dist\application\sports\ingestion\M06R1CaptainVerify.test.js:148:22)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: [Object],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+}
+		</failure>
+	</testcase>
+	<testcase name="F04b: a single-match batch and a multi-match batch agree on identity" time="0.000356" classname="test" file="C:\Users\Admin\Documents\workspace\guiatv\.m06-r1\apps\backend\dist\application\sports\ingestion\M06R1CaptainVerify.test.js" failure="identity must not change because another fixture was in the batch&#10;+ actual - expected&#10;&#10;+ 'bayern-dortmund-2026-11-06'&#10;- 'bayern-dortmund-2026-11-06-openligadb-222'&#10;                             ^&#10;">
+		<failure type="testCodeFailure" message="identity must not change because another fixture was in the batch&#10;+ actual - expected&#10;&#10;+ 'bayern-dortmund-2026-11-06'&#10;- 'bayern-dortmund-2026-11-06-openligadb-222'&#10;                             ^">
+[Error [ERR_TEST_FAILURE]: identity must not change because another fixture was in the batch
++ actual - expected
+
++ 'bayern-dortmund-2026-11-06'
+- 'bayern-dortmund-2026-11-06-openligadb-222'
+                             ^
+] {
+  code: 'ERR_TEST_FAILURE',
+  failureType: 'testCodeFailure',
+  cause: AssertionError [ERR_ASSERTION]: identity must not change because another fixture was in the batch
+  + actual - expected
+  
+  + 'bayern-dortmund-2026-11-06'
+  - 'bayern-dortmund-2026-11-06-openligadb-222'
+                               ^
+  
+      at TestContext.&lt;anonymous> (C:\Users\Admin\Documents\workspace\guiatv\.m06-r1\apps\backend\dist\application\sports\ingestion\M06R1CaptainVerify.test.js:157:22)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'bayern-dortmund-2026-11-06',
+    expected: 'bayern-dortmund-2026-11-06-openligadb-222',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+}
+		</failure>
+	</testcase>
+	<!-- tests 5 -->
+	<!-- suites 0 -->
+	<!-- pass 1 -->
+	<!-- fail 4 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 50.0639 -->
+</testsuites>

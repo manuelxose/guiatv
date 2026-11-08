@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { shortDay, zoneDescription } from '../domain/calendar';
+import { dayKey, shortDay, zoneDescription } from '../domain/calendar';
+import { FootballData } from '../data/football-data';
 import { SportsStore } from '../state/sports-store';
 import { Sv2ErrorStateComponent, Sv2LoadingSkeletonComponent } from '../ui/states';
 import { Sv2DateStripComponent } from './date-strip';
@@ -55,18 +56,63 @@ export class Sv2FixturesPageComponent {
   protected readonly store = inject(SportsStore);
   protected readonly f = useMatchFilters();
   protected readonly results = inject(ActivatedRoute).snapshot.data['mode'] === 'results';
+  private readonly data = inject(FootballData);
   protected readonly tz = zoneDescription();
   protected readonly day = computed(() => this.f.day() ?? this.store.today());
   protected readonly shown = computed(() => this.f.apply(this.results ? this.store.finishedMatches() : this.store.matchesOnDay(this.day())));
-  protected readonly nextDay = computed(() => this.store.matchDays().find((d) => d > this.day()) ?? null);
+  /**
+   * Next day to jump to. Inside the loaded window we already know it; with a
+   * competition filter and nothing on screen we ASK THE PROVIDER, because a
+   * competition like the Europa League plays weeks apart and its next round is
+   * never part of the preloaded window.
+   */
+  private readonly remoteNextDay = signal<string | null>(null);
+  protected readonly nextDay = computed(() => {
+    const slug = this.f.competition();
+    const from = this.day();
+    if (slug) {
+      const own = this.store
+        .matches()
+        .filter((m) => m.competitionSlug === slug)
+        .map((m) => dayKey(m.kickoff))
+        .filter((d) => d > from)
+        .sort();
+      if (own.length) return own[0];
+      return this.remoteNextDay();
+    }
+    return this.store.matchDays().find((d) => d > from) ?? null;
+  });
   protected readonly emptyTitle = computed(() => (this.results ? 'Aún no hay resultados' : this.f.active() ? 'Sin partidos con estos filtros este día' : 'No hay partidos este día'));
   protected readonly label = shortDay;
 
   constructor() {
-    usePageTitle(() => (this.results ? 'Resultados' : 'Partidos'));
+    usePageTitle(() => (this.results ? 'Resultados' : 'Partidos'), this.results ? 'Resultados de los últimos partidos de fútbol por día y competición.' : 'Calendario de partidos de fútbol por día, con horarios y dónde verlos cuando hay emisión confirmada.');
+    // Resolve the filtered competition's real next fixture day on the server.
+    effect(() => {
+      const slug = this.f.competition();
+      const from = this.day();
+      if (!slug) {
+        untracked(() => this.remoteNextDay.set(null));
+        return;
+      }
+      // Days belonging to OTHER competitions must not count: the Europa League
+      // playing weeks apart would then never ask the provider for its own next day.
+      const compDays = this.store
+        .matches()
+        .filter((m) => m.competitionSlug === slug)
+        .map((m) => dayKey(m.kickoff))
+        .filter((d) => d > from);
+      const hasLocal = compDays.length > 0;
+      untracked(() => this.remoteNextDay.set(null));
+      if (hasLocal) return;
+      void this.data
+        .nextCompetitionDay(slug, from)
+        .then((remote) => untracked(() => this.remoteNextDay.set(remote)));
+    });
     effect(() => {
       const d = this.day();
       if (!this.results && this.store.loadState() === 'ready') untracked(() => void this.store.ensureDay(d));
     });
   }
 }
+

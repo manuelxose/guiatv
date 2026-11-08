@@ -1,0 +1,57 @@
+<div class="space-y-6">
+  <div *ngIf="unauthorized" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative)]">
+    {{ error }}
+  </div>
+
+  <div *ngIf="!unauthorized && error" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative)]">
+    <p class="mb-2">{{ error }}</p>
+    <button type="button" class="px-3 py-2 text-xs rounded-xl border border-[var(--portal-border)] text-[var(--portal-text)]" (click)="load()">Reintentar</button>
+  </div>
+
+  <p *ngIf="loading && !dashboard" class="text-sm text-[var(--portal-text-muted)]">Cargando datos del fútbol…</p>
+
+  <ng-container *ngIf="dashboard">
+    <div *ngIf="!countersAvailable" class="rounded-xl border border-[var(--spotify-warning)]/40 bg-[var(--spotify-warning)]/10 p-4 text-sm text-[var(--portal-text)]">
+      Los contadores no están disponibles en este momento.
+    </div>
+
+    <div *ngIf="countersAvailable" class="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-4 min-w-0">
+        <p class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Competiciones / equipos</p>
+        <p class="text-xl font-semibold mt-2 text-[var(--portal-text)]">{{ dashboard.competitions }} / {{ dashboard.teams }}</p>
+      </div>
+      <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-4 min-w-0">
+        <p class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Snapshots</p>
+        <p class="text-xl font-semibold mt-2 text-[var(--portal-text)]">{{ dashboard.snapshots }}</p>
+        <p class="text-xs text-[var(--spotify-warning)]">{{ dashboard.staleSnapshots }} desactualizadas</p>
+      </div>
+      <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-4 min-w-0">
+        <p class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Proveedores</p>
+        <p class="text-xl font-semibold mt-2 text-[var(--portal-text)]">{{ dashboard.providers }}</p>
+        <p class="text-xs text-[var(--portal-text-muted)]">{{ dashboard.broadcastMappings }} mapeos de canal</p>
+      </div>
+      <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-4 min-w-0">
+        <p class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wider">Calidad</p>
+        <p class="text-xl font-semibold mt-2 text-[var(--portal-text)]">{{ dashboard.openQualityIssues }}</p>
+        <p class="text-xs text-[var(--portal-text-muted)]">incidencias abiertas</p>
+      </div>
+    </div>
+
+    <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl p-6">
+      <h4 class="text-lg font-semibold text-[var(--portal-text)]">Última sincronización</h4>
+      <div class="mt-4 grid gap-3 sm:grid-cols-2 text-sm">
+        <div class="min-w-0">
+          <p class="text-xs text-[var(--portal-text-muted)]">Estado</p>
+          <div class="mt-2"><app-admin-status-badge [status]="dashboard.lastSyncState" [label]="lastSyncLabel"></app-admin-status-badge></div>
+        </div>
+        <div class="min-w-0">
+          <p class="text-xs text-[var(--portal-text-muted)]">Última ejecución</p>
+          <p class="text-[var(--portal-text)]">
+            {{ dashboard.lastSyncAt ? (dashboard.lastSyncAt | date:'medium') : 'Sin sincronización registrada' }}
+            <span *ngIf="dashboard.lastSyncOutcome" class="text-[var(--portal-text-soft)]">· {{ outcomeLabel(dashboard.lastSyncOutcome) }}</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+</div>

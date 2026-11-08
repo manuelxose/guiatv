@@ -1,7 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { SportsStore } from '../state/sports-store';
 import { sv2TestProviders, TEST_TODAY } from '../testing/providers';
+import { ODBL_DATABASE_URL, ODBL_LICENSE_URL, ODBL_NOTICE_TEXT } from '../ui/odbl-attribution';
 import { Sv2AppShellComponent } from './app-shell';
+import { Sv2OdblAttributionComponent } from '../ui/odbl-attribution';
 
 describe('sports-v2 Sv2AppShellComponent', () => {
   async function render() {
@@ -67,4 +69,26 @@ describe('sports-v2 Sv2AppShellComponent', () => {
     fixture.detectChanges();
     expect(store.contextOpen()).toBeFalse();
   });
+
+  it('renders the exact ODbL notice component with both required links', () => {
+    // The shell only shows the notice for REAL ingested data (never for demo), so
+    // this asserts the component contract itself: exact 4.3 wording + both links.
+    TestBed.configureTestingModule({ imports: [Sv2OdblAttributionComponent] });
+    const fixture = TestBed.createComponent(Sv2OdblAttributionComponent);
+    fixture.detectChanges();
+    const footer = (fixture.nativeElement as HTMLElement).querySelector('footer[role="contentinfo"]');
+    expect((footer?.textContent ?? '').replace(/\s+/g, ' ').trim()).toBe(ODBL_NOTICE_TEXT);
+    const links = Array.from(footer?.querySelectorAll('a') ?? []) as HTMLAnchorElement[];
+    expect(links.map((a) => a.getAttribute('href'))).toEqual([ODBL_DATABASE_URL, ODBL_LICENSE_URL]);
+  });
+
+  it('shows no ODbL attribution for demo (fictitious) data', async () => {
+    // The shell test store renders demo data, so attributing it to OpenLigaDB
+    // would be a false statement. The full-page Match Center renders OUTSIDE the
+    // shell and carries its own notice (see match-page.ts).
+    const el = (await render()).nativeElement as HTMLElement;
+    expect(el.querySelector('.demo')).toBeTruthy();
+    expect(el.querySelector('footer[role="contentinfo"]')).toBeNull();
+  });
 });
+

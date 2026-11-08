@@ -1,0 +1,142 @@
+{
+  "at": "2026-11-06T09:49:15.586Z",
+  "out": {
+    "la1@2014": {
+      "status": 200,
+      "bytes": 2,
+      "items": 0,
+      "leagueNames": [],
+      "finished": 0,
+      "withGoals": 0,
+      "last": null
+    },
+    "spa1@2026": {
+      "status": 200,
+      "bytes": 2,
+      "items": 0,
+      "leagueNames": [],
+      "finished": 0,
+      "withGoals": 0,
+      "last": null
+    },
+    "esp@2026": {
+      "status": 200,
+      "bytes": 11804,
+      "items": 11,
+      "leagueNames": [
+        "ESP8266"
+      ],
+      "finished": 2,
+      "withGoals": 2,
+      "last": "2027-05-23T11:30:00Z FC St. Pauli v Eintracht Braunschweig"
+    },
+    "pl1@2026": {
+      "status": 200,
+      "bytes": 2,
+      "items": 0,
+      "leagueNames": [],
+      "finished": 0,
+      "withGoals": 0,
+      "last": null
+    },
+    "pl@2026": {
+      "status": 200,
+      "bytes": 977176,
+      "items": 380,
+      "leagueNames": [
+        "Premier League 2026/2027"
+      ],
+      "finished": 71,
+      "withGoals": 71,
+      "last": "2027-05-30T15:00:00Z Sunderland v Manchester City"
+    },
+    "uel2026@2026": {
+      "status": 200,
+      "bytes": 287299,
+      "items": 144,
+      "leagueNames": [
+        "Europa League 2026/27"
+      ],
+      "finished": 72,
+      "withGoals": 69,
+      "last": "2027-01-28T20:00:00Z Sunderland AFC v Levski Sofia"
+    },
+    "uecl2026@2026": {
+      "status": 200,
+      "bytes": 204196,
+      "items": 108,
+      "leagueNames": [
+        "Conference League 2026/27"
+      ],
+      "finished": 54,
+      "withGoals": 49,
+      "last": "2026-12-17T20:00:00Z Universitatea Craiova v FC Kopenhagen"
+    },
+    "wm2026@2026": {
+      "status": 200,
+      "bytes": 135431,
+      "items": 72,
+      "leagueNames": [
+        "WM 2026 USA"
+      ],
+      "finished": 72,
+      "withGoals": 65,
+      "last": "2026-06-28T02:00:00Z Algerien v Österreich"
+    },
+    "ucl2026@2026": {
+      "status": 200,
+      "bytes": 53054,
+      "items": 32,
+      "leagueNames": [
+        "Champions League 2026/27"
+      ],
+      "finished": 0,
+      "withGoals": 0,
+      "last": "2026-09-08T19:00:00Z RB Leipzig v Schachtar Donezk"
+    },
+    "bl1@2026": {
+      "status": 200,
+      "bytes": 345483,
+      "items": 306,
+      "leagueNames": [
+        "1. Fußball-Bundesliga 2026/2027"
+      ],
+      "finished": 72,
+      "withGoals": 66,
+      "last": "2027-05-22T13:30:00Z SV 07 Elversberg v SV Werder Bremen"
+    },
+    "bl2@2026": {
+      "status": 200,
+      "bytes": 368029,
+      "items": 306,
+      "leagueNames": [
+        "2. Fußball-Bundesliga 2026/2027"
+      ],
+      "finished": 90,
+      "withGoals": 85,
+      "last": "2027-05-23T13:30:00Z Energie Cottbus v 1. FC Kaiserslautern"
+    },
+    "dfb@2026": {
+      "status": 200,
+      "bytes": 120319,
+      "items": 56,
+      "leagueNames": [
+        "DFB Pokal 2026/2027"
+      ],
+      "finished": 48,
+      "withGoals": 48,
+      "last": "2026-12-02T19:45:00Z VfL Bochum v FC Augsburg"
+    },
+    "OL1@2026": {
+      "status": 200,
+      "bytes": 254999,
+      "items": 153,
+      "leagueNames": [
+        "Oberliga Niederrhein"
+      ],
+      "finished": 98,
+      "withGoals": 95,
+      "last": "2026-12-20T14:00:00Z SV Scherpenberg v SSVg Velbert"
+    }
+  }
+}

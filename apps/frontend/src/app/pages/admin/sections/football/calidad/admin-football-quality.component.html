@@ -1,0 +1,106 @@
+<div class="space-y-6">
+  <div *ngIf="unauthorized" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative)]">
+    No tienes permisos para ver estos datos. Vuelve a iniciar sesión como administrador.
+  </div>
+
+  <div class="flex flex-wrap items-center gap-2">
+    <button type="button" class="px-3 py-2 text-xs rounded-xl border border-[var(--portal-border)]" (click)="setView('quality')">Incidencias de calidad</button>
+    <button type="button" class="px-3 py-2 text-xs rounded-xl border border-[var(--portal-border)]" (click)="setView('audit')">Auditoría</button>
+  </div>
+
+  <ng-container *ngIf="view === 'quality'">
+    <div *ngIf="!unauthorized && qualityError" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative)]">
+      <p class="mb-2">{{ qualityError }}</p>
+      <button type="button" class="px-3 py-2 text-xs rounded-xl border border-[var(--portal-border)] text-[var(--portal-text)]" (click)="loadQuality()">Reintentar</button>
+    </div>
+
+    <p *ngIf="qualityLoading && !qualityLoaded" class="text-sm text-[var(--portal-text-muted)]">Cargando incidencias de calidad…</p>
+
+    <ng-container *ngIf="qualityLoaded">
+      <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="text-left text-[var(--portal-text-muted)]">
+            <tr>
+              <th class="p-4">Tipo</th>
+              <th>Mensaje</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let issue of qualityIssues" class="border-t border-[var(--portal-border)]">
+              <td class="p-4 text-[var(--portal-text-soft)]">{{ issue.kind }}</td>
+              <td class="text-[var(--portal-text)]">{{ issue.message }}</td>
+            </tr>
+            <tr *ngIf="!qualityIssues.length">
+              <td colspan="2" class="p-4 text-[var(--portal-text-muted)]">Sin incidencias de calidad.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="flex items-center justify-between gap-3 p-4 border-t border-[var(--portal-border)] text-sm text-[var(--portal-text-soft)]">
+          <span>{{ qualityTotal }} resultado(s)</span>
+          <div class="flex gap-2">
+            <button type="button" class="px-3 py-2 text-xs rounded-xl border border-[var(--portal-border)] disabled:opacity-40" [disabled]="qualityPage <= 1" (click)="qualityPrevPage()">Anterior</button>
+            <button type="button" class="px-3 py-2 text-xs rounded-xl border border-[var(--portal-border)] disabled:opacity-40" [disabled]="qualityPage * 25 >= qualityTotal" (click)="qualityNextPage()">Siguiente</button>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+  </ng-container>
+
+  <ng-container *ngIf="view === 'audit'">
+    <div *ngIf="!unauthorized && auditError" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative)]">
+      <p class="mb-2">{{ auditError }}</p>
+      <button type="button" class="px-3 py-2 text-xs rounded-xl border border-[var(--portal-border)] text-[var(--portal-text)]" (click)="loadAudit()">Reintentar</button>
+    </div>
+
+    <div class="flex flex-wrap items-end gap-3">
+      <label class="text-xs text-[var(--portal-text-muted)]">
+        Severidad
+        <select class="block mt-1 px-3 py-2 text-sm rounded-xl border border-[var(--portal-border)] bg-[var(--portal-surface)] text-[var(--portal-text)]" [value]="auditSeverity" (change)="onAuditSeverity($event)">
+          <option *ngFor="let opt of severityOptions" [value]="opt.value">{{ opt.label }}</option>
+        </select>
+      </label>
+      <label class="text-xs text-[var(--portal-text-muted)]">
+        Subsistema
+        <input type="text" class="block mt-1 px-3 py-2 text-sm rounded-xl border border-[var(--portal-border)] bg-[var(--portal-surface)] text-[var(--portal-text)]" [value]="auditSubsystem" (input)="onAuditSubsystem($event)" placeholder="football…" />
+      </label>
+      <button type="button" class="px-4 py-2 text-sm rounded-xl border border-[var(--portal-border)] text-[var(--portal-text)]" (click)="applyAuditFilters()">Aplicar filtros</button>
+    </div>
+
+    <p *ngIf="auditLoading && !auditLoaded" class="text-sm text-[var(--portal-text-muted)]">Cargando auditoría…</p>
+
+    <ng-container *ngIf="auditLoaded">
+      <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="text-left text-[var(--portal-text-muted)]">
+            <tr>
+              <th class="p-4">Fecha</th>
+              <th>Severidad</th>
+              <th>Subsistema</th>
+              <th>Mensaje</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let entry of auditItems" class="border-t border-[var(--portal-border)]">
+              <td class="p-4 text-[var(--portal-text-soft)]">{{ entry.timestamp | date:'short' }}</td>
+              <td><app-admin-status-badge [status]="severityStatus(entry.severity)" [label]="entry.severity"></app-admin-status-badge></td>
+              <td class="text-[var(--portal-text-soft)]">{{ entry.subsystem }}</td>
+              <td class="text-[var(--portal-text)]">{{ entry.message }}</td>
+            </tr>
+            <tr *ngIf="!auditItems.length">
+              <td colspan="4" class="p-4 text-[var(--portal-text-muted)]">No hay eventos de auditoría.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="flex items-center justify-between gap-3 p-4 border-t border-[var(--portal-border)] text-sm text-[var(--portal-text-soft)]">
+          <span>{{ auditTotal }} resultado(s)</span>
+          <div class="flex gap-2">
+            <button type="button" class="px-3 py-2 text-xs rounded-xl border border-[var(--portal-border)] disabled:opacity-40" [disabled]="auditPage <= 1" (click)="auditPrevPage()">Anterior</button>
+            <button type="button" class="px-3 py-2 text-xs rounded-xl border border-[var(--portal-border)] disabled:opacity-40" [disabled]="auditPage * 25 >= auditTotal" (click)="auditNextPage()">Siguiente</button>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+  </ng-container>
+</div>

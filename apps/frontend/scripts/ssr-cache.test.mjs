@@ -24,7 +24,7 @@ test('fresh, then stale until the window, then gone; "on now" pages get the shor
   assert.equal(cache.get('/guias').stale, true);
   tick(20 * MIN); // 31 min
   assert.equal(cache.get('/guias'), null);
-  for (const p of ['/', '/programacion-tv/que-ver-hoy', '/canales/la-1', '/deportes/futbol/partidos-hoy']) assert.ok(isLivePath(p), p);
+  for (const p of ['/', '/programacion-tv/que-ver-hoy', '/canales/la-1', '/deportes/futbol/partidos']) assert.ok(isLivePath(p), p);
   for (const p of ['/guias', '/peliculas/x', '/programacion-tv/peliculas', '/canales']) assert.ok(!isLivePath(p), p);
 });
 

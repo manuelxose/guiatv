@@ -1,0 +1,940 @@
+{
+ "base": "http://localhost:4211",
+ "at": "2026-11-05T21:42:22.126Z",
+ "pages": [
+  {
+   "size": "mobile",
+   "name": "home",
+   "path": "/deportes/futbol",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:92x23"
+   ],
+   "cls": 0,
+   "lcp": 416,
+   "imgNoAlt": 0,
+   "text": 1908,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "mobile",
+   "name": "live",
+   "path": "/deportes/futbol/en-directo",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:92x23"
+   ],
+   "cls": 0,
+   "lcp": 348,
+   "imgNoAlt": 0,
+   "text": 583,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "mobile",
+   "name": "fixtures",
+   "path": "/deportes/futbol/partidos",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:92x23"
+   ],
+   "cls": 0,
+   "lcp": 128,
+   "imgNoAlt": 0,
+   "text": 713,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "mobile",
+   "name": "results",
+   "path": "/deportes/futbol/resultados",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:92x23"
+   ],
+   "cls": 0,
+   "lcp": 356,
+   "imgNoAlt": 0,
+   "text": 503,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "mobile",
+   "name": "competitions",
+   "path": "/deportes/futbol/competiciones",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:92x23"
+   ],
+   "cls": 0,
+   "lcp": 116,
+   "imgNoAlt": 0,
+   "text": 722,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "mobile",
+   "name": "news",
+   "path": "/deportes/futbol/noticias",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:92x23"
+   ],
+   "cls": 0,
+   "lcp": 468,
+   "imgNoAlt": 0,
+   "text": 1205,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "mobile",
+   "name": "search",
+   "path": "/deportes/futbol/buscar?q=real",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:92x23"
+   ],
+   "cls": 0,
+   "lcp": 656,
+   "imgNoAlt": 0,
+   "text": 337,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "mobile",
+   "name": "following",
+   "path": "/deportes/futbol/siguiendo",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:92x23"
+   ],
+   "cls": 0,
+   "lcp": 412,
+   "imgNoAlt": 0,
+   "text": 742,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "mobile",
+   "name": "competition",
+   "path": "/deportes/futbol/competiciones/campeonato-brasileiro-serie-a",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:92x23"
+   ],
+   "cls": 0,
+   "lcp": 516,
+   "imgNoAlt": 0,
+   "text": 884,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "mobile",
+   "name": "standings",
+   "path": "/deportes/futbol/clasificaciones/campeonato-brasileiro-serie-a",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:92x23"
+   ],
+   "cls": 0,
+   "lcp": 132,
+   "imgNoAlt": 0,
+   "text": 1080,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "mobile",
+   "name": "team",
+   "path": "/deportes/futbol/equipos/sao-paulo-fc",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:92x23"
+   ],
+   "cls": 0,
+   "lcp": 664,
+   "imgNoAlt": 0,
+   "text": 1250,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "mobile",
+   "name": "match",
+   "path": "/deportes/futbol/partido/sao-paulo-fc-sc-corinthians-paulista-2026-11-05",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [],
+   "cls": 0,
+   "lcp": 428,
+   "imgNoAlt": 0,
+   "text": 644,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "mobile",
+   "name": "not-found-competition",
+   "path": "/deportes/futbol/competiciones/no-existe-xyz",
+   "status": 404,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:92x23"
+   ],
+   "cls": 0,
+   "lcp": 404,
+   "imgNoAlt": 0,
+   "text": 320,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "tablet",
+   "name": "home",
+   "path": "/deportes/futbol",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:236x23"
+   ],
+   "cls": 0.017799719236791134,
+   "lcp": 168,
+   "imgNoAlt": 0,
+   "text": 1882,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "tablet",
+   "name": "live",
+   "path": "/deportes/futbol/en-directo",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:236x23"
+   ],
+   "cls": 0.001575321308337152,
+   "lcp": 132,
+   "imgNoAlt": 0,
+   "text": 557,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "tablet",
+   "name": "fixtures",
+   "path": "/deportes/futbol/partidos",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:236x23"
+   ],
+   "cls": 0.0025038449869801602,
+   "lcp": 116,
+   "imgNoAlt": 0,
+   "text": 687,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "tablet",
+   "name": "results",
+   "path": "/deportes/futbol/resultados",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:236x23"
+   ],
+   "cls": 0.002077814696046213,
+   "lcp": 92,
+   "imgNoAlt": 0,
+   "text": 476,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "tablet",
+   "name": "competitions",
+   "path": "/deportes/futbol/competiciones",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:236x23"
+   ],
+   "cls": 0.00019722618162631989,
+   "lcp": 148,
+   "imgNoAlt": 0,
+   "text": 696,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "tablet",
+   "name": "news",
+   "path": "/deportes/futbol/noticias",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:236x23"
+   ],
+   "cls": 0.001664944225922227,
+   "lcp": 304,
+   "imgNoAlt": 0,
+   "text": 1179,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "tablet",
+   "name": "search",
+   "path": "/deportes/futbol/buscar?q=real",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:236x23"
+   ],
+   "cls": 0.0004728503990918398,
+   "lcp": 640,
+   "imgNoAlt": 0,
+   "text": 311,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "tablet",
+   "name": "following",
+   "path": "/deportes/futbol/siguiendo",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:236x23"
+   ],
+   "cls": 0.001490235522699853,
+   "lcp": 396,
+   "imgNoAlt": 0,
+   "text": 716,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "tablet",
+   "name": "competition",
+   "path": "/deportes/futbol/competiciones/campeonato-brasileiro-serie-a",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:236x23"
+   ],
+   "cls": 0.0016271998174488544,
+   "lcp": 132,
+   "imgNoAlt": 0,
+   "text": 902,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "tablet",
+   "name": "standings",
+   "path": "/deportes/futbol/clasificaciones/campeonato-brasileiro-serie-a",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:236x23"
+   ],
+   "cls": 0.002913128468208015,
+   "lcp": 128,
+   "imgNoAlt": 0,
+   "text": 1219,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "tablet",
+   "name": "team",
+   "path": "/deportes/futbol/equipos/sao-paulo-fc",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:236x23"
+   ],
+   "cls": 0.0013803038746118546,
+   "lcp": 140,
+   "imgNoAlt": 0,
+   "text": 1389,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "tablet",
+   "name": "match",
+   "path": "/deportes/futbol/partido/sao-paulo-fc-sc-corinthians-paulista-2026-11-05",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:284x23"
+   ],
+   "cls": 0.0013216647397105892,
+   "lcp": 96,
+   "imgNoAlt": 0,
+   "text": 680,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "tablet",
+   "name": "not-found-competition",
+   "path": "/deportes/futbol/competiciones/no-existe-xyz",
+   "status": 404,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:236x23"
+   ],
+   "cls": 0.0006022397428750992,
+   "lcp": 456,
+   "imgNoAlt": 0,
+   "text": 294,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "desktop",
+   "name": "home",
+   "path": "/deportes/futbol",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.011219301108110426,
+   "lcp": 140,
+   "imgNoAlt": 0,
+   "text": 2487,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "desktop",
+   "name": "live",
+   "path": "/deportes/futbol/en-directo",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.005442520371843922,
+   "lcp": 128,
+   "imgNoAlt": 0,
+   "text": 1150,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "desktop",
+   "name": "fixtures",
+   "path": "/deportes/futbol/partidos",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.005502673574272334,
+   "lcp": 128,
+   "imgNoAlt": 0,
+   "text": 1280,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "desktop",
+   "name": "results",
+   "path": "/deportes/futbol/resultados",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.005784096883975266,
+   "lcp": 108,
+   "imgNoAlt": 0,
+   "text": 1070,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "desktop",
+   "name": "competitions",
+   "path": "/deportes/futbol/competiciones",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.003481160942255552,
+   "lcp": 116,
+   "imgNoAlt": 0,
+   "text": 1289,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "desktop",
+   "name": "news",
+   "path": "/deportes/futbol/noticias",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.007423976401079176,
+   "lcp": 120,
+   "imgNoAlt": 0,
+   "text": 1772,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "desktop",
+   "name": "search",
+   "path": "/deportes/futbol/buscar?q=real",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.003568486259470915,
+   "lcp": 660,
+   "imgNoAlt": 0,
+   "text": 904,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "desktop",
+   "name": "following",
+   "path": "/deportes/futbol/siguiendo",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.004891693282683364,
+   "lcp": 280,
+   "imgNoAlt": 0,
+   "text": 1309,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "desktop",
+   "name": "competition",
+   "path": "/deportes/futbol/competiciones/campeonato-brasileiro-serie-a",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.004611143763663837,
+   "lcp": 136,
+   "imgNoAlt": 0,
+   "text": 1631,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "desktop",
+   "name": "standings",
+   "path": "/deportes/futbol/clasificaciones/campeonato-brasileiro-serie-a",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.0056454495737418555,
+   "lcp": 124,
+   "imgNoAlt": 0,
+   "text": 1876,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "desktop",
+   "name": "team",
+   "path": "/deportes/futbol/equipos/sao-paulo-fc",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.004030038004222394,
+   "lcp": 144,
+   "imgNoAlt": 0,
+   "text": 2070,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "desktop",
+   "name": "match",
+   "path": "/deportes/futbol/partido/sao-paulo-fc-sc-corinthians-paulista-2026-11-05",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.0011352682984905479,
+   "lcp": 116,
+   "imgNoAlt": 0,
+   "text": 886,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "desktop",
+   "name": "not-found-competition",
+   "path": "/deportes/futbol/competiciones/no-existe-xyz",
+   "status": 404,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.004008666782876265,
+   "lcp": 424,
+   "imgNoAlt": 0,
+   "text": 887,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "wide",
+   "name": "home",
+   "path": "/deportes/futbol",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.008963540795408648,
+   "lcp": 184,
+   "imgNoAlt": 0,
+   "text": 2487,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "wide",
+   "name": "live",
+   "path": "/deportes/futbol/en-directo",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.004416617542627908,
+   "lcp": 112,
+   "imgNoAlt": 0,
+   "text": 1150,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "wide",
+   "name": "fixtures",
+   "path": "/deportes/futbol/partidos",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.004920289585129224,
+   "lcp": 152,
+   "imgNoAlt": 0,
+   "text": 1280,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "wide",
+   "name": "results",
+   "path": "/deportes/futbol/resultados",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.0048498087557255,
+   "lcp": 136,
+   "imgNoAlt": 0,
+   "text": 1070,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "wide",
+   "name": "competitions",
+   "path": "/deportes/futbol/competiciones",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.0016317941916822896,
+   "lcp": 140,
+   "imgNoAlt": 0,
+   "text": 1289,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "wide",
+   "name": "news",
+   "path": "/deportes/futbol/noticias",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.004564049410721893,
+   "lcp": 304,
+   "imgNoAlt": 0,
+   "text": 1772,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "wide",
+   "name": "search",
+   "path": "/deportes/futbol/buscar?q=real",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.0016727279341269914,
+   "lcp": 668,
+   "imgNoAlt": 0,
+   "text": 904,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "wide",
+   "name": "following",
+   "path": "/deportes/futbol/siguiendo",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.002699938781958058,
+   "lcp": 344,
+   "imgNoAlt": 0,
+   "text": 1309,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "wide",
+   "name": "competition",
+   "path": "/deportes/futbol/competiciones/campeonato-brasileiro-serie-a",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.0023401384000424985,
+   "lcp": 188,
+   "imgNoAlt": 0,
+   "text": 1631,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "wide",
+   "name": "standings",
+   "path": "/deportes/futbol/clasificaciones/campeonato-brasileiro-serie-a",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.004918366620570053,
+   "lcp": 124,
+   "imgNoAlt": 0,
+   "text": 1876,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "wide",
+   "name": "team",
+   "path": "/deportes/futbol/equipos/sao-paulo-fc",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.0020004061121999483,
+   "lcp": 148,
+   "imgNoAlt": 0,
+   "text": 2070,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "wide",
+   "name": "match",
+   "path": "/deportes/futbol/partido/sao-paulo-fc-sc-corinthians-paulista-2026-11-05",
+   "status": 200,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.0005321570149174443,
+   "lcp": 124,
+   "imgNoAlt": 0,
+   "text": 886,
+   "axe": [],
+   "errors": []
+  },
+  {
+   "size": "wide",
+   "name": "not-found-competition",
+   "path": "/deportes/futbol/competiciones/no-existe-xyz",
+   "status": 404,
+   "overflowX": 0,
+   "h1": 1,
+   "main": 1,
+   "smallTargets": [
+    "input:Buscar en Guía TV:458x23"
+   ],
+   "cls": 0.002014715073039993,
+   "lcp": 416,
+   "imgNoAlt": 0,
+   "text": 887,
+   "axe": [],
+   "errors": []
+  }
+ ]
+}
