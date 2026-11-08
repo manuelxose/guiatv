@@ -16,10 +16,21 @@ describe('football mapper', () => {
     });
 
     it('drops unsafe or missing image URLs so the UI falls back to a monogram', () => {
-      for (const bad of ['javascript:alert(1)', 'data:image/svg+xml,<svg/>', 'http://x/a.png', '/rel.png', 'https://u:p@x/a.png', '', null, undefined]) {
+      // Refused outright: executable/data schemes, relative paths, credentials.
+      for (const bad of ['javascript:alert(1)', 'data:image/svg+xml,<svg/>', '/rel.png', 'https://u:p@x/a.png', '', null, undefined]) {
         expect(safeImageUrl(bad)).toBeUndefined();
       }
       expect(mapTeam(team('a', 'Alpha')).crestUrl).toBeUndefined();
+    });
+
+    it('upgrades a plain http crest through the backend proxy instead of dropping the badge', () => {
+      // OpenLigaDB still publishes some badges over http://; an https page blocks
+      // them as mixed content, so they go through our size-capped proxy rather
+      // than leaving a blank circle.
+      const proxied = safeImageUrl('http://img.uefa.com/imgml/TP/teams/logos/32x32/50124.png');
+      expect(proxied).toContain('/v2/sports/football/image?url=');
+      expect(decodeURIComponent(proxied!)).toContain('https://img.uefa.com/');
+      expect(safeImageUrl('https://upload.wikimedia.org/a.svg')).toBe('https://upload.wikimedia.org/a.svg');
     });
   });
 
