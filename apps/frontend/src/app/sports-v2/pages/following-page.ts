@@ -88,7 +88,7 @@ export class Sv2FollowingPageComponent {
   protected readonly competitions = sv2Link('competiciones');
   protected readonly fixtures = sv2Link('partidos');
   constructor() {
-    usePageTitle(() => 'Mi fútbol');
+    usePageTitle(() => 'Mi fútbol', undefined, true);
   }
   protected link(...segments: string[]): string[] {
     return sv2Link(...segments);

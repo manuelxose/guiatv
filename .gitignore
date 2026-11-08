@@ -101,3 +101,9 @@ mcp.json
 artifacts/m14r7/mongo-data/
 artifacts/m14r7/storage/
 artifacts/m14r7/logs/
+
+# AgentTeams runtime state (local only, never committed)
+.agent-teams/
+
+# M06 sports-v2 probe artifacts: JSON + screenshots are committed, tmp output is not
+/artifacts/m06/tmp/

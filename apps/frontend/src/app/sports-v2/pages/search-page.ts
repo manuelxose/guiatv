@@ -77,7 +77,7 @@ export class Sv2SearchPageComponent {
   ]);
 
   constructor() {
-    usePageTitle(() => (this.q().trim() ? `Buscar «${this.q().trim()}»` : 'Buscar'));
+    usePageTitle(() => (this.q().trim() ? `Buscar «${this.q().trim()}»` : 'Buscar'), undefined, true);
     effect(() => this.store.searchRemote(this.q()));
   }
 

@@ -70,7 +70,7 @@ describe('sports-v2 SEO', () => {
     seo.set({ title: 'A - B', description: 'd', segments: ['partido', 'a-b-2026-11-05'] });
     const f = TestBed.createComponent(HostComponent);
     f.detectChanges();
-    expect(canonical()).toBe('https://guiaprogramaciontv.com/laboratorio/futbol/partido/a-b-2026-11-05');
+    expect(canonical()).toBe('https://guiaprogramaciontv.com/deportes/futbol/partido/a-b-2026-11-05');
     expect(doc().title).toContain('A - B');
     f.destroy();
     expect(canonical()).toBeUndefined();
@@ -105,6 +105,6 @@ describe('sports-v2 SEO', () => {
 
   it('builds ordered breadcrumbs with absolute URLs', () => {
     const b = breadcrumbs('https://x.test', [['Fútbol', sv2Path()], ['Liga', sv2Path(['competiciones', 'liga'])]]) as { itemListElement: { position: number; item: string }[] };
-    expect(b.itemListElement.map((i) => [i.position, i.item])).toEqual([[1, 'https://x.test/laboratorio/futbol'], [2, 'https://x.test/laboratorio/futbol/competiciones/liga']]);
+    expect(b.itemListElement.map((i) => [i.position, i.item])).toEqual([[1, 'https://x.test/deportes/futbol'], [2, 'https://x.test/deportes/futbol/competiciones/liga']]);
   });
 });

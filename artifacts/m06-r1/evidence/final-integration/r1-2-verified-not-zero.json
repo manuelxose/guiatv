@@ -1,0 +1,26 @@
+{
+  "history": [
+    {
+      "status": "skipped",
+      "recordsFetched": null,
+      "recordsFetchedState": "not_measured",
+      "skipReason": "lock_held"
+    },
+    {
+      "status": "succeeded",
+      "recordsFetched": 1444,
+      "recordsFetchedState": "observed"
+    },
+    {
+      "status": "skipped",
+      "recordsFetched": 0,
+      "recordsFetchedState": "observed",
+      "skipReason": "lock_held"
+    },
+    {
+      "status": "succeeded",
+      "recordsFetched": 1444,
+      "recordsFetchedState": "observed"
+    }
+  ]
+}

@@ -73,6 +73,37 @@ export class HttpFootballData extends FootballData {
     return this.fromMatches(matches, []);
   }
 
+  /**
+   * Asks the provider for a bounded forward window and returns the first day on
+   * which this competition actually plays. Without it a competition whose next
+   * round is weeks away (Europa League) looks empty, because only ±1 day of
+   * fixtures is preloaded.
+   */
+  override async nextCompetitionDay(competitionSlug: string, fromKey: string, searchDays = 120): Promise<string | null> {
+    const from = new Date(`${fromKey}T00:00:00Z`);
+    if (Number.isNaN(from.getTime())) return null;
+    // The public API accepts at most 10 days per request (it protects the upstream
+    // provider), so walk forward in bounded windows until a fixture is found.
+    const WINDOW = 9;
+    for (let offset = 0; offset <= searchDays; offset += WINDOW + 1) {
+      try {
+        const { matches } = await this.get<{ matches: ApiMatch[] }>('/matches', {
+          competition: competitionSlug,
+          dateFrom: addDays(dayKey(from), offset),
+          dateTo: addDays(dayKey(from), Math.min(offset + WINDOW, searchDays)),
+        });
+        const days = matches
+          .map((m) => dayKey(new Date(m.kickoffAt)))
+          .filter((d) => d >= fromKey)
+          .sort();
+        if (days.length) return days[0];
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+
   override async competition(slug: string): Promise<Partial<SportsSnapshot>> {
     const d = await this.get<{ competition: ApiCompetition; matches: ApiMatch[]; standings: ApiStandingRow[]; news: ApiNews[] }>(`/competitions/${encodeURIComponent(slug)}`);
     const snap = this.fromMatches(d.matches, [d.competition]);
@@ -118,3 +149,4 @@ export class HttpFootballData extends FootballData {
     return mergeSnapshots(EMPTY, { teams: apiTeams.map(mapTeam), competitions: comps.map(mapCompetition), matches: apiMatches.map(mapMatch) });
   }
 }
+

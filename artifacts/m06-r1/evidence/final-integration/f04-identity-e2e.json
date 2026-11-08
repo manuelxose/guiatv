@@ -1,0 +1,8 @@
+{
+  "docsAfterRenameAndReschedule": 1,
+  "docsAfterDistinctMatch": 2,
+  "byCurrentSlug": true,
+  "byProviderId": true,
+  "byStaleOriginalSlug": true,
+  "matchReturnedForOldSlug": "333"
+}

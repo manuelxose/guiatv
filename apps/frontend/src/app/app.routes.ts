@@ -1,6 +1,5 @@
 import { Routes } from '@angular/router';
 import { BLOG_ROUTES } from './blog/blog.routes';
-import { FOOTBALL_ROUTES } from './features/football/football.routes';
 import { adminGuard } from './guards/admin.guard';
 import { NotFoundComponent } from './pages/not-found/not-found.component';
 
@@ -152,20 +151,15 @@ export const routes: Routes = [
     data: { tab: 'streaming', layout: 'portal-page' }
   },
   {
-    // Sports v2 (greenfield rebuild, M01): isolated, noindex preview. See docs/sports-v2/ROUTES.md.
-    path: 'laboratorio/futbol',
+    // Sports v2: the football section (docs/sports-v2/ROUTES.md). Legacy FOOTBALL_ROUTES is no longer mounted.
+    path: 'deportes/futbol',
     loadChildren: () => import('./sports-v2/sports-v2.routes').then((m) => m.SPORTS_V2_ROUTES),
-    data: { robots: 'noindex, nofollow', layout: 'minimal-shell' },
+    data: { layout: 'minimal-shell' },
   },
   {
     path: 'deportes',
     pathMatch: 'full',
     redirectTo: 'deportes/futbol',
-  },
-  {
-    path: 'deportes',
-    children: FOOTBALL_ROUTES,
-    data: { layout: 'portal-page' },
   },
   {
     path: 'contenido/:catalogId',

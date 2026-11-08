@@ -23,6 +23,7 @@ import { AdminEditorialSectionComponent } from './sections/editorial/admin-edito
 import { AdminRejectedInboxComponent } from './sections/editorial/rejected-inbox/admin-rejected-inbox.component';
 import { AdminSeoSectionComponent } from './sections/seo/admin-seo-section.component';
 import { AdminFlowGuideComponent } from './sections/editorial/flow-guide/admin-flow-guide.component';
+import { AdminFootballSectionComponent } from './sections/football/admin-football-section.component';
 
 @Component({
   selector: 'app-admin-panel',
@@ -46,6 +47,7 @@ import { AdminFlowGuideComponent } from './sections/editorial/flow-guide/admin-f
     AdminRejectedInboxComponent,
     AdminSeoSectionComponent,
     AdminFlowGuideComponent,
+    AdminFootballSectionComponent,
   ],
   templateUrl: './admin.component.html',
   styleUrls: ['./admin.component.scss'],
@@ -156,11 +158,25 @@ export class AdminComponent implements OnInit, OnDestroy {
       icon: 'M4 6h10 M4 12h16 M4 18h7 M17 5v2 M9 11v2 M14 17v2',
       items: [
         { id: 'overview', label: 'Attention overview', description: 'Operational health and active work' },
-        { id: 'football', label: 'Football operations', description: 'Provider, fixtures and mappings' },
         { id: 'jobs', label: 'Background jobs', description: 'Queued, running and failed work' },
         { id: 'alerts', label: 'Alerts', description: 'Actionable operational conditions' },
         { id: 'events', label: 'Operational events', description: 'Structured, redacted activity' },
         { id: 'cache', label: 'Cache & runtime', description: 'Health and safe cache controls' },
+      ],
+    },
+    {
+      id: 'futbol',
+      label: 'Fútbol',
+      icon: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z M12 7l4 3-1.5 5h-5L8 10l4-3Z',
+      items: [
+        { id: 'centro-de-control', label: 'Centro de control', description: 'Salud global de la ingesta y problemas accionables' },
+        { id: 'proveedores', label: 'Proveedores y APIs', description: 'Elegibilidad, cuota y estado de cada proveedor' },
+        { id: 'cobertura', label: 'Cobertura de datos', description: 'Matriz de campos por competición y temporada' },
+        { id: 'partidos', label: 'Partidos', description: 'Partidos, inspector, eventos y alineaciones' },
+        { id: 'entidades', label: 'Competiciones y entidades', description: 'Identidades canónicas y mapeos' },
+        { id: 'retransmisiones', label: 'Retransmisiones', description: 'Canales verificados y conciliación EPG' },
+        { id: 'sincronizacion', label: 'Sincronización', description: 'Planificador, colas y presupuestos' },
+        { id: 'calidad', label: 'Calidad y auditoría', description: 'Conflictos, duplicados y datos obsoletos' },
       ],
     },
     {
@@ -301,7 +317,7 @@ export class AdminComponent implements OnInit, OnDestroy {
     const keepsUpdated =
       group === 'overview' || group === 'analytics' || group === 'users' || group === 'content'
       || group === 'schedules' || group === 'operations' || group === 'system'
-      || group === 'monetization';
+      || group === 'monetization' || group === 'futbol';
     if (!keepsUpdated) {
       this.lastUpdated = null;
     }

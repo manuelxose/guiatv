@@ -1,0 +1,17 @@
+[
+  {
+    "path": "/v2/admin/football/overview",
+    "status": 401,
+    "head": "{\"success\":false,\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Authorization token missing\"}}"
+  },
+  {
+    "path": "/v2/admin/jobs",
+    "status": 401,
+    "head": "{\"success\":false,\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Authorization token missing\"}}"
+  },
+  {
+    "path": "/v2/admin/football/overview (Bearer bogus)",
+    "status": 401,
+    "head": "{\"success\":false,\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Invalid or expired token\"}}"
+  }
+]

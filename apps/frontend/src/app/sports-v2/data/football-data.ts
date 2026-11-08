@@ -25,6 +25,17 @@ export abstract class FootballData {
   day(_key: string): Promise<Partial<SportsSnapshot>> {
     return Promise.resolve({});
   }
+  /**
+   * The next day (from `fromKey`, inclusive) on which `competitionSlug` actually plays.
+   *
+   * A competition such as the Europa League plays every few weeks, so its next
+   * fixture is usually OUTSIDE the preloaded window. Searching only the days that
+   * are already in memory makes the competition look empty; this asks the provider
+   * for a bounded forward range instead. Null means "no fixture found in range".
+   */
+  nextCompetitionDay(_competitionSlug: string, _fromKey: string, _searchDays = 60): Promise<string | null> {
+    return Promise.resolve(null);
+  }
   /** Standings, fixtures and news of one competition. */
   competition(_slug: string): Promise<Partial<SportsSnapshot>> {
     return Promise.resolve({});

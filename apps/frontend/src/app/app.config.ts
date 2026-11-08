@@ -13,7 +13,7 @@ import {
 import { registerLocaleData } from '@angular/common';
 import localeEs from '@angular/common/locales/es';
 import { provideAnimations } from '@angular/platform-browser/animations';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withEnabledBlockingInitialNavigation } from '@angular/router';
 // Preserve interactions made before the client bundle finishes hydrating.
 import { provideClientHydration, withEventReplay, withHttpTransferCacheOptions } from '@angular/platform-browser';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
@@ -39,7 +39,9 @@ export const appConfig: ApplicationConfig = {
   providers: [
     { provide: LOCALE_ID, useValue: 'es-ES' },
     // Providers básicos de Angular para standalone
-    provideRouter(routes),
+    // Blocking initial navigation: the root component must see the real route (layout) when it hydrates, or the
+    // client renders the default shell and replaces the whole server DOM (measured CLS 1.25 on every page).
+    provideRouter(routes, withEnabledBlockingInitialNavigation()),
     // Fetch API es requerida para SSR moderno
     provideHttpClient(withFetch(), withInterceptors([authRefreshInterceptor])),
     // Must be present in both browser and server application configs so SSR

@@ -1,0 +1,126 @@
+{
+  "matchID": 87388,
+  "matchDateTime": "2026-09-08T18:45:00",
+  "timeZoneID": null,
+  "leagueId": 4946,
+  "leagueName": "Champions League 2026/2027",
+  "leagueSeason": 2026,
+  "leagueShortcut": "ucl",
+  "matchDateTimeUTC": "2026-09-08T16:45:00Z",
+  "group": {
+    "groupName": "1.Spieltag",
+    "groupOrderID": 1,
+    "groupID": 50855
+  },
+  "team1": {
+    "teamId": 1210,
+    "teamName": "FC Brügge",
+    "shortName": "Brügge",
+    "teamIconUrl": "http://img.uefa.com/imgml/TP/teams/logos/32x32/50043.png",
+    "teamGroupName": null,
+    "tla": null,
+    "wikidataId": null
+  },
+  "team2": {
+    "teamId": 438,
+    "teamName": "Aston Villa",
+    "shortName": "Villa",
+    "teamIconUrl": "data:image/png;base64,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",
+    "teamGroupName": null,
+    "tla": null,
+    "wikidataId": null
+  },
+  "lastUpdateDateTime": "2026-09-08T20:40:14.45",
+  "matchIsFinished": true,
+  "matchResults": [
+    {
+      "resultID": 128026,
+      "resultName": "Halbzeit",
+      "pointsTeam1": 1,
+      "pointsTeam2": 3,
+      "resultOrderID": 1,
+      "resultTypeID": 1,
+      "resultTypeKind": "HalfTime",
+      "resultDescription": "Ergebnis nach Ende der ersten Halbzeit"
+    },
+    {
+      "resultID": 128027,
+      "resultName": "Endergebnis",
+      "pointsTeam1": 2,
+      "pointsTeam2": 3,
+      "resultOrderID": 2,
+      "resultTypeID": 2,
+      "resultTypeKind": "After90Minutes",
+      "resultDescription": "Ergebnis nach Ende der offiziellen Spielzeit"
+    }
+  ],
+  "goals": [
+    {
+      "goalID": 147151,
+      "scoreTeam1": 0,
+      "scoreTeam2": 1,
+      "matchMinute": 11,
+      "goalGetterID": 26026,
+      "goalGetterName": "John McGinn",
+      "scoringTeamId": 438,
+      "isPenalty": false,
+      "isOwnGoal": false,
+      "isOvertime": false,
+      "comment": null
+    },
+    {
+      "goalID": 147152,
+      "scoreTeam1": 1,
+      "scoreTeam2": 1,
+      "matchMinute": 19,
+      "goalGetterID": 27439,
+      "goalGetterName": "Hugo Vetlesen",
+      "scoringTeamId": 1210,
+      "isPenalty": false,
+      "isOwnGoal": false,
+      "isOvertime": false,
+      "comment": null
+    },
+    {
+      "goalID": 147154,
+      "scoreTeam1": 1,
+      "scoreTeam2": 2,
+      "matchMinute": 22,
+      "goalGetterID": 23387,
+      "goalGetterName": "Emiliano Buendía",
+      "scoringTeamId": 438,
+      "isPenalty": false,
+      "isOwnGoal": false,
+      "isOvertime": false,
+      "comment": null
+    },
+    {
+      "goalID": 147155,
+      "scoreTeam1": 1,
+      "scoreTeam2": 3,
+      "matchMinute": 44,
+      "goalGetterID": 23959,
+      "goalGetterName": "Nicolas Jackson",
+      "scoringTeamId": 438,
+      "isPenalty": false,
+      "isOwnGoal": false,
+      "isOvertime": false,
+      "comment": null
+    },
+    {
+      "goalID": 147156,
+      "scoreTeam1": 2,
+      "scoreTeam2": 3,
+      "matchMinute": 61,
+      "goalGetterID": 20284,
+      "goalGetterName": "N. Tresoldi",
+      "scoringTeamId": 1210,
+      "isPenalty": false,
+      "isOwnGoal": false,
+      "isOvertime": false,
+      "comment": null
+    }
+  ],
+  "location": null,
+  "numberOfViewers": null
+}

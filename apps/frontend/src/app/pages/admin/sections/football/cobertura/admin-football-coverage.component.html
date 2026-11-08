@@ -1,0 +1,42 @@
+<div class="space-y-6">
+  <div *ngIf="unauthorized" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative)]">
+    {{ error }}
+  </div>
+
+  <div *ngIf="!unauthorized && error" class="rounded-xl border border-[var(--spotify-negative)]/40 bg-[var(--spotify-negative)]/10 p-4 text-sm text-[var(--spotify-negative)]">
+    <p class="mb-2">{{ error }}</p>
+    <button type="button" class="px-3 py-2 text-xs rounded-xl border border-[var(--portal-border)] text-[var(--portal-text)]" (click)="load()">Reintentar</button>
+  </div>
+
+  <p *ngIf="loading && !report" class="text-sm text-[var(--portal-text-muted)]">Cargando cobertura…</p>
+
+  <ng-container *ngIf="report">
+    <div class="bg-[var(--portal-surface)] border border-[var(--portal-border)] rounded-2xl overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="text-left text-[var(--portal-text-muted)]">
+          <tr>
+            <th class="p-4">Competición</th>
+            <th>Tipo</th>
+            <th>Temporada</th>
+            <th>Cobertura</th>
+            <th>Snapshots</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of report.rows" class="border-t border-[var(--portal-border)]">
+            <td class="p-4 text-[var(--portal-text)]">{{ row.name }}</td>
+            <td class="text-[var(--portal-text-soft)]">{{ row.type }}</td>
+            <td class="text-[var(--portal-text-soft)]">{{ row.seasonLabel || '—' }}</td>
+            <td>
+              <app-admin-status-badge [status]="stateStatus(row.coverageState)" [label]="stateLabel(row.coverageState)"></app-admin-status-badge>
+            </td>
+            <td class="text-[var(--portal-text-soft)]">{{ snapshotLabel(row) }}</td>
+          </tr>
+          <tr *ngIf="!report.rows.length">
+            <td colspan="5" class="p-4 text-[var(--portal-text-muted)]">No hay competiciones registradas.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </ng-container>
+</div>

@@ -25,19 +25,59 @@ export class FallbackFootballDataProvider implements FootballDataProvider {
   }
 
   getMatches(query: FootballMatchQuery): Promise<FootballMatch[]> {
-    return this.withFallback(() => this.primary.getMatches(query), () => this.secondary.getMatches(query));
+    return this.fillGaps(() => this.primary.getMatches(query), () => this.secondary.getMatches(query), query.limit);
   }
 
   getLiveMatches(): Promise<FootballMatch[]> {
-    return this.withFallback(() => this.primary.getLiveMatches(), () => this.secondary.getLiveMatches());
+    return this.fillGaps(() => this.primary.getLiveMatches(), () => this.secondary.getLiveMatches());
+  }
+
+  /**
+   * Competitions the primary provider does not return at all (e.g. Europa League on a free
+   * football-data.org plan) are completed from the EPG. A competition the primary does return
+   * is never touched, so the EPG cannot contradict or duplicate the primary's fixtures.
+   */
+  private async fillGaps(
+    primary: () => Promise<FootballMatch[]>,
+    secondary: () => Promise<FootballMatch[]>,
+    limit?: number
+  ): Promise<FootballMatch[]> {
+    let main: FootballMatch[];
+    try {
+      main = await primary();
+    } catch {
+      return secondary();
+    }
+    let extra: FootballMatch[] = [];
+    try {
+      const covered = new Set(main.map((m) => m.competition.slug));
+      extra = (await secondary()).filter((m) => !covered.has(m.competition.slug));
+    } catch {
+      // shortcut: EPG failure only loses the extra fixtures; the primary result still stands
+    }
+    if (!extra.length) return main;
+    const merged = [...main, ...extra].sort((a, b) => a.kickoffAt.localeCompare(b.kickoffAt));
+    return limit ? merged.slice(0, limit) : merged;
   }
 
   getMatch(idOrSlug: string): Promise<FootballMatch | null> {
     return this.withNullableFallback(() => this.primary.getMatch(idOrSlug), () => this.secondary.getMatch(idOrSlug));
   }
 
-  getCompetitions(): Promise<FootballCompetition[]> {
-    return this.withFallback(() => this.primary.getCompetitions(), () => this.secondary.getCompetitions());
+  /** Primary entries win; catalog competitions the primary lacks (e.g. Europa League) are appended. */
+  async getCompetitions(): Promise<FootballCompetition[]> {
+    let main: FootballCompetition[];
+    try {
+      main = await this.primary.getCompetitions();
+    } catch {
+      return this.secondary.getCompetitions();
+    }
+    try {
+      const have = new Set(main.map((c) => c.slug));
+      return [...main, ...(await this.secondary.getCompetitions()).filter((c) => !have.has(c.slug))];
+    } catch {
+      return main;
+    }
   }
 
   getCompetition(slug: string): Promise<FootballCompetition | null> {

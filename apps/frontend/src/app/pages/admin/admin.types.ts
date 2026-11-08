@@ -5,6 +5,7 @@ export type AdminGroupId =
   | 'content'
   | 'monetization'
   | 'schedules'
+  | 'futbol'
   | 'users'
   | 'operations'
   | 'system'
