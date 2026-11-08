@@ -21,6 +21,19 @@
  */
 
 import { FootballSnapshotModel } from '../../../infrastructure/sports/persistence/models';
+
+/** Madrid is UTC+1 in winter and UTC+2 in summer; the day window uses the current offset. */
+const MADRID_OFFSET_MS = (() => {
+  const now = new Date();
+  const utc = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
+  const madrid = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));
+  return madrid.getTime() - utc.getTime();
+})();
+
+/** YYYY-MM-DD for a Madrid calendar day. */
+function madridDayKey(date: Date): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+}
 import {
   FootballCompetition,
   FootballDataProvider,
@@ -110,12 +123,82 @@ export class SnapshotFootballDataProvider implements FootballDataProvider {
   }
 
   /**
-   * Standings are NOT provided. OpenLigaDB publishes no table, so returning an
-   * empty array is the truthful answer and callers must render "not available"
-   * rather than an empty league table.
+   * Standings computed FROM the real finished results we have ingested.
+   *
+   * OpenLigaDB publishes no standings table, so returning an empty array made
+   * /clasificaciones useless even though every result is stored. A league table
+   * is a deterministic function of finished matches with a real score, so it is
+   * DERIVED here rather than invented: a match whose score is absent is skipped,
+   * and a competition with no finished matches still returns an empty array
+   * (callers render "not available", never a fake table).
    */
-  async getStandings(_competitionSlug: string): Promise<FootballStandingRow[]> {
-    return [];
+  async getStandings(competitionSlug: string): Promise<FootballStandingRow[]> {
+    const slug = String(competitionSlug ?? '').trim();
+    if (!slug) return [];
+    const docs = await FootballSnapshotModel.find({
+      competitionSlug: slug,
+      'match.status': 'finished',
+      'match.score.home': { $ne: null },
+      'match.score.away': { $ne: null },
+    })
+      .lean()
+      .exec();
+
+    interface Tally { team: FootballStandingRow['team']; played: number; won: number; drawn: number; lost: number; goalsFor: number; goalsAgainst: number; }
+    const tally = new Map<string, Tally>();
+    const row = (team: FootballStandingRow['team']): Tally => {
+      const key = team.slug || team.id || team.name;
+      let t = tally.get(key);
+      if (!t) {
+        t = { team, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 };
+        tally.set(key, t);
+      }
+      return t;
+    };
+
+    for (const doc of docs as any[]) {
+      const match = doc?.match;
+      const home = match?.homeTeam;
+      const away = match?.awayTeam;
+      const hs = match?.score?.home;
+      const as = match?.score?.away;
+      if (!home || !away || typeof hs !== 'number' || typeof as !== 'number') continue;
+      const h = row(home);
+      const a = row(away);
+      h.played += 1;
+      a.played += 1;
+      h.goalsFor += hs;
+      h.goalsAgainst += as;
+      a.goalsFor += as;
+      a.goalsAgainst += hs;
+      if (hs > as) { h.won += 1; a.lost += 1; }
+      else if (hs < as) { a.won += 1; h.lost += 1; }
+      else { h.drawn += 1; a.drawn += 1; }
+    }
+
+    const rows = [...tally.values()].map((t) => ({
+      position: 0,
+      team: t.team,
+      played: t.played,
+      won: t.won,
+      drawn: t.drawn,
+      lost: t.lost,
+      goalsFor: t.goalsFor,
+      goalsAgainst: t.goalsAgainst,
+      goalDifference: t.goalsFor - t.goalsAgainst,
+      points: t.won * 3 + t.drawn,
+    }));
+
+    // Standard football ordering: points, goal difference, goals scored, name.
+    rows.sort(
+      (x, y) =>
+        y.points - x.points ||
+        y.goalDifference - x.goalDifference ||
+        y.goalsFor - x.goalsFor ||
+        String(x.team?.name ?? '').localeCompare(String(y.team?.name ?? ''), 'es')
+    );
+    rows.forEach((r, i) => { r.position = i + 1; });
+    return rows as FootballStandingRow[];
   }
 
   async getTeams(): Promise<FootballTeam[]> {
@@ -172,14 +255,27 @@ export class SnapshotFootballDataProvider implements FootballDataProvider {
       // dropped and the endpoint answered with matches from ANY date - which is
       // why a fixture outside the first page (e.g. the Europa League round)
       // appeared to be missing.
-      const raw = String(query.date).trim();
-      const normalised = /^\d{8}$/.test(raw)
-        ? `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`
-        : raw;
+      // Accept every form the public API receives. `date=today` was silently
+      // unparseable, so the day filter was DROPPED and the endpoint answered with
+      // hundreds of matches from ANY date - which is why "today" showed August
+      // results and a match being played right now was never marked live.
+      const raw = String(query.date).trim().toLowerCase();
+      const todayKey = madridDayKey(new Date());
+      const relative: Record<string, string> = {
+        today: todayKey,
+        yesterday: madridDayKey(new Date(Date.now() - 86_400_000)),
+        tomorrow: madridDayKey(new Date(Date.now() + 86_400_000)),
+      };
+      const expanded = relative[raw] ?? raw;
+      const normalised = /^\d{8}$/.test(expanded)
+        ? `${expanded.slice(0, 4)}-${expanded.slice(4, 6)}-${expanded.slice(6, 8)}`
+        : expanded;
       const start = new Date(normalised);
       if (!Number.isNaN(start.getTime())) {
-        kickoff.$gte = new Date(start).toISOString();
-        kickoff.$lte = new Date(start.getTime() + 24 * 60 * 60 * 1000).toISOString();
+        // One Madrid calendar day, not a rolling 24h window from midnight UTC.
+        const dayStart = new Date(`${normalised}T00:00:00.000Z`);
+        kickoff.$gte = new Date(dayStart.getTime() - MADRID_OFFSET_MS).toISOString();
+        kickoff.$lte = new Date(dayStart.getTime() - MADRID_OFFSET_MS + 86_400_000 - 1).toISOString();
       }
     }
     if (Object.keys(kickoff).length > 0) filter['match.kickoffAt'] = kickoff;
