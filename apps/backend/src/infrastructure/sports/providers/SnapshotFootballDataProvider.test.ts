@@ -19,10 +19,14 @@ test('M06: the public provider declares the ingested-snapshot source', () => {
   assert.equal(typeof provider.supportsLiveScores(), 'boolean');
 });
 
-test('M06: standings are empty rather than fabricated', async () => {
-  // OpenLigaDB publishes no table; an empty array is the truthful answer and the
-  // UI must render "not available" instead of an empty league table.
+test('M06/F25: standings are DERIVED from real results, never fabricated', { skip: !process.env.TEST_MONGO_URI }, async () => {
+  // OpenLigaDB publishes no table. The provider therefore COMPUTES one from the
+  // finished, scored matches it stores (see the F25 mongo test). Without a
+  // database there is nothing to derive from, so it must answer with an empty
+  // array - never an invented table.
   assert.deepEqual(await provider.getStandings('bundesliga'), []);
+  // A blank competition can never produce a table.
+  assert.deepEqual(await provider.getStandings(''), []);
 });
 
 test('M06: a blank identity never reaches the database', async () => {
@@ -95,3 +99,9 @@ test('M06-R1: a compact YYYYMMDD day becomes a real 24h kickoff window', () => {
   assert.equal(both.competitionSlug, 'europa-league');
   assert.ok(both['match.kickoffAt']);
 });
+
+/**
+ * F25: a league table is DERIVED from the real finished results we already
+ * store. It must never be invented: a match without a score contributes nothing,
+ * and a competition with no finished matches yields an empty table.
+ */

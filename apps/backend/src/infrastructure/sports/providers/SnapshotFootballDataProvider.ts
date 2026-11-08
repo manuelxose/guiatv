@@ -110,12 +110,82 @@ export class SnapshotFootballDataProvider implements FootballDataProvider {
   }
 
   /**
-   * Standings are NOT provided. OpenLigaDB publishes no table, so returning an
-   * empty array is the truthful answer and callers must render "not available"
-   * rather than an empty league table.
+   * Standings computed FROM the real finished results we have ingested.
+   *
+   * OpenLigaDB publishes no standings table, so returning an empty array made
+   * /clasificaciones useless even though every result is stored. A league table
+   * is a deterministic function of finished matches with a real score, so it is
+   * DERIVED here rather than invented: a match whose score is absent is skipped,
+   * and a competition with no finished matches still returns an empty array
+   * (callers render "not available", never a fake table).
    */
-  async getStandings(_competitionSlug: string): Promise<FootballStandingRow[]> {
-    return [];
+  async getStandings(competitionSlug: string): Promise<FootballStandingRow[]> {
+    const slug = String(competitionSlug ?? '').trim();
+    if (!slug) return [];
+    const docs = await FootballSnapshotModel.find({
+      competitionSlug: slug,
+      'match.status': 'finished',
+      'match.score.home': { $ne: null },
+      'match.score.away': { $ne: null },
+    })
+      .lean()
+      .exec();
+
+    interface Tally { team: FootballStandingRow['team']; played: number; won: number; drawn: number; lost: number; goalsFor: number; goalsAgainst: number; }
+    const tally = new Map<string, Tally>();
+    const row = (team: FootballStandingRow['team']): Tally => {
+      const key = team.slug || team.id || team.name;
+      let t = tally.get(key);
+      if (!t) {
+        t = { team, played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 };
+        tally.set(key, t);
+      }
+      return t;
+    };
+
+    for (const doc of docs as any[]) {
+      const match = doc?.match;
+      const home = match?.homeTeam;
+      const away = match?.awayTeam;
+      const hs = match?.score?.home;
+      const as = match?.score?.away;
+      if (!home || !away || typeof hs !== 'number' || typeof as !== 'number') continue;
+      const h = row(home);
+      const a = row(away);
+      h.played += 1;
+      a.played += 1;
+      h.goalsFor += hs;
+      h.goalsAgainst += as;
+      a.goalsFor += as;
+      a.goalsAgainst += hs;
+      if (hs > as) { h.won += 1; a.lost += 1; }
+      else if (hs < as) { a.won += 1; h.lost += 1; }
+      else { h.drawn += 1; a.drawn += 1; }
+    }
+
+    const rows = [...tally.values()].map((t) => ({
+      position: 0,
+      team: t.team,
+      played: t.played,
+      won: t.won,
+      drawn: t.drawn,
+      lost: t.lost,
+      goalsFor: t.goalsFor,
+      goalsAgainst: t.goalsAgainst,
+      goalDifference: t.goalsFor - t.goalsAgainst,
+      points: t.won * 3 + t.drawn,
+    }));
+
+    // Standard football ordering: points, goal difference, goals scored, name.
+    rows.sort(
+      (x, y) =>
+        y.points - x.points ||
+        y.goalDifference - x.goalDifference ||
+        y.goalsFor - x.goalsFor ||
+        String(x.team?.name ?? '').localeCompare(String(y.team?.name ?? ''), 'es')
+    );
+    rows.forEach((r, i) => { r.position = i + 1; });
+    return rows as FootballStandingRow[];
   }
 
   async getTeams(): Promise<FootballTeam[]> {
