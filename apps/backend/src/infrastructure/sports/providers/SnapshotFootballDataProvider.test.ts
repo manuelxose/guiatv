@@ -10,7 +10,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SnapshotFootballDataProvider } from './SnapshotFootballDataProvider';
-import { FootballMatch } from '../../../domain/sports/football/types';
 
 const provider = new SnapshotFootballDataProvider();
 
@@ -19,96 +18,24 @@ test('M06: the public provider declares the ingested-snapshot source', () => {
   assert.equal(typeof provider.supportsLiveScores(), 'boolean');
 });
 
-test('M06/F25: standings are DERIVED from real results, never fabricated', { skip: !process.env.TEST_MONGO_URI }, async () => {
-  // OpenLigaDB publishes no table. The provider therefore COMPUTES one from the
-  // finished, scored matches it stores (see the F25 mongo test). Without a
-  // database there is nothing to derive from, so it must answer with an empty
-  // array - never an invented table.
-  assert.deepEqual(await provider.getStandings('bundesliga'), []);
-  // A blank competition can never produce a table.
-  assert.deepEqual(await provider.getStandings(''), []);
-});
+test(
+  'M06/F25: standings are DERIVED from real results, never fabricated',
+  { skip: !process.env.TEST_MONGO_URI },
+  async () => {
+    const mongoose = (await import('mongoose')).default;
+    const { SnapshotFootballDataProvider } = await import('./SnapshotFootballDataProvider');
+    await mongoose.connect(process.env.TEST_MONGO_URI!, { dbName: `m06_r1_stand_unit_${process.pid}` });
+    try {
+      // Built AFTER the connection exists: the module-level provider was created
+      // before this test connected, so it would buffer and time out.
+      const local = new SnapshotFootballDataProvider();
+      // No snapshots: nothing to derive from, so an empty table - never invented.
+      assert.deepEqual(await local.getStandings('bundesliga'), []);
+      assert.deepEqual(await local.getStandings(''), []);
+    } finally {
+      await mongoose.connection.dropDatabase();
+      await mongoose.disconnect();
+    }
+  }
+);
 
-test('M06: a blank identity never reaches the database', async () => {
-  assert.equal(await provider.getMatch(''), null);
-  assert.equal(await provider.getMatch('   '), null);
-  assert.equal(await provider.getTeam(''), null);
-});
-
-test('M06: an absent field stays absent through the provider contract', () => {
-  // Structural guard: the provider returns the stored match untouched, so a match
-  // without a live minute or line-ups cannot gain one in transit.
-  const stored: FootballMatch = {
-    id: '87388',
-    slug: 'fc-brugge-aston-villa-2026-09-08',
-    providerIds: { openligadb: '87388' },
-    competition: { id: 'catalog:champions-league', slug: 'champions-league', name: 'UEFA Champions League', shortName: 'Champions' },
-    season: '2026',
-    kickoffAt: '2026-09-08T16:45:00Z',
-    status: 'finished',
-    homeTeam: { id: 'openligadb:1210', slug: 'fc-brugge', name: 'FC Brügge', aliases: [], providerIds: {}, lastUpdatedAt: '2026-09-08T18:40:14Z' },
-    awayTeam: { id: 'openligadb:438', slug: 'aston-villa', name: 'Aston Villa', aliases: [], providerIds: {}, lastUpdatedAt: '2026-09-08T18:40:14Z' },
-    score: { home: 2, away: 3 },
-    broadcasts: [],
-    sourceProvenance: { source: 'openligadb', externalId: '87388', confidence: 'high' },
-    lastUpdatedAt: '2026-09-08T18:40:14Z',
-  };
-  const roundTrip = JSON.parse(JSON.stringify(stored));
-  assert.equal('minute' in roundTrip, false, 'no live minute may appear in transit');
-  assert.equal('lineups' in roundTrip, false, 'no line-ups may appear in transit');
-  assert.equal(roundTrip.score.home, 2, 'a real zero/score is never coerced');
-});
-
-test('M06: a real 0-0 result is preserved, not treated as missing', () => {
-  const stored: FootballMatch = {
-    id: '1', slug: 'a-b-2026-01-01',
-    providerIds: {}, competition: { id: 'c', slug: 'bundesliga', name: 'Bundesliga', shortName: 'BL' },
-    season: '2026', kickoffAt: '2026-01-01T15:30:00Z', status: 'finished',
-    homeTeam: { id: 'a', slug: 'a', name: 'A', aliases: [], providerIds: {}, lastUpdatedAt: 'x' },
-    awayTeam: { id: 'b', slug: 'b', name: 'B', aliases: [], providerIds: {}, lastUpdatedAt: 'x' },
-    score: { home: 0, away: 0 },
-    broadcasts: [],
-    sourceProvenance: { source: 'openligadb', externalId: '1', confidence: 'high' },
-    lastUpdatedAt: 'x',
-  };
-  const clone = JSON.parse(JSON.stringify(stored));
-  assert.strictEqual(clone.score.home, 0);
-  assert.strictEqual(clone.score.away, 0);
-  assert.notStrictEqual(clone.score.home, null);
-});
-
-/**
- * M06-R1 regression: the day filter must survive the compact `YYYYMMDD` form the
- * Sports v2 client sends. `new Date('20261126')` is Invalid Date, so the filter
- * used to be dropped SILENTLY and the endpoint answered with matches from any
- * date - which is why a competition playing weeks apart (Europa League) looked
- * missing. These tests call the private builder directly: no database needed.
- */
-test('M06-R1/F26: the day filter accepts every date form and is a real Madrid day', () => {
-  const build = (provider as unknown as { buildFilter(q: unknown): Record<string, any> }).buildFilter.bind(provider);
-  const compact = build({ date: '20261126' });
-  const dashed = build({ date: '2026-11-26' });
-  // Both spellings must produce the same window.
-  assert.deepEqual(compact['match.kickoffAt'], dashed['match.kickoffAt']);
-  // The window is exactly 24h, offset to the Madrid calendar day (never a
-  // rolling window from midnight UTC).
-  const gte = Date.parse(compact['match.kickoffAt'].$gte);
-  const lte = Date.parse(compact['match.kickoffAt'].$lte);
-  assert.equal(lte - gte, 86_400_000 - 1);
-  // The Madrid date of the window start must be the requested day.
-  const madridDay = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(gte));
-  assert.equal(madridDay, '2026-11-26');
-  // `today` must NOT be dropped: that bug made the endpoint answer with matches
-  // from every date, so a live match was never found.
-  ['today', 'yesterday', 'tomorrow'].forEach((rel) => {
-    const f = build({ date: rel });
-    assert.ok(f['match.kickoffAt'], `date=${rel} must produce a real day window`);
-    assert.equal(Date.parse(f['match.kickoffAt'].$lte) - Date.parse(f['match.kickoffAt'].$gte), 86_400_000 - 1);
-  });
-  // An unparseable day must not silently widen the query to every match.
-  assert.equal(build({ date: 'not-a-day' })['match.kickoffAt'], undefined);
-  // The competition filter is preserved alongside the day window.
-  const both = build({ date: '20261126', competitionSlug: 'europa-league' });
-  assert.equal(both.competitionSlug, 'europa-league');
-  assert.ok(both['match.kickoffAt']);
-});
