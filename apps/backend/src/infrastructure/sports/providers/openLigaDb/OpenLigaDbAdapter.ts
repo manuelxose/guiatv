@@ -34,7 +34,7 @@
  * payloads without HTTP mocking. No `Date.now()` inside mapping — pass `now`.
  */
 
-import { FootballMatch, FootballScore, FootballTeam } from '@/domain/sports/football/types';
+import { FootballMatch, FootballScore, FootballTeam, FootballStandingRow } from '@/domain/sports/football/types';
 import { buildMatchSlug, slugify } from '@/application/sports/services/FootballNormalizer';
 import { getCompetitionCatalogBySlug } from '@/application/sports/services/FootballCompetitionCatalog';
 import { OpenLigaDbClient, OpenLigaDbError } from './OpenLigaDbClient';
@@ -381,3 +381,39 @@ export class OpenLigaDbAdapter {
     }
   }
 }
+
+/**
+ * F27: maps the provider's own league table (getbltable) into our standing rows.
+ * These are OFFICIAL season numbers, so played/points may exceed what our own
+ * finished-match arithmetic produced (we only hold the fixtures we fetched).
+ */
+export function mapBlTable(raw: unknown): FootballStandingRow[] {
+  const rows = Array.isArray(raw) ? raw : [];
+  const mapped = rows
+    .filter((r: any) => r && (r.teamName || r.teamInfoId))
+    .map((r: any) => ({
+      position: Number(r.rank ?? 0) || 0,
+      team: {
+        id: `openligadb:${String(r.teamInfoId ?? r.teamId)}`,
+        slug: slugify(String(r.teamName)),
+        name: String(r.teamName),
+        shortName: typeof r.shortName === 'string' ? r.shortName : undefined,
+        crest: typeof r.teamIconUrl === 'string' ? r.teamIconUrl : null,
+        aliases: [],
+        providerIds: { openligadb: String(r.teamInfoId ?? r.teamId) },
+        lastUpdatedAt: new Date().toISOString(),
+      } as FootballTeam,
+      played: Number(r.matches ?? 0),
+      won: Number(r.won ?? 0),
+      drawn: Number(r.draw ?? 0),
+      lost: Number(r.lost ?? 0),
+      goalsFor: Number(r.goals ?? 0),
+      goalsAgainst: Number(r.opponentGoals ?? 0),
+      goalDifference: Number(r.goalDiff ?? 0),
+      points: Number(r.points ?? 0),
+    }))
+    .sort((x, y) => y.points - x.points || y.goalDifference - x.goalDifference || y.goalsFor - x.goalsFor);
+  mapped.forEach((r, i) => { if (!r.position) r.position = i + 1; });
+  return mapped as FootballStandingRow[];
+}
+

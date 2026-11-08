@@ -68,3 +68,40 @@ export function startFootballIngestionLoop(options: { runOnStart?: boolean } = {
     },
   };
 }
+
+/**
+ * F27: fetch and store the provider's OWN league table for every planned
+ * competition. Best effort: a table failure must never fail the ingestion tick,
+ * and a competition without a table simply keeps the derived fallback.
+ */
+export async function refreshStandingsTables(): Promise<void> {
+  const mongoose = await import('mongoose');
+  if (mongoose.default.connection.readyState !== 1) return;
+  const { OpenLigaDbClient } = await import('../../infrastructure/sports/providers/openLigaDb/OpenLigaDbClient');
+  const { mapBlTable } = await import('../../infrastructure/sports/providers/openLigaDb/OpenLigaDbAdapter');
+  const { FootballStandingsTableModel } = await import('../../infrastructure/sports/persistence/models');
+  const { M06_OPENLIGADB_COMPETITIONS } = await import('./factory');
+  const { resolveCompetitionSlug } = await import('../../infrastructure/sports/providers/openLigaDb/OpenLigaDbAdapter');
+  const client = new OpenLigaDbClient(globalThis.fetch as never, {
+    userAgent: process.env.OPENLIGADB_USER_AGENT || 'guiatv-m06-ingestion/1.0',
+    timeoutMs: Number(process.env.OPENLIGADB_TIMEOUT_MS) || 10_000,
+  });
+  for (const entry of M06_OPENLIGADB_COMPETITIONS) {
+    for (const shortcut of entry.shortcuts) {
+      const slug = resolveCompetitionSlug(shortcut);
+      if (!slug) continue;
+      try {
+        const raw = await client.getTable(shortcut, entry.season);
+        const rows = mapBlTable(raw);
+        if (!rows.length) continue;
+        await FootballStandingsTableModel.updateOne(
+          { competitionSlug: slug, providerId: 'openligadb', season: entry.season },
+          { $set: { rows, fetchedAt: new Date() } },
+          { upsert: true }
+        ).exec();
+      } catch {
+        // Best effort: keep the last good table.
+      }
+    }
+  }
+}
