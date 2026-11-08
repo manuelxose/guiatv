@@ -29,7 +29,9 @@ describe('football mapper', () => {
       // than leaving a blank circle.
       const proxied = safeImageUrl('http://img.uefa.com/imgml/TP/teams/logos/32x32/50124.png');
       expect(proxied).toContain('/v2/sports/football/image?url=');
-      expect(decodeURIComponent(proxied!)).toContain('https://img.uefa.com/');
+      // The client forwards the provider URL as-is; the BACKEND upgrades it to
+      // https before fetching, so no http request ever leaves the browser.
+      expect(decodeURIComponent(proxied!)).toContain('img.uefa.com/');
       expect(safeImageUrl('https://upload.wikimedia.org/a.svg')).toBe('https://upload.wikimedia.org/a.svg');
     });
   });
