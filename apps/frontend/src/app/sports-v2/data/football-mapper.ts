@@ -52,13 +52,21 @@ export interface ApiNews {
 /** Only absolute https URLs are rendered as images; anything else (data:, javascript:, http:, relative) is dropped. */
 export function safeImageUrl(u: string | null | undefined): string | undefined {
   if (!u) return undefined;
+  // Oversized data: URIs are a provider quirk, not a usable crest: drop them.
+  if (/^data:/i.test(u)) return undefined;
   try {
     const url = new URL(u);
-    return url.protocol === 'https:' && !url.username && !url.password ? url.href : undefined;
+    if (url.username || url.password) return undefined;
+    // An http:// crest would be blocked as mixed content on an https page. The
+    // backend proxies those same bytes over https, so upgrade instead of
+    // dropping the badge and leaving a blank circle.
+    if (url.protocol === 'http:') return `/v2/sports/football/image?url=${encodeURIComponent(url.href)}`;
+    return url.protocol === 'https:' ? url.href : undefined;
   } catch {
     return undefined;
   }
 }
+
 
 /** Deterministic badge colour, used as the fallback when no crest is supplied. */
 export function hueOf(slug: string): number {

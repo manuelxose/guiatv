@@ -222,7 +222,11 @@ export function mapOpenLigaDbMatch(raw: unknown, now: Date): FootballMatch | nul
     season: record.leagueSeason != null ? String(record.leagueSeason) : undefined,
     round: typeof record.group?.groupName === 'string' ? record.group.groupName : undefined,
     kickoffAt: record.matchDateTimeUTC,
-    status: record.matchIsFinished === true ? 'finished' : 'scheduled',
+    // OpenLigaDB only tells us "finished or not" (no live minute), so a match is
+    // LIVE when it has not finished AND its kickoff already passed. That is a
+    // statement about the clock, never an invented scoreline: the score shown is
+    // whatever real result the provider currently has, which may still be empty.
+    status: record.matchIsFinished === true ? 'finished' : isKickoffPassed(record.matchDateTimeUTC, now) ? 'live' : 'scheduled',
     homeTeam,
     awayTeam,
     score,
@@ -244,6 +248,12 @@ export function mapOpenLigaDbMatch(raw: unknown, now: Date): FootballMatch | nul
     lastUpdatedAt:
       typeof record.lastUpdateDateTime === 'string' ? record.lastUpdateDateTime : now.toISOString(),
   };
+}
+
+/** True once the kickoff instant has passed (a live match the provider has not closed). */
+function isKickoffPassed(kickoffAt: string, now: Date): boolean {
+  const t = Date.parse(kickoffAt);
+  return !Number.isNaN(t) && t <= now.getTime();
 }
 
 function mapTeam(raw: Record<string, any>, now: Date): FootballTeam {

@@ -84,24 +84,31 @@ test('M06: a real 0-0 result is preserved, not treated as missing', () => {
  * date - which is why a competition playing weeks apart (Europa League) looked
  * missing. These tests call the private builder directly: no database needed.
  */
-test('M06-R1: a compact YYYYMMDD day becomes a real 24h kickoff window', () => {
+test('M06-R1/F26: the day filter accepts every date form and is a real Madrid day', () => {
   const build = (provider as unknown as { buildFilter(q: unknown): Record<string, any> }).buildFilter.bind(provider);
   const compact = build({ date: '20261126' });
   const dashed = build({ date: '2026-11-26' });
+  // Both spellings must produce the same window.
   assert.deepEqual(compact['match.kickoffAt'], dashed['match.kickoffAt']);
-  assert.equal(compact['match.kickoffAt'].$gte, '2026-11-26T00:00:00.000Z');
-  assert.equal(compact['match.kickoffAt'].$lte, '2026-11-27T00:00:00.000Z');
+  // The window is exactly 24h, offset to the Madrid calendar day (never a
+  // rolling window from midnight UTC).
+  const gte = Date.parse(compact['match.kickoffAt'].$gte);
+  const lte = Date.parse(compact['match.kickoffAt'].$lte);
+  assert.equal(lte - gte, 86_400_000 - 1);
+  // The Madrid date of the window start must be the requested day.
+  const madridDay = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(gte));
+  assert.equal(madridDay, '2026-11-26');
+  // `today` must NOT be dropped: that bug made the endpoint answer with matches
+  // from every date, so a live match was never found.
+  ['today', 'yesterday', 'tomorrow'].forEach((rel) => {
+    const f = build({ date: rel });
+    assert.ok(f['match.kickoffAt'], `date=${rel} must produce a real day window`);
+    assert.equal(Date.parse(f['match.kickoffAt'].$lte) - Date.parse(f['match.kickoffAt'].$gte), 86_400_000 - 1);
+  });
   // An unparseable day must not silently widen the query to every match.
-  const bogus = build({ date: 'not-a-day' });
-  assert.equal(bogus['match.kickoffAt'], undefined);
+  assert.equal(build({ date: 'not-a-day' })['match.kickoffAt'], undefined);
   // The competition filter is preserved alongside the day window.
   const both = build({ date: '20261126', competitionSlug: 'europa-league' });
   assert.equal(both.competitionSlug, 'europa-league');
   assert.ok(both['match.kickoffAt']);
 });
-
-/**
- * F25: a league table is DERIVED from the real finished results we already
- * store. It must never be invented: a match without a score contributes nothing,
- * and a competition with no finished matches yields an empty table.
- */

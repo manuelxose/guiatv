@@ -21,6 +21,19 @@
  */
 
 import { FootballSnapshotModel } from '../../../infrastructure/sports/persistence/models';
+
+/** Madrid is UTC+1 in winter and UTC+2 in summer; the day window uses the current offset. */
+const MADRID_OFFSET_MS = (() => {
+  const now = new Date();
+  const utc = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
+  const madrid = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));
+  return madrid.getTime() - utc.getTime();
+})();
+
+/** YYYY-MM-DD for a Madrid calendar day. */
+function madridDayKey(date: Date): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+}
 import {
   FootballCompetition,
   FootballDataProvider,
@@ -242,14 +255,27 @@ export class SnapshotFootballDataProvider implements FootballDataProvider {
       // dropped and the endpoint answered with matches from ANY date - which is
       // why a fixture outside the first page (e.g. the Europa League round)
       // appeared to be missing.
-      const raw = String(query.date).trim();
-      const normalised = /^\d{8}$/.test(raw)
-        ? `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`
-        : raw;
+      // Accept every form the public API receives. `date=today` was silently
+      // unparseable, so the day filter was DROPPED and the endpoint answered with
+      // hundreds of matches from ANY date - which is why "today" showed August
+      // results and a match being played right now was never marked live.
+      const raw = String(query.date).trim().toLowerCase();
+      const todayKey = madridDayKey(new Date());
+      const relative: Record<string, string> = {
+        today: todayKey,
+        yesterday: madridDayKey(new Date(Date.now() - 86_400_000)),
+        tomorrow: madridDayKey(new Date(Date.now() + 86_400_000)),
+      };
+      const expanded = relative[raw] ?? raw;
+      const normalised = /^\d{8}$/.test(expanded)
+        ? `${expanded.slice(0, 4)}-${expanded.slice(4, 6)}-${expanded.slice(6, 8)}`
+        : expanded;
       const start = new Date(normalised);
       if (!Number.isNaN(start.getTime())) {
-        kickoff.$gte = new Date(start).toISOString();
-        kickoff.$lte = new Date(start.getTime() + 24 * 60 * 60 * 1000).toISOString();
+        // One Madrid calendar day, not a rolling 24h window from midnight UTC.
+        const dayStart = new Date(`${normalised}T00:00:00.000Z`);
+        kickoff.$gte = new Date(dayStart.getTime() - MADRID_OFFSET_MS).toISOString();
+        kickoff.$lte = new Date(dayStart.getTime() - MADRID_OFFSET_MS + 86_400_000 - 1).toISOString();
       }
     }
     if (Object.keys(kickoff).length > 0) filter['match.kickoffAt'] = kickoff;
