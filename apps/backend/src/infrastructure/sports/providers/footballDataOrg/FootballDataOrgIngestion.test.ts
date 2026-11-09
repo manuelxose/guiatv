@@ -80,3 +80,24 @@ test('one window request per tick, key only in the X-Auth-Token header, 429 type
   const limited = new FootballDataOrgClient(async () => ({ ok: false, status: 429, json: async () => ({}) }), { apiKey: 'k', spacingMs: 0 });
   await assert.rejects(limited.getStandings('SA'), (e: unknown) => e instanceof FootballDataOrgError && e.kind === 'rate_limited');
 });
+
+test('a rate limit waits for the minute window and retries once; other errors and a second 429 propagate', async () => {
+  const { retryOnRateLimit } = await import('./FootballDataOrgIngestion');
+  const waits: number[] = [];
+  const wait = async (ms: number) => { waits.push(ms); };
+  const limited = () => new FootballDataOrgError('rate_limited', 'HTTP 429', 429);
+
+  let calls = 0;
+  const ok = await retryOnRateLimit(async () => { calls += 1; if (calls === 1) throw limited(); return 'table'; }, wait);
+  assert.equal(ok, 'table');
+  assert.equal(calls, 2);
+  assert.deepEqual(waits, [61_000], 'waits for the provider minute window to reset');
+
+  await assert.rejects(retryOnRateLimit(async () => { throw limited(); }, wait), (e: unknown) => e instanceof FootballDataOrgError && e.kind === 'rate_limited');
+  let authCalls = 0;
+  await assert.rejects(
+    retryOnRateLimit(async () => { authCalls += 1; throw new FootballDataOrgError('auth', 'HTTP 403', 403); }, wait),
+    (e: unknown) => e instanceof FootballDataOrgError && e.kind === 'auth'
+  );
+  assert.equal(authCalls, 1, 'non rate-limit failures are not retried');
+});
