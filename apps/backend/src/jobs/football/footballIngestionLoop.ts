@@ -243,14 +243,14 @@ export async function refreshFootballDataOrgTables(): Promise<void> {
   const { FOOTBALL_DATA_ORG_TABLE_BUDGET } = await import('./factory');
   const ctx = await footballDataOrgContext('football-data-org:tables', FOOTBALL_DATA_ORG_TABLE_BUDGET);
   if (!ctx) return;
-  const { FOOTBALL_DATA_ORG_TABLES, FOOTBALL_DATA_ORG_COMPETITIONS, FOOTBALL_DATA_ORG_PROVIDER_ID, parseFootballDataOrgStandings } = await import(
+  const { FOOTBALL_DATA_ORG_TABLES, FOOTBALL_DATA_ORG_COMPETITIONS, FOOTBALL_DATA_ORG_PROVIDER_ID, parseFootballDataOrgStandings, retryOnRateLimit } = await import(
     '../../infrastructure/sports/providers/footballDataOrg/FootballDataOrgIngestion'
   );
   const { FootballStandingsTableModel } = await import('../../infrastructure/sports/persistence/models');
   for (const code of FOOTBALL_DATA_ORG_TABLES) {
     if (!(await ctx.budget.tryAcquire('normal', Date.now()))) return; // fail closed
     try {
-      const rows = parseFootballDataOrgStandings(await ctx.client.getStandings(code));
+      const rows = parseFootballDataOrgStandings(await retryOnRateLimit(() => ctx.client.getStandings(code)));
       if (!rows.length) continue;
       await FootballStandingsTableModel.updateOne(
         { competitionSlug: FOOTBALL_DATA_ORG_COMPETITIONS[code], providerId: FOOTBALL_DATA_ORG_PROVIDER_ID, season: 'current' },
@@ -263,11 +263,15 @@ export async function refreshFootballDataOrgTables(): Promise<void> {
   }
 }
 
-/** M07 one-off (CLI): the whole current season of each football-data.org competition. */
-export async function backfillFootballDataOrgSeasons(): Promise<{ requests: number; written: number } | null> {
+/**
+ * M07 one-off (CLI): the whole current season of each football-data.org competition.
+ * A rate limit waits for the minute window and retries once; anything still failing is
+ * REPORTED in `failed` (never silently skipped) so the operator can re-run.
+ */
+export async function backfillFootballDataOrgSeasons(): Promise<{ requests: number; written: number; failed: string[] } | null> {
   const ctx = await footballDataOrgContext('football-data-org:backfill', 20);
   if (!ctx) return null;
-  const { FOOTBALL_DATA_ORG_COMPETITIONS, FOOTBALL_DATA_ORG_PROVIDER_ID, parseFootballDataOrgMatches } = await import(
+  const { FOOTBALL_DATA_ORG_COMPETITIONS, FOOTBALL_DATA_ORG_PROVIDER_ID, parseFootballDataOrgMatches, retryOnRateLimit } = await import(
     '../../infrastructure/sports/providers/footballDataOrg/FootballDataOrgIngestion'
   );
   const { buildSnapshots } = await import('../../application/sports/ingestion/snapshots');
@@ -275,15 +279,20 @@ export async function backfillFootballDataOrgSeasons(): Promise<{ requests: numb
   const repository = new FootballIngestionRepository();
   let requests = 0;
   let written = 0;
+  const failed: string[] = [];
   for (const code of Object.keys(FOOTBALL_DATA_ORG_COMPETITIONS)) {
-    if (!(await ctx.budget.tryAcquire('normal', Date.now()))) break;
+    if (!(await ctx.budget.tryAcquire('normal', Date.now()))) {
+      failed.push(`${code}:budget`);
+      continue;
+    }
     requests += 1;
     try {
-      const matches = parseFootballDataOrgMatches(await ctx.client.getSeasonMatches(code));
+      const matches = parseFootballDataOrgMatches(await retryOnRateLimit(() => ctx.client.getSeasonMatches(code)));
       written += await repository.upsertSnapshots(buildSnapshots(matches, FOOTBALL_DATA_ORG_PROVIDER_ID, new Date().toISOString()).snapshots);
-    } catch {
-      // One competition failing never blocks the others.
+    } catch (error) {
+      // One competition failing never blocks the others, but it is reported.
+      failed.push(`${code}:${(error as { kind?: string })?.kind ?? 'error'}`);
     }
   }
-  return { requests, written };
+  return { requests, written, failed };
 }

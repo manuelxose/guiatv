@@ -33,12 +33,15 @@ async function main(): Promise<void> {
     if (!result) throw new Error('FOOTBALLDATA_IO_API_KEY no configurada o MongoDB no disponible');
     console.log(JSON.stringify({ from, to, ...result }));
     // football-data.org: whole current season per competition (≈10 requests, spaced 6.5 s).
-    console.log(JSON.stringify({ footballDataOrg: await backfillFootballDataOrgSeasons() }));
+    const fdorg = await backfillFootballDataOrgSeasons();
+    console.log(JSON.stringify({ footballDataOrg: fdorg }));
+    if (fdorg?.failed.length) console.error(`football-data.org incompleto: ${fdorg.failed.join(', ')} (vuelve a ejecutar la carga)`);
     await refreshStandingsTables();
     await refreshFootballDataIoTables();
     await refreshFootballDataOrgTables();
     await disconnectMongoDB();
-    process.exit(result.complete ? 0 : 3);
+    // 3 = something is missing and must be re-run; never report success on a partial load.
+    process.exit(result.complete && !fdorg?.failed.length ? 0 : 3);
   } catch (error) {
     console.error('Error en el backfill de footballdata.io:', error instanceof Error ? error.message : error);
     process.exit(1);

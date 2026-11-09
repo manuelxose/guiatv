@@ -46,6 +46,25 @@ export class FootballDataOrgError extends Error {
   }
 }
 
+/**
+ * One-off jobs (season backfill, tables) can share the 10/minute window with another
+ * process (the API refreshing tables right after a restart) — measured 2026-11-09: three
+ * competitions lost to 429 in production. On a rate limit, wait for the window to reset
+ * and retry once; any other failure, or a second 429, is thrown to the caller.
+ */
+export async function retryOnRateLimit<T>(
+  run: () => Promise<T>,
+  wait: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))
+): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (!(error instanceof FootballDataOrgError && error.kind === 'rate_limited')) throw error;
+    await wait(61_000);
+    return run();
+  }
+}
+
 let nextSlot = 0;
 
 export class FootballDataOrgClient {
