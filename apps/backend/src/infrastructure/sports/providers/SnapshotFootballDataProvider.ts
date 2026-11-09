@@ -21,6 +21,8 @@
  */
 
 import { FootballSnapshotModel, FootballStandingsTableModel } from '../../../infrastructure/sports/persistence/models';
+import { mergeProviderMatches } from '../../../application/sports/services/FootballMatchMerge';
+import { competitionHasTable } from '../../../application/sports/services/FootballCompetitionCatalog';
 
 /** Madrid is UTC+1 in winter and UTC+2 in summer; the day window uses the current offset. */
 const MADRID_OFFSET_MS = (() => {
@@ -74,20 +76,26 @@ export class SnapshotFootballDataProvider implements FootballDataProvider {
       .limit(limit)
       .lean()
       .exec();
-    return docs.map((doc: any) => doc.match as FootballMatch).filter(Boolean);
+    // M07: one public match per real fixture, whatever the number of providers.
+    const merged = mergeProviderMatches(docs.map((doc: any) => doc.match as FootballMatch).filter(Boolean));
+    // A status filter must hold for the MERGED status (a stale "live" may be a confirmed result).
+    return query.status ? merged.filter((m) => m.status === query.status) : merged;
   }
 
   async getLiveMatches(): Promise<FootballMatch[]> {
-    const since = new Date(Date.now() - LIVE_WINDOW_MS).toISOString();
+    // Every provider's view of the fixtures that could be in play, merged, then
+    // filtered: a provider's stale "live" never survives another's confirmed result.
+    const now = Date.now();
     const docs = await FootballSnapshotModel.find({
-      'match.status': 'live',
-      'match.kickoffAt': { $gte: since },
+      'match.kickoffAt': { $gte: new Date(now - LIVE_WINDOW_MS - 60 * 60 * 1000).toISOString(), $lte: new Date(now).toISOString() },
     })
       .sort({ 'match.kickoffAt': -1 })
       .limit(MAX_LIMIT)
       .lean()
       .exec();
-    return docs.map((doc: any) => doc.match as FootballMatch).filter(Boolean);
+    return mergeProviderMatches(docs.map((doc: any) => doc.match as FootballMatch).filter(Boolean), now).filter(
+      (m) => m.status === 'live' || m.status === 'halftime'
+    );
   }
 
   async getMatch(idOrSlug: string): Promise<FootballMatch | null> {
@@ -103,14 +111,30 @@ export class SnapshotFootballDataProvider implements FootballDataProvider {
     if (!doc) doc = await FootballSnapshotModel.findOne({ canonicalKey: key }).lean().exec();
     if (!doc) doc = await FootballSnapshotModel.findOne({ 'match.slug': key }).lean().exec();
     if (!doc) return null;
-    return (doc as any).match as FootballMatch;
+    const match = (doc as any).match as FootballMatch;
+    // The same fixture from the other providers, folded into the one public match.
+    const kickoff = Date.parse(match.kickoffAt);
+    if (Number.isNaN(kickoff)) return match;
+    const siblings = await FootballSnapshotModel.find({
+      competitionSlug: (doc as any).competitionSlug,
+      providerId: { $ne: (doc as any).providerId },
+      'match.kickoffAt': { $gte: new Date(kickoff - LIVE_WINDOW_MS).toISOString(), $lte: new Date(kickoff + LIVE_WINDOW_MS).toISOString() },
+    })
+      .limit(50)
+      .lean()
+      .exec();
+    const merged = mergeProviderMatches([match, ...siblings.map((d: any) => d.match as FootballMatch).filter(Boolean)]);
+    return merged.find((m) => m.providerIds && Object.entries(match.providerIds ?? {}).every(([p, id]) => m.providerIds[p] === id)) ?? match;
   }
 
   async getCompetitions(): Promise<FootballCompetition[]> {
     const slugs: string[] = await FootballSnapshotModel.distinct('competitionSlug').exec();
     const bySlug = new Map<string, FootballCompetition>();
     for (const slug of slugs) {
-      const doc = await FootballSnapshotModel.findOne({ competitionSlug: slug }).lean().exec();
+      // Prefer a snapshot that carries the competition logo (not every provider sends one).
+      const doc =
+        (await FootballSnapshotModel.findOne({ competitionSlug: slug, 'match.competition.logo': { $type: 'string', $ne: '' } }).lean().exec()) ??
+        (await FootballSnapshotModel.findOne({ competitionSlug: slug }).lean().exec());
       const competition = (doc as any)?.match?.competition as FootballCompetition | undefined;
       if (competition?.slug) bySlug.set(competition.slug, competition);
     }
@@ -134,11 +158,16 @@ export class SnapshotFootballDataProvider implements FootballDataProvider {
    */
   async getStandings(competitionSlug: string): Promise<FootballStandingRow[]> {
     const slug = String(competitionSlug ?? '').trim();
-    if (!slug) return [];
+    // A knockout cup has no table: OpenLigaDB's 64-row DFB-Pokal "table" is noise, not standings.
+    if (!slug || !competitionHasTable(slug)) return [];
     // F27: prefer the provider's OWN table when we have stored it. It covers the
     // whole season, while a table derived from the fixtures we fetched does not.
-    const stored = await FootballStandingsTableModel.findOne({ competitionSlug: slug }).sort({ fetchedAt: -1 }).lean().exec();
-    const official = (stored as any)?.rows;
+    // M07: several providers may store a table. Serve the most complete one (most
+    // matches counted), so a provider that lags behind never wins; ties → newest.
+    const tables = await FootballStandingsTableModel.find({ competitionSlug: slug }).sort({ fetchedAt: -1 }).limit(10).lean().exec();
+    const played = (t: any) => (Array.isArray(t?.rows) ? t.rows.reduce((s: number, r: any) => s + (Number(r?.played) || 0), 0) : 0);
+    const best = (tables as any[]).reduce<any>((acc, t) => (played(t) > played(acc) ? t : acc), tables[0]);
+    const official = best?.rows;
     if (Array.isArray(official) && official.length) return official as FootballStandingRow[];
     const docs = await FootballSnapshotModel.find({
       competitionSlug: slug,
@@ -218,8 +247,9 @@ export class SnapshotFootballDataProvider implements FootballDataProvider {
       .exec();
     void since;
     const bySlug = new Map<string, FootballTeam>();
-    for (const doc of docs as any[]) {
-      for (const team of [doc.match?.homeTeam, doc.match?.awayTeam]) {
+    // Teams from MERGED fixtures, so one club is not listed once per provider spelling.
+    for (const match of mergeProviderMatches((docs as any[]).map((d) => d.match).filter(Boolean))) {
+      for (const team of [match.homeTeam, match.awayTeam]) {
         if (team?.slug && !bySlug.has(team.slug)) bySlug.set(team.slug, team);
       }
     }
@@ -286,7 +316,20 @@ export class SnapshotFootballDataProvider implements FootballDataProvider {
     if (Object.keys(kickoff).length > 0) filter['match.kickoffAt'] = kickoff;
 
     if (query.competitionSlug) filter.competitionSlug = query.competitionSlug;
-    if (query.status) filter['match.status'] = query.status;
+    if (query.status === 'finished' || query.status === 'live') {
+      // Another provider may hold the confirmation for a fixture this one still has
+      // open, so fetch every already-started candidate and let the merge decide.
+      filter['match.status'] = { $in: ['finished', 'live', 'halftime', 'scheduled'] };
+      const range = (filter['match.kickoffAt'] as Record<string, string> | undefined) ?? {};
+      const nowIso = new Date().toISOString();
+      filter['match.kickoffAt'] = { ...range, $lte: range.$lte && range.$lte < nowIso ? range.$lte : nowIso };
+      if (query.status === 'live') {
+        const floor = new Date(Date.now() - LIVE_WINDOW_MS - 60 * 60 * 1000).toISOString();
+        (filter['match.kickoffAt'] as Record<string, string>).$gte = range.$gte && range.$gte > floor ? range.$gte : floor;
+      }
+    } else if (query.status) {
+      filter['match.status'] = query.status;
+    }
     if (query.teamSlug) {
       filter.$or = [
         { 'match.homeTeam.slug': query.teamSlug },

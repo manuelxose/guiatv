@@ -126,6 +126,7 @@ test('every verified competition shortcut maps to its catalog slug', () => {
     dfb: 'dfb-pokal',
     bl2: 'bundesliga-2',
     la1: 'laliga', // verified 2026-11-06: 380 real 2026/27 fixtures
+    nla: 'nations-league', // verified 2026-11-09: Nations League A, 48 fixtures
   };
   assert.deepEqual({ ...OPENLIGADB_COMPETITION_MAP }, expected);
   for (const [shortcut, slug] of Object.entries(expected)) {
@@ -371,4 +372,13 @@ test('client enforces the timeout via AbortSignal', async () => {
     () => client.getMatchdata('bl1', '2026'),
     (error: unknown) => error instanceof OpenLigaDbError && error.kind === 'timeout'
   );
+});
+
+test('M07: national teams and groups are shown in Spanish; club names are untouched', () => {
+  const m = mapOpenLigaDbMatch(rawMatch({ leagueShortcut: 'nla', group: { groupName: 'Gruppe A' }, team1: { teamId: 1, teamName: 'Spanien' }, team2: { teamId: 2, teamName: 'Deutschland' } }), NOW)!;
+  assert.equal(m.homeTeam.name, 'España');
+  assert.equal(m.awayTeam.name, 'Alemania');
+  assert.equal(m.round, 'Grupo A');
+  const club = mapOpenLigaDbMatch(rawMatch({ leagueShortcut: 'bl1', team1: { teamId: 3, teamName: 'FC Bayern München' } }), NOW)!;
+  assert.equal(club.homeTeam.name, 'FC Bayern München');
 });

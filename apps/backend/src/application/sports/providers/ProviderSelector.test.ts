@@ -18,13 +18,13 @@ test('prototype and blocked providers are never selected (eligibility hard gate)
   const decision = selector.select(
     { capability: 'fixtures' },
     [
-      candidate({ providerId: 'football-data-org' }),
+      candidate({ providerId: 'flashscore' }),
       candidate({ providerId: 'google-search' }),
       candidate({ providerId: 'openligadb' }),
     ]
   );
   assert.equal(decision.selected, 'openligadb');
-  const proto = decision.candidates.find((c) => c.providerId === 'football-data-org')!;
+  const proto = decision.candidates.find((c) => c.providerId === 'flashscore')!;
   assert.equal(proto.selected, false);
   assert.ok(proto.reasons.some((r) => r.startsWith('ineligible:')));
 });

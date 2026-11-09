@@ -43,6 +43,10 @@ export interface FootballCompetition {
   logo?: string | null;
   type: FootballCompetitionType;
   currentSeason?: string;
+  /** False for knockout competitions: no table is ever served. */
+  hasTable?: boolean;
+  /** True once a provider has ingested matches for it; false = catalogue entry only. */
+  hasData?: boolean;
   providerIds: Record<string, string>;
   lastUpdatedAt: string;
 }

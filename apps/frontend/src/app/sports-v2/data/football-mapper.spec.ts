@@ -10,9 +10,18 @@ const api = (over: Partial<ApiMatch> = {}): ApiMatch => ({
 
 describe('football mapper', () => {
   describe('crests and logos', () => {
-    it('preserves the provider crest and competition logo', () => {
-      expect(mapTeam({ ...team('a', 'Alpha'), crest: 'https://crests.football-data.org/86.png' }).crestUrl).toBe('https://crests.football-data.org/86.png');
-      expect(mapCompetition({ id: '1', slug: 'x', name: 'X', logo: 'https://crests.football-data.org/PD.png' }).logoUrl).toBe('https://crests.football-data.org/PD.png');
+    const viaProxy = (u: string) => `/v2/sports/football/image?url=${encodeURIComponent(u)}`;
+
+    it('serves the provider crest and competition logo from our own origin', () => {
+      expect(mapTeam({ ...team('a', 'Alpha'), crest: 'https://footballdata.io/img/team/arsenal-fc.png' }).crestUrl).toBe(viaProxy('https://footballdata.io/img/team/arsenal-fc.png'));
+      expect(mapCompetition({ id: '1', slug: 'x', name: 'X', logo: 'https://footballdata.io/img/league/spain-la-liga.png' }).logoUrl).toBe(viaProxy('https://footballdata.io/img/league/spain-la-liga.png'));
+    });
+
+    it('takes the data/table flags from the API, never from the id', () => {
+      expect(mapCompetition({ id: 'catalog:copa-del-rey', slug: 'copa-del-rey', name: 'Copa del Rey', hasData: false, hasTable: false })).toEqual(jasmine.objectContaining({ hasData: false, hasTable: false }));
+      // Ingested competitions also carry a `catalog:` id: the flag decides.
+      expect(mapCompetition({ id: 'catalog:laliga', slug: 'laliga', name: 'LaLiga', hasData: true, hasTable: true }).hasData).toBeTrue();
+      expect(mapCompetition({ id: 'catalog:laliga', slug: 'laliga', name: 'LaLiga' }).hasData).toBeUndefined();
     });
 
     it('drops unsafe or missing image URLs so the UI falls back to a monogram', () => {
@@ -32,7 +41,7 @@ describe('football mapper', () => {
       // The client forwards the provider URL as-is; the BACKEND upgrades it to
       // https before fetching, so no http request ever leaves the browser.
       expect(decodeURIComponent(proxied!)).toContain('img.uefa.com/');
-      expect(safeImageUrl('https://upload.wikimedia.org/a.svg')).toBe('https://upload.wikimedia.org/a.svg');
+      expect(safeImageUrl('https://upload.wikimedia.org/a.svg')).toBe(viaProxy('https://upload.wikimedia.org/a.svg'));
     });
   });
 

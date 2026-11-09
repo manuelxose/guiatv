@@ -386,6 +386,11 @@ export class ChatStateStore {
   }
 
   /** Removes expired typing entries; called periodically and on every event. */
+  /** True while any "typing…" indicator is shown (only then is pruning worth a change detection). */
+  hasTyping(): boolean {
+    return this.typingByConversation.size > 0;
+  }
+
   pruneExpiredTyping(now = Date.now()): void {
     let changed = false;
     for (const [conversationId, entries] of this.typingByConversation) {

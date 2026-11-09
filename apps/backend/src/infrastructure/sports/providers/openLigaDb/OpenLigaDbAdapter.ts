@@ -72,6 +72,16 @@ export const OPENLIGADB_COMPETITION_MAP: Readonly<Record<string, string>> = {
   bl2: 'bundesliga-2',
   // Verified by probe 2026-11-06: 380 real 2026/27 fixtures since 2026-08-15.
   la1: 'laliga',
+  // Verified by probe 2026-11-09: Nations League A 2026, 48 fixtures, 32 finished, 4 groups.
+  nla: 'nations-league',
+};
+
+/** OpenLigaDB names national teams in German; the site is Spanish. Exact matches only. */
+const SPANISH_NATIONAL_TEAMS: Readonly<Record<string, string>> = {
+  Belgien: 'Bélgica', Dänemark: 'Dinamarca', Deutschland: 'Alemania', England: 'Inglaterra', Frankreich: 'Francia',
+  Griechenland: 'Grecia', Italien: 'Italia', Kroatien: 'Croacia', Niederlande: 'Países Bajos', Norwegen: 'Noruega',
+  Portugal: 'Portugal', Serbien: 'Serbia', Spanien: 'España', Tschechien: 'Chequia', Türkei: 'Turquía', Wales: 'Gales',
+  Schweiz: 'Suiza', Österreich: 'Austria', Polen: 'Polonia', Schottland: 'Escocia', Ungarn: 'Hungría', Schweden: 'Suecia',
 };
 
 export function resolveCompetitionSlug(leagueShortcut: unknown): string | null {
@@ -220,7 +230,7 @@ export function mapOpenLigaDbMatch(raw: unknown, now: Date): FootballMatch | nul
       type: catalogEntry.type,
     },
     season: record.leagueSeason != null ? String(record.leagueSeason) : undefined,
-    round: typeof record.group?.groupName === 'string' ? record.group.groupName : undefined,
+    round: typeof record.group?.groupName === 'string' ? record.group.groupName.replace(/^Gruppe /, 'Grupo ') : undefined,
     kickoffAt: record.matchDateTimeUTC,
     // OpenLigaDB only tells us "finished or not" (no live minute), so a match is
     // LIVE when it has not finished AND its kickoff already passed. That is a
@@ -257,7 +267,7 @@ function isKickoffPassed(kickoffAt: string, now: Date): boolean {
 }
 
 function mapTeam(raw: Record<string, any>, now: Date): FootballTeam {
-  const name = String(raw.teamName);
+  const name = SPANISH_NATIONAL_TEAMS[String(raw.teamName)] ?? String(raw.teamName);
   const providerId = String(raw.teamId);
   return {
     id: `openligadb:${providerId}`,

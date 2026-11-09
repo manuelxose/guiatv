@@ -11,6 +11,13 @@ export const ODBL_LICENSE_LABEL = 'Open Database License (ODbL)';
 export const ODBL_LICENSE_URL = 'https://opendatacommons.org/licenses/odbl/1-0/';
 /** The exact 4.3 notice, one sentence; DATABASE NAME and the licence label are the two anchors. */
 export const ODBL_NOTICE_TEXT = `Contiene información de ${ODBL_DATABASE_NAME}, disponible aquí bajo la ${ODBL_LICENSE_LABEL}.`;
+/** M07: second data source (results, live minute, statistics, crests for LaLiga, Premier, UCL, UEL). */
+export const FOOTBALLDATA_IO_NAME = 'footballdata.io';
+export const FOOTBALLDATA_IO_URL = 'https://footballdata.io/';
+/** M07: third source. The provider's terms require this exact attribution wording. */
+export const FOOTBALL_DATA_ORG_ATTRIBUTION = 'Football data provided by the Football-Data.org API';
+export const FOOTBALL_DATA_ORG_URL = 'https://www.football-data.org/';
+export const SOURCES_NOTICE_TEXT = `${ODBL_NOTICE_TEXT} Resultados, estadísticas y escudos también de ${FOOTBALLDATA_IO_NAME}. ${FOOTBALL_DATA_ORG_ATTRIBUTION}.`;
 
 /**
  * Small, unobtrusive, keyboard-reachable attribution footer rendered on every public
@@ -23,7 +30,7 @@ export const ODBL_NOTICE_TEXT = `Contiene información de ${ODBL_DATABASE_NAME},
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <footer class="odbl" role="contentinfo">
-      <p>Contiene información de <a [href]="databaseUrl">{{ databaseName }}</a>, disponible aquí bajo la <a [href]="licenseUrl">{{ licenseLabel }}</a>.</p>
+      <p>Contiene información de <a [href]="databaseUrl">{{ databaseName }}</a>, disponible aquí bajo la <a [href]="licenseUrl">{{ licenseLabel }}</a>. Resultados, estadísticas y escudos también de <a [href]="fdioUrl">{{ fdioName }}</a>. <span lang="en">Football data provided by the <a [href]="fdorgUrl">Football-Data.org</a> API</span>.</p>
     </footer>
   `,
   styles: `
@@ -51,4 +58,7 @@ export class Sv2OdblAttributionComponent {
   protected readonly databaseUrl = ODBL_DATABASE_URL;
   protected readonly licenseLabel = ODBL_LICENSE_LABEL;
   protected readonly licenseUrl = ODBL_LICENSE_URL;
+  protected readonly fdioName = FOOTBALLDATA_IO_NAME;
+  protected readonly fdioUrl = FOOTBALLDATA_IO_URL;
+  protected readonly fdorgUrl = FOOTBALL_DATA_ORG_URL;
 }

@@ -117,3 +117,28 @@ test(
     }
   }
 );
+
+test(
+  'M07: a write without statistics keeps the stored statistics; other fields still update and absent ones are removed',
+  { skip: !process.env.TEST_MONGO_URI },
+  async () => {
+    const dbName = `guiatv_test_football_stats_${process.pid}`;
+    await mongoose.connect(process.env.TEST_MONGO_URI!, { dbName });
+    try {
+      await createFootballIndexes();
+      const repo = new FootballIngestionRepository();
+      const now = new Date().toISOString();
+      const base = { canonicalKey: 'footballdata-io:9', providerId: 'footballdata-io', matchId: 'footballdata-io:9', competitionSlug: 'laliga', sourceTimestamp: now, ingestedAt: now } as any;
+      await repo.upsertSnapshots([{ ...base, contentHash: 'h1', match: { id: '9', status: 'finished', minute: 90, statistics: { 'Córners': { home: 4, away: 2 } } } }]);
+      await repo.upsertSnapshots([{ ...base, contentHash: 'h2', match: { id: '9', status: 'finished', venue: 'X', minute: undefined, statistics: undefined } }]);
+      const doc: any = await FootballSnapshotModel.findOne({ canonicalKey: 'footballdata-io:9' }).lean().exec();
+      assert.deepEqual(doc.match.statistics, { 'Córners': { home: 4, away: 2 } });
+      assert.equal(doc.match.venue, 'X');
+      assert.equal('minute' in doc.match, false, 'a field the provider no longer sends is not kept');
+      assert.equal(doc.contentHash, 'h2');
+    } finally {
+      await mongoose.connection.dropDatabase();
+      await mongoose.disconnect();
+    }
+  }
+);

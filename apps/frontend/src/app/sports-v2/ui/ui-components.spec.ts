@@ -1,6 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Match, Team } from '../domain/models';
+import { SPORTS_NOW } from '../data/football-data';
 import { Sv2FollowButtonComponent } from './follow-button';
 import { Sv2MatchRowComponent } from './match-row';
 import { Sv2ScoreDisplayComponent } from './score-display';
@@ -13,6 +14,12 @@ const match = (over: Partial<Match> = {}): Match => ({
 });
 
 describe('sports-v2 Sv2MatchRowComponent', () => {
+  let now = new Date('2026-11-05T12:00:00Z');
+  beforeEach(() => {
+    now = new Date('2026-11-05T12:00:00Z');
+    TestBed.configureTestingModule({ providers: [{ provide: SPORTS_NOW, useValue: () => now }] });
+  });
+
   function render(m: Match) {
     const fixture = TestBed.createComponent(Sv2MatchRowComponent);
     fixture.componentRef.setInput('match', m);
@@ -35,6 +42,12 @@ describe('sports-v2 Sv2MatchRowComponent', () => {
     expect(el.querySelector('.clock')?.textContent).toMatch(/\d\d:\d\d/);
     expect(el.querySelectorAll('.scores b').length).toBe(2); // cells keep their width: no layout shift when scores arrive
     expect(el.querySelector('.scores')?.textContent?.trim()).toBe('');
+  });
+
+  it('says "Sin resultado" for a match no provider has confirmed hours after kickoff', () => {
+    now = new Date('2026-11-06T10:00:00Z');
+    const el = render(match({ status: 'scheduled', minute: undefined, homeScore: undefined, awayScore: undefined })).nativeElement as HTMLElement;
+    expect(el.querySelector('.clock')?.textContent).toContain('Sin resultado');
   });
 
   it('marks postponed matches without a score', () => {

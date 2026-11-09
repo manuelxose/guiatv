@@ -12,7 +12,7 @@ test('uses short shared caching for live football and TV', () => {
 });
 
 test('uses long metadata caching and does not cache unknown routes', () => {
-  assert.equal(resolvePolicy('/v2/sports/football/competitions', {})?.sharedSeconds, 21600);
+  assert.equal(resolvePolicy('/v2/sports/football/competitions', {})?.sharedSeconds, 900);
   assert.equal(resolvePolicy('/v2/user/profile', {}), null);
 });
 

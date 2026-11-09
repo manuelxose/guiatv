@@ -24,7 +24,7 @@ import {
  */
 
 export interface ApiTeam { id: string; slug: string; name: string; shortName?: string; aliases?: string[]; country?: string; crest?: string | null }
-export interface ApiCompetition { id: string; slug: string; name: string; shortName?: string; country?: string; type?: string; currentSeason?: string; logo?: string | null }
+export interface ApiCompetition { id: string; slug: string; name: string; shortName?: string; country?: string; type?: string; currentSeason?: string; logo?: string | null; hasData?: boolean; hasTable?: boolean }
 export interface ApiBroadcast { channelId?: string; channelName: string; availability?: string; provenance?: string; confidence?: string; channelPath?: string }
 export interface ApiMatch {
   id: string; slug: string; kickoffAt: string; status: string; round?: string; minute?: number | null; lastUpdatedAt?: string;
@@ -57,11 +57,11 @@ export function safeImageUrl(u: string | null | undefined): string | undefined {
   try {
     const url = new URL(u);
     if (url.username || url.password) return undefined;
-    // An http:// crest would be blocked as mixed content on an https page. The
-    // backend proxies those same bytes over https, so upgrade instead of
-    // dropping the badge and leaving a blank circle.
-    if (url.protocol === 'http:') return `/v2/sports/football/image?url=${encodeURIComponent(url.href)}`;
-    return url.protocol === 'https:' ? url.href : undefined;
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return undefined;
+    // M07: every crest/logo is served from our own origin (cached proxy). Providers that
+    // block hotlinking or rate-limit bursts (Wikimedia 429) and http:// mixed content
+    // no longer leave a monogram where a real crest exists.
+    return `/v2/sports/football/image?url=${encodeURIComponent(url.href)}`;
   } catch {
     return undefined;
   }
@@ -84,7 +84,9 @@ export function mapTeam(t: ApiTeam): Team {
 const KINDS: Record<string, Competition['kind']> = { league: 'league', cup: 'cup', international: 'international', national_team: 'international' };
 
 export function mapCompetition(c: ApiCompetition): Competition {
-  return { slug: c.slug, name: c.name, country: c.country ?? '', kind: KINDS[c.type ?? ''] ?? 'cup', hue: hueOf(c.slug), logoUrl: safeImageUrl(c.logo), teamSlugs: [], season: c.currentSeason };
+  return { slug: c.slug, name: c.name, country: c.country ?? '', kind: KINDS[c.type ?? ''] ?? 'cup', hue: hueOf(c.slug), logoUrl: safeImageUrl(c.logo), teamSlugs: [], season: c.currentSeason,
+    // Explicit backend flags; absent (older API / match payloads) means unknown, never "no data".
+    hasData: c.hasData, hasTable: c.hasTable };
 }
 
 /** halftime stays "live" (no minute); suspended/cancelled have no v2 state yet and read as "postponed" (documented limit). */
