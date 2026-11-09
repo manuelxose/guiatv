@@ -13,12 +13,12 @@ test('openligadb is approved and assertEligible admits it', () => {
   assert.equal(entry.eligibility.approvedBy, 'owner');
 });
 
-test('football-data-org is a prototype and assertEligible throws', () => {
-  assert.throws(
-    () => assertEligible('football-data-org'),
-    (error: unknown) =>
-      error instanceof ProviderNotEligibleError && error.state === 'prototype'
-  );
+test('M07: football-data-org and footballdata-io are owner-approved keyed providers', () => {
+  for (const id of ['football-data-org', 'footballdata-io']) {
+    const entry = assertEligible(id);
+    assert.equal(entry.eligibility.approvedBy, 'owner');
+    assert.equal(entry.authMode, 'api_key');
+  }
 });
 
 test('google-search and flashscore are blocked with a reason and no adapter capabilities', () => {
@@ -34,7 +34,7 @@ test('google-search and flashscore are blocked with a reason and no adapter capa
 });
 
 test('assertEligible throws for every non-approved and unknown provider', () => {
-  for (const id of ['football-data-org', 'google-search', 'flashscore', 'made-up-provider']) {
+  for (const id of ['google-search', 'flashscore', 'made-up-provider']) {
     assert.throws(() => assertEligible(id), ProviderNotEligibleError);
   }
 });
@@ -61,7 +61,7 @@ test('F05: assertEligible is the sole admission gate — a locally installed ada
   // blocked or unknown provider has NO path through this gate, so it can never
   // construct a client, issue a request or write. This is the single boundary
   // every ingestion entry path (scheduled loop, manual sync, CLI, startup) uses.
-  for (const id of ['football-data-org', 'google-search', 'flashscore', 'made-up-provider']) {
+  for (const id of ['google-search', 'flashscore', 'made-up-provider']) {
     assert.throws(
       () => assertEligible(id as never),
       (error: unknown) => error instanceof ProviderNotEligibleError

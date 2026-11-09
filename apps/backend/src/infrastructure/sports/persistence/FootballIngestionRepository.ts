@@ -38,30 +38,41 @@ import {
   FootballSnapshotModel,
 } from './models';
 
+/** `$literal` keeps `undefined` keys as null; drop them so an absent field stays absent. */
+function stripUndefined(value: Record<string, unknown>): Record<string, unknown> {
+  return JSON.parse(JSON.stringify(value));
+}
+
 export class FootballIngestionRepository implements FootballPersistencePort {
   async upsertSnapshots(snapshots: FootballSnapshotWrite[]): Promise<number> {
     if (!snapshots.length) return 0;
     const deduped = dedupeSnapshots(snapshots);
-    const ops = deduped.map((s) => ({
-      updateOne: {
-        // Stable identity, independent of the mutable display slug. A re-sent
-        // match (legacy slug-keyed or already provider-anchored) collapses to ONE
-        // document; `canonicalKey` is transitioned to the new identity below.
-        filter: { providerId: s.providerId, matchId: s.matchId },
-        update: {
-          $set: {
-            canonicalKey: s.canonicalKey,
-            matchId: s.matchId,
-            competitionSlug: s.competitionSlug,
-            match: s.match as unknown as Record<string, unknown>,
-            sourceTimestamp: new Date(s.sourceTimestamp),
-            ingestedAt: new Date(s.ingestedAt),
-            contentHash: s.contentHash,
-          },
+    const ops = deduped.map((s) => {
+      const fields = {
+        canonicalKey: s.canonicalKey,
+        matchId: s.matchId,
+        competitionSlug: s.competitionSlug,
+        sourceTimestamp: new Date(s.sourceTimestamp),
+        ingestedAt: new Date(s.ingestedAt),
+        contentHash: s.contentHash,
+      };
+      const match = s.match as unknown as Record<string, unknown>;
+      // M07: a provider endpoint without statistics (footballdata.io /matches) must not
+      // erase the statistics another endpoint of the SAME provider stored (/fixtures/results).
+      const keepStatistics = match.statistics == null;
+      return {
+        updateOne: {
+          // Stable identity, independent of the mutable display slug. A re-sent
+          // match (legacy slug-keyed or already provider-anchored) collapses to ONE
+          // document; `canonicalKey` is transitioned to the new identity below.
+          filter: { providerId: s.providerId, matchId: s.matchId },
+          update: keepStatistics
+            ? [{ $set: { ...fields, match: { $mergeObjects: [{ statistics: '$match.statistics' }, { $literal: stripUndefined(match) }] } } }]
+            : { $set: { ...fields, match } },
+          upsert: true,
         },
-        upsert: true,
-      },
-    }));
+      };
+    });
 
     try {
       const result = await FootballSnapshotModel.bulkWrite(ops, { ordered: false });

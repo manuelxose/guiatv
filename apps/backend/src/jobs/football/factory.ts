@@ -35,6 +35,8 @@ export const M06_OPENLIGADB_COMPETITIONS: ReadonlyArray<{ shortcuts: readonly st
   // LaLiga 2026/27: 380 real fixtures verified against the provider (la1).
   { shortcuts: ['la1'], season: '2026' },
   { shortcuts: ['wm2026'], season: '2026' },
+  // M07: UEFA Nations League A 2026 (48 fixtures verified 2026-11-09).
+  { shortcuts: ['nla'], season: '2026' },
 ];
 
 /**
@@ -105,18 +107,128 @@ export function buildFootballIngestionService(
   // process-local budget would let two workers each believe they own the quota. The
   // durable path therefore FAILS CLOSED: construction throws, so no ingestion runs
   // with an authority that is not shared. Tests and genuinely single-process setups
-  // must opt in explicitly with FOOTBALL_DURABLE_QUOTA=0.
+  // must opt in explicitly with FOOTBALL_DURABLE_QUOTA=0 (see buildBudgetAndLock).
+  const { budget, lock } = buildBudgetAndLock('openligadb', config, process.env.OPENLIGADB_EMERGENCY_DISABLED === '1');
+
+  return new FootballIngestionService({
+    providerId: 'openligadb',
+    competitions: plan,
+    adapter,
+    persistence: repository,
+    lock,
+    budget,
+    scheduler,
+  });
+}
+
+/**
+ * M07: footballdata.io free plan = 1000 requests per MONTH (probe 2026-11-09).
+ * The durable daily caps are the hard guarantee:
+ *   match windows   24/day × 31 = 744
+ *   daily results + tables 3/day × 31 = 93   (refreshFootballDataIoTables)
+ *   one backfill run (CLI, manual) ≤ 12
+ *   total ≤ 849 < 1000, leaving margin for the provider's own counting.
+ * The scheduler is slowed so a busy matchday fits inside the day: live every
+ * 25 min, approaching kickoff every hour.
+ */
+export const FOOTBALLDATA_IO_DAILY_MATCH_BUDGET = 24;
+export const FOOTBALLDATA_IO_DAILY_TABLE_BUDGET = 3;
+export const FOOTBALLDATA_IO_BACKFILL_BUDGET = 12;
+export const FOOTBALLDATA_IO_SCHEDULER: typeof DEFAULT_SCHEDULER_CONFIG = {
+  ...DEFAULT_SCHEDULER_CONFIG,
+  futureMs: 8 * 60 * 60 * 1000,
+  todayMs: 3 * 60 * 60 * 1000,
+  approachingKickoffMs: 60 * 60 * 1000,
+  liveMs: 25 * 60 * 1000,
+  halftimeMs: 25 * 60 * 1000,
+  historicalMs: 12 * 60 * 60 * 1000,
+};
+
+/** Null when no key is configured: the provider is simply not ingested. */
+export function buildFootballDataIoIngestionService(options: FootballIngestionFactoryOptions = {}): FootballIngestionService | null {
+  const apiKey = process.env.FOOTBALLDATA_IO_API_KEY?.trim();
+  if (!apiKey) return null;
+  const { FootballDataIoClient } = require('@/infrastructure/sports/providers/footballDataIo/FootballDataIoClient') as typeof import('@/infrastructure/sports/providers/footballDataIo/FootballDataIoClient');
+  const { FootballDataIoAdapter, FOOTBALLDATA_IO_PROVIDER_ID, FOOTBALLDATA_IO_WINDOW } = require('@/infrastructure/sports/providers/footballDataIo/FootballDataIoAdapter') as typeof import('@/infrastructure/sports/providers/footballDataIo/FootballDataIoAdapter');
+  const fetchImpl: FetchLike = options.fetch ?? (globalThis.fetch as unknown as FetchLike);
+  const client = new FootballDataIoClient(fetchImpl, { apiKey, timeoutMs: Number(process.env.FOOTBALLDATA_IO_TIMEOUT_MS) || 10_000 });
+  const daily = Math.min(Number(process.env.FOOTBALLDATA_IO_DAILY_BUDGET) || FOOTBALLDATA_IO_DAILY_MATCH_BUDGET, FOOTBALLDATA_IO_DAILY_MATCH_BUDGET);
+  const config = { dailyBudget: daily, liveReserve: 0, perRunCap: 1, throttleBackoffMs: 60 * 60 * 1000 };
+  const { budget, lock } = buildBudgetAndLock(FOOTBALLDATA_IO_PROVIDER_ID, config, process.env.FOOTBALLDATA_IO_EMERGENCY_DISABLED === '1');
+  return new FootballIngestionService({
+    providerId: FOOTBALLDATA_IO_PROVIDER_ID,
+    competitions: [{ shortcuts: [FOOTBALLDATA_IO_WINDOW], season: 'current' }],
+    adapter: new FootballDataIoAdapter(client),
+    persistence: new FootballIngestionRepository(),
+    lock,
+    budget,
+    scheduler: new AdaptiveScheduler(FOOTBALLDATA_IO_SCHEDULER),
+    // One failure opens the circuit for an hour: never burn the monthly quota on retries.
+    circuitFailureThreshold: 1,
+    circuitOpenMs: 60 * 60 * 1000,
+  });
+}
+
+/**
+ * M07: football-data.org free plan = 10 requests/MINUTE, no daily cap documented
+ * (probe 2026-11-09). One window request per tick covers every licensed competition.
+ * The durable daily cap (300) is self-imposed politeness well below the minute limit;
+ * the client spaces calls 6.5 s apart so ticks, tables and backfill never burst.
+ */
+export const FOOTBALL_DATA_ORG_DAILY_BUDGET = 300;
+export const FOOTBALL_DATA_ORG_TABLE_BUDGET = 40;
+export const FOOTBALL_DATA_ORG_SCHEDULER: typeof DEFAULT_SCHEDULER_CONFIG = {
+  ...DEFAULT_SCHEDULER_CONFIG,
+  futureMs: 4 * 60 * 60 * 1000,
+  todayMs: 60 * 60 * 1000,
+  approachingKickoffMs: 15 * 60 * 1000,
+  liveMs: 3 * 60 * 1000,
+  halftimeMs: 5 * 60 * 1000,
+};
+
+/** Null when no key is configured: the provider is simply not ingested. */
+export function buildFootballDataOrgIngestionService(options: FootballIngestionFactoryOptions = {}): FootballIngestionService | null {
+  const apiKey = process.env.FOOTBALL_DATA_API_KEY?.trim();
+  if (!apiKey) return null;
+  const { FootballDataOrgClient, FootballDataOrgIngestionAdapter, FOOTBALL_DATA_ORG_PROVIDER_ID, FOOTBALL_DATA_ORG_WINDOW } = require(
+    '@/infrastructure/sports/providers/footballDataOrg/FootballDataOrgIngestion'
+  ) as typeof import('@/infrastructure/sports/providers/footballDataOrg/FootballDataOrgIngestion');
+  const fetchImpl: FetchLike = options.fetch ?? (globalThis.fetch as unknown as FetchLike);
+  const client = new FootballDataOrgClient(fetchImpl, { apiKey, timeoutMs: Number(process.env.FOOTBALL_PROVIDER_TIMEOUT_MS) || 10_000 });
+  const config = { dailyBudget: FOOTBALL_DATA_ORG_DAILY_BUDGET, liveReserve: 0, perRunCap: 1, throttleBackoffMs: 5 * 60 * 1000 };
+  const { budget, lock } = buildBudgetAndLock(FOOTBALL_DATA_ORG_PROVIDER_ID, config, process.env.FOOTBALL_DATA_ORG_EMERGENCY_DISABLED === '1');
+  return new FootballIngestionService({
+    providerId: FOOTBALL_DATA_ORG_PROVIDER_ID,
+    competitions: [{ shortcuts: [FOOTBALL_DATA_ORG_WINDOW], season: 'current' }],
+    adapter: new FootballDataOrgIngestionAdapter(client),
+    persistence: new FootballIngestionRepository(),
+    lock,
+    budget,
+    scheduler: new AdaptiveScheduler(FOOTBALL_DATA_ORG_SCHEDULER),
+    circuitFailureThreshold: 3,
+    circuitOpenMs: 10 * 60 * 1000,
+  });
+}
+
+/**
+ * Durable (cluster-shared, fail-closed) quota and lock per provider; the
+ * process-local pair only with FOOTBALL_DURABLE_QUOTA=0.
+ */
+export function buildBudgetAndLock(
+  providerId: string,
+  config: { dailyBudget: number; liveReserve: number; perRunCap: number; throttleBackoffMs: number },
+  emergencyDisabled: boolean
+): { budget: any; lock: any } {
   const { mongoose } = require('@/config/mongodb') as typeof import('@/config/mongodb');
   const connectionReady = mongoose?.connection?.readyState === 1 && Boolean(mongoose.connection.db);
-  const durableRequested = process.env.FOOTBALL_DURABLE_QUOTA !== '0';
-  if (durableRequested && !connectionReady) {
+  const durable = process.env.FOOTBALL_DURABLE_QUOTA !== '0';
+  if (durable && !connectionReady) {
     throw new Error(
       'football ingestion: durable quota authority requires a ready MongoDB connection; ' +
         'refusing to start with a process-local budget (set FOOTBALL_DURABLE_QUOTA=0 only for ' +
         'a deliberately single-process deployment)'
     );
   }
-  const durable = durableRequested;
   let budget: any;
   let lock: any;
   if (durable) {
@@ -138,26 +250,15 @@ export function buildFootballIngestionService(
       db.collection('football_quota') as any,
       db.collection('football_ingestion_control') as any
     );
-    budget = new DurableRequestBudget(config, store, 'openligadb');
+    budget = new DurableRequestBudget(config, store, providerId);
     lock = new MongoLock(db.collection('football_ingestion_locks') as any, `ingestion-${randomUUID()}`);
-    if (process.env.OPENLIGADB_EMERGENCY_DISABLED === '1') {
+    if (emergencyDisabled) {
       // Durable disable so a restart cannot silently re-enable a stopped provider.
-      void store.setDisabled('openligadb', true);
+      void store.setDisabled(providerId, true);
     }
   } else {
-    budget = new RequestBudget(config, {
-      initiallyDisabled: process.env.OPENLIGADB_EMERGENCY_DISABLED === '1',
-    });
+    budget = new RequestBudget(config, { initiallyDisabled: emergencyDisabled });
     lock = new InMemoryLock();
   }
-
-  return new FootballIngestionService({
-    providerId: 'openligadb',
-    competitions: plan,
-    adapter,
-    persistence: repository,
-    lock,
-    budget,
-    scheduler,
-  });
+  return { budget, lock };
 }

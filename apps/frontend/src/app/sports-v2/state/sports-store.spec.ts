@@ -129,6 +129,9 @@ describe('sports-v2 match-status helpers', () => {
   it('shows the minute for live matches and FIN for finished', () => {
     expect(matchClockLabel('live', 72, '2026-11-05T20:00:00+01:00')).toBe("72'");
     expect(matchClockLabel('finished', undefined, '2026-11-05T20:00:00+01:00')).toBe('FIN');
+    // Unconfirmed well after kickoff: honest "no result", never a past kickoff time shown as upcoming.
+    expect(matchClockLabel('scheduled', undefined, '2026-11-05T20:00:00+01:00', Date.parse('2026-11-06T10:00:00Z'))).toBe('Sin resultado');
+    expect(matchClockLabel('scheduled', undefined, '2026-11-05T20:00:00+01:00', Date.parse('2026-11-05T20:30:00Z'))).toMatch(/\d\d:\d\d/);
   });
   it('describes scores accessibly', () => {
     expect(scoreAriaLabel('A', 'B', 'live', 2, 1)).toBe('A 2, B 1, en vivo');

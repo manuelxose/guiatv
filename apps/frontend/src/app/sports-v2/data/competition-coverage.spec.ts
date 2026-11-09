@@ -22,16 +22,17 @@ describe('competition coverage', () => {
     // it is now covered; Copa del Rey, Hypermotion and the foreign leagues return
     // no fixtures and must stay NOT covered.
     expect(competitionHasApprovedProvider('laliga')).toBeTrue();
+    // M07: Nations League A 2026 is served by OpenLigaDB (`nla`, verified 2026-11-09).
+    expect(competitionHasApprovedProvider('nations-league')).toBeTrue();
+    // M07: football-data.org covers these with fixtures and official tables.
+    for (const slug of ['serie-a', 'ligue-1', 'primeira-liga', 'eredivisie', 'championship', 'brasileirao']) {
+      expect(competitionHasApprovedProvider(slug)).toBeTrue();
+    }
     for (const slug of [
       'laliga-hypermotion',
       'copa-del-rey',
-      'serie-a',
-      'ligue-1',
-      'primeira-liga',
-      'eredivisie',
       'seleccion-espanola',
       'eurocopa',
-      'nations-league',
     ]) {
       expect(competitionHasApprovedProvider(slug)).toBeFalse();
     }

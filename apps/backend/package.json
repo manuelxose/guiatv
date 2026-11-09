@@ -15,6 +15,7 @@
     "job:clean": "node dist/jobs/cli/cleanOldPrograms.cli.js",
     "job:archiveHistory": "node dist/jobs/cli/archiveBroadcastHistory.cli.js",
     "job:football:ingestion": "node dist/jobs/football/cli/runIngestion.cli.js",
+    "job:football:backfill": "node dist/jobs/football/cli/backfillFootballDataIo.cli.js",
     "create-indexes": "node dist/scripts/create-indexes.js",
     "migrate:tv-read-model": "node dist/scripts/backfill-tv-read-model.js",
     "migrate:media-catalog": "node dist/scripts/backfill-media-catalog.js",

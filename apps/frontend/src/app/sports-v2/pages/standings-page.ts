@@ -66,8 +66,13 @@ export class Sv2StandingsPageComponent {
   protected readonly base = sv2Link('clasificaciones');
   private readonly slug = toSignal(this.route.paramMap.pipe(map((p) => p.get('slug'))), { initialValue: this.route.snapshot.paramMap.get('slug') });
 
-  // Tables load per competition, so every league is offered; the table appears once fetched.
-  protected readonly withTables = computed(() => this.store.competitions().filter((c) => c.kind === 'league' || this.store.standingsOf(c.slug)));
+  // Only competitions that have ingested data and a table format (UEFA league phases included,
+  // knockout cups never). Without API flags (demo data) every league is offered as before.
+  protected readonly withTables = computed(() =>
+    this.store.competitions().filter((c) =>
+      c.hasData === undefined ? c.kind === 'league' || !!this.store.standingsOf(c.slug) : c.hasData && c.hasTable !== false,
+    ),
+  );
   protected readonly competition = computed(() => (this.slug() ? this.store.competition(this.slug() as string) : undefined));
   protected readonly standings = computed(() => (this.slug() ? this.store.standingsOf(this.slug() as string) : undefined));
 

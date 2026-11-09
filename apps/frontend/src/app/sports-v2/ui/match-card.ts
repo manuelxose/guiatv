@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { SPORTS_NOW } from '../data/football-data';
+import { ChangeDetectionStrategy, Component, computed, input, output, inject } from '@angular/core';
 import { matchClockLabel, scoreAriaLabel } from '../domain/match-status';
 import { Match, Team } from '../domain/models';
 import { Sv2IconComponent } from './icon';
@@ -67,7 +68,9 @@ export class Sv2MatchCardComponent {
   readonly matchSelect = output<string>();
   readonly trackToggle = output<string>();
 
-  protected readonly clock = computed(() => matchClockLabel(this.match().status, this.match().minute, this.match().kickoff));
+  /** App clock (injectable in tests), not Date.now(): "Sin resultado" depends on it. */
+  private readonly nowFn = inject(SPORTS_NOW);
+  protected readonly clock = computed(() => matchClockLabel(this.match().status, this.match().minute, this.match().kickoff, this.nowFn().getTime()));
   protected readonly aria = computed(() => {
     const m = this.match();
     return `${scoreAriaLabel(this.home().name, this.away().name, m.status, m.homeScore, m.awayScore)}. Ver detalle del partido`;

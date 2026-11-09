@@ -9,7 +9,7 @@ import {
   ViewChild,
   inject,
 } from '@angular/core';
-import { ActivatedRoute, NavigationEnd, Router, RouterModule, RouterOutlet } from '@angular/router';
+import { ActivatedRoute, NavigationEnd, Router, RouterModule, RouterOutlet, Routes } from '@angular/router';
 import { Subject, filter, takeUntil } from 'rxjs';
 import { AuthLoginModalComponent } from './components/auth-login-modal/auth-login-modal.component';
 import { AppPublicLayoutShellComponent } from './components/app-public-layout-shell/app-public-layout-shell.component';
@@ -31,6 +31,29 @@ import {
 import { ThemeMode, ThemeService } from './services/theme.service';
 
 type AppLayoutMode = 'portal-page' | 'public-shell' | 'minimal-shell' | 'private-shell' | 'admin-shell';
+
+/**
+ * The layout a URL will get, read from the top-level route config WITHOUT running the router.
+ * The root component must pick the same shell as the server on the first client render; with
+ * hydration the initial navigation is not blocking, so the router state is still empty then.
+ * Same matching as Angular: ':param' matches one segment, a leaf route must consume the whole
+ * path, a route with children may match a prefix. Redirects resolve server-side (HTTP 301) and
+ * are skipped. Returns undefined when nothing matches, so the router-derived layout applies.
+ */
+export function layoutForUrl(url: string, config: Routes): AppLayoutMode | undefined {
+  const segments = url.split(/[?#]/)[0].split('/').filter(Boolean);
+  for (const route of config) {
+    if (route.redirectTo !== undefined || route.matcher) continue;
+    const layout = route.data?.['layout'] as AppLayoutMode | undefined;
+    if (route.path === '**') return layout;
+    const pattern = (route.path ?? '').split('/').filter(Boolean);
+    if (pattern.length > segments.length) continue;
+    if (!pattern.every((p, i) => p.startsWith(':') || p === segments[i])) continue;
+    const canPrefix = route.pathMatch !== 'full' && !!(route.children?.length || route.loadChildren);
+    if (pattern.length === segments.length || canPrefix) return layout;
+  }
+  return undefined;
+}
 
 export function shouldMinimizeChatDrag(distance: number, elapsedMs: number): boolean {
   const safeDistance = Math.max(0, distance);
@@ -96,9 +119,9 @@ export class AppComponent implements OnInit, OnDestroy {
   ) {
     void this.chatService;
     // Select the same router-outlet branch before the first render on SSR and
-    // in the hydrating browser. Deferring this until ngOnInit makes hydration
-    // briefly instantiate the default public shell for portal routes.
-    this.applyRouteState(this.router.url);
+    // in the hydrating browser. The initial navigation is not blocking (hydration),
+    // so the router is still at '/' here: the document URL is the real one.
+    this.applyRouteState(this.document.location?.pathname || this.router.url);
   }
 
   ngOnInit(): void {
@@ -433,7 +456,10 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private applyRouteState(url: string): void {
     this.currentPath = normalizePath(url);
-    this.currentLayout = this.resolveCurrentLayout();
+    // Before the first navigation the router tree is empty: derive the layout from the URL.
+    this.currentLayout = this.activatedRoute.firstChild
+      ? this.resolveCurrentLayout()
+      : layoutForUrl(url, this.router.config) ?? this.resolveCurrentLayout();
     if (!this.canRenderChatbot()) {
       this.closeChatbot();
     }

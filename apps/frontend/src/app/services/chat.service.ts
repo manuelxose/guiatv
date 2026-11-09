@@ -148,9 +148,13 @@ export class ChatService {
       window.addEventListener('gtv-auth-restored', this.handleAuthRestored);
     }
 
-    this.typingPruneTimer = setInterval(() => {
-      this.store.pruneExpiredTyping();
-    }, TYPING_PRUNE_INTERVAL_MS);
+    // Outside the Angular zone: a permanent interval inside it keeps the app from ever
+    // becoming stable, which blocks hydration from completing (NG0506) on every page.
+    this.typingPruneTimer = this.ngZone.runOutsideAngular(() =>
+      setInterval(() => {
+        if (this.store.hasTyping()) this.ngZone.run(() => this.store.pruneExpiredTyping());
+      }, TYPING_PRUNE_INTERVAL_MS)
+    );
   }
 
   // ------------------------------------------------------------------
@@ -420,7 +424,9 @@ export class ChatService {
       return;
     }
 
-    this.socket = io(socketUrl, {
+    // Created outside the Angular zone (its heartbeat/reconnect timers would keep the app
+    // unstable forever); every handler below re-enters the zone with ngZone.run.
+    this.socket = this.ngZone.runOutsideAngular(() => io(socketUrl, {
       path: '/v2/ws',
       // Dynamic auth: the client re-resolves the token on every (re)connect,
       // so refreshes are picked up without recreating the socket.
@@ -435,7 +441,7 @@ export class ChatService {
       reconnectionDelayMax: RECONNECTION_DELAY_MAX_MS,
       randomizationFactor: RECONNECTION_JITTER,
       timeout: SOCKET_TIMEOUT_MS,
-    });
+    }));
 
     this.socket.on('connect', () => {
       this.ngZone.run(() => {
@@ -647,14 +653,18 @@ export class ChatService {
 
   private ensureFallbackPolling(): void {
     if (this.fallbackTimer) return;
-    this.fallbackTimer = setInterval(() => {
-      if (this.socket?.connected) {
-        this.clearFallbackPolling();
-        return;
-      }
-      this.refreshConversations().subscribe();
-      this.refreshOnlineUsers().subscribe();
-    }, FALLBACK_POLL_INTERVAL_MS);
+    // The interval lives outside the zone (stability); each poll re-enters it so its HTTP
+    // results update the UI.
+    this.fallbackTimer = this.ngZone.runOutsideAngular(() =>
+      setInterval(() => this.ngZone.run(() => {
+        if (this.socket?.connected) {
+          this.clearFallbackPolling();
+          return;
+        }
+        this.refreshConversations().subscribe();
+        this.refreshOnlineUsers().subscribe();
+      }), FALLBACK_POLL_INTERVAL_MS)
+    );
   }
 
   private clearFallbackPolling(): void {

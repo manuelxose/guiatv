@@ -56,7 +56,8 @@ export function resolvePolicy(
     return { browserSeconds: 10, sharedSeconds: 45, staleSeconds: 300 };
   }
   if (/\/(v2\/)?sports\/football\/competitions$/.test(path)) {
-    return { browserSeconds: 3600, sharedSeconds: 21600, staleSeconds: 86400 };
+    // 15 min at the edge: a deploy or ingestion fix shows within minutes; SWR keeps upstream load flat.
+    return { browserSeconds: 300, sharedSeconds: 900, staleSeconds: 86400 };
   }
   if (/\/(v2\/)?sports\/football\/(matches|competitions|teams|news|search)(?:\/|$)/.test(path)) {
     return { browserSeconds: 30, sharedSeconds: 180, staleSeconds: 900 };

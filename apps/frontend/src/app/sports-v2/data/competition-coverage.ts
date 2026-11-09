@@ -24,6 +24,9 @@ const COVERED_COMPETITIONS: ReadonlySet<string> = new Set([
   'dfb-pokal',         // dfb
   'laliga',            // la1 (verified 2026-11-06: 380 fixtures)
   'mundial',           // wm2026 (World Cup 2026)
+  'nations-league',    // nla (Nations League A 2026, verified 2026-11-09)
+  // M07: football-data.org (owner key, verified 2026-11-09: fixtures + official tables).
+  'serie-a', 'ligue-1', 'eredivisie', 'primeira-liga', 'championship', 'brasileirao',
 ]);
 
 /** True only for competitions an approved provider actually covers in 2026/27. */

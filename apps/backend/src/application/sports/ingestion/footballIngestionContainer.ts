@@ -38,7 +38,34 @@ export async function getFootballIngestionService(): Promise<FootballIngestionSe
   }
 }
 
+let extraServices: FootballIngestionService[] | null = null;
+
+/**
+ * M07: every ingestion provider (OpenLigaDB first, then the keyed ones that are
+ * configured). Each has its own lock and durable quota; the admin endpoints keep
+ * using the primary (`getFootballIngestionService`).
+ */
+export async function getFootballIngestionServices(): Promise<FootballIngestionService[]> {
+  const primary = await getFootballIngestionService();
+  if (!primary) return [];
+  if (!extraServices) {
+    const { buildFootballDataIoIngestionService, buildFootballDataOrgIngestionService } = await import('../../../jobs/football/factory');
+    extraServices = [];
+    // Each keyed provider fails closed on its own: the others keep ingesting.
+    for (const [name, build] of [['footballdata.io', buildFootballDataIoIngestionService], ['football-data.org', buildFootballDataOrgIngestionService]] as const) {
+      try {
+        const service = build();
+        if (service) extraServices.push(service);
+      } catch (error) {
+        console.error(`[FootballIngestion] ${name} disabled:`, error instanceof Error ? error.message : error);
+      }
+    }
+  }
+  return [primary, ...extraServices];
+}
+
 /** Test seam: replace or clear the shared instance. */
 export function setFootballIngestionServiceForTests(next: FootballIngestionService | null): void {
   service = next;
+  extraServices = null;
 }

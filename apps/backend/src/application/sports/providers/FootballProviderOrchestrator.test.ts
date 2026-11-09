@@ -42,7 +42,7 @@ test('never selects a prototype provider when the only approved provider fails',
   const sources: OrchestratorProviderSource[] = [
     source({ fetchFixtures: async () => down() }),
     {
-      providerId: 'football-data-org',
+      providerId: 'made-up-provider',
       capabilities: ['fixtures'],
       competitions: [],
       priority: 1,

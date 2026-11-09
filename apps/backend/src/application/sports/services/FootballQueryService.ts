@@ -48,7 +48,7 @@ const CACHE_POLICIES = {
   fixtures: { freshSeconds: 10 * 60, staleSeconds: 60 * 60 },
   historical: { freshSeconds: 24 * 60 * 60, staleSeconds: 7 * 24 * 60 * 60 },
   detail: { freshSeconds: 60, staleSeconds: 15 * 60 },
-  metadata: { freshSeconds: 6 * 60 * 60, staleSeconds: 24 * 60 * 60 },
+  metadata: { freshSeconds: 15 * 60, staleSeconds: 24 * 60 * 60 },
   competition: { freshSeconds: 5 * 60, staleSeconds: 60 * 60 },
   news: { freshSeconds: 3 * 60, staleSeconds: 30 * 60 },
   newsDetail: { freshSeconds: 60 * 60, staleSeconds: 24 * 60 * 60 },
@@ -75,7 +75,15 @@ export function mergeCompetitionsWithCatalogue(ingested: readonly FootballCompet
   for (const competition of ingested) {
     if (!competition?.slug) continue;
     const base = bySlug.get(competition.slug);
-    bySlug.set(competition.slug, base ? { ...base, ...competition } : competition);
+    // The catalogue owns identity (type, country): a provider's own taxonomy
+    // (football-data maps CLI → "league") must not relabel a cup.
+    // A provider that sends no logo must not erase the catalogue one.
+    bySlug.set(
+      competition.slug,
+      base
+        ? { ...base, ...competition, type: base.type, country: base.country ?? competition.country, logo: competition.logo ?? base.logo, hasTable: base.hasTable, hasData: true }
+        : { ...competition, hasData: true }
+    );
   }
   return [...bySlug.values()];
 }
@@ -247,7 +255,10 @@ export class FootballQueryService {
 
   async getCompetition(slug: string): Promise<FootballCompetitionDetailDTO> {
     return this.swrCache.getOrLoad(`${CACHE_PREFIX}:competition:${encodeURIComponent(slug)}`, CACHE_POLICIES.competition, async () => {
-    const competition = await this.provider.getCompetition(slug);
+    // A catalogue competition with no snapshots yet is a real page that says
+    // "sin datos", not a 404. Ingested data still wins when present.
+    const ingested = await this.provider.getCompetition(slug);
+    const competition = mergeCompetitionsWithCatalogue(ingested ? [ingested] : []).find((c) => c.slug === (ingested?.slug ?? slug));
     if (!competition) {
       throw new NotFoundError('Football competition', slug);
     }

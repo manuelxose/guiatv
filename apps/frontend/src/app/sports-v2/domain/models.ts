@@ -41,6 +41,10 @@ export interface Competition {
   readonly logoUrl?: string;
   readonly teamSlugs: readonly string[];
   readonly season?: string;
+  /** false: listed from the catalogue only, no provider data ingested yet. */
+  readonly hasData?: boolean;
+  /** false: knockout competition, it never has a table. */
+  readonly hasTable?: boolean;
   readonly description?: string;
   /** Absent when the competition has no verified qualification/relegation rules. */
   readonly zones?: readonly StandingZone[];

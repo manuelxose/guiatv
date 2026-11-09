@@ -212,6 +212,44 @@ const entries: CompetitionCatalogEntry[] = [
   },
 ];
 
+/**
+ * Competition logos (owner-authorised 2026-11-09). Each URL was verified to answer
+ * 200: footballdata.io's public league images, or the Wikidata P154 logo on Commons
+ * when footballdata.io has none. Absent = neutral trophy icon, never a guess.
+ */
+const FD = 'https://footballdata.io/img/league/';
+const COMMONS = 'https://upload.wikimedia.org/wikipedia/commons/';
+export const COMPETITION_LOGOS: Readonly<Record<string, string>> = {
+  laliga: `${FD}spain-la-liga.png`,
+  'laliga-hypermotion': `${FD}spain-segunda-division.png`,
+  'copa-del-rey': `${FD}spain-copa-del-rey.png`,
+  'dfb-pokal': `${COMMONS}2/2a/DFB-Pokal_Wordmark.svg`,
+  'champions-league': `${FD}europe-uefa-champions-league.png`,
+  'europa-league': `${FD}europe-uefa-europa-league.png`,
+  'conference-league': `${COMMONS}2/26/UEFA_Conference_League_logo_%282024_version%29.svg`,
+  'premier-league': `${FD}england-premier-league.png`,
+  championship: `${FD}england-championship.png`,
+  brasileirao: `${FD}brazil-serie-a.png`,
+  'copa-libertadores': `${FD}south-america-copa-libertadores.png`,
+  'serie-a': `${FD}italy-serie-a.png`,
+  bundesliga: `${FD}germany-bundesliga.png`,
+  'bundesliga-2': `${FD}germany-2-bundesliga.png`,
+  'ligue-1': `${FD}france-ligue-1.png`,
+  'primeira-liga': `${FD}portugal-liga-nos.png`,
+  eredivisie: `${FD}netherlands-eredivisie.png`,
+  'seleccion-espanola': 'https://footballdata.io/img/team/spain-national-team.png',
+  mundial: `${FD}international-world-cup.png`,
+  'nations-league': `${COMMONS}d/de/Uefa_nations_league_textlogo.png`,
+};
+
+/** Knockout competitions: a "table" for them is meaningless, so none is ever served. */
+// nations-league: four separate groups; one merged table would be false.
+const NO_TABLE = new Set(['copa-del-rey', 'dfb-pokal', 'copa-libertadores', 'eurocopa', 'mundial', 'seleccion-espanola', 'nations-league']);
+
+export function competitionHasTable(slug: string): boolean {
+  return !NO_TABLE.has(slug);
+}
+
 const bySlug = new Map(entries.map((entry) => [entry.slug, entry]));
 
 export function getCompetitionCatalog(): readonly CompetitionCatalogEntry[] {
@@ -230,6 +268,9 @@ export function toCompetitionEntity(entry: CompetitionCatalogEntry): FootballCom
     shortName: entry.shortName,
     country: entry.country,
     type: entry.type,
+    logo: COMPETITION_LOGOS[entry.slug] ?? null,
+    hasTable: competitionHasTable(entry.slug),
+    hasData: false,
     providerIds: {},
     lastUpdatedAt: new Date().toISOString(),
   };

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildNewsQuery, FootballQueryService, prioritizeSpanishLeague, settle } from './FootballQueryService';
+import { buildNewsQuery, FootballQueryService, mergeCompetitionsWithCatalogue, prioritizeSpanishLeague, settle } from './FootballQueryService';
 import { FootballDataProvider } from '../../../domain/sports/football/types';
 
 // Regression coverage for a real production bug: getCompetition()/getTeam()/
@@ -165,6 +165,26 @@ function fakeCache() {
     store,
   };
 }
+
+test('mergeCompetitionsWithCatalogue keeps the catalogue type/country over a provider taxonomy', () => {
+  const ingested = { id: '1', slug: 'copa-libertadores', name: 'Copa Libertadores', type: 'league', country: 'South America', logo: 'https://x/y.png', providerIds: { p: '1' }, lastUpdatedAt: '' } as any;
+  const merged = mergeCompetitionsWithCatalogue([ingested]);
+  const lib = merged.find((c) => c.slug === 'copa-libertadores')!;
+  assert.equal(lib.type, 'cup');
+  assert.equal(lib.country, 'Sudamérica');
+  assert.equal(lib.id, '1', 'ingested identity and data still win');
+  assert.equal(merged.filter((c) => c.slug === 'copa-libertadores').length, 1, 'no duplicates');
+  assert.equal(merged.find((c) => c.slug === 'copa-del-rey')!.id, 'catalog:copa-del-rey', 'catalogue-only entry kept');
+  // Data/table flags and logos: explicit, not inferred from the id (ingested ids are also `catalog:`).
+  assert.equal(lib.hasData, true);
+  assert.equal(lib.hasTable, false, 'knockout competition never offers a table');
+  const bl = mergeCompetitionsWithCatalogue([{ id: 'catalog:bundesliga', slug: 'bundesliga', name: 'Bundesliga', type: 'league', logo: null, providerIds: {}, lastUpdatedAt: '' } as any]).find((c) => c.slug === 'bundesliga')!;
+  assert.equal(bl.hasData, true);
+  assert.equal(bl.hasTable, true);
+  assert.match(String(bl.logo), /germany-bundesliga\.png$/, 'a provider without a logo keeps the catalogue logo');
+  const serieA = merged.find((c) => c.slug === 'serie-a')!;
+  assert.equal(serieA.hasData, false);
+});
 
 test('getCompetitions() degrades to an empty list instead of a 500 when the provider rejects', async () => {
   const provider = fakeProvider({

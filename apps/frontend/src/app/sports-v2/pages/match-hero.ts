@@ -1,3 +1,4 @@
+import { SPORTS_NOW } from '../data/football-data';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { dayKey, kickoffTime, longDay, zoneDescription } from '../domain/calendar';
@@ -68,7 +69,9 @@ export class Sv2MatchHeroComponent {
   readonly match = input.required<Match>();
   readonly size = input<'sm' | 'lg'>('sm');
 
-  protected readonly clock = computed(() => matchClockLabel(this.match().status, this.match().minute, this.match().kickoff));
+  /** App clock (injectable in tests), not Date.now(): "Sin resultado" depends on it. */
+  private readonly nowFn = inject(SPORTS_NOW);
+  protected readonly clock = computed(() => matchClockLabel(this.match().status, this.match().minute, this.match().kickoff, this.nowFn().getTime()));
   protected readonly compLink = computed(() => sv2Link('competiciones', this.match().competitionSlug));
   protected readonly when = computed(() => {
     const iso = this.match().kickoff;

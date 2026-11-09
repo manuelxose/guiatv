@@ -15,12 +15,17 @@ export const STATUS_PRESENTATION: Readonly<Record<MatchStatus, StatusPresentatio
 };
 
 /** Spanish label for the clock slot of a match card. */
-export function matchClockLabel(status: MatchStatus, minute: number | undefined, kickoff: string): string {
+export function matchClockLabel(status: MatchStatus, minute: number | undefined, kickoff: string, nowMs: number = Date.now()): string {
   if (status === 'live') return minute != null ? `${minute}'` : 'En vivo';
   if (status === 'finished') return 'FIN';
   if (status === 'postponed') return 'Aplazado';
+  // No provider has confirmed a result well after kickoff: say so, never show a stale kickoff time as if upcoming.
+  if (nowMs - Date.parse(kickoff) > RESULT_PENDING_AFTER_MS) return 'Sin resultado';
   return kickoffTime(kickoff);
 }
+
+/** Same window the backend uses before it stops calling an unconfirmed match "live". */
+export const RESULT_PENDING_AFTER_MS = 3 * 60 * 60 * 1000;
 
 /** Accessible one-sentence description of a score line. */
 export function scoreAriaLabel(

@@ -99,16 +99,38 @@ export const providerEligibilityRegistry: Readonly<Record<string, ProviderEligib
         'venue',
         'referee',
       ],
-      competitions: [],
+      // Probe 2026-11-09 with the owner's key: 13 competitions, standings and matches answer 200.
+      competitions: ['SA', 'FL1', 'DED', 'PPL', 'ELC', 'BSA', 'PD', 'PL', 'BL1', 'CL'],
       eligibility: {
-        state: 'prototype',
-        reason:
-          'Free tier is API-key gated and tier-restricted; anonymous access is catalog-only (403 on matches/standings). Not selectable without user approval.',
-        evidenceRef: 'docs/sports-v2/m05-contract/M05-A-CONTRACT.md §Verified facts',
+        state: 'approved',
+        reason: 'Owner supplied the free API key and approved its use on 2026-11-09 (Serie A, Ligue 1, Eredivisie, Primeira, Championship, Brasileirão tables).',
+        evidenceRef: 'docs/sports-v2/M07-UNIFIED-SOURCE.md',
+        approvedBy: 'owner',
       },
-      legalNotes: 'Documented API; reuse requires a key and the free plan terms.',
+      legalNotes: 'Free plan; attribution "Football data provided by the Football-Data.org API" shown on public pages.',
       rightsState: 'verified',
-      lastReviewedOn: '2026-11-06',
+      lastReviewedOn: '2026-11-09',
+    }),
+    'footballdata-io': freezeEntry({
+      id: 'footballdata-io',
+      name: 'footballdata.io',
+      authMode: 'api_key',
+      envVarName: 'FOOTBALLDATA_IO_API_KEY',
+      docsUrl: 'https://footballdata.io/documentation/endpoints/',
+      // Probe 2026-11-09 (/account/usage): plan "free", 1000 requests, limit_type "monthly", league_limit 5.
+      freeQuota: { kind: 'monthly', limit: 1000 },
+      capabilities: ['fixtures', 'results', 'live_score', 'live_minute', 'statistics', 'standings', 'team_metadata', 'venue'],
+      // Free key: La Liga (10), Premier League (15), UCL (45), UEL (46), World Cup (50).
+      competitions: ['10', '15', '45', '46', '50'],
+      eligibility: {
+        state: 'approved',
+        reason: 'Owner supplied the free API key and approved its use, including crests, on 2026-11-09.',
+        evidenceRef: 'docs/sports-v2/M07-UNIFIED-SOURCE.md',
+        approvedBy: 'owner',
+      },
+      legalNotes: 'Free plan, monthly quota; owner authorised use of crests and logos.',
+      rightsState: 'verified',
+      lastReviewedOn: '2026-11-09',
     }),
     'google-search': freezeEntry({
       id: 'google-search',
