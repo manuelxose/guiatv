@@ -15,7 +15,7 @@
     <h2 id="ua-ctx-title" class="ua-label">Tu ficha</h2>
     <div class="pf-card">
       <div class="ua-id">
-        <span class="ua-avatar">@if (photo(); as src) {<img [src]="src" alt="" />} @else { {{ initials() }} }</span>
+        <app-avatar-editor [size]="56" [showStatus]="false"></app-avatar-editor>
         <div class="ua-id__text"><strong>{{ profile().name }}</strong><small>&#64;{{ profile().username }}</small></div>
       </div>
       <dl class="ua-stats">

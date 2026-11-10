@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { NgTemplateOutlet } from '@angular/common';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { UserContentInteraction, UserList, UserListItem } from '../../../../interfaces/user.interface';
 import { UserService } from '../../../../services/user.service';
@@ -14,15 +15,19 @@ type View = 'guardado' | 'vistos' | 'favoritos' | 'listas';
 @Component({
   selector: 'app-my-library',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, NgTemplateOutlet],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['../../perfil-ui.scss', './my-library.component.scss'],
   template: `
+    <p class="pf-note ml-note" [class.pf-note--err]="noteError()" role="status">{{ note() }}</p>
+    <div class="ml-top">
     <nav class="pf-tabs" aria-label="Mi lista">
       @for (v of views; track v.key) {
       <a class="pf-chip" [routerLink]="'/perfil'" [queryParams]="{ tab: 'lista', vista: v.key === 'guardado' ? null : v.key }" [attr.aria-current]="view() === v.key ? 'page' : null">{{ v.label }} · {{ v.count() }}</a>
       }
     </nav>
+    <button type="button" class="pf-btn pf-btn--pri pf-btn--sm" (click)="startCreate()">+ Crear lista</button>
+    </div>
 
     @switch (view()) {
     @case ('guardado') {
@@ -42,6 +47,7 @@ type View = 'guardado' | 'vistos' | 'favoritos' | 'listas';
             <span class="pf-small">{{ typeLabel(item.type) }} · {{ stateLabel(item.state) }}</span>
           </span>
           <span class="pf-actions">
+            <ng-container *ngTemplateOutlet="addTo; context: { $implicit: { title: item.title, type: item.type, contentId: item.contentId } }"></ng-container>
             <button type="button" class="pf-btn pf-btn--sm" (click)="markSeen(item)">Ya la vi</button>
             <button type="button" class="pf-btn pf-btn--sm" (click)="unsave(item)" [attr.aria-label]="'Quitar ' + item.title">Quitar</button>
           </span>
@@ -68,6 +74,7 @@ type View = 'guardado' | 'vistos' | 'favoritos' | 'listas';
             @if (link(item.contentId); as href) {<a [routerLink]="href"><strong>{{ item.contentTitle }}</strong></a>} @else {<strong>{{ item.contentTitle }}</strong>}
             <span class="pf-small">{{ typeLabel(item.contentType) }}@if (item.platform) { · {{ item.platform }}} · {{ statusLabel(item.status) }}</span>
           </span>
+          <ng-container *ngTemplateOutlet="addTo; context: { $implicit: { title: item.contentTitle, type: item.contentType, contentId: item.contentId } }"></ng-container>
           <span class="pf-stars" role="group" [attr.aria-label]="'Valorar ' + item.contentTitle">
             @for (n of [1, 2, 3, 4, 5]; track n) {
             <button type="button" [class.on]="(item.rating || 0) >= n" [attr.aria-label]="n + ' estrellas'" [attr.aria-pressed]="item.rating === n" (click)="rate(item, n)">★</button>
@@ -165,14 +172,22 @@ type View = 'guardado' | 'vistos' | 'favoritos' | 'listas';
       } @empty {
       @if (!creating()) {<div class="pf-empty"><strong>Todavía no tienes listas</strong><span>Crea la primera y agrupa títulos como quieras.</span><button type="button" class="pf-btn pf-btn--pri" (click)="creating.set(true)">Crear una lista</button></div>}
       }
-      @if (note()) {<p class="pf-note" [class.pf-note--err]="noteError()" role="status">{{ note() }}</p>}
     </section>
     }
     }
+
+    <ng-template #addTo let-t>
+      <select class="ml-add" [attr.aria-label]="'Añadir ' + t.title + ' a una lista'" (change)="addToList(t, $any($event.target))">
+        <option value="" selected>Añadir a lista…</option>
+        @for (list of lists(); track list.id) {<option [value]="list.id">{{ list.title }}</option>}
+        <option value="__new">+ Nueva lista…</option>
+      </select>
+    </ng-template>
   `,
 })
 export class MyLibraryComponent {
   private readonly user = inject(UserService);
+  private readonly router = inject(Router);
 
   readonly view = toSignal(
     inject(ActivatedRoute).queryParamMap.pipe(map((p) => {
@@ -264,6 +279,25 @@ export class MyLibraryComponent {
     this.user.updateList(list.id, { title: clean, description: description.trim(), visibility: visibility === 'public' ? 'public' : 'private' }).subscribe((saved) => {
       this.flash(saved ? 'Lista guardada.' : 'No se pudo guardar la lista.', !saved);
       if (saved) this.editingId.set(null);
+    });
+  }
+
+  /** Opens the new-list form from any view. */
+  startCreate(): void {
+    this.creating.set(true);
+    void this.router.navigate(['/perfil'], { queryParams: { tab: 'lista', vista: 'listas' } });
+  }
+
+  /** Adds a saved or watched title to one of the user's lists (or opens the new-list form). */
+  addToList(t: { title: string; type: 'movie' | 'series' | 'program'; contentId?: string }, select: HTMLSelectElement): void {
+    const listId = select.value;
+    select.value = '';
+    if (!listId) return;
+    if (listId === '__new') return this.startCreate();
+    const list = this.lists().find((l) => l.id === listId);
+    this.user.addListItem(listId, { title: t.title, type: t.type, state: 'pending', contentId: t.contentId }).subscribe((item) => {
+      this.flash(item ? `Añadido a «${list?.title ?? 'tu lista'}».` : 'No se pudo añadir a la lista.', !item);
+      if (item && this.openId() === listId) this.openItems.update((items) => [...items, item]);
     });
   }
 

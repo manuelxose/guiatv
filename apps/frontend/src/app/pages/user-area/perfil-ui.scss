@@ -88,6 +88,7 @@
 
 .pf-field {
   display: grid;
+  align-content: start; // a hint under one field must not push its neighbours' inputs down
   gap: 6px;
   font-size: var(--sv2-fs-sm);
   font-weight: 600;

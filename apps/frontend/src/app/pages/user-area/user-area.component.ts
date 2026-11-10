@@ -16,6 +16,7 @@ import { MetaService } from '../../services/meta.service';
 import { UserService } from '../../services/user.service';
 import { computePersonalizationCompletion } from '../../utils/personalization-completion';
 import { avatarSrc } from '../../utils/avatar-src';
+import { AvatarEditorComponent } from './components/avatar-editor/avatar-editor.component';
 import { MyAccountComponent } from './components/my-account/my-account.component';
 import { MyAssistantComponent } from './components/my-assistant/my-assistant.component';
 import { MyFootballComponent } from './components/my-football/my-football.component';
@@ -65,6 +66,7 @@ const HINTS: Record<PerfilTab, string> = {
     MyTastesComponent,
     MyNoticesComponent,
     MyAccountComponent,
+    AvatarEditorComponent,
   ],
   templateUrl: './user-area.component.html',
   styleUrls: ['./perfil-ui.scss', './user-area.component.scss'],

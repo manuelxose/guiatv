@@ -5,10 +5,7 @@ import { RouterLink } from '@angular/router';
 import { UserPrivacy } from '../../../../interfaces/user.interface';
 import { AuthService, AuthSessionView } from '../../../../services/auth.service';
 import { UserService } from '../../../../services/user.service';
-import { avatarSrc } from '../../../../utils/avatar-src';
-
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // same limit as the API
-const PHOTO_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+import { AvatarEditorComponent } from '../avatar-editor/avatar-editor.component';
 
 interface Draft { name: string; username: string; location: string; bio: string }
 
@@ -16,7 +13,7 @@ interface Draft { name: string; username: string; location: string; bio: string 
 @Component({
   selector: 'app-my-account',
   standalone: true,
-  imports: [DatePipe, RouterLink],
+  imports: [DatePipe, RouterLink, AvatarEditorComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrls: ['../../perfil-ui.scss', './my-account.component.scss'],
   template: `
@@ -24,22 +21,8 @@ interface Draft { name: string; username: string; location: string; bio: string 
     <section class="ac-card" aria-labelledby="ac-profile">
       <header class="ac-card__head"><h2 id="ac-profile">Tu perfil</h2><a [routerLink]="['/perfil', profile().id]">Ver perfil público ›</a></header>
 
-      <div class="ac-photo">
-        <span class="ac-avatar">
-          @if (preview() || photo()) {<img [src]="preview() || photo()" alt="Tu foto de perfil" />} @else { {{ initials() }} }
-          @if (uploading()) {<span class="ac-avatar__busy" aria-hidden="true"></span>}
-        </span>
-        <div class="ac-photo__actions">
-          <label class="pf-btn pf-btn--sm" [class.is-disabled]="uploading()">
-            {{ photo() ? 'Cambiar foto' : 'Subir foto' }}
-            <input type="file" accept="image/png,image/jpeg,image/webp" (change)="pickPhoto($event)" [disabled]="uploading()" />
-          </label>
-          @if (photo() && !uploading()) {<button type="button" class="pf-btn pf-btn--sm" (click)="removePhoto()">Quitar</button>}
-          <span class="pf-small">PNG, JPEG o WebP · máx. 5 MB · se recorta en cuadrado</span>
-        </div>
-      </div>
-      <p class="ac-status" [class.err]="photoError()" role="status">{{ photoNote() }}</p>
-
+      <div class="ac-profile">
+        <app-avatar-editor [size]="112"></app-avatar-editor>
       <form class="ac-form" (submit)="$event.preventDefault(); saveProfile()">
         <label class="pf-field">Nombre
           <input class="pf-input" [value]="draft().name" (input)="edit('name', $event)" maxlength="60" required autocomplete="name" />
@@ -64,6 +47,7 @@ interface Draft { name: string; username: string; location: string; bio: string 
           <p class="ac-status" [class.err]="profileError()" role="status">{{ profileNote() }}</p>
         </div>
       </form>
+      </div>
     </section>
 
     <!-- ── Privacidad ── -->
@@ -139,14 +123,8 @@ export class MyAccountComponent {
   private readonly auth = inject(AuthService);
 
   readonly profile = toSignal(this.user.getProfile(), { requireSync: true });
-  readonly photo = computed(() => avatarSrc(this.profile().avatar));
   readonly sessions = signal<AuthSessionView[]>([]);
   readonly busy = signal(false);
-
-  readonly preview = signal('');
-  readonly uploading = signal(false);
-  readonly photoNote = signal('');
-  readonly photoError = signal(false);
 
   readonly draft = signal<Draft>({ name: '', username: '', location: '', bio: '' });
   private readonly saved = signal<Draft>({ name: '', username: '', location: '', bio: '' });
@@ -171,10 +149,6 @@ export class MyAccountComponent {
     this.loadSessions();
   }
 
-  initials(): string {
-    return (this.profile().name || 'U').split(/\s+/).slice(0, 2).map((w) => w.charAt(0).toUpperCase()).join('');
-  }
-
   edit(field: keyof Draft, event: Event): void {
     const value = (event.target as HTMLInputElement | HTMLTextAreaElement).value;
     this.draft.update((d) => ({ ...d, [field]: value }));
@@ -194,35 +168,6 @@ export class MyAccountComponent {
       this.profileError.set(!p);
       this.profileNote.set(p ? 'Cambios guardados.' : 'No se pudieron guardar (¿el usuario ya existe?).');
       if (p) this.draft.set(this.saved());
-    });
-  }
-
-  pickPhoto(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = ''; // the same file can be picked again after an error
-    if (!file) return;
-    if (!PHOTO_TYPES.includes(file.type)) return this.photoFail('Sube una imagen PNG, JPEG o WebP.');
-    if (file.size > MAX_PHOTO_BYTES) return this.photoFail('La imagen debe pesar menos de 5 MB.');
-
-    const local = URL.createObjectURL(file);
-    this.preview.set(local);
-    this.uploading.set(true);
-    this.photoError.set(false);
-    this.photoNote.set('Subiendo foto…');
-    this.user.uploadAvatar(file).subscribe((p) => {
-      this.uploading.set(false);
-      this.preview.set('');
-      URL.revokeObjectURL(local);
-      if (p) this.photoNote.set('Foto actualizada.');
-      else this.photoFail('No se pudo subir la foto. Inténtalo de nuevo.');
-    });
-  }
-
-  removePhoto(): void {
-    this.user.updateProfile({ avatar: '' }).subscribe((p) => {
-      this.photoError.set(!p);
-      this.photoNote.set(p ? 'Foto quitada.' : 'No se pudo quitar la foto.');
     });
   }
 
@@ -281,11 +226,6 @@ export class MyAccountComponent {
       if (ok) this.user.logout();
       else this.deleteNote.set('No se pudo eliminar. Revisa tu contraseña.');
     });
-  }
-
-  private photoFail(message: string): void {
-    this.photoError.set(true);
-    this.photoNote.set(message);
   }
 
   private loadSessions(): void {
