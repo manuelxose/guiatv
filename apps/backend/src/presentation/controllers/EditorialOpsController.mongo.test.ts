@@ -383,6 +383,11 @@ test('M14-R interruptor: startRunnerProcess automático se niega con enabled=fal
     // Arranque automático (el cron no envía señal): se niega ANTES de tocar el gestor de procesos (aquí no configurado).
     const auto = await call(ops.startRunnerProcess, { body: {} });
     assert.deepEqual([auto.body.data.started, auto.body.data.reason, auto.body.data.mode, auto.body.data.enabled], [false, 'generation-disabled', 'automatic', false]);
+    // M15: the 15-min ticks repeat the same refusal; only its start is audited, and every tick is recorded.
+    await call(ops.startRunnerProcess, { body: {} });
+    const scheduler = await mongoose.connection.collection('editorial_runner').findOne({ _id: 'scheduler' as never });
+    assert.equal(scheduler?.lastOutcome, 'generation-disabled');
+    assert.ok(scheduler?.lastTickAt instanceof Date);
     // Arranque manual: se permite y el gestor de procesos no configurado falla (prueba de que sí se consultó el arranque).
     const manual = await call(ops.startRunnerProcess, { body: { mode: 'manual' } });
     assert.match(String(manual.error), /EDITORIAL_RUNNER_COMMAND/);

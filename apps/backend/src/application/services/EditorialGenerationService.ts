@@ -63,7 +63,7 @@ const settings = () => db().collection<{ _id: string; settings?: EditorialGenera
 const requests = () => db().collection<GenerationRequest>('editorial_generation_requests');
 const cycles = () => db().collection('editorial_cycles');
 // `current`: the runner's heartbeat; `scheduler`: the OS scheduler's ticks (M15).
-const runner = () => db().collection<{ _id: string; lastSeenAt?: Date; version?: string; status?: string; lastError?: string; capabilities?: unknown; lastTickAt?: Date; lastAutomaticStartAt?: Date }>('editorial_runner');
+const runner = () => db().collection<{ _id: string; lastSeenAt?: Date; version?: string; status?: string; lastError?: string; capabilities?: unknown; lastTickAt?: Date; lastAutomaticStartAt?: Date; lastOutcome?: string }>('editorial_runner');
 const queue = () => db().collection<{ _id: string; items?: any[]; updatedAt?: Date }>('editorial_queue_snapshot');
 
 export const DEFAULT_GENERATION_SETTINGS: EditorialGenerationSettings = {
@@ -306,7 +306,11 @@ export class EditorialGenerationService {
   /** M15: every automatic start request is a scheduler tick; the panel shows whether the OS scheduler is alive. */
   async schedulerTick(now = new Date()) {
     const doc = await runner().findOneAndUpdate({ _id: 'scheduler' }, { $set: { lastTickAt: now } }, { upsert: true, returnDocument: 'before' });
-    return { lastAutomaticStartAt: doc?.lastAutomaticStartAt ?? null };
+    return { lastAutomaticStartAt: doc?.lastAutomaticStartAt ?? null, lastOutcome: doc?.lastOutcome ?? null };
+  }
+
+  async recordTickOutcome(outcome: string) {
+    await runner().updateOne({ _id: 'scheduler' }, { $set: { lastOutcome: outcome } }, { upsert: true });
   }
 
   async recordAutomaticStart(now = new Date()) {
