@@ -24,6 +24,6 @@ logs/
 coverage/
 temp/
 
-# Storage folder (runtime artifacts)
-storage/
-storage/*
+# Storage folder (runtime artifacts), at the backend root only: src/infrastructure/storage is code.
+/storage/
+/tmp-storage/
