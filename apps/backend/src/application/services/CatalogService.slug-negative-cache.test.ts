@@ -201,7 +201,7 @@ test('getBySlug: missing program slugs use bounded indexed token lookups instead
       NotFoundError
     );
 
-    assert.equal(observed.length, 6, 'each indexed token is checked for today and tomorrow');
+    assert.equal(observed.length, 9, 'each indexed token is checked for today, tomorrow and the day after');
     observed.forEach((query, index) => {
       assert.equal(query.searchTokens, ['inexistente', 'programa', 'distinto'][index % 3]);
       assert.match(String(query.date), /^\d{8}$/);

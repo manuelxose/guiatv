@@ -103,7 +103,7 @@ describe('TvDataFacade', () => {
         meta: {
           totalChannels: 1,
           totalItems: 34,
-          itemsPerChannel: 32,
+          itemsPerChannel: 192,
           truncatedChannels: 1,
           generatedAt: '2026-03-26T00:00:00.000Z',
         },
@@ -120,7 +120,7 @@ describe('TvDataFacade', () => {
     expect(tvApiSpy.getTvReadSchedule).toHaveBeenCalledWith(jasmine.objectContaining({
       date: 'today',
       group: 'movistar',
-      itemsPerChannel: 32,
+      itemsPerChannel: 192,
       fields: 'grid',
       country: 'GB',
     }));

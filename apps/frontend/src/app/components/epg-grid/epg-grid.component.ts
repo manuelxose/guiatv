@@ -4,7 +4,7 @@ import {
   Component,
   ElementRef,
   PLATFORM_ID,
-  afterRenderEffect,
+  afterEveryRender,
   computed,
   inject,
   input,
@@ -69,9 +69,16 @@ interface EpgGridTick {
   templateUrl: './epg-grid.component.html',
   styleUrl: './epg-grid.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  // Any read gesture inside the grid (drag, wheel, arrows) is the reader taking over from the opening anchor.
+  host: {
+    '(pointerdown)': 'onReaderInput()',
+    '(wheel)': 'onReaderInput()',
+    '(keydown)': 'onReaderInput()',
+  },
 })
 export class EpgGridComponent {
   readonly items = input.required<TvReadItemDTO[]>();
+
   /** What the page is about: 'now' opens on the current time, 'next' marks what follows, 'night' opens on prime time. */
   readonly view = input<'now' | 'next' | 'night'>('now');
   /** Programmes of other categories are dimmed, not hidden, so the grid keeps its shape. */
@@ -81,6 +88,9 @@ export class EpgGridComponent {
 
   private readonly scroller = viewChild<ElementRef<HTMLElement>>('scroller');
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  /** Anchor key (`view|window start`) whose position has already been applied to the scroll box. */
+  private anchored = '';
+  private readerMovedGrid = false;
 
   readonly now = signal(Date.now());
   /** Roving tabindex: only one cell is in the tab order, arrows move between cells. */
@@ -109,11 +119,27 @@ export class EpgGridComponent {
         .pipe(takeUntilDestroyed())
         .subscribe(() => this.now.set(Date.now()));
     }
-    // On first render and on every view change (the grid stays mounted), not when the clock ticks.
-    afterRenderEffect(() => {
-      const view = this.view();
-      untracked(() => this.scrollToView(view));
-    });
+    // Not an effect on `view`: the first render of a hydrated page runs before the browser has laid the scroll
+    // box out, and the render that follows it rebuilds the cells; either can drop the anchor back to 0 after it
+    // was applied. So it is re-applied after every render, and only dropped once the reader moves the grid
+    // themselves — a new view (or another day's window) restores it.
+    afterEveryRender(() => untracked(() => this.anchorGrid()));
+  }
+
+  /** Opens the grid where the view is about, unless the reader has moved it since the view last changed. */
+  private anchorGrid(): void {
+    const view = this.view();
+    const anchor = `${view}|${this.window().start.getTime()}`;
+    if (anchor !== this.anchored) {
+      this.anchored = anchor;
+      this.readerMovedGrid = false;
+    }
+    if (!this.readerMovedGrid) this.scrollToView(view);
+  }
+
+  /** The reader's own pan/keys win over the anchor until the view or the day changes. */
+  onReaderInput(): void {
+    this.readerMovedGrid = true;
   }
 
   /** Opens where the view is about: prime time for 'night' (or another day), otherwise the current time. */
@@ -222,12 +248,12 @@ function buildTicks({ start, end }: TimeWindow): EpgGridTick[] {
   return ticks;
 }
 
-function buildRows(items: TvReadItemDTO[], window: TimeWindow): EpgGridRow[] {
+function buildRows(allItems: TvReadItemDTO[], window: TimeWindow): EpgGridRow[] {
   const winStart = window.start.getTime();
   const winEnd = window.end.getTime();
   const rows = new Map<string, EpgGridRow & { order: number }>();
 
-  for (const item of items) {
+  for (const item of allItems) {
     const startMs = Date.parse(item.airing.start);
     const endMs = Date.parse(item.airing.end);
     const from = Math.max(startMs, winStart);

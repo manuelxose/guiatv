@@ -105,6 +105,26 @@ describe('EpgGridComponent', () => {
 
     expect(cells.map((c) => c.classList.contains('dim'))).toEqual([false, true]);
   });
+
+  it('re-opens the grid where the view is about after later renders until the reader moves it', () => {
+    const fixture = render([item('a', 'La 1', 1, at(0), at(1), 'Cine')]);
+    const component = fixture.componentInstance;
+    const toView = spyOn(component, 'scrollToView');
+
+    // A render after the first (hydration, the async data pass) must not leave the grid at its left edge.
+    component['anchorGrid']();
+    expect(toView).toHaveBeenCalledWith('now');
+
+    component.onReaderInput();
+    toView.calls.reset();
+    component['anchorGrid']();
+    expect(toView).not.toHaveBeenCalled();
+
+    // A different view is a new position to open on, so the reader's scroll no longer applies.
+    fixture.componentRef.setInput('view', 'night');
+    component['anchorGrid']();
+    expect(toView).toHaveBeenCalledWith('night');
+  });
 });
 
 function item(id: string, channel: string, sortOrder: number, start: string, end: string, category: string): TvReadItemDTO {

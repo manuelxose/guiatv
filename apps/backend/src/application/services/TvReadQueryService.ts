@@ -481,6 +481,7 @@ export function compactTvReadItem(item: TvReadItemDTO): TvReadItemDTO {
       sportFacet: item.program.sportFacet,
       tmdbId: item.program.tmdbId,
       workPath: item.program.workPath,
+      programmePath: item.program.programmePath,
       description: item.program.description?.slice(0, 320),
       titleResolutionState: item.program.titleResolutionState,
       isResolvedTitle: item.program.isResolvedTitle,
