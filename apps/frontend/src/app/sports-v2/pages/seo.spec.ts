@@ -94,13 +94,35 @@ describe('sports-v2 SEO', () => {
     expect(ld()).toBeUndefined();
   });
 
-  it('builds a SportsEvent without score, venue or broadcasters, and marks postponed fixtures', () => {
-    const e = sportsEvent('https://x.test', { name: 'A - B', kickoff: '2026-11-05T20:00:00Z', status: 'postponed', home: 'A', away: 'B', competition: 'Liga', path: '/p' }) as Record<string, unknown>;
+  it('drops the SportsEvent when the venue is unknown, since Google requires a location', () => {
+    const e = sportsEvent('https://x.test', { name: 'A - B', kickoff: '2026-11-05T20:00:00Z', status: 'scheduled', home: 'A', away: 'B', competition: 'Liga', path: '/p' });
+
+    expect(e).toBeNull();
+  });
+
+  it('builds a SportsEvent with the venue as location, the competition as organizer and no second Event node', () => {
+    const e = sportsEvent('https://x.test', {
+      name: 'A - B', kickoff: '2026-11-05T20:00:00Z', status: 'postponed', home: 'A', away: 'B',
+      competition: 'Liga', path: '/p', venue: 'Estadio Metropolitano', country: 'España',
+    }) as Record<string, unknown>;
+
     expect(e['@type']).toBe('SportsEvent');
     expect(e['eventStatus']).toBe('https://schema.org/EventPostponed');
     expect(e['startDate']).toBe('2026-11-05T20:00:00Z');
-    expect(Object.keys(e)).not.toContain('location');
+    expect(e['location']).toEqual({ '@type': 'Place', name: 'Estadio Metropolitano', address: { '@type': 'PostalAddress', addressCountry: 'España' } });
+    expect(e['organizer']).toEqual({ '@type': 'SportsOrganization', name: 'Liga' });
+    expect(Object.keys(e)).not.toContain('superEvent');
     expect(Object.keys(e)).not.toContain('offers');
+  });
+
+  it('leaves the country out of the location for a cross-border competition', () => {
+    const e = sportsEvent('https://x.test', {
+      name: 'A - B', kickoff: '2026-11-05T20:00:00Z', status: 'scheduled', home: 'A', away: 'B',
+      competition: 'Champions League', path: '/p', venue: 'Estadio Metropolitano',
+    }) as Record<string, unknown>;
+
+    expect(e['location']).toEqual({ '@type': 'Place', name: 'Estadio Metropolitano' });
+    expect(JSON.stringify(e)).not.toContain('"address"');
   });
 
   it('builds ordered breadcrumbs with absolute URLs', () => {

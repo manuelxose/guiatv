@@ -30,7 +30,7 @@ Validated against the production SSR build (`ssr-server.mjs`) with the real prod
 
 Each page now has its own title and description (home, partidos, resultados, en-directo, competiciones, noticias were previously inheriting the generic description). Titles: `<page> · Fútbol - Guía TV`. Canonical never carries `?dia=`, `?tab=`, `?competicion=`, so filter and day views are not duplicates. Not-found pages declare no canonical. Internal links: 28-49 per entity page, all slug-based, no raw ids; every in-app link derives from `SPORTS_V2_BASE`.
 
-Structured data: `SportsEvent` carries no score, venue or broadcaster claim (none is a verified schema fact here). Not run through Google's Rich Results test (no access); only checked for presence and that `<` is escaped.
+Structured data: `SportsEvent` carries no score or broadcaster claim (none is a verified schema fact here) and is only emitted when the fixture has a venue, because Google requires `location`. The venue is `location.name`; a domestic competition lends its country as `addressCountry`. The competition is the `organizer` — as a nested `superEvent` it was a second Event node with no `startDate`, which Search Console reports as a missing required field. Not run through Google's Rich Results test (no access); only checked for presence and that `<` is escaped.
 
 ## Sitemap and unrelated routes
 
