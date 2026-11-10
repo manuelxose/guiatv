@@ -527,9 +527,14 @@ export class BlogController {
     // One row per post and reviewed draft: a duplicate attempt, concurrent or later, is refused, not published twice.
     // Maintenance revisions count too (dailyLimit is set from the Admin, see DAILY_LIMIT).
     const ledger = BlogPostModel.db.collection<{ _id: string; postId: unknown; at: Date }>('editorial_policy_approvals');
-    const { insertedId } = await ledger.insertOne({ _id: `${post._id}:${post.editorial.draftHash}`, postId: post._id, at: new Date() }).catch((error) => {
-      if (error?.code === 11000) throw new ConflictError('This draft was already published by policy once; a person must approve it again');
-      throw error;
+    const insertedId = `${post._id}:${post.editorial.draftHash}`;
+    await ledger.insertOne({ _id: insertedId, postId: post._id, at: new Date() }).catch((error) => {
+      if (error?.code !== 11000) throw error;
+      // M15 reconciliation: a row whose post is still a never-published, never-revised draft is an earlier attempt
+      // whose save did not land (ambiguous failure); it is resumed under the same row, never counted twice. A draft
+      // that was published and then taken down has revisions and keeps needing a person.
+      if (post.status === 'draft' && post.editorial?.state !== 'published' && !post.revisions?.length) return;
+      throw new ConflictError('This draft was already published by policy once; a person must approve it again');
     });
     if (await ledger.countDocuments({ at: { $gte: new Date(Date.now() - 864e5) } }) > dailyLimit) {
       await ledger.deleteOne({ _id: insertedId });
@@ -548,10 +553,14 @@ export class BlogController {
     post.publishedAt = post.publishedAt || now;
     post.reviewNotes = `${kind} by the M11-B evidence policy: every stated fact verified against its source, independent AI review passed. Automatic certification, no per-article human review.`;
     post.editorial = { ...post.editorial, state: 'published' };
-    // shortcut: ambiguous failures retain a quota slot and require reconciliation until atomic publication exists.
+    // shortcut: an ambiguous failure keeps its quota slot until the same draft is retried (reconciled at the insert
+    // above) or 24 h pass; upgrade to an atomic publication if ambiguous failures become frequent.
     await this.saveUnchanged(post).catch(async (error) => {
-      if (error instanceof ConflictError) await ledger.deleteOne({ _id: insertedId });
-      else await this.invalidatePublicReads().catch(() => undefined);
+      if (error instanceof ConflictError) {
+        // The row goes only while nothing is public: a concurrent attempt on the same draft may have published it.
+        const current = await BlogPostModel.findById(post._id).select({ status: 1 }).lean().exec().catch(() => null);
+        if (current && current.status !== 'publish') await ledger.deleteOne({ _id: insertedId });
+      } else await this.invalidatePublicReads().catch(() => undefined);
       throw error;
     });
     await this.invalidatePublicReads();

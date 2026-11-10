@@ -14,6 +14,7 @@ const heartbeats = [];
 const finishes = [];
 let work = null;
 let oldBackend = false;
+let drafts = {};
 const server = http.createServer((req, res) => {
   seen.push(`${req.method} ${req.url}`);
   const json = (code, body) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
@@ -35,6 +36,25 @@ const server = http.createServer((req, res) => {
   }
   if (req.url.startsWith('/v2/admin/editorial/overview')) return policy.unreadable ? json(500, {}) : json(200, { data: { policy } });
   if (req.url.startsWith('/v2/admin/editorial/jobs')) return json(201, {});
+  // M15: posts that already hold a slug (an earlier run's draft), their Admin detail and their policy approval.
+  const bySlug = /^\/v2\/blog\?slug=([^&]+)/.exec(req.url);
+  if (bySlug && drafts[decodeURIComponent(bySlug[1])]) return json(200, [drafts[decodeURIComponent(bySlug[1])].found]);
+  const byId = (id) => Object.values(drafts).find((d) => d.found.id === id);
+  const detail = /^\/v2\/admin\/editorial\/posts\/([^/?]+)$/.exec(req.url);
+  if (detail && byId(detail[1])) {
+    if (req.method !== 'DELETE') return json(200, { data: byId(detail[1]).detail });
+    const d = byId(detail[1]);
+    if (d.deletable) delete drafts[d.found.slug];
+    return d.deletable ? json(200, { data: { deleted: true } }) : json(409, { error: { message: 'changed' } });
+  }
+  if (req.method === 'POST' && req.url === '/v2/blog') return json(201, { data: { post: { id: 'post-nuevo' } } });
+  const approve = /^\/v2\/blog\/([^/]+)\/approve-by-policy$/.exec(req.url);
+  if (approve?.[1] === 'post-nuevo') return json(200, { data: {} });
+  if (approve && byId(approve[1])) {
+    const d = byId(approve[1]);
+    if (d.approve === 200) d.found.status = 'publish';
+    return json(d.approve, d.approve === 200 ? { data: {} } : { error: { message: d.approveMessage } });
+  }
   if (req.url.startsWith('/v2/blog')) return json(200, []);
   // The model gateway is down: every model call fails (provider outage).
   if (req.url.startsWith('/v1/messages')) return json(500, { type: 'error', error: { type: 'api_error', message: 'gateway down' } });
@@ -386,6 +406,122 @@ test('a queue action that cannot apply is finished as failed with the reason', a
     assert.match(finishes[beforeFinishes].body.reason, /ya no está en la cola/);
   } finally {
     work = null;
+    rmSync(dir, { recursive: true });
+  }
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// M15 recovery: paused generation, pending drafts, human-owned drafts.
+
+const pendingDraft = (slug, over = {}) => ({
+  found: { id: `post-${slug}`, slug, status: 'draft' },
+  detail: { post: { id: `post-${slug}`, slug, status: 'draft', reviewState: 'unreviewed', reviewedBy: null }, version: 0, pendingEdit: null, revisions: [], provenance: { state: 'approved-by-policy', signed: true, critic: { draftHash: 'old' } }, policyBlockers: [] },
+  approve: 200, ...over,
+});
+
+test('M15 generation paused: a manual request still runs, scheduled topics do not', async () => {
+  const dir = fresh();
+  writeFileSync(join(dir, 'topic-queue.json'), JSON.stringify({ version: 1, lastDiscoveryAt: new Date().toISOString(), topics: [queued('cola-en-pausa')] }));
+  const topic = { ...queued('manual-en-pausa').topic, title: 'Consulta de streaming', intent: 'Verificar fuentes oficiales', category: 'Streaming', length: 'short', seedUrls: [`${base}/missing-source`] };
+  work = { policy, settings: { enabled: false }, ownershipProtocols: ['v1'], requests: [{ id: 'mine', kind: 'generate', topic }] };
+  const before = finishes.length;
+  try {
+    const r = await cycle(dir);
+    assert.equal(r.code, 0, r.output);
+    assert.equal(finishes.length - before, 1, 'the manual request was processed while paused');
+    assert.match(finishes[before].body.reason, /missing-source/);
+    assert.equal(lastCycle(dir).result, 'generation-paused');
+    assert.equal(JSON.parse(readFileSync(join(dir, 'topic-queue.json'), 'utf8')).topics[0].state, 'queued', 'the scheduled topic was not started');
+  } finally {
+    work = null;
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test('M15 pending draft: its approval is retried instead of paying for a new text', async () => {
+  const dir = fresh();
+  writeFileSync(join(dir, 'topic-queue.json'), JSON.stringify({ version: 1, lastDiscoveryAt: new Date().toISOString(), topics: [queued('pendiente-uno')] }));
+  drafts = { 'pendiente-uno': pendingDraft('pendiente-uno') };
+  const before = seen.length;
+  try {
+    const r = await cycle(dir);
+    const [t] = JSON.parse(readFileSync(join(dir, 'topic-queue.json'), 'utf8')).topics;
+    assert.equal(t.state, 'published', `${t.state} ${t.reason} ${r.output}`);
+    assert.ok(seen.slice(before).includes('POST /v2/blog/post-pendiente-uno/approve-by-policy'));
+    assert.ok(!seen.slice(before).some((s) => s.startsWith('POST /v1/messages')), 'no model call');
+  } finally {
+    drafts = {};
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test('M15 pending draft: cap or stop at approval keeps the topic queued, no regeneration, no replacement', async () => {
+  const dir = fresh();
+  writeFileSync(join(dir, 'topic-queue.json'), JSON.stringify({ version: 1, lastDiscoveryAt: new Date().toISOString(), topics: [queued('pendiente-dos')] }));
+  drafts = { 'pendiente-dos': pendingDraft('pendiente-dos', { approve: 403, approveMessage: 'Policy publishing limit reached (10 in 24 h)' }) };
+  const before = seen.length;
+  try {
+    const r = await cycle(dir);
+    const [t] = JSON.parse(readFileSync(join(dir, 'topic-queue.json'), 'utf8')).topics;
+    assert.equal(t.state, 'queued', `${t.reason} ${r.output}`);
+    assert.equal(t.attempts, 0, 'a cap is not an attempt');
+    assert.match(t.reason, /limit reached/);
+    const calls = seen.slice(before);
+    assert.ok(!calls.some((s) => s.startsWith('POST /v1/messages') || s.startsWith('DELETE ')), 'no model call, nothing deleted');
+  } finally {
+    drafts = {};
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test('M15 a draft a person touched is never regenerated, replaced or approved by the runner', async () => {
+  const dir = fresh();
+  writeFileSync(join(dir, 'topic-queue.json'), JSON.stringify({ version: 1, lastDiscoveryAt: new Date().toISOString(), topics: [queued('editado-uno')] }));
+  const edited = pendingDraft('editado-uno');
+  edited.detail.version = 1;
+  drafts = { 'editado-uno': edited };
+  const before = seen.length;
+  try {
+    const r = await cycle(dir);
+    const [t] = JSON.parse(readFileSync(join(dir, 'topic-queue.json'), 'utf8')).topics;
+    assert.equal(t.state, 'held', `${t.reason} ${r.output}`);
+    assert.match(t.reason, /en manos de una persona/);
+    const calls = seen.slice(before);
+    assert.ok(!calls.some((s) => /approve-by-policy|^DELETE |^POST \/v1\/messages|^POST \/v2\/blog /.test(s)), calls.join('\n'));
+  } finally {
+    drafts = {};
+    rmSync(dir, { recursive: true });
+  }
+});
+
+test('M15 publish: an untouched earlier draft is replaced under its version; a changed or human one is left alone', async () => {
+  const dir = fresh();
+  const runFile = join(dir, 'run.json');
+  writeFileSync(runFile, JSON.stringify({ slug: 'sustituir-uno', state: 'approved-by-policy', findings: [], draft: { title: 'Título de prueba suficientemente largo', slug: 'sustituir-uno', content: '<p>x</p>' }, provenance: { backend: 'deepseek', draftHash: 'new', images: [] } }));
+  const publish = () => cycle(dir, {}, 'publish', [runFile, '--api', base]);
+  try {
+    drafts = { 'sustituir-uno': pendingDraft('sustituir-uno') };
+    let before = seen.length;
+    let r = await publish();
+    assert.match(r.output, /REFUSED.*no se pudo sustituir/s, 'a version that changed meanwhile wins');
+    assert.ok(!seen.slice(before).some((s) => s === 'POST /v2/blog' || /approve-by-policy/.test(s)));
+
+    drafts = { 'sustituir-uno': pendingDraft('sustituir-uno', { deletable: true }) };
+    before = seen.length;
+    r = await publish();
+    assert.match(r.output, /published .*\/guias\/sustituir-uno/, r.output);
+    assert.deepEqual(seen.slice(before).filter((s) => /^(DELETE|POST) \/v2\/(admin\/editorial\/posts|blog)/.test(s)),
+      ['DELETE /v2/admin/editorial/posts/post-sustituir-uno', 'POST /v2/blog', 'POST /v2/blog/post-nuevo/approve-by-policy']);
+
+    const touched = pendingDraft('sustituir-uno', { deletable: true });
+    touched.detail.revisions = [{ version: 1, reason: 'update' }];
+    drafts = { 'sustituir-uno': touched };
+    before = seen.length;
+    r = await publish();
+    assert.match(r.output, /REFUSED.*no es un borrador intacto/s);
+    assert.ok(!seen.slice(before).some((s) => s.startsWith('DELETE ') || s === 'POST /v2/blog'));
+  } finally {
+    drafts = {};
     rmSync(dir, { recursive: true });
   }
 });

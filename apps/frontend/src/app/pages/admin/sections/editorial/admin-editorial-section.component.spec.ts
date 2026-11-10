@@ -178,6 +178,54 @@ describe('review helpers', () => {
     expect(calls[0]).toEqual(['p1', 'secreta', 'Ana', ['H1']]);
     expect(c.reviewKey).toBe('');
   });
+
+  it('M15: publishing from the drawer needs an explicit confirmation naming the public URL', () => {
+    const calls: unknown[][] = [];
+    const detail = { post: { id: 'p1', status: 'draft', title: 't', slug: 'guia-x', content: '', excerpt: '', metaTitle: '', metaDescription: '' }, provenance: { bundle: { sources: [], claims: [] } }, findings: [], policyBlockers: [{ severity: 'human', code: 'near-duplicate', message: 'parecido a otra guía' }], revisions: [], previous: null } as any;
+    TestBed.configureTestingModule({ imports: [AdminEditorialSectionComponent], providers: [{ provide: AdminEditorialService, useValue: {
+      getOverview: () => of(overview), getProviders: () => of({ checkedAt: new Date().toISOString(), providers: [] }), getPost: () => of(detail), approvePost: (...a: unknown[]) => { calls.push(a); return of({}); },
+    } }] });
+    const fixture = TestBed.createComponent(AdminEditorialSectionComponent);
+    fixture.detectChanges();
+    const c = fixture.componentInstance;
+    c.openPost('p1');
+    c.reviewer = 'Ana';
+    c.reviewKey = 'secreta';
+    fixture.detectChanges();
+    const page = fixture.nativeElement as HTMLElement;
+    expect(page.textContent).toContain('near-duplicate');
+    const publish = Array.from(page.querySelectorAll('button')).find((b) => b.textContent?.includes('Aprobar y publicar'))!;
+    publish.click();
+    fixture.detectChanges();
+    expect(calls.length).toBe(0);
+    expect(page.textContent).toContain('/guias/guia-x');
+    c.confirmReview();
+    expect(calls.length).toBe(1);
+    expect(c.reviewConfirm).toBeNull();
+  });
+});
+
+describe('M15 scheduler state', () => {
+  const make = (patch: object) => {
+    TestBed.configureTestingModule({ imports: [AdminEditorialSectionComponent], providers: [{ provide: AdminEditorialService, useValue: {
+      getOverview: () => of({ ...overview, runner: { online: true, lastSeenAt: new Date().toISOString(), version: 'm11g-2', capabilities: { providers: [], webSearch: false } }, ...patch }), getProviders: () => of({ checkedAt: new Date().toISOString(), providers: [] }),
+    } }] });
+    const fixture = TestBed.createComponent(AdminEditorialSectionComponent);
+    fixture.detectChanges();
+    return fixture.componentInstance;
+  };
+
+  it('says when generation is on but the OS scheduler does not tick (no automatic cycle will start)', () => {
+    const c = make({ scheduler: { active: false, lastTickAt: null, lastAutomaticStartAt: null, tickMinutes: 15 } });
+    expect(c.schedulerText).toContain('sin tics');
+    expect(c.diagnosis).toContain('planificador del sistema');
+  });
+
+  it('shows a ticking scheduler without a false alarm', () => {
+    const c = make({ scheduler: { active: true, lastTickAt: new Date().toISOString(), lastAutomaticStartAt: null, tickMinutes: 15 } });
+    expect(c.schedulerText).toContain('planificador activo');
+    expect(c.diagnosis).toBeNull();
+  });
 });
 
 describe('runner start contract', () => {

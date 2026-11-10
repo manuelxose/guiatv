@@ -45,7 +45,9 @@ const queueLib = require(join(dist, 'application/services/EditorialTopicQueue.js
 const [command, target] = process.argv.slice(2);
 const arg = (n, d) => { const i = process.argv.indexOf(`--${n}`); return i > -1 ? process.argv[i + 1] : d; };
 const site = arg('site', 'https://guiaprogramaciontv.com').replace(/\/$/, '');
-const out = resolve(arg('out', arg('runs', 'artifacts/m11b/runs')));
+// M15: run files are the provenance maintenance re-verifies, so they default to the durable state directory
+// (GUIATV_EDITORIAL_STATE, same layout as editorial-scheduled.mjs), never to the release the runner happens to run in.
+const out = resolve(arg('out', arg('runs', process.env.GUIATV_EDITORIAL_STATE ? join(process.env.GUIATV_EDITORIAL_STATE, 'm11d', 'runs') : 'artifacts/m11b/runs')));
 const readJson = (p) => JSON.parse(readFileSync(resolve(p), 'utf8'));
 const UA = 'GuiaTV-Editorial-Agent/1.0 (+https://guiaprogramaciontv.com/politica-editorial)';
 
@@ -421,6 +423,14 @@ async function runTopics(topics, { report, autopublish, replay = null, corpus, p
         publication.ok ? undefined : { classification: 'publication', message: publication.message }, publication.ok ? publication.url : undefined).catch(() => null);
       persist({ ...run, publication });
     }
+    if (autopublish && run.state === 'verified') {
+      // M15: a text that passed every check but needs a person's decision goes to the CMS review inbox as a draft
+      // with its reasons; nothing approves it automatically, and an editorial hold is no longer a lost run file.
+      const review = await draftForRun(run, report, out).catch((error) => ({ ok: false, message: error instanceof Error ? error.message : String(error) }));
+      if (review.ok) { run.reviewDraftId = review.id; run.reason = `requiere revisión humana (borrador en Admin → Editorial): ${run.reason ?? ''}`.slice(0, 1000); }
+      else run.reason = `${run.reason ?? 'requiere revisión humana'}; no se pudo dejar en la bandeja de revisión: ${review.message}`.slice(0, 1000);
+      persist({ ...run, review });
+    }
     const tries = run.revisions ?? [];
     console.log(`${run.state.padEnd(18)} ${run.slug}  $${(run.cost.usd ?? 0).toFixed(3)}  revisiones=${Math.max(0, tries.length - 1)} [${tries.map((r) => `${r.verdict}/${r.action}`).join(' ')}]  value=${JSON.stringify(run.value ?? {})}${run.reason ? `  (${run.reason})` : ''}${run.imageFailure ? `  [sin portada: ${run.imageFailure}]` : ''}${publication?.ok ? `  → ${publication.url}` : ''}`);
     for (const f of blocks) console.log(`   block ${f.code}: ${f.message}`);
@@ -471,21 +481,62 @@ async function approveByPolicy(api, id) {
 async function publishRun(run, api, runDir) {
   const problem = pipeline.policyProviderProblem(run.provenance);
   if (problem) return { ok: false, message: problem };
-  const found = await findPost(api, run.slug);
-  let id = null;
-  if (found) {
-    const detail = (await (await fetch(`${api}/v2/admin/editorial/posts/${found.id}`, { headers: adminHeaders() })).json().catch(() => null))?.data;
-    const same = found.status === 'draft' && detail && !detail.post.reviewedBy && detail.provenance?.critic?.draftHash === run.provenance.draftHash;
-    if (!same) return { ok: false, message: `${run.slug} ya existe (${found.status}) y no es el borrador de esta ejecución: no se toca` };
-    id = found.id;
-  }
-  if (!id) {
-    const saved = await saveDraft(run, api, runDir);
-    if (!saved.ok) return saved;
-    id = saved.id;
-  }
-  const res = await approveByPolicy(api, id);
+  const id = await draftForRun(run, api, runDir);
+  if (!id.ok) return id;
+  const res = await approveByPolicy(api, id.id);
   return res.ok ? { ok: true, url: `${site}/guias/${run.slug}` } : res;
+}
+
+async function postDetail(api, id) {
+  return (await (await fetch(`${api}/v2/admin/editorial/posts/${id}`, { headers: adminHeaders() })).json().catch(() => null))?.data ?? null;
+}
+/**
+ * M15: a draft this pipeline saved that nobody has touched since: no review, no edit (version 0), no revision, no
+ * pending edit, signed provenance. Only such a draft is retried or replaced automatically; anything else is a person's.
+ */
+function untouchedPipelineDraft(found, detail) {
+  return found?.status === 'draft' && Boolean(detail) && !detail.post.reviewedBy && !detail.pendingEdit && detail.version === 0
+    && !(detail.revisions ?? []).length && (detail.post.reviewState ?? 'unreviewed') === 'unreviewed' && detail.provenance?.signed === true;
+}
+/**
+ * The draft that holds THIS run: the run's own (same draft hash, after a crash) is reused; an untouched draft of an
+ * EARLIER run of the slug (its approval failed, see resumePendingDraft) is replaced — deleted under its version, so a
+ * concurrent edit wins — and this run is saved; a published or human-touched post is never touched.
+ */
+async function draftForRun(run, api, runDir) {
+  const found = await findPost(api, run.slug);
+  if (found) {
+    const detail = await postDetail(api, found.id);
+    const untouched = untouchedPipelineDraft(found, detail);
+    if (untouched && detail.provenance?.critic?.draftHash === run.provenance.draftHash) return { ok: true, id: found.id };
+    if (!untouched) return { ok: false, message: `${run.slug} ya existe (${found.status}) y no es un borrador intacto de este proceso: no se toca; revísalo en Admin → Editorial` };
+    const removed = await fetch(`${api}/v2/admin/editorial/posts/${found.id}`, { method: 'DELETE', headers: adminHeaders(), body: JSON.stringify({ expectedVersion: 0, expectedStatus: 'draft' }) });
+    if (!removed.ok) return { ok: false, message: `no se pudo sustituir el borrador anterior de ${run.slug}: ${removed.status} ${(await removed.text()).slice(0, 300)}` };
+    console.log(`   borrador anterior de ${run.slug} sustituido por esta ejecución (su fichero de ejecución conserva la versión previa)`);
+  }
+  return saveDraft(run, api, runDir);
+}
+/**
+ * M15: before a new generation of `slug`, retry the policy approval of the draft an earlier run saved but could not
+ * publish (cap reached or stop pressed between save and approval, runner killed in between, ambiguous save). The
+ * server re-runs every gate, the signature, the cap and the stop. Returns null when nothing blocks a new run;
+ * `{ skip }` when no new run should start (published, a person's draft, approval waiting for the cap or the stop).
+ */
+async function resumePendingDraft(api, slug) {
+  const found = await findPost(api, slug).catch(() => null);
+  if (!found) return null;
+  if (found.status === 'publish') return { ok: false, skip: true, message: `${slug} ya está publicado: no se genera de nuevo` };
+  const detail = await postDetail(api, found.id);
+  if (!untouchedPipelineDraft(found, detail)) return { ok: false, skip: true, review: true, message: `${slug} tiene un borrador en manos de una persona (revisado, editado o rechazado): se decide en Admin → Editorial` };
+  if (detail.provenance?.state !== 'approved-by-policy') return { ok: false, skip: true, review: true, message: `${slug} espera revisión humana en Admin → Editorial (${(detail.policyBlockers ?? []).map((f) => f.code).join(', ') || detail.provenance?.state})` };
+  const res = await approveByPolicy(api, found.id);
+  if (res.ok) return { ok: true, url: `${site}/guias/${slug}` };
+  // An approval that landed although its answer was lost: the post is public now.
+  if ((await findPost(api, slug).catch(() => null))?.status === 'publish') return { ok: true, url: `${site}/guias/${slug}` };
+  // Cap, stop or switch: the draft is still good; wait for them instead of paying for a new text.
+  if (/^403\b/.test(res.message)) return { ok: false, skip: true, transient: true, message: `aprobación del borrador pendiente en espera: ${res.message}` };
+  console.log(`   el borrador pendiente de ${slug} ya no pasa la aprobación (${res.message.slice(0, 200)}): se genera de nuevo`);
+  return null;
 }
 
 /** Re-fetch every source of a bundle; return the re-verified bundle and the claims that lost support. */
@@ -554,7 +605,9 @@ async function runCycle(report, discoverOnly) {
   }
   if (!discoverOnly) log.maintenance = (await maintainPublished(report, { apply: policy.active, max: 2, corpus })).map((x) => `${x.slug}: ${x.result}`);
   if (!policy.active) { cycleLog({ ...log, result: 'inactive' }); await reportCycle(report, 'inactive', 'Publicación automática inactiva o parada de emergencia', q); return; }
-  if (work?.settings?.enabled === false) { await reportCycle(report, 'generation-paused', 'Generación programada en pausa', q); return; }
+  // M15: the pause stops SCHEDULED generation (queue + automatic discovery) only; a person's manual requests below
+  // still run, under the same policy, gates and caps. Before, a manual start with the pause on did nothing.
+  const paused = work?.settings?.enabled === false;
   if (log.maintenance?.length && !(await adminPolicy(report))?.active) { cycleLog({ ...log, result: 'inactive' }); await reportCycle(report, 'inactive', 'Publicación detenida durante mantenimiento', q); return; }
   let generated = 0;
   const manual = (work?.requests ?? []).filter((r) => r.kind === 'discover' || r.kind === 'generate');
@@ -587,14 +640,27 @@ async function runCycle(report, discoverOnly) {
     let published = false;
     try {
       const topic = manualTopic(request.topic, work.settings);
-      const seeds = await queueLib.checkSeeds({ title: topic.title, intent: topic.intent, seedUrls: topic.seedUrls }, fetchSource);
-      if (seeds.some((s) => !s.ok)) {
-        reason = seeds.filter((s) => !s.ok).map((s) => `${s.url}: ${s.note}`).join('; ');
+      const resumed = await resumePendingDraft(report, topic.slug);
+      if (resumed?.ok) {
+        published = true;
+        status = 'completed';
+        reason = `publicado al reintentar la aprobación del borrador pendiente: ${resumed.url}`;
+        await reportJob(report, { jobId: `${new Date().toISOString()}-${topic.slug}-resume`, slug: topic.slug, state: 'published', reason, publicUrl: resumed.url });
+      } else if (resumed?.skip) {
+        // Nothing new is generated: the draft is a person's (review, edit) or its approval waits for the cap or the stop.
+        status = resumed.review ? 'completed' : 'failed';
+        reason = resumed.message;
       } else {
-        const [run] = await runTopics([topic], { report, autopublish: true, corpus });
-        published = run?.state === 'published';
-        status = published ? 'completed' : 'failed';
-        reason = run?.reason ?? run?.state ?? 'Sin resultado';
+        const seeds = await queueLib.checkSeeds({ title: topic.title, intent: topic.intent, seedUrls: topic.seedUrls }, fetchSource);
+        if (seeds.some((s) => !s.ok)) {
+          reason = seeds.filter((s) => !s.ok).map((s) => `${s.url}: ${s.note}`).join('; ');
+        } else {
+          const [run] = await runTopics([topic], { report, autopublish: true, corpus });
+          published = run?.state === 'published';
+          // A text held for a person's decision is in the review inbox: the request did its job, the article waits there.
+          status = published || run?.reviewDraftId ? 'completed' : 'failed';
+          reason = run?.reason ?? run?.state ?? 'Sin resultado';
+        }
       }
     } catch (error) {
       reason = `error de generación manual: ${error instanceof Error ? error.message : String(error)}`.slice(0, 500);
@@ -604,6 +670,11 @@ async function runCycle(report, discoverOnly) {
     generated += published ? 1 : 0;
     serverCapacity = Math.max(0, serverCapacity - (published ? 1 : 0));
   }
+  if (paused) {
+    cycleLog({ ...log, result: 'generation-paused', generated });
+    await reportCycle(report, 'generation-paused', generated ? `Generación programada en pausa; ${generated} solicitud(es) manual(es) publicada(s)` : 'Generación programada en pausa', q, generated);
+    return;
+  }
   const queued = q.topics.filter((t) => t.state === 'queued').length;
   if (!log.discovery && queued < 3 && now - Date.parse(q.lastDiscoveryAt ?? 0) >= 12 * 3600e3) log.discovery = await discover(q, corpus, report);
   const perCycle = work?.settings?.topicsPerCycle ?? integer('EDITORIAL_CYCLE_TOPICS', 1, 10);
@@ -612,19 +683,30 @@ async function runCycle(report, discoverOnly) {
   const allowed = new Set(work?.settings?.categories ?? []);
   const picks = queueLib.pickTopics(q, room, q.topics.filter((t) => t.startedAt?.slice(0, 10) === today())).filter((t) => !allowed.size || allowed.has(t.category));
   if (!picks.length) { const result = log.discovery?.error ? 'discovery-error' : 'no-eligible-topics'; if (log.discovery?.error) process.exitCode = 1; cycleLog({ ...log, result }); await reportCycle(report, result, log.discovery?.error ?? (generated ? 'Solicitudes manuales procesadas; no hay más temas elegibles' : 'No hay temas elegibles en la cola'), q, generated); return; }
+  // M15: a topic whose earlier draft is still pending is resumed (approval retried) instead of regenerated.
+  const fresh = [];
   for (const t of picks) {
+    const resumed = await resumePendingDraft(report, t.id);
+    const at = new Date().toISOString();
+    if (resumed?.ok) { Object.assign(t, { state: 'published', publicUrl: resumed.url, reason: 'aprobación reintentada del borrador pendiente', updatedAt: at }); generated++; }
+    else if (resumed?.skip) Object.assign(t, { state: resumed.transient ? 'queued' : 'held', reason: resumed.message.slice(0, 500), updatedAt: at });
+    else fresh.push(t);
+  }
+  for (const t of fresh) {
     t.topic.linkTargets = await verifiedTargets(t.topic.linkTargets ?? []);
     t.topic.length ??= { min: 900, max: 1400 };
     t.topic.contentType ??= 'guide';
     Object.assign(t, { state: 'running', startedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
   }
   saveQueue(q);
-  const runs = await runTopics(picks.map((t) => t.topic), { report, autopublish: true, corpus });
-  for (const t of picks) {
+  const runs = fresh.length ? await runTopics(fresh.map((t) => t.topic), { report, autopublish: true, corpus }) : [];
+  for (const t of fresh) {
     const run = runs.find((r) => r.slug === t.id);
     t.updatedAt = new Date().toISOString();
     if (run?.state === 'published') { Object.assign(t, { state: 'published', publicUrl: run.publicUrl, reason: undefined }); generated++; }
     else if (/^límite diario|limit reached/.test(run?.reason ?? '')) Object.assign(t, { state: 'queued', reason: run.reason });
+    // In the review inbox: not retried (a new run would only collide with that draft); a person decides there.
+    else if (run?.reviewDraftId) Object.assign(t, { state: 'held', reason: run.reason.slice(0, 500) });
     else {
       t.attempts++;
       t.state = t.attempts >= queueLib.DEFAULT_QUEUE_POLICY.maxAttempts ? 'held' : 'queued';

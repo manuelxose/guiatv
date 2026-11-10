@@ -353,3 +353,17 @@ test('M14-R interruptor: el valor por defecto no publica y un arranque automáti
   // (b) Un arranque manual es una acción explícita del operador: se permite (y se audita aparte), sin tocar enabled.
   assert.deepEqual(runnerStartAllowed({ enabled: false }, 'manual'), { allowed: true, reason: null });
 });
+
+test('M15 planificador: el tic de 15 min solo arranca cuando toca según scheduleHours del Admin', () => {
+  const now = new Date('2026-11-10T12:00:00Z');
+  const ago = (min: number) => new Date(now.getTime() - min * 60e3);
+  const six = { enabled: true, scheduleHours: 6 };
+  assert.deepEqual(runnerStartAllowed(six, 'automatic', null, now), { allowed: true, reason: null }, 'primer arranque');
+  assert.deepEqual(runnerStartAllowed(six, 'automatic', ago(3 * 60), now), { allowed: false, reason: 'not-due' }, 'a las 3 h de un ciclo de 6 h no toca');
+  // El margen absorbe el desfase del tic: a 5 min de las 6 h ya toca, así que no se pierde un tic entero.
+  assert.deepEqual(runnerStartAllowed(six, 'automatic', ago(6 * 60 - 5), now), { allowed: true, reason: null });
+  assert.deepEqual(runnerStartAllowed({ ...six, scheduleHours: 3 }, 'automatic', ago(3 * 60), now), { allowed: true, reason: null }, 'cambiar a 3 h en el panel cambia la cadencia real');
+  // La pausa y el arranque manual no dependen de la cadencia.
+  assert.deepEqual(runnerStartAllowed({ enabled: false, scheduleHours: 6 }, 'automatic', null, now), { allowed: false, reason: 'generation-disabled' });
+  assert.deepEqual(runnerStartAllowed(six, 'manual', ago(1), now), { allowed: true, reason: null });
+});

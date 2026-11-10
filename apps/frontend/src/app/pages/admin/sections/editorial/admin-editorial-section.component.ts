@@ -225,10 +225,18 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
     if (!runner?.lastSeenAt) return 'Comprueba que el runner está iniciado, actualizado y que puede autenticarse contra esta API.';
     return runner.online ? `Versión ${runner.version || 'sin informar'} · última señal ${formatDate(runner.lastSeenAt)}` : `Última señal ${formatDate(runner.lastSeenAt)}${runner.lastError ? ` · último error comunicado: ${runner.lastError}` : ''}`;
   }
+  /** M15: the OS scheduler's real state (its 15-min ticks), not the configured frequency alone. */
+  get schedulerText(): string {
+    const s = this.overview?.scheduler;
+    if (!s) return 'planificador sin datos';
+    if (!s.active) return s.lastTickAt ? `planificador parado (último tic ${formatDate(s.lastTickAt)})` : 'planificador del sistema sin tics: no hay ciclos automáticos';
+    return `planificador activo · último arranque automático ${s.lastAutomaticStartAt ? formatDate(s.lastAutomaticStartAt) : '—'}`;
+  }
   /** Plain-language reason nothing is being produced, so the operator never has to read logs to learn it. */
   get diagnosis(): string | null {
     const ov = this.overview;
     if (!ov) return null;
+    if (ov.generation.enabled && ov.scheduler && !ov.scheduler.active) return 'La generación programada está activa pero el planificador del sistema (cron) no da señal: no se iniciará ningún ciclo automático. Las solicitudes manuales siguen funcionando con «Iniciar».';
     if (ov.lastCycle?.result === 'discovery-error') return `El último ciclo falló: ${ov.lastCycle.reason || 'error de descubrimiento'}. Suele ser el acceso del runner a los modelos (gateway o credenciales); no se genera nada hasta que se resuelva.`;
     if (!ov.runner.lastSeenAt) return 'El runner nunca ha contactado con el servidor.';
     if (!ov.runner.online) return `El runner no da señal desde ${formatDate(ov.runner.lastSeenAt)}; las solicitudes quedan pendientes.`;
@@ -271,6 +279,9 @@ export class AdminEditorialSectionComponent implements OnInit, OnDestroy {
       error: (e) => { this.reviewBusy = ''; this.reviewError = errorMessage(e, 'La acción no se pudo completar'); this.reviewDetails = gateDetails(e); },
     });
   }
+  /** M15: publishing or unpublishing changes the public site, so both go through an explicit confirmation. */
+  reviewConfirm: 'approve' | 'unpublish' | null = null;
+  confirmReview(): void { const action = this.reviewConfirm; this.reviewConfirm = null; if (action === 'approve') this.approve(); else if (action === 'unpublish') this.unpublish(); }
   approve(): void { const id = this.detail?.post.id; if (id) this.reviewAction('approve', () => this.service.approvePost(id, this.reviewKey, this.reviewer.trim(), this.ackCodes), 'Artículo aprobado; todos los controles se han vuelto a comprobar'); }
   unpublish(): void { const id = this.detail?.post.id; if (id) this.reviewAction('unpublish', () => this.service.unpublishPost(id, this.reviewKey, this.reviewer.trim(), this.unpublishReason), 'Artículo despublicado; queda como borrador y se puede restaurar'); }
   restore(version: number): void { const id = this.detail?.post.id; if (id) this.reviewAction(`restore-${version}`, () => this.service.rollbackPost(id, version, this.reviewKey, this.reviewer.trim()), `Versión ${version} restaurada`); }

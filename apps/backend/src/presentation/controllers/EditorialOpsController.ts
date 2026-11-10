@@ -515,15 +515,20 @@ export class EditorialOpsController {
   startRunnerProcess = async (req: Request, res: Response): Promise<void> => {
     const mode = runnerStartMode(req);
     const settings = await this.generation.getSettings();
-    const gate = runnerStartAllowed(settings, mode);
+    // M15: an automatic start is the OS scheduler's tick; `scheduleHours` decides whether a cycle is due.
+    const tick = mode === 'automatic' ? await this.generation.schedulerTick() : null;
+    const gate = runnerStartAllowed(settings, mode, tick?.lastAutomaticStartAt ?? null);
     if (!gate.allowed) {
-      await audit().insertOne({ at: new Date(), action: 'runner-process-start-refused', by: actor(req), reason: gate.reason, mode });
+      // A tick that is simply not due yet is the normal case every 15 min: not an audit event.
+      if (gate.reason !== 'not-due') await audit().insertOne({ at: new Date(), action: 'runner-process-start-refused', by: actor(req), reason: gate.reason, mode });
       res.json(successResponse({ started: false, reason: gate.reason, mode, enabled: settings.enabled }));
       return;
     }
+    const wasRunning = this.runnerProcess.state().running;
     const state = await this.runnerProcess.start();
-    await audit().insertOne({ at: new Date(), action: 'runner-process-start', by: actor(req), pid: state.pid, mode });
-    res.json(successResponse({ ...state, started: true, mode }));
+    if (mode === 'automatic' && !wasRunning) await this.generation.recordAutomaticStart();
+    await audit().insertOne({ at: new Date(), action: 'runner-process-start', by: actor(req), pid: state.pid, mode, alreadyRunning: wasRunning });
+    res.json(successResponse({ ...state, started: true, alreadyRunning: wasRunning, mode }));
   };
 
   stopRunnerProcess = async (req: Request, res: Response): Promise<void> => {

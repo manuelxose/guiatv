@@ -246,7 +246,7 @@ export function composeSchedulerStatus(input: {
       notes: [
         'La generación programada está desactivada por defecto y no se reactiva desde el Observatorio.',
         'El estado se lee de los ajustes persistidos; si no hay documento, se informa el valor por defecto (desactivada).',
-        'nextRunAt solo se puede calcular cuando hay generación habilitada y el runner ha enviado un latido; si no consta, se devuelve null.',
+        'nextRunAt solo se calcula con la generación habilitada y el planificador del sistema activo (tic cada 15 min registrado en editorial_runner _id=scheduler); si no, es null. La cadencia la decide scheduleHours en el servidor, no el cron.',
       ],
     },
     publication: {
