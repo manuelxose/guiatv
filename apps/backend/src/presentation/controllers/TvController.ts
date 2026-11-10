@@ -70,6 +70,8 @@ export class TvController {
       itemsPerChannel: req.query.itemsPerChannel
         ? Number(req.query.itemsPerChannel)
         : undefined,
+      fields: req.query.fields === 'grid' ? 'grid' : undefined,
+      country: req.query.country ? String(req.query.country) : undefined,
     });
     const alias = req.query.channelId ? () => false : this.isAlias();
     const shown = { ...result, channels: result.channels.filter((entry) => !alias(entry.channel?.id)) };

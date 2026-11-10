@@ -26,6 +26,21 @@ test('links a verified film and a series episode airing to their work page, fold
   assert.equal(counts.linked, 3);
 });
 
+test('carries the verified work rectangular backdrop so the 16:9 cards have wide art', async () => {
+  const withBackdrop = async (ids: number[]) => (await reader(ids)).map((r) => (r.tmdbId === 949 ? { ...r, backdropPath: '/heat-backdrop.jpg' } : r));
+  const programs = [film('Heat', 949, 'heat'), film('Atómica', 341013, 'atomica')];
+  await assignVerifiedWorkPaths(programs, { reader: withBackdrop, slugReader });
+  assert.equal(programs[0].workBackdropUrl, 'https://image.tmdb.org/t/p/w1280/heat-backdrop.jpg');
+  assert.equal(programs[1].workBackdropUrl, undefined);
+});
+
+test('an unproven relationship never carries a backdrop either', async () => {
+  const withBackdrop = async (ids: number[]) => (await reader(ids)).map((r) => ({ ...r, backdropPath: '/heat-backdrop.jpg' }));
+  const programs = [{ ...film('Heat', 949), workBackdropUrl: 'https://image.tmdb.org/t/p/w1280/stale.jpg' }];
+  await assignVerifiedWorkPaths(programs, { reader: withBackdrop, slugReader });
+  assert.equal(programs[0].workBackdropUrl, undefined);
+});
+
 test('rejects every unproven relationship and leaves the airing route in charge', async () => {
   const programs: WorkLinkProgram[] = [
     { title: 'Heat', tmdbId: 949, editorialCategory: 'Documentales' }, // not Cine/Series

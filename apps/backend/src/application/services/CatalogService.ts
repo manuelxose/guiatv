@@ -263,7 +263,7 @@ export class CatalogService {
       ? await recorder.span('channels', () => this.loadChannelMap())
       : new Map<string, any>();
 
-    const { scored, total, startIndex } = recorder.sync('transform', () => {
+    const { scored, total, startIndex, tmdbPaged } = recorder.sync('transform', () => {
       const merged = this.mergeItems(
         [...programItems, ...streamingItems],
         channelMap
@@ -279,7 +279,9 @@ export class CatalogService {
         .filter((item) => this.matchesPlatforms(item, normalized.platforms))
         .filter((item) => this.matchesGenres(item, normalized.genres))
         .filter((item) => this.matchesSeenFilter(item, normalized.sort, preferences));
-      return { scored: sorted, total: sorted.length, startIndex: (normalized.page - 1) * normalized.limit };
+      // Streaming-only queries already fetched TMDB page `page`: slicing it again by page left page 2+ empty.
+      const tmdbPaged = !normalized.types.includes('program');
+      return { scored: sorted, total: sorted.length, startIndex: tmdbPaged ? 0 : (normalized.page - 1) * normalized.limit, tmdbPaged };
     });
     const paged = await recorder.span('workpaths', () => this.markUnresolvedWorkPaths(scored.slice(startIndex, startIndex + normalized.limit)));
     const withInteractions = await recorder.span('interactions', () => this.attachUserInteractions(
@@ -293,7 +295,8 @@ export class CatalogService {
         page: normalized.page,
         limit: normalized.limit,
         total,
-        hasMore: startIndex + normalized.limit < total,
+        // shortcut: a full TMDB page (~20, hydrated ≥16) is taken as "there is a next page"; TMDB's total_pages would be exact.
+        hasMore: tmdbPaged ? streamingItems.length >= 16 && normalized.page < 500 : startIndex + normalized.limit < total,
       },
       availableGenres: Array.from(
         new Set(
@@ -1715,10 +1718,10 @@ export class CatalogService {
       return true;
     }
 
-    const itemPlatforms = new Set(
-      item.primaryPlatforms.map((platform) => this.normalizeToken(platform))
-    );
-    return platforms.some((platform) => itemPlatforms.has(this.normalizeToken(platform)));
+    // By registry platform, not spelling: TMDB names RTVE Play "rtve" and Movistar+ "Movistar Plus+ Ficción Total".
+    const keyOf = (name: string) => this.findPlatform(name)?.key || this.normalizeToken(name);
+    const itemPlatforms = new Set(item.primaryPlatforms.map(keyOf));
+    return platforms.some((platform) => itemPlatforms.has(keyOf(platform)));
   }
 
   private matchesGenres(item: CatalogItemDTO, genres: string[]): boolean {

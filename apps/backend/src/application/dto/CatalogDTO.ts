@@ -331,3 +331,7 @@ export const CATALOG_PLATFORM_NAME_MAP = new Map(
 );
 // Pre-rebrand name, kept so old ?platform=Max links and stored preferences still resolve.
 CATALOG_PLATFORM_NAME_MAP.set('max', CATALOG_PLATFORM_NAME_MAP.get('hbo max')!);
+// TMDB's provider names for the same services, so items carrying them match the platform filter.
+CATALOG_PLATFORM_NAME_MAP.set('rtve', CATALOG_PLATFORM_NAME_MAP.get('rtve play')!);
+CATALOG_PLATFORM_NAME_MAP.set('movistar plus+', CATALOG_PLATFORM_NAME_MAP.get('movistar+')!);
+CATALOG_PLATFORM_NAME_MAP.set('movistar plus+ ficción total', CATALOG_PLATFORM_NAME_MAP.get('movistar+')!);

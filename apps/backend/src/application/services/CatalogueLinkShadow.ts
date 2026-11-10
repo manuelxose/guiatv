@@ -81,12 +81,12 @@ export type CatalogueRowReader = (tmdbIds: number[]) => Promise<LinkRow[]>;
 export const readCatalogueRows: CatalogueRowReader = async (tmdbIds) => {
   const docs = await MediaCatalogModel.find(
     { tmdbType: { $in: ['movie', 'tv'] }, tmdbId: { $in: tmdbIds } },
-    { tmdbId: 1, tmdbType: 1, title: 1, originalTitle: 1, normalizedTitle: 1 }
+    { tmdbId: 1, tmdbType: 1, title: 1, originalTitle: 1, normalizedTitle: 1, backdropPath: 1 }
   )
     .maxTimeMS(READ_MAX_MS)
     .lean()
     .exec();
-  return (docs as any[]).map((d) => ({ id: String(d._id), tmdbId: d.tmdbId, tmdbType: d.tmdbType, title: d.title, originalTitle: d.originalTitle, normalizedTitle: d.normalizedTitle }));
+  return (docs as any[]).map((d) => ({ id: String(d._id), tmdbId: d.tmdbId, tmdbType: d.tmdbType, title: d.title, originalTitle: d.originalTitle, normalizedTitle: d.normalizedTitle, backdropPath: d.backdropPath }));
 };
 
 async function readInBatches(ids: number[], reader: CatalogueRowReader, started: number): Promise<{ rows: LinkRow[]; queries: number }> {
