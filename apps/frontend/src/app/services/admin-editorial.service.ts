@@ -224,6 +224,8 @@ export interface EditorialOperations {
   generation: EditorialGenerationSettings;
   runner: { online: boolean; lastSeenAt: string | null; version: string | null; status?: 'never-connected' | 'offline' | 'ready' | 'error' | string; lastError?: string | null; capabilities: { providers: string[]; webSearch: boolean }; process?: EditorialRunnerProcess };
   lastCycle: { at: string; result: string; reason: string; queued: number; generated: number } | null;
+  /** M15: the OS scheduler's ticks; `nextRunAt` is only set while it ticks and generation is enabled. */
+  scheduler?: { active: boolean; lastTickAt: string | null; lastAutomaticStartAt: string | null; tickMinutes: number };
   nextRunAt: string | null;
   queue: EditorialQueueItem[];
   /** Human decisions on queued topics that the runner has not applied yet. */

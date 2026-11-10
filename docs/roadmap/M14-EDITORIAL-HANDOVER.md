@@ -1,5 +1,13 @@
 # M14 editorial handover: design blocked pending exclusive ownership
 
+> **M15 update (2026-11-10, verified on production).** One runner owner exists: the API supervises it
+> (`EditorialRunnerService`, state in `/var/lib/guiatv/editorial-runner`); the Windows task `EditorialCycle` is disabled
+> and the only OS scheduler is the server cron tick (`infra/cron/guiatv-editorial-cycle.sh`). The runner now writes its
+> run files to `$GUIATV_EDITORIAL_STATE/m11d/runs` (outside releases) instead of the release directory. The lock, queue
+> and spend journal were already in `EDITORIAL_SPEND_DIR` (durable). The run files of the four guides published in
+> October were lost with their releases; they stay `no-local-provenance` and are not reconstructed. The lock-protocol
+> hardening below (fencing, PID reuse, multi-host) is still open. See `docs/roadmap/M15-EDITORIAL-HARNESS.md`.
+
 Status: **not safe to deploy as an autonomous handover**. This describes the required implementation; it does not claim that migration or recovery is in place.
 
 The runner's default `--out` is relative to its working directory. In production that directory is the active release, which changes on deployment and can be pruned. `EDITORIAL_SPEND_DIR` holds the runner lock, queue and spend journal but does not set `--out`. A release switch can therefore make published-run evidence invisible to maintenance, and later pruning can delete it. The current production configuration has no explicit `--out`. Six JSON files were observed in a separate historical pilot directory; their identity and relation to published drafts have not been established, so they must not be merged automatically.

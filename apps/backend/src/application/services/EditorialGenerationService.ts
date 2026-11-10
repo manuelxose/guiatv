@@ -62,7 +62,8 @@ const db = () => BlogPostModel.db;
 const settings = () => db().collection<{ _id: string; settings?: EditorialGenerationSettings }>('editorial_settings');
 const requests = () => db().collection<GenerationRequest>('editorial_generation_requests');
 const cycles = () => db().collection('editorial_cycles');
-const runner = () => db().collection<{ _id: string; lastSeenAt?: Date; version?: string; status?: string; lastError?: string; capabilities?: unknown }>('editorial_runner');
+// `current`: the runner's heartbeat; `scheduler`: the OS scheduler's ticks (M15).
+const runner = () => db().collection<{ _id: string; lastSeenAt?: Date; version?: string; status?: string; lastError?: string; capabilities?: unknown; lastTickAt?: Date; lastAutomaticStartAt?: Date }>('editorial_runner');
 const queue = () => db().collection<{ _id: string; items?: any[]; updatedAt?: Date }>('editorial_queue_snapshot');
 
 export const DEFAULT_GENERATION_SETTINGS: EditorialGenerationSettings = {
@@ -147,6 +148,9 @@ function validTopic(value: unknown): EditorialGenerationTopic {
   };
 }
 
+/** Same horizon as the runner lock (`lockAlive` in editorial-agents.mjs): past it the owner is treated as dead. */
+export const CLAIM_LEASE_MS = 6 * 3600e3;
+
 export type RunnerStartMode = 'automatic' | 'manual';
 
 /**
@@ -154,10 +158,22 @@ export type RunnerStartMode = 'automatic' | 'manual';
  * interruptor persistido `enabled`; un arranque manual es una acción explícita de un operador y siempre
  * se permite — se audita aparte y no modifica `enabled` ni la política de publicación.
  */
-export function runnerStartAllowed(settings: { enabled: boolean }, mode: RunnerStartMode): { allowed: boolean; reason: string | null } {
+export function runnerStartAllowed(
+  settings: { enabled: boolean; scheduleHours?: number },
+  mode: RunnerStartMode,
+  lastAutomaticStartAt: Date | null = null,
+  now = new Date(),
+): { allowed: boolean; reason: string | null } {
   if (mode === 'manual') return { allowed: true, reason: null };
-  return settings.enabled === true ? { allowed: true, reason: null } : { allowed: false, reason: 'generation-disabled' };
+  if (settings.enabled !== true) return { allowed: false, reason: 'generation-disabled' };
+  // M15: the OS scheduler only ticks (every 15 min); `scheduleHours` from the Admin decides when a cycle is due,
+  // so the frequency shown in the panel is the one that runs. A 10 min margin absorbs tick jitter.
+  const due = !lastAutomaticStartAt || now.getTime() - lastAutomaticStartAt.getTime() >= (settings.scheduleHours ?? 3) * 3600e3 - SCHEDULER_TICK_MS * 2 / 3;
+  return due ? { allowed: true, reason: null } : { allowed: false, reason: 'not-due' };
 }
+
+/** The OS scheduler's tick (infra/cron/guiatv-editorial-cycle.sh). The panel calls it stopped after two missed ticks. */
+export const SCHEDULER_TICK_MS = 15 * 60e3;
 
 export class EditorialGenerationService {
   async getSettings(): Promise<EditorialGenerationSettings> {
@@ -229,7 +245,27 @@ export class EditorialGenerationService {
     return this.publicRequest(result);
   }
 
+  /**
+   * M15: a claim older than any real run belongs to a dead runner (crash, kill, reboot): nothing else would ever
+   * finish it. Its token is revoked, so a returning zombie cannot finish it. One automatic retry; a request that is
+   * abandoned twice goes to `failed` with the reason, for a person to retry, so a crash loop cannot spend every cycle.
+   */
+  async recoverAbandonedClaims(now = new Date()) {
+    const before = new Date(now.getTime() - CLAIM_LEASE_MS);
+    const stale = { status: 'running' as const, $or: [{ claimedAt: { $lt: before } }, { claimedAt: { $exists: false }, updatedAt: { $lt: before } }] };
+    const requeued = await requests().updateMany({ ...stale, claimsObserved: { $not: { $gte: 2 } } }, {
+      $set: { status: 'queued', reason: 'Ejecución interrumpida: el ejecutor no la terminó; se reintenta una vez', updatedAt: now },
+      $unset: { claimToken: '', claimedAt: '' },
+    });
+    const failed = await requests().updateMany(stale, {
+      $set: { status: 'failed', reason: 'Ejecución interrumpida dos veces: revisa el registro del ejecutor y reinténtala', updatedAt: now, finishedAt: now },
+      $unset: { claimToken: '' },
+    });
+    return { requeued: requeued.modifiedCount, failed: failed.modifiedCount };
+  }
+
   async pendingRequests() {
+    await this.recoverAbandonedClaims();
     const actions = await requests().find({ status: 'queued', kind: 'queue-action' }).sort({ createdAt: 1, _id: 1 }).limit(20).toArray();
     const [discovery, generation] = await Promise.all(['discover', 'generate'].map((kind) =>
       requests().find({ status: 'queued', kind: kind as GenerationRequest['kind'] }).sort({ createdAt: 1, _id: 1 }).limit(20).toArray()));
@@ -267,6 +303,16 @@ export class EditorialGenerationService {
     return { receivedAt: now };
   }
 
+  /** M15: every automatic start request is a scheduler tick; the panel shows whether the OS scheduler is alive. */
+  async schedulerTick(now = new Date()) {
+    const doc = await runner().findOneAndUpdate({ _id: 'scheduler' }, { $set: { lastTickAt: now } }, { upsert: true, returnDocument: 'before' });
+    return { lastAutomaticStartAt: doc?.lastAutomaticStartAt ?? null };
+  }
+
+  async recordAutomaticStart(now = new Date()) {
+    await runner().updateOne({ _id: 'scheduler' }, { $set: { lastAutomaticStartAt: now } }, { upsert: true });
+  }
+
   async reportCycle(input: any) {
     const at = new Date();
     const result = enumValue(input?.result, ['inactive', 'generation-paused', 'daily-limit', 'no-eligible-topics', 'discovery-error', 'ran', 'failed'] as const);
@@ -285,8 +331,10 @@ export class EditorialGenerationService {
   }
 
   async operationalState() {
-    const [generation, runnerDoc, lastCycle, queueDoc, manual, manualPending, manualRunning, pendingActions] = await Promise.all([
-      this.getSettings(), runner().findOne({ _id: 'current' }), cycles().findOne({}, { sort: { at: -1 } }),
+    await this.recoverAbandonedClaims();
+    const [generation, runnerDoc, schedulerDoc, lastCycle, queueDoc, manual, manualPending, manualRunning, pendingActions] = await Promise.all([
+      this.getSettings(), runner().findOne({ _id: 'current' }), runner().findOne({ _id: 'scheduler' }),
+      cycles().findOne({}, { sort: { at: -1 } }),
       queue().findOne({ _id: 'current' }), requests().find({ kind: { $ne: 'queue-action' }, status: { $in: ['queued', 'running', 'failed', 'cancelled'] } }).sort({ createdAt: -1 }).limit(50).toArray(),
       requests().countDocuments({ kind: { $ne: 'queue-action' }, status: 'queued' }), requests().countDocuments({ kind: { $ne: 'queue-action' }, status: 'running' }),
       requests().find({ kind: 'queue-action', status: 'queued' }).sort({ createdAt: 1 }).limit(50).toArray(),
@@ -294,8 +342,18 @@ export class EditorialGenerationService {
     const lastSeenAt = runnerDoc?.lastSeenAt ?? null;
     const staleMs = Math.max(15 * 60e3, generation.scheduleHours * 3600e3 + 15 * 60e3);
     const online = Boolean(lastSeenAt && Date.now() - new Date(lastSeenAt).getTime() <= staleMs);
+    const lastTickAt = schedulerDoc?.lastTickAt ?? null;
+    const lastAutomaticStartAt = schedulerDoc?.lastAutomaticStartAt ?? null;
+    const schedulerActive = Boolean(lastTickAt && Date.now() - new Date(lastTickAt).getTime() <= 2 * SCHEDULER_TICK_MS + 60e3);
+    // Only a ticking scheduler with generation enabled has a next run; the first tick after it is due starts it.
+    const nextRunAt = generation.enabled && schedulerActive
+      ? new Date(Math.max(
+        lastAutomaticStartAt ? new Date(lastAutomaticStartAt).getTime() + generation.scheduleHours * 3600e3 - SCHEDULER_TICK_MS * 2 / 3 : 0,
+        new Date(lastTickAt!).getTime() + SCHEDULER_TICK_MS)).toISOString()
+      : null;
     return {
       generation,
+      scheduler: { active: schedulerActive, lastTickAt, lastAutomaticStartAt, tickMinutes: SCHEDULER_TICK_MS / 60e3 },
       runner: {
         online, lastSeenAt, version: runnerDoc?.version ?? null,
         status: !lastSeenAt ? 'never-connected' : online ? (runnerDoc?.status || 'ready') : 'offline',
@@ -303,7 +361,7 @@ export class EditorialGenerationService {
         capabilities: runnerDoc?.capabilities ?? { providers: [], webSearch: false },
       },
       lastCycle: lastCycle ? { at: lastCycle.at, result: lastCycle.result, reason: lastCycle.reason, queued: lastCycle.queued, generated: lastCycle.generated } : null,
-      nextRunAt: generation.enabled && lastSeenAt ? new Date(new Date(lastSeenAt).getTime() + generation.scheduleHours * 3600e3).toISOString() : null,
+      nextRunAt,
       queue: [...manual.map((item) => ({ ...this.publicRequest(item), source: 'manual' })), ...(queueDoc?.items ?? []).map((item: any) => ({ ...item, source: 'discovered' }))].slice(0, 100),
       pendingActions: pendingActions.map((r) => ({ id: r.id, ...r.queueAction })),
       queueSummary: {

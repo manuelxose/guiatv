@@ -180,6 +180,20 @@ test('M11-B CMS: evidence gate, policy approval, versioning and rollback', { ski
     const unknown = (await BlogPostModel.findById(unknownId).lean())!;
     assert.equal(unknown.status, 'draft');
     assert.equal(await BlogPostModel.db.collection('editorial_policy_approvals').countDocuments({ postId: unknown._id }), 1, 'unknown results are retained conservatively');
+
+    // M15 reconciliation: retrying that same draft resumes its retained row instead of a permanent 409.
+    (controller as any).qualityFindings = async () => [];
+    try {
+      const retried = await call(controller.approveByPolicy, { params: { id: unknownId } });
+      assert.equal(retried.code, 200, String(retried.error));
+      assert.equal((await BlogPostModel.findById(unknownId).lean())!.status, 'publish');
+      assert.equal(await BlogPostModel.db.collection('editorial_policy_approvals').countDocuments({ postId: unknown._id }), 1, 'one publication, one row: never counted twice');
+      // A draft that was published and then taken down (a revision exists) still needs a person.
+      assert.equal((await call(controller.unpublishPost, { params: { id: unknownId }, headers: { 'x-editorial-reviewer': 'Revisora Prueba' } })).code, 200);
+      assert.match(String((await call(controller.approveByPolicy, { params: { id: unknownId } })).error), /already published by policy once/);
+    } finally {
+      delete (controller as any).qualityFindings;
+    }
   } finally {
     process.env = env;
     await mongoose.connection.dropDatabase();
