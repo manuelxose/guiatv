@@ -97,12 +97,20 @@ const stringList = (value: unknown, allowed: readonly string[], fallback: string
   return [...new Set(list)] as string[];
 };
 
-function validRoutes(value: unknown): RouteTable {
+/**
+ * Every role the pipeline runs gets a route. M15: a table stored before the M14-R `planner` role existed (or saved by
+ * an Admin form that does not send it) lacked that role, and every generation then failed before reading a source.
+ */
+const completeRoutes = (routes: Partial<RouteTable> | undefined): RouteTable => ({ ...DEFAULT_ROUTES, ...(routes ?? {}) });
+
+function validRoutes(value: unknown, current: RouteTable): RouteTable {
   if (!value || typeof value !== 'object') return fail('Routes are required');
   const input = value as Record<string, unknown>;
-  const roles: EditorialRole[] = ['research', 'evidence', 'editorial', 'seo', 'critic'];
+  const roles: EditorialRole[] = ['research', 'evidence', 'planner', 'editorial', 'seo', 'critic'];
   const result = {} as Record<EditorialRole, ModelRoute[]>;
   for (const role of roles) {
+    // An optional role the form does not send keeps its current routes instead of being dropped.
+    if (role === 'planner' && input[role] === undefined) { result[role] = [...current[role]]; continue; }
     const list = input[role];
     if (!Array.isArray(list) || !list.length || list.length > 3) return fail(`${role}: one to three routes are required`);
     result[role] = list.map((route) => {
@@ -178,7 +186,8 @@ export const SCHEDULER_TICK_MS = 15 * 60e3;
 export class EditorialGenerationService {
   async getSettings(): Promise<EditorialGenerationSettings> {
     const doc = await settings().findOne({ _id: 'generation' });
-    return { ...DEFAULT_GENERATION_SETTINGS, ...(doc?.settings ?? {}) };
+    const stored = { ...DEFAULT_GENERATION_SETTINGS, ...(doc?.settings ?? {}) };
+    return { ...stored, routes: completeRoutes(stored.routes) };
   }
 
   async updateSettings(input: unknown, actor: string) {
@@ -193,7 +202,7 @@ export class EditorialGenerationService {
       contentTypes: stringList(value.contentTypes, EDITORIAL_CONTENT_TYPES, current.contentTypes) as EditorialContentType[],
       defaultLength: enumValue(value.defaultLength, Object.keys(EDITORIAL_LENGTHS) as EditorialLength[], current.defaultLength),
       sourceDomains: stringList(value.sourceDomains, OFFICIAL_DOMAINS, current.sourceDomains),
-      routes: value.routes === undefined ? current.routes : validRoutes(value.routes),
+      routes: value.routes === undefined ? current.routes : validRoutes(value.routes, current.routes),
       updatedAt: new Date().toISOString(), updatedBy: actor,
     };
     await settings().updateOne({ _id: 'generation' }, { $set: { settings: next } }, { upsert: true });
