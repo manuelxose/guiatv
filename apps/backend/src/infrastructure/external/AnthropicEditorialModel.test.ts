@@ -59,9 +59,10 @@ test('M11-D: a failed call reports the usage it was billed; a broken stream does
   const truncated = await new AnthropicEditorialModel({ client: fake([reply('max_tokens', '{"a"')]).client }).call(call()).catch((e) => e);
   assert.ok(truncated instanceof ModelCallFailed);
   assert.deepEqual(truncated.usage, { input_tokens: 110, output_tokens: 50 });
-  const badJson = await new AnthropicEditorialModel({ client: fake([reply('pause_turn', '', 2), reply('end_turn', 'sin json', 1)]).client }).call(call({ role: 'research', webSearches: 3 })).catch((e) => e);
+  // M15: one repair turn is asked for, and billed, before a prose-only answer fails the call.
+  const badJson = await new AnthropicEditorialModel({ client: fake([reply('pause_turn', '', 2), reply('end_turn', 'sin json', 1), reply('end_turn', 'sigo sin json', 0)]).client }).call(call({ role: 'research', webSearches: 3 })).catch((e) => e);
   assert.ok(badJson instanceof ModelCallFailed);
-  assert.deepEqual([badJson.usage.output_tokens, badJson.searches], [100, 3]);
+  assert.deepEqual([badJson.usage.output_tokens, badJson.searches], [150, 3]);
   const cut = { messages: { stream: () => ({ finalMessage: async () => { throw new Error('socket hang up'); } }) } } as unknown as Pick<Anthropic, 'messages'>;
   const unknown = await new AnthropicEditorialModel({ client: cut }).call(call()).catch((e) => e);
   assert.ok(!(unknown instanceof ModelCallFailed));
