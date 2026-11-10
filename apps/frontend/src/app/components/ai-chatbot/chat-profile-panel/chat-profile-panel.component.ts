@@ -14,6 +14,7 @@ import {
   PreferenceAnswer,
   PreferenceQuestion,
   PreferenceQuestionKey,
+  PREFERENCE_QUESTIONS,
 } from '../../../interfaces/chat-profile.types';
 
 @Component({
@@ -173,7 +174,7 @@ import {
     .profile-panel__footer button { min-height: 48px; border-radius: .9rem; font-weight: 750; cursor: pointer; touch-action: manipulation; }
     .profile-panel__footer button:disabled { cursor: not-allowed; opacity: .45; }
     .profile-panel__secondary { border: 1px solid var(--portal-border); background: var(--portal-bg-elevated); color: var(--portal-text-soft); padding: 0 .9rem; }
-    .profile-panel__primary { min-width: 10rem; border: 0; background: var(--accent-live-strong); color: #fff; padding: 0 1rem; }
+    .profile-panel__primary { min-width: 10rem; border: 0; background: var(--section-accent); color: var(--section-accent-ink); padding: 0 1rem; }
     button:focus-visible, input:focus-visible { outline: 3px solid color-mix(in srgb, var(--guide-accent) 45%, transparent); outline-offset: 2px; }
     @media (max-width: 430px) { .profile-panel__steps { justify-content: flex-start; overflow-x: auto; padding-bottom: .25rem; scrollbar-width: none; } .profile-panel__steps::-webkit-scrollbar { display: none; } .profile-panel__secondary { padding: 0 .7rem; } .profile-panel__primary { min-width: 0; flex: 1; } }
     @media (min-width: 768px) { :host { inset: 0; } }
@@ -191,50 +192,7 @@ export class ChatProfilePanelComponent implements OnChanges {
   @Output() answerSaved = new EventEmitter<PreferenceAnswer>();
   @Output() closed = new EventEmitter<void>();
 
-  readonly questions: PreferenceQuestion[] = [
-    {
-      key: 'preferredPlatforms', target: 'profile', field: 'preferredPlatforms', kind: 'multi',
-      title: '¿Qué plataformas utilizas?', description: 'Selecciona todas las que tengas para priorizar contenido que realmente puedas ver.',
-      options: ['Netflix', 'Prime Video', 'Disney+', 'HBO Max', 'Movistar+', 'SkyShowtime', 'Apple TV+', 'Filmin', 'RTVE Play', 'ATRESplayer', 'Mitele', 'Pluto TV'].map((value) => ({ value, label: value })),
-    },
-    {
-      key: 'likedGenres', target: 'profile', field: 'likedGenres', kind: 'multi',
-      title: '¿Qué géneros te interesan?', description: 'Elige varios; podrás cambiarlos cuando quieras sin afectar a tu conversación.',
-      options: [
-        ['Cine', 'Cine y películas'], ['Series', 'Series'], ['Documental', 'Documentales'], ['Deportes', 'Deportes'],
-        ['Infantil', 'Infantil'], ['Entretenimiento', 'Entretenimiento'], ['Informativos', 'Actualidad'], ['Cultura', 'Cultura'],
-        ['Musica', 'Música'], ['Lifestyle', 'Lifestyle'], ['Motor', 'Motor'],
-      ].map(([value, label]) => ({ value, label })),
-    },
-    {
-      key: 'preferredViewingContexts', target: 'memory', field: 'preferredViewingContexts', kind: 'multi',
-      title: '¿Con quién sueles verlo?', description: 'Así ajustaré el tono y el tipo de recomendación a cada plan.',
-      options: ['Solo', 'En pareja', 'En familia', 'Con amigos'].map((value) => ({ value, label: value })), optional: true,
-    },
-    {
-      key: 'preferredDurations', target: 'memory', field: 'preferredDurations', kind: 'multi',
-      title: '¿Qué duración prefieres?', description: 'Puedes combinar opciones para no limitar demasiado las recomendaciones.',
-      options: [
-        { value: 'corto', label: 'Menos de 60 min' },
-        { value: 'episodio', label: 'Episodios de 30–45 min' },
-        { value: 'largo', label: 'Más de 60 min' },
-      ], optional: true,
-    },
-    {
-      key: 'favoriteFranchisesOrTitles', target: 'memory', field: 'favoriteFranchisesOrTitles', kind: 'text-list',
-      title: '¿Qué títulos te representan?', description: 'Añade películas, series o sagas que sirvan como referencia.', options: [], optional: true,
-    },
-    {
-      key: 'preferredAutonomousCommunity', target: 'memory', kind: 'single',
-      title: '¿Quieres canales autonómicos?', description: 'Selecciona tu comunidad para incluirlos cuando sean relevantes.',
-      options: ['Andalucía', 'Aragón', 'Asturias', 'Baleares', 'Canarias', 'Cantabria', 'Castilla-La Mancha', 'Castilla y León', 'Cataluña', 'Comunidad Valenciana', 'Extremadura', 'Galicia', 'La Rioja', 'Madrid', 'Murcia', 'Navarra', 'País Vasco'].map((value) => ({ value, label: value })), optional: true,
-    },
-    {
-      key: 'negativeSignals', target: 'memory', field: 'negativeSignals', kind: 'multi',
-      title: '¿Qué prefieres evitar?', description: 'Lo usaré como filtro secundario, nunca como una consulta nueva.',
-      options: ['Terror', 'Deportes', 'Realities', 'Contenido infantil'].map((value) => ({ value, label: value })), optional: true,
-    },
-  ];
+  readonly questions = PREFERENCE_QUESTIONS;
 
   currentIndex = 0;
   textDraft = '';

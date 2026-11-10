@@ -515,6 +515,51 @@ export class UserService {
       );
   }
 
+  updateList(listId: string, changes: { title?: string; description?: string; visibility?: 'public' | 'friends' | 'private' }): Observable<UserList | null> {
+    if (!this.safeGetToken()) return of(null);
+
+    return this.http
+      .patch<ApiResponse<{ list: UserList }>>(`${this.baseUrl}/user/lists/${listId}`, changes, { headers: this.getAuthHeaders() })
+      .pipe(
+        map((resp) => (resp?.data?.list ? this.mapList(resp.data.list) : null)),
+        tap((list) => {
+          if (list) this.upsertList(list);
+        }),
+        catchError(this.handleError(null, 'No se pudo guardar la lista.'))
+      );
+  }
+
+  /** Uploads a profile photo (raw image body); the server crops it, stores it and returns the updated profile. */
+  uploadAvatar(file: Blob): Observable<UserProfile | null> {
+    if (!this.safeGetToken()) return of(null);
+
+    return this.http
+      .post<ApiResponse<{ profile: UserProfile }>>(`${this.baseUrl}/user/avatar`, file, {
+        headers: this.getAuthHeaders().set('Content-Type', file.type || 'application/octet-stream'),
+      })
+      .pipe(
+        map((resp) => resp?.data?.profile || null),
+        tap((profile) => {
+          if (profile) this.profileSubject.next(this.mergeProfile(profile));
+        }),
+        catchError(this.handleError(null, 'No se pudo subir la foto.'))
+      );
+  }
+
+  deleteList(listId: string): Observable<boolean> {
+    if (!this.safeGetToken()) return of(false);
+
+    return this.http
+      .delete<ApiResponse<{ deleted: boolean }>>(`${this.baseUrl}/user/lists/${listId}`, { headers: this.getAuthHeaders() })
+      .pipe(
+        map((resp) => resp?.data?.deleted !== false),
+        tap((deleted) => {
+          if (deleted) this.listsSubject.next(this.listsSubject.value.filter((list) => list.id !== listId));
+        }),
+        catchError(this.handleError(false, 'No se pudo borrar la lista.'))
+      );
+  }
+
   addListItem(
     listId: string,
     item: {

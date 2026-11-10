@@ -316,103 +316,215 @@ img {
   overflow-wrap: anywhere;
 }
 
-/* ── Post content (editorial pages) ── */
+/* ── Post content (article body, injected HTML) ──
+   Reading typography for the guides: ~70 characters per line (the column is set by the page), larger
+   text, generous spacing, clear heading hierarchy. Colours come from the shell's --sv2-* tokens and the
+   section accent, so light/dark and the Guías colour apply. */
 .post-content {
-  --tw-prose-body: var(--portal-text-soft);
-  --tw-prose-headings: var(--portal-text);
-  --tw-prose-links: var(--portal-text);
-  --tw-prose-pre-bg: var(--portal-surface-strong);
+  color: var(--sv2-text, var(--portal-text));
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
 }
 
-.post-content h1,
-.post-content h2,
-.post-content h3,
-.post-content h4 {
-  color: var(--portal-text);
-  font-weight: 700;
-  margin-top: 1.25rem;
-  margin-bottom: 0.5rem;
+@media (min-width: 768px) {
+  .post-content {
+    font-size: 1.125rem;
+  }
+}
+
+.post-content > :first-child {
+  margin-top: 0;
 }
 
 .post-content p {
-  color: var(--portal-text-soft);
-  line-height: 1.75;
-  margin-bottom: 1rem;
+  margin: 0 0 1.15em;
+  color: var(--sv2-text, var(--portal-text));
+  text-wrap: pretty;
+}
+
+/* First paragraph reads as an introduction. */
+.post-content > p:first-of-type {
+  font-size: 1.08em;
+}
+
+.post-content h2,
+.post-content h3,
+.post-content h4 {
+  color: var(--sv2-text, var(--portal-text));
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+  scroll-margin-top: 24px;
+}
+
+.post-content h2 {
+  margin: 2.2em 0 0.7em;
+  padding-top: 0.9em;
+  border-top: 1px solid var(--sv2-border, var(--portal-border));
+  font-size: 1.45em;
+}
+
+.post-content h3 {
+  margin: 1.8em 0 0.5em;
+  font-size: 1.18em;
+}
+
+.post-content h4 {
+  margin: 1.5em 0 0.4em;
+  font-size: 1em;
 }
 
 .post-content a {
-  color: var(--portal-text);
+  color: var(--section-accent-text, var(--portal-text));
   font-weight: 650;
-  text-decoration-color: var(--accent-editorial);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.18em;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.2em;
+}
+
+.post-content a:hover {
+  text-decoration-thickness: 2.5px;
+}
+
+.post-content strong {
+  font-weight: 750;
+}
+
+.post-content ul,
+.post-content ol {
+  margin: 0 0 1.3em;
+  padding-left: 1.4em;
+}
+
+/* Tailwind's preflight removes list markers: put them back for the article. */
+.post-content ul {
+  list-style: disc;
+}
+
+.post-content ol {
+  list-style: decimal;
+}
+
+.post-content li {
+  margin: 0.4em 0;
+  padding-left: 0.3em;
+}
+
+.post-content li::marker {
+  color: var(--section-accent-text, var(--portal-text));
+  font-weight: 800;
+}
+
+/* Lines broken with <br> instead of a list still read as separate points. */
+.post-content p br + br {
+  display: none;
 }
 
 .post-content img {
+  display: block;
   max-width: 100%;
   height: auto;
-  border-radius: 8px;
-  display: block;
-  margin: 0.75rem 0;
+  margin: 1.5em 0;
+  border-radius: 14px;
 }
 
 .post-content figure {
-  margin: 1rem 0;
+  margin: 1.8em 0;
 }
 
 .post-content figcaption {
-  color: var(--portal-text-muted);
-  font-size: 0.9rem;
+  margin-top: 0.6em;
+  color: var(--sv2-text-muted, var(--portal-text-muted));
+  font-size: 0.85em;
   text-align: center;
-  margin-top: 0.5rem;
 }
 
 .post-content blockquote {
-  border-left: 4px solid var(--accent-editorial);
-  padding-left: 1rem;
-  color: var(--portal-text);
-  background: var(--accent-editorial-soft);
-  margin: 1rem 0;
+  margin: 1.6em 0;
+  padding: 1em 1.25em;
+  border-left: 4px solid var(--section-accent, var(--accent-editorial));
+  border-radius: 0 12px 12px 0;
+  background: color-mix(in srgb, var(--section-accent, #888) 10%, var(--sv2-surface-2, transparent));
+  font-size: 1.04em;
+}
+
+.post-content blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+.post-content hr {
+  margin: 2.4em auto;
+  width: 40%;
+  border: 0;
+  border-top: 1px solid var(--sv2-border, var(--portal-border));
 }
 
 .post-content pre {
-  background: var(--portal-surface-strong);
-  color: var(--portal-text);
-  padding: 1rem;
-  border-radius: 8px;
+  margin: 1.5em 0;
+  padding: 1em;
   overflow: auto;
-  margin: 1rem 0;
+  border-radius: 10px;
+  background: var(--sv2-surface-2, var(--portal-surface-strong));
+  font-size: 0.9em;
 }
 
 .post-content code {
-  background: var(--portal-surface-strong);
-  color: var(--portal-text);
-  padding: 0.15rem 0.4rem;
+  padding: 0.12em 0.4em;
   border-radius: 6px;
+  background: var(--sv2-surface-2, var(--portal-surface-strong));
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  font-size: 0.9em;
 }
 
+/* Tables: a rounded card with a tinted header and zebra rows; on phones it scrolls sideways. */
 .post-content table {
   width: 100%;
-  border-collapse: collapse;
-  margin: 1rem 0;
+  margin: 1.6em 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border: 1px solid var(--sv2-border, var(--portal-border));
+  border-radius: 14px;
+  font-size: 0.88em;
+  line-height: 1.5;
 }
 
 .post-content th,
 .post-content td {
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--portal-border);
+  padding: 0.75em 1em;
+  border-bottom: 1px solid var(--sv2-border, var(--portal-border));
+  text-align: left;
+  vertical-align: top;
+}
+
+.post-content tr:last-child td {
+  border-bottom: 0;
 }
 
 .post-content thead th {
-  background: var(--portal-surface-strong);
-  color: var(--portal-text);
-  font-weight: 600;
+  background: color-mix(in srgb, var(--section-accent, #888) 14%, var(--sv2-surface-2, transparent));
+  color: var(--sv2-text, var(--portal-text));
+  font-size: 0.85em;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
-@media (max-width: 640px) {
-  .post-content h2 {
-    font-size: 1.25rem;
+.post-content tbody tr:nth-child(even) td {
+  background: var(--sv2-surface-2, transparent);
+}
+
+@media (max-width: 767px) {
+  .post-content table {
+    display: block;
+    overflow-x: auto;
+  }
+
+  /* Phones: keep header words whole ("Servi-cio"); the table scrolls instead. */
+  .post-content th {
+    white-space: nowrap;
   }
 }
 

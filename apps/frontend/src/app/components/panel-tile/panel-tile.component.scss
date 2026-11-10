@@ -1,0 +1,155 @@
+// Mockup card (docs/design/unified-shell.html .card): --sv2-* from app-panel-shell, --section-accent* from the section.
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  padding: 10px;
+  border-radius: var(--sv2-r-md, 12px);
+  background: var(--sv2-surface-2);
+  border: 1px solid var(--sv2-border);
+  transition: border-color var(--sv2-dur, 160ms) ease;
+
+  &:hover,
+  &:focus-within {
+    border-color: var(--section-accent-text);
+  }
+}
+
+.tile__link {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  color: var(--sv2-text);
+  text-decoration: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--sv2-focus);
+    outline-offset: 4px;
+    border-radius: 6px;
+  }
+}
+
+.tile__thumb {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  margin-bottom: 3px;
+  overflow: hidden;
+  border-radius: var(--sv2-r-sm, 8px);
+  background: linear-gradient(135deg, var(--sv2-surface-3), var(--sv2-surface-1));
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+/* Linear TV only (16:9 thumb, `tv` variant): EPG images are 2:3 posters, which
+   `cover` used to crop to a random middle band. Show the whole image centred and
+   fill the sides with a blurred copy. Poster-variant cards keep the plain crop. */
+.tile__thumb--fit {
+  .tile__img {
+    position: relative;
+    z-index: 1;
+    object-fit: contain;
+  }
+
+  .tile__thumb-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    object-fit: cover;
+    transform: scale(1.2);
+    filter: blur(18px) saturate(1.15);
+    opacity: 0.9;
+  }
+}
+
+.tile--poster .tile__thumb {
+  aspect-ratio: 2 / 3;
+}
+
+.tile__pill {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(10, 12, 15, 0.78);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.tile__pill--live::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff5a5f;
+}
+
+.tile__title {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--sv2-fs-sm, 0.8125rem);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.tile--poster .tile__title {
+  display: -webkit-box;
+  white-space: normal;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.tile__meta {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--sv2-text-muted);
+  font-size: var(--sv2-fs-xs, 0.75rem);
+}
+
+.tile__bar {
+  display: block;
+  height: 4px;
+  margin-top: auto;
+  border-radius: 2px;
+  background: var(--sv2-surface-3);
+  overflow: hidden;
+
+  i {
+    display: block;
+    height: 100%;
+    background: var(--section-accent);
+  }
+}
+
+.tile__cta {
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile {
+    transition: none;
+  }
+}

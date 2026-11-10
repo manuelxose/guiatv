@@ -66,7 +66,7 @@ import {
         </ng-template>
       </div>
 
-      <div class="chat-composer__quick-actions" aria-label="Consultas rápidas">
+      <div *ngIf="showQuickActions" class="chat-composer__quick-actions" aria-label="Consultas rápidas">
         <button
           *ngFor="let action of quickActions"
           type="button"
@@ -105,9 +105,9 @@ import {
     :host { display: block; min-width: 0; }
     .chat-composer { display: grid; gap: .55rem; min-width: 0; }
     .chat-composer__surface {
-      display: flex; align-items: flex-end; gap: .5rem; min-width: 0;
-      border: 1px solid var(--portal-border); border-radius: 1.15rem;
-      background: var(--portal-bg-elevated); padding: .45rem;
+      display: flex; align-items: center; gap: .5rem; min-width: 0;
+      border: 1px solid var(--sv2-border-strong); border-radius: 1.4rem;
+      background: var(--sv2-bg); padding: .35rem .35rem .35rem .5rem;
       box-shadow: var(--shadow-sm); transition: border-color 150ms ease, box-shadow 150ms ease;
     }
     .chat-composer__surface:focus-within { border-color: var(--guide-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--guide-accent) 18%, transparent); }
@@ -116,12 +116,12 @@ import {
     .chat-composer__input {
       min-width: 0; min-height: 44px; max-height: 144px; flex: 1; resize: none;
       border: 0; outline: 0; background: transparent; color: var(--portal-text);
-      padding: .7rem .65rem; font: inherit; font-size: var(--text-sm); line-height: 1.45;
+      padding: .65rem .5rem; font: inherit; font-size: var(--sv2-fs-md); line-height: 1.45;
     }
     .chat-composer__input::placeholder { color: var(--portal-text-muted); }
     .chat-composer__submit {
       display: inline-flex; width: 44px; height: 44px; flex: 0 0 44px; align-items: center; justify-content: center;
-      border: 0; border-radius: .85rem; background: var(--guide-accent); color: #fff;
+      border: 0; border-radius: 999px; background: var(--section-accent); color: var(--section-accent-ink);
       cursor: pointer; transition: transform 150ms ease, opacity 150ms ease, background-color 150ms ease;
       touch-action: manipulation;
     }
@@ -157,6 +157,8 @@ import {
   `],
 })
 export class ChatInputBarComponent implements AfterViewInit {
+  /** Off on the start screen, which shows its own shortcuts. */
+  @Input() showQuickActions = true;
   @Input() sessionState: ChatbotSessionState = 'unknown';
   @Input() chatState: ChatbotRequestState = 'idle';
   @Input() canRetry = false;

@@ -1,663 +1,147 @@
-<div class="relative min-h-screen bg-[var(--portal-bg)] text-[var(--portal-text)]">
-  <div
-    class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_color-mix(in_oklch,var(--portal-text)_6%,transparent)_0,_transparent_55%)] opacity-70"
-  ></div>
+<app-panel-shell sideLabel="Mi perfil" contextLabel="Tu ficha" [(contextOpen)]="contextOpen">
+  @let auth = isAuthenticated$ | async;
 
-  <ng-container *ngIf="isAuthenticated$ | async; else loginCTA">
-    <div class="relative z-10 mx-auto max-w-6xl px-4 pt-4 pb-24 md:pb-8">
+  <!-- Left menu: one entry per tab, plus the admin console for admins. -->
+  <div panelSide class="ua-side">
+    @if (auth) {
+    <app-panel-nav title="Mi perfil" [links]="perfilLinks"></app-panel-nav>
+    @if (isAdmin()) {<a class="ua-side__admin" routerLink="/admin">Panel de administración ›</a>}
+    }
+  </div>
 
-      <!-- ═══════════════════════════════════════════════════════════
-           LAYOUT: Desktop md+ → 2-column (sidebar + main)
-                   Mobile    → single column
-           ═══════════════════════════════════════════════════════════ -->
-      <div class="md:flex md:gap-6">
-
-        <!-- ── SIDEBAR (md+) ── -->
-        <aside class="hidden md:block md:w-72 lg:w-80 flex-shrink-0 space-y-4 sticky top-4 self-start">
-          <!-- Profile card -->
-          <ng-container *ngIf="profile$ | async as profile">
-            <div class="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-soft)] p-5">
-              <div class="flex items-center gap-3">
-                <div class="relative flex-shrink-0">
-                  <div class="w-14 h-14 rounded-2xl bg-[var(--portal-surface-strong)] border border-[var(--portal-border)] overflow-hidden">
-                    <img *ngIf="profile.avatar" [src]="profile.avatar" class="w-full h-full object-cover" alt="" />
-                    <span *ngIf="!profile.avatar" class="w-full h-full flex items-center justify-center text-lg font-bold text-[var(--portal-text)]">
-                      {{ getProfileInitials(profile.name) }}
-                    </span>
-                  </div>
-                  <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[var(--accent-streaming)] border-2 border-[var(--portal-bg)]"></span>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <h2 class="text-sm font-bold text-[var(--portal-text)] truncate">{{ profile.name }}</h2>
-                  <p class="text-xs text-[var(--portal-text-muted)] truncate">{{ '@' }}{{ profile.username }}</p>
-                </div>
-                <button
-                  type="button"
-                  (click)="openEditProfileModal()"
-                  class="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-xl border border-[var(--portal-border)] text-[var(--portal-text-muted)] hover:text-[var(--portal-text)]"
-                  aria-label="Editar perfil"
-                >
-                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 20h4l10-10-4-4L4 16v4Zm9-13 4 4" />
-                  </svg>
-                </button>
-              </div>
-
-              <div class="grid grid-cols-4 gap-1 mt-4 text-center">
-                <div class="py-1.5">
-                  <p class="text-sm font-bold text-[var(--portal-text)]">{{ profile.stats.followers | number }}</p>
-                  <p class="text-[9px] text-[var(--portal-text-muted)]">Seguidores</p>
-                </div>
-                <div class="py-1.5">
-                  <p class="text-sm font-bold text-[var(--portal-text)]">{{ profile.stats.following | number }}</p>
-                  <p class="text-[9px] text-[var(--portal-text-muted)]">Siguiendo</p>
-                </div>
-                <div class="py-1.5">
-                  <p class="text-sm font-bold text-[var(--portal-text)]">{{ profile.stats.listsCreated | number }}</p>
-                  <p class="text-[9px] text-[var(--portal-text-muted)]">Listas</p>
-                </div>
-                <div class="py-1.5">
-                  <p class="text-sm font-bold text-[var(--portal-text)]">{{ profile.stats.ratings | number }}</p>
-                  <p class="text-[9px] text-[var(--portal-text-muted)]">Valoradas</p>
-                </div>
-              </div>
-            </div>
-          </ng-container>
-
-          <!-- Full destination nav — same `visibleTabs` source the mobile grid uses below, so desktop and mobile can never drift again (previously desktop only exposed 4 of 9 destinations here). -->
-          <nav class="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-soft)] p-4 space-y-1" aria-label="Navegación de Mi GuíaTV">
-            <button
-              *ngFor="let section of visibleTabs"
-              type="button"
-              (click)="setActiveTab(section.key)"
-              [attr.aria-current]="activeTab === section.key ? 'page' : null"
-              class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[var(--portal-text-soft)] hover:bg-[var(--portal-surface-strong)] hover:text-[var(--portal-text)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-live)]"
-              [ngClass]="activeTab === section.key ? 'bg-[var(--portal-surface-strong)] text-[var(--portal-text)]' : ''"
-            >
-              <svg *ngIf="section.key === 'overview'" class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3.5 11 12 4l8.5 7M5.5 9.5V19a1 1 0 0 0 1 1h4v-6h3v6h4a1 1 0 0 0 1-1V9.5" />
-              </svg>
-              <svg *ngIf="section.key === 'tv'" class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                <rect x="4" y="5.5" width="16" height="11" rx="1.5" />
-                <path stroke-linecap="round" d="M9 20h6M12 16.5V20" />
-              </svg>
-              <svg *ngIf="section.key === 'sports'" class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                <circle cx="12" cy="12" r="8" />
-                <path stroke-linecap="round" stroke-linejoin="round" d="m12 8 3.2 2.3-1.2 3.7h-4l-1.2-3.7L12 8Z" />
-              </svg>
-              <svg *ngIf="section.key === 'library'" class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M6 5.5h8l4 4V18.5A1.5 1.5 0 0 1 16.5 20h-10A1.5 1.5 0 0 1 5 18.5v-11A2 2 0 0 1 7 5.5Z" />
-              </svg>
-              <svg *ngIf="section.key === 'community'" class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                <circle cx="8.5" cy="8" r="2.6" />
-                <circle cx="16" cy="8.5" r="2.2" />
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5M14 19c0-1.8 1.3-3.4 3.5-3.9 1.5.4 3.5 1.6 3.5 3.9" />
-              </svg>
-              <svg *ngIf="section.key === 'assistant'" class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 3.5 13.4 9l5.6 1.4L13.4 12l-1.4 5.5L11 12l-5.6-1.6L11 9 12 3.5Z" />
-              </svg>
-              <svg *ngIf="section.key === 'account'" class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M10.3 4.9 10 3h4l-.3 1.9a7.5 7.5 0 0 1 2 1.1l1.8-.7 2 3.4-1.5 1.2a7.5 7.5 0 0 1 0 2.2l1.5 1.2-2 3.4-1.8-.7a7.5 7.5 0 0 1-2 1.1L14 21h-4l.3-1.9a7.5 7.5 0 0 1-2-1.1l-1.8.7-2-3.4 1.5-1.2a7.5 7.5 0 0 1 0-2.2L4.5 11.7l2-3.4 1.8.7a7.5 7.5 0 0 1 2-1.1Z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-              <span>{{ section.label }}</span>
-              <span *ngIf="section.key === 'library'" class="ml-auto text-xs text-[var(--portal-text-muted)]">
-                {{ ((lists$ | async) || []).length + ((favorites$ | async) || []).length + ((interactionHistory$ | async) || []).length }}
-              </span>
-            </button>
-            <button *ngIf="isAdmin$ | async" type="button" (click)="setActiveTab('admin')"
-              class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[var(--portal-text-soft)] hover:bg-[var(--portal-surface-strong)] hover:text-[var(--portal-text)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-live)]"
-              [ngClass]="activeTab === 'admin' ? 'bg-[var(--portal-surface-strong)] text-[var(--portal-text)]' : ''">
-              <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2Zm10-10V7a4 4 0 0 0-8 0v4h8Z" />
-              </svg>
-              <span>Admin</span>
-            </button>
-          </nav>
-
-          <!-- Online friends preview -->
-          <div class="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-soft)] p-4">
-            <div class="flex items-center justify-between mb-3">
-              <p class="text-[10px] uppercase tracking-widest text-[var(--portal-text-muted)]">Amigos online</p>
-              <button type="button" (click)="setActiveTab('friends')" class="text-xs text-[var(--accent-live)] min-h-[28px]">Ver todos</button>
-            </div>
-            <div class="space-y-2">
-              <ng-container *ngFor="let friend of ((friends$ | async) || []).slice(0, 5)">
-                <div *ngIf="friend.isOnline" class="flex items-center gap-2.5">
-                  <div class="relative">
-                    <div class="h-8 w-8 overflow-hidden rounded-lg border border-[var(--portal-border)] bg-[var(--portal-surface-strong)]">
-                      <img *ngIf="friend.avatar" [src]="friend.avatar" class="h-full w-full object-cover" alt="" />
-                      <div *ngIf="!friend.avatar" class="flex h-full w-full items-center justify-center text-[10px] font-bold text-[var(--portal-text)]">
-                        {{ friend.name.slice(0, 2).toUpperCase() }}
-                      </div>
-                    </div>
-                    <span class="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-[var(--accent-streaming)] border-2 border-[var(--portal-bg)]"></span>
-                  </div>
-                  <span class="text-xs text-[var(--portal-text-soft)] truncate flex-1">{{ friend.name }}</span>
-                  <button type="button" (click)="onOpenFriendChat(friend.id)"
-                    class="min-h-[28px] px-2 rounded-lg text-[10px] text-[var(--accent-live)] hover:opacity-90 border border-[var(--accent-live)] hover:border-[var(--accent-live)]/50">
-                    Chat
-                  </button>
-                </div>
-              </ng-container>
-              <p *ngIf="((friends$ | async) || []).length === 0" class="text-xs text-[var(--portal-text-faint)]">Sin amigos online</p>
-            </div>
-          </div>
-        </aside>
-
-        <!-- ── MAIN CONTENT ── -->
-        <div class="flex-1 min-w-0">
-
-          <!-- Mobile compact profile header -->
-          <div class="md:hidden px-0 pb-4">
-            <ng-container *ngIf="profile$ | async as profile">
-              <div class="flex items-center gap-3.5">
-                <div class="relative flex-shrink-0">
-                  <div class="w-14 h-14 rounded-2xl bg-[var(--portal-surface-strong)] border border-[var(--portal-border)] overflow-hidden shadow-lg shadow-black/20">
-                    <img *ngIf="profile.avatar" [src]="profile.avatar" class="w-full h-full object-cover" alt="" />
-                    <span *ngIf="!profile.avatar" class="w-full h-full flex items-center justify-center text-lg font-bold text-[var(--portal-text)]">
-                      {{ getProfileInitials(profile.name) }}
-                    </span>
-                  </div>
-                  <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[var(--accent-streaming)] border-2 border-[var(--portal-bg)]"></span>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <h1 class="text-base font-bold text-[var(--portal-text)] truncate leading-tight">{{ profile.name }}</h1>
-                  <p class="text-xs text-[var(--portal-text-muted)] truncate mt-0.5">{{ '@' }}{{ profile.username }}</p>
-                  <div class="flex items-center gap-4 mt-1.5">
-                    <span class="text-xs text-[var(--portal-text-soft)] font-semibold">{{ profile.stats.followers | number }} <span class="text-[var(--portal-text-muted)] font-normal">seg.</span></span>
-                    <span class="text-xs text-[var(--portal-text-soft)] font-semibold">{{ profile.stats.following | number }} <span class="text-[var(--portal-text-muted)] font-normal">sig.</span></span>
-                    <span class="text-xs text-[var(--portal-text-soft)] font-semibold">{{ profile.stats.listsCreated | number }} <span class="text-[var(--portal-text-muted)] font-normal">listas</span></span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  (click)="openEditProfileModal()"
-                  class="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-soft)] text-[var(--portal-text-muted)] hover:text-[var(--portal-text)] active:scale-95 transition-transform"
-                  aria-label="Editar perfil"
-                >
-                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 20h4l10-10-4-4L4 16v4Zm9-13 4 4" />
-                  </svg>
-                </button>
-              </div>
-            </ng-container>
-          </div>
-
-          <!-- Compact mobile destination grid; desktop navigation remains in the rail. -->
-          <nav class="mb-5 md:hidden" aria-label="Navegación privada">
-            <div
-              class="grid grid-cols-3 gap-2"
-              role="navigation"
-            >
-              <button
-                *ngFor="let section of visibleTabs"
-                type="button"
-                (click)="setActiveTab(section.key)"
-                [attr.aria-current]="activeTab === section.key ? 'page' : null"
-                class="min-h-[44px] rounded-xl px-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-live)]"
-                [ngClass]="activeTab === section.key
-                  ? 'bg-[var(--accent-live-strong)] text-white shadow-lg shadow-black/10'
-                  : 'bg-[var(--portal-surface-strong)] text-[var(--portal-text-muted)] hover:text-[var(--portal-text)] border border-[var(--portal-border)]'"
-              >
-                {{ section.label }}
-              </button>
-              <button
-                *ngIf="isAdmin$ | async"
-                type="button"
-                (click)="setActiveTab('admin')"
-                [attr.aria-current]="activeTab === 'admin' ? 'page' : null"
-                class="min-h-[44px] rounded-xl px-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-live)]"
-                [ngClass]="activeTab === 'admin'
-                  ? 'bg-[var(--accent-live-strong)] text-white shadow-lg shadow-black/10'
-                  : 'bg-[var(--portal-surface-strong)] text-[var(--portal-text-muted)] hover:text-[var(--portal-text)] border border-[var(--portal-border)]'"
-              >
-                Admin
-              </button>
-            </div>
-          </nav>
-
-          <!-- ═══ TAB PANELS ═══ -->
-
-          <!-- Error state -->
-          <ng-container *ngIf="error$ | async as error">
-            <div
-              class="mb-5 flex items-start gap-3 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-soft)] p-4"
-              role="alert"
-            >
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-semibold text-[var(--portal-text)]">No se pudo cargar tu área</p>
-                <p class="text-xs text-[var(--portal-text-muted)] mt-0.5">{{ error }}</p>
-              </div>
-              <button
-                type="button"
-                (click)="retryLoad()"
-                class="min-h-[40px] flex-shrink-0 px-4 rounded-full bg-[var(--accent-live-strong)] text-white text-[13px] font-semibold active:scale-95 transition-transform"
-              >
-                Reintentar
-              </button>
-            </div>
-          </ng-container>
-
-          <!-- Loading skeleton -->
-          <div *ngIf="(loading$ | async) === true" class="space-y-3 py-1" aria-busy="true" aria-label="Cargando tu área">
-            <div *ngFor="let _ of [1, 2, 3]" class="h-24 rounded-2xl bg-[var(--portal-surface-strong)] animate-pulse"></div>
-          </div>
-
-          <div *ngIf="(loading$ | async) !== true" [ngSwitch]="activeTab">
-
-            <ng-container *ngSwitchCase="'overview'">
-              <section class="section-enter space-y-5" aria-labelledby="profile-overview-heading">
-                <header>
-                  <h2 id="profile-overview-heading" class="text-2xl font-semibold text-[var(--portal-text)]">Tu Guía TV</h2>
-                  <p class="mt-1 text-sm text-[var(--portal-text-muted)]">Lo que has guardado y tus próximos pasos.</p>
-                </header>
-
-                <ng-container *ngIf="personalizationCompletion$ | async as completion">
-                  <app-completion-meter
-                    label="Mejora tus recomendaciones"
-                    [done]="completion.done"
-                    [total]="completion.total"
-                  ></app-completion-meter>
-                </ng-container>
-
-                <app-catalog-rail
-                  *ngIf="forYouItems.length"
-                  eyebrow="Para ti"
-                  title="Esta noche para ti"
-                  subtitle="Basado en tus plataformas y géneros favoritos."
-                  linkLabel="Ver más"
-                  linkPath="/para-ti"
-                  [items]="forYouItems"
-                ></app-catalog-rail>
-
-                <!-- Quick-link cards: same card-vertical-accent visual language as CatalogCard/UnifiedProgramCard (top accent bar + tinted background), replicated with utility classes since this template has no styleUrls to @use the shared Sass mixin from. -->
-                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <button type="button" (click)="setActiveTab('library')" class="relative overflow-hidden min-h-28 rounded-2xl bg-[var(--accent-discover-soft)] p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-live)]">
-                    <span class="absolute inset-x-0 top-0 h-[3px] bg-[var(--accent-discover)]" aria-hidden="true"></span>
-                    <span class="block text-sm font-semibold text-[var(--portal-text)]">Guardado</span><span class="mt-2 block text-xs text-[var(--portal-text-muted)]">{{ ((favorites$ | async) || []).length }} favoritos y {{ ((lists$ | async) || []).length }} listas</span>
-                  </button>
-                  <button type="button" (click)="setActiveTab('tv')" class="relative overflow-hidden min-h-28 rounded-2xl bg-[var(--accent-live-soft)] p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-live)]">
-                    <span class="absolute inset-x-0 top-0 h-[3px] bg-[var(--accent-live)]" aria-hidden="true"></span>
-                    <span class="block text-sm font-semibold text-[var(--portal-text)]">Tu televisión</span><span class="mt-2 block text-xs text-[var(--portal-text-muted)]">{{ ((profile$ | async)?.tvPreferences?.favoriteChannelIds || []).length }} canales favoritos</span>
-                  </button>
-                  <button type="button" (click)="setActiveTab('community')" class="relative overflow-hidden min-h-28 rounded-2xl bg-[var(--accent-streaming-soft)] p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-live)]">
-                    <span class="absolute inset-x-0 top-0 h-[3px] bg-[var(--accent-streaming)]" aria-hidden="true"></span>
-                    <span class="block text-sm font-semibold text-[var(--portal-text)]">Comunidad</span><span class="mt-2 block text-xs text-[var(--portal-text-muted)]">{{ ((friends$ | async) || []).length }} amigos</span>
-                  </button>
-                  <button type="button" (click)="setActiveTab('assistant')" class="relative overflow-hidden min-h-28 rounded-2xl bg-[var(--accent-editorial-soft)] p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-live)]">
-                    <span class="absolute inset-x-0 top-0 h-[3px] bg-[var(--accent-editorial)]" aria-hidden="true"></span>
-                    <span class="block text-sm font-semibold text-[var(--portal-text)]">Asistente</span><span class="mt-2 block text-xs text-[var(--portal-text-muted)]">Ajusta qué preferencias puede utilizar.</span>
-                  </button>
-                  <button type="button" (click)="setActiveTab('sports')" class="relative overflow-hidden min-h-28 rounded-2xl bg-[var(--accent-sports-soft)] p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-live)]">
-                    <span class="absolute inset-x-0 top-0 h-[3px] bg-[var(--accent-sports)]" aria-hidden="true"></span>
-                    <span class="block text-sm font-semibold text-[var(--portal-text)]">Deportes</span><span class="mt-2 block text-xs text-[var(--portal-text-muted)]">Equipos y competiciones que sigues.</span>
-                  </button>
-                </div>
-                <app-user-interaction-history *ngIf="((interactionHistory$ | async) || []).length" [items]="((interactionHistory$ | async) || []).slice(0, 6)" (updateInteraction)="onUpdateHistory($event)"></app-user-interaction-history>
-              </section>
-            </ng-container>
-
-            <ng-container *ngSwitchCase="'tv'"><app-personalization-preferences *ngIf="profile$ | async as profile" area="tv" [profile]="profile" (preferencesChange)="onTvPreferencesChange($event)"></app-personalization-preferences></ng-container>
-            <ng-container *ngSwitchCase="'sports'"><app-personalization-preferences *ngIf="profile$ | async as profile" area="sports" [profile]="profile" (preferencesChange)="onTvPreferencesChange($event)"></app-personalization-preferences></ng-container>
-            <ng-container *ngSwitchCase="'assistant'"><app-assistant-preferences *ngIf="profile$ | async as profile" [profile]="profile"></app-assistant-preferences></ng-container>
-
-            <ng-container *ngSwitchCase="'library'">
-              <div class="section-enter space-y-6"><app-user-lists [lists]="(lists$ | async) || []" (create)="openCreateListModal()" (quickCreate)="onCreateList($event)" (select)="onSelectList($event)"></app-user-lists><app-user-favorites [favorites]="(favorites$ | async) || []" (removeFavorite)="onRemoveFavorite($event)"></app-user-favorites><app-user-interaction-history [items]="(interactionHistory$ | async) || []" (updateInteraction)="onUpdateHistory($event)"></app-user-interaction-history></div>
-            </ng-container>
-
-            <ng-container *ngSwitchCase="'account'">
-              <div class="section-enter"><app-user-settings *ngIf="profile$ | async as profile" [profile]="profile" [privacy]="profile.privacy" [notifications]="profile.notifications" (saveSettings)="onSaveSettings($event)" (editProfile)="openEditProfileModal()" (logout)="onLogout()"></app-user-settings></div>
-            </ng-container>
-
-            <!-- ── FEED ── -->
-            <ng-container *ngSwitchCase="'community'">
-              <div class="section-enter">
-                <!-- "Viendo ahora" banner -->
-                <ng-container *ngIf="(profile$ | async)?.watchingNow?.title as watching">
-                  <div class="mb-4 flex items-center gap-3 p-3 bg-[var(--portal-surface-soft)] border border-[var(--portal-border)] rounded-2xl">
-                    <span class="flex-shrink-0 w-2 h-2 rounded-full bg-[var(--status-live)] animate-pulse"></span>
-                    <p class="text-xs text-[var(--portal-text-muted)]"><span class="font-semibold text-[var(--portal-text)]">Viendo ahora:</span> {{ watching }}</p>
-                  </div>
-                </ng-container>
-
-                <app-user-social-feed
-                  [activities]="(activities$ | async) || []"
-                  [friends]="(friends$ | async) || []"
-                  [recommendations]="(recommendations$ | async) || []"
-                  [showSidebar]="false"
-                  (updateStatus)="onUpdateStatus($event)"
-                  (toggleFollow)="onToggleFollow($event)"
-                  (createList)="onCreateCommunityList($event)"
-                  (recommendContent)="onRecommendContent($event)"
-                  (messageFriend)="onOpenFriendChat($event)"
-                  (likeActivity)="onLikeActivity($event)"
-                  (commentActivity)="onCommentActivity($event)"
-                ></app-user-social-feed>
-
-                <!-- Listas de la comunidad: real data from UserService.fetchCommunityLists
-                     (GET /v2/lists/public, already existed, was never called from Mi GuíaTV)
-                     rendered with CommunityListCardComponent, which already existed fully
-                     built (cover/poster-mosaic/gradient fallback, author) but was orphaned —
-                     no new data or component invented here, just wired together. Hidden
-                     entirely when there are no public lists, no placeholder shown. -->
-                <ng-container *ngIf="communityLists.length > 0">
-                  <div class="mt-6">
-                    <p class="text-[10px] uppercase tracking-widest text-[var(--portal-text-muted)] mb-3">Listas de la comunidad</p>
-                    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                      <app-community-list-card *ngFor="let list of communityLists" [list]="list"></app-community-list-card>
-                    </div>
-                  </div>
-                </ng-container>
-
-                <!-- Inline recommendations section -->
-                <ng-container *ngIf="((recommendations$ | async) || []).length > 0">
-                  <div class="mt-6">
-                    <p class="text-[10px] uppercase tracking-widest text-[var(--portal-text-muted)] mb-3">Recomendaciones de tu red</p>
-                    <div class="grid gap-3 sm:grid-cols-2">
-                      <article
-                        *ngFor="let rec of ((recommendations$ | async) || []).slice(0, 4)"
-                        class="overflow-hidden rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-soft)]"
-                      >
-                        <div *ngIf="rec.image" class="border-b border-[var(--portal-border)] bg-[var(--portal-surface)]">
-                          <img [src]="rec.image" class="aspect-[16/9] w-full object-cover" alt="" loading="lazy" />
-                        </div>
-                        <div class="space-y-2 p-4">
-                          <div class="flex flex-wrap gap-1.5">
-                            <span class="rounded-full border border-transparent bg-[var(--accent-live-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--portal-text)]">
-                              {{ rec.type }}
-                            </span>
-                            <span *ngIf="rec.platform" class="rounded-full border border-transparent bg-[var(--accent-discover-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--portal-text)]">
-                              {{ rec.platform }}
-                            </span>
-                          </div>
-                          <h4 class="text-sm font-semibold text-[var(--portal-text)]">{{ rec.title }}</h4>
-                          <p *ngIf="rec.note" class="text-xs leading-5 text-[var(--portal-text-muted)] line-clamp-2">{{ rec.note }}</p>
-                          <div class="flex flex-wrap items-center gap-3 text-[10px] text-[var(--portal-text-muted)]">
-                            <span>{{ rec.likes }} likes</span>
-                            <span>{{ rec.comments }} comentarios</span>
-                          </div>
-                        </div>
-                      </article>
-                    </div>
-                  </div>
-                </ng-container>
-              </div>
-            </ng-container>
-
-            <!-- ── FRIENDS ── -->
-            <ng-container *ngSwitchCase="'friends'">
-              <div class="section-enter space-y-4">
-                <!-- Search -->
-                <app-user-search (followToggled)="onToggleFollow($event)"></app-user-search>
-
-                <!-- Friends list -->
-                <div
-                  *ngIf="((friends$ | async) || []).length === 0"
-                  class="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-soft)] p-6 text-sm text-[var(--portal-text-muted)]"
-                >
-                  Aún no hay amigos en tu red. Busca usuarios arriba para empezar a conectar.
-                </div>
-
-                <article
-                  *ngFor="let friend of (friends$ | async) || []"
-                  class="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-soft)] p-4"
-                >
-                  <div class="flex items-center gap-3.5">
-                    <div class="relative">
-                      <div class="h-12 w-12 overflow-hidden rounded-xl border border-[var(--portal-border)] bg-[var(--portal-surface-strong)]">
-                        <img *ngIf="friend.avatar" [src]="friend.avatar" class="h-full w-full object-cover" alt="" />
-                        <div *ngIf="!friend.avatar" class="flex h-full w-full items-center justify-center text-xs font-bold text-[var(--portal-text)]">
-                          {{ friend.name.slice(0, 2).toUpperCase() }}
-                        </div>
-                      </div>
-                      <span
-                        class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[var(--portal-bg)]"
-                        [ngClass]="friend.isOnline ? 'bg-[var(--accent-streaming)]' : 'bg-[var(--portal-border-strong)]'"
-                      ></span>
-                    </div>
-
-                    <div class="min-w-0 flex-1">
-                      <p class="truncate text-sm font-semibold text-[var(--portal-text)]">{{ friend.name }}</p>
-                      <p class="truncate text-xs text-[var(--portal-text-muted)]">{{ friend.lastActivity || 'Sin actividad reciente' }}</p>
-                    </div>
-
-                    <div class="flex items-center gap-2">
-                      <button
-                        type="button"
-                        (click)="onToggleFollow(friend.id)"
-                        class="min-h-[44px] rounded-xl border border-[var(--portal-border)] px-4 text-xs font-semibold text-[var(--portal-text-soft)] hover:border-[var(--portal-border-strong)] hover:text-[var(--portal-text)] active:scale-95 transition-transform"
-                      >
-                        {{ friend.following ? 'Siguiendo' : 'Seguir' }}
-                      </button>
-                      <button
-                        type="button"
-                        (click)="onOpenFriendChat(friend.id)"
-                        class="min-h-[44px] rounded-xl border border-transparent bg-[var(--accent-live-soft)] px-4 text-xs font-semibold text-[var(--portal-text)] active:scale-95 transition-transform"
-                      >
-                        Chat
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              </div>
-            </ng-container>
-
-            <!-- ── LISTS ── -->
-            <ng-container *ngSwitchCase="'lists'">
-              <div class="section-enter">
-                <app-user-lists
-                  [lists]="(lists$ | async) || []"
-                  (create)="openCreateListModal()"
-                  (quickCreate)="onCreateList($event)"
-                  (select)="onSelectList($event)"
-                ></app-user-lists>
-              </div>
-            </ng-container>
-
-            <!-- ── FAVORITES ── -->
-            <ng-container *ngSwitchCase="'favorites'">
-              <div class="section-enter">
-                <app-user-favorites
-                  [favorites]="(favorites$ | async) || []"
-                  (removeFavorite)="onRemoveFavorite($event)"
-                ></app-user-favorites>
-              </div>
-            </ng-container>
-
-            <!-- ── HISTORY ── -->
-            <ng-container *ngSwitchCase="'history'">
-              <div class="section-enter">
-                <app-user-interaction-history
-                  [items]="(interactionHistory$ | async) || []"
-                  (updateInteraction)="onUpdateHistory($event)"
-                ></app-user-interaction-history>
-              </div>
-            </ng-container>
-
-            <!-- ── SETTINGS ── -->
-            <ng-container *ngSwitchCase="'settings'">
-              <div class="section-enter">
-                <app-user-settings
-                  *ngIf="profile$ | async as profile"
-                  [profile]="profile"
-                  [privacy]="profile.privacy"
-                  [notifications]="profile.notifications"
-                  (saveSettings)="onSaveSettings($event)"
-                  (editProfile)="openEditProfileModal()"
-                  (logout)="onLogout()"
-                ></app-user-settings>
-              </div>
-            </ng-container>
-
-            <!-- ── ADMIN ── -->
-            <ng-container *ngSwitchCase="'admin'">
-              <div class="section-enter">
-                <ng-container *ngIf="isAdmin$ | async">
-                  <ng-container *ngTemplateOutlet="adminPanel"></ng-container>
-                </ng-container>
-              </div>
-            </ng-container>
-
-          </div>
-        </div>
-
+  <!-- Right panel: who you are, how well the assistant knows you, the next reminder and quick questions. -->
+  <section panelContext class="ua-ctx" aria-labelledby="ua-ctx-title">
+    @if (auth) {
+    <h2 id="ua-ctx-title" class="ua-label">Tu ficha</h2>
+    <div class="pf-card">
+      <div class="ua-id">
+        <span class="ua-avatar">@if (photo(); as src) {<img [src]="src" alt="" />} @else { {{ initials() }} }</span>
+        <div class="ua-id__text"><strong>{{ profile().name }}</strong><small>&#64;{{ profile().username }}</small></div>
       </div>
+      <dl class="ua-stats">
+        <div><dd>{{ profile().tvPreferences.favoriteChannelIds.length }}</dd><dt>Canales</dt></div>
+        <div><dd>{{ watchlist().length }}</dd><dt>Para ver</dt></div>
+        <div><dd>{{ seenCount() }}</dd><dt>Vistos</dt></div>
+        <div><dd>{{ profile().stats.listsCreated }}</dd><dt>Listas</dt></div>
+      </dl>
+      <a class="pf-btn pf-btn--sm" [routerLink]="appPaths.profile" [queryParams]="{ tab: 'cuenta' }">Editar mis datos</a>
     </div>
 
-    <!-- Modals -->
-    <app-create-list-modal
-      [isOpen]="isCreateListModalOpen"
-      (closeModal)="closeCreateListModal()"
-      (createList)="onCreateList($event)"
-    ></app-create-list-modal>
-
-    <app-list-details
-      *ngIf="selectedList"
-      [list]="selectedList"
-      [items]="selectedListItems"
-      (closeModal)="onCloseListDetails()"
-      (removeItem)="onRemoveListItem($event)"
-      (addItem)="openAddToListModal()"
-    ></app-list-details>
-
-    <app-add-to-list-modal
-      [isOpen]="isAddToListModalOpen"
-      (closeModal)="closeAddToListModal()"
-      (addItem)="onAddListItem($event)"
-    ></app-add-to-list-modal>
-
-    <app-edit-profile-modal
-      [isOpen]="isEditProfileModalOpen"
-      [profile]="profile$ | async"
-      (closeModal)="closeEditProfileModal()"
-      (saveProfile)="onSaveProfile($event)"
-      (changePassword)="onChangePassword($event)"
-    ></app-edit-profile-modal>
-
-    <!-- Admin Panel Template -->
-    <ng-template #adminPanel>
-      <div class="space-y-6">
-        <section class="bg-[var(--portal-surface-soft)] border border-[var(--portal-border)] rounded-2xl p-6 lg:p-8">
-          <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            <div class="space-y-2">
-              <p class="text-xs text-[var(--portal-text-muted)] uppercase tracking-[0.3em]">Resumen admin</p>
-              <h3 class="text-xl lg:text-2xl font-semibold text-[var(--portal-text)]">Acceso al panel completo</h3>
-              <p class="text-sm text-[var(--portal-text-soft)] max-w-xl">
-                Esta vista resume la capa administrativa. Para acciones avanzadas y gestión completa,
-                abre la versión completa del panel.
-              </p>
-            </div>
-            <div class="flex flex-col sm:flex-row gap-3">
-              <a
-                routerLink="/admin"
-                class="inline-flex items-center justify-center min-h-[44px] px-6 py-2.5 rounded-xl bg-[var(--accent-live-strong)] hover:opacity-90 text-white font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-live)]"
-              >
-                Ir al panel completo
-              </a>
-            </div>
-          </div>
-        </section>
-
-        <div class="grid lg:grid-cols-3 gap-6">
-          <section class="bg-[var(--portal-surface-soft)] border border-[var(--portal-border)] rounded-2xl p-6">
-            <h4 class="text-lg font-semibold text-[var(--portal-text)] mb-4">Accesos administrativos</h4>
-            <div class="space-y-3 text-sm">
-              <div class="flex items-center justify-between rounded-xl border border-[var(--portal-border)] bg-[var(--portal-surface-soft)] px-4 py-3">
-                <div>
-                  <p class="text-[var(--portal-text-soft)] font-medium">Analítica</p>
-                  <p class="text-xs text-[var(--portal-text-muted)]">Lectura y exportación</p>
-                </div>
-                <span class="text-xs px-2 py-1 rounded-full border border-[var(--portal-border)] text-[var(--portal-text-soft)]">Activo</span>
-              </div>
-              <div class="flex items-center justify-between rounded-xl border border-[var(--portal-border)] bg-[var(--portal-surface-soft)] px-4 py-3">
-                <div>
-                  <p class="text-[var(--portal-text-soft)] font-medium">Contenido</p>
-                  <p class="text-xs text-[var(--portal-text-muted)]">Gestión editorial</p>
-                </div>
-                <span class="text-xs px-2 py-1 rounded-full border border-[var(--portal-border)] text-[var(--portal-text-soft)]">Activo</span>
-              </div>
-              <div class="flex items-center justify-between rounded-xl border border-[var(--portal-border)] bg-[var(--portal-surface-soft)] px-4 py-3">
-                <div>
-                  <p class="text-[var(--portal-text-soft)] font-medium">Usuarios</p>
-                  <p class="text-xs text-[var(--portal-text-muted)]">Moderación y roles</p>
-                </div>
-                <span class="text-xs px-2 py-1 rounded-full border border-[var(--portal-border)] text-[var(--portal-text-soft)]">Limitado</span>
-              </div>
-            </div>
-          </section>
-
-          <section class="bg-[var(--portal-surface-soft)] border border-[var(--portal-border)] rounded-2xl p-6 lg:col-span-2">
-            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-              <h4 class="text-lg font-semibold text-[var(--portal-text)]">Actividad administrativa</h4>
-            </div>
-            <div class="overflow-x-auto">
-              <table class="w-full text-sm">
-                <thead class="text-xs uppercase tracking-wider text-[var(--portal-text-muted)]">
-                  <tr>
-                    <th scope="col" class="text-left py-2">Acción</th>
-                    <th scope="col" class="text-left py-2">Responsable</th>
-                    <th scope="col" class="text-left py-2">Fecha</th>
-                    <th scope="col" class="text-left py-2">Estado</th>
-                  </tr>
-                </thead>
-                <tbody class="text-[var(--portal-text-soft)]">
-                  <tr class="border-t border-[var(--portal-border)]">
-                    <td class="py-3">Publicación destacada</td>
-                    <td class="py-3">Marina G.</td>
-                    <td class="py-3">Hace 2 h</td>
-                    <td class="py-3"><span class="text-xs px-2 py-1 rounded-full border border-[var(--portal-border)] text-[var(--portal-text-soft)]">Confirmado</span></td>
-                  </tr>
-                  <tr class="border-t border-[var(--portal-border)]">
-                    <td class="py-3">Cambio de rol</td>
-                    <td class="py-3">Equipo Moderación</td>
-                    <td class="py-3">Hace 1 d</td>
-                    <td class="py-3"><span class="text-xs px-2 py-1 rounded-full border border-[var(--portal-border)] text-[var(--portal-text-soft)]">En revisión</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </div>
-      </div>
-    </ng-template>
-  </ng-container>
-
-  <!-- Login CTA (unauthenticated) -->
-  <ng-template #loginCTA>
-    <div class="relative min-h-0 flex flex-col items-center justify-center px-6 py-10 text-center" style="min-height: calc(100dvh - var(--top-bar-h, 0px) - var(--bottom-nav-h, 0px))">
-      <div class="mb-8">
-        <div class="flex items-center justify-center gap-2 mb-4">
-          <span class="text-4xl font-black text-[var(--portal-text)] tracking-tight">GUIA</span>
-          <span class="w-3 h-3 rounded-full bg-[var(--accent-live)]"></span>
-          <span class="text-4xl font-black text-[var(--portal-text)] tracking-tight">TV</span>
-        </div>
-        <p class="text-[var(--portal-text-muted)] text-sm leading-relaxed max-w-xs">
-          Descubre qué ver, guarda tus favoritos y comparte con amigos.
-        </p>
-      </div>
-
-      <div class="flex flex-wrap justify-center gap-2 mb-10">
-        <span class="px-3 py-1.5 rounded-full bg-[var(--portal-surface-strong)] border border-[var(--portal-border)] text-xs text-[var(--portal-text-soft)]">87 canales en directo</span>
-        <span class="px-3 py-1.5 rounded-full bg-[var(--portal-surface-strong)] border border-[var(--portal-border)] text-xs text-[var(--portal-text-soft)]">Películas y series</span>
-        <span class="px-3 py-1.5 rounded-full bg-[var(--portal-surface-strong)] border border-[var(--portal-border)] text-xs text-[var(--portal-text-soft)]">Chat en tiempo real</span>
-        <span class="px-3 py-1.5 rounded-full bg-[var(--portal-surface-strong)] border border-[var(--portal-border)] text-xs text-[var(--portal-text-soft)]">Listas personalizadas</span>
-      </div>
-
-      <div class="w-full max-w-xs space-y-3">
-        <a
-          routerLink="/registro"
-          class="block w-full min-h-[52px] flex items-center justify-center rounded-2xl bg-[var(--accent-live-strong)] hover:opacity-90 text-white font-bold text-base shadow-lg shadow-red-900/30 active:scale-[0.98] transition-transform"
-        >
-          Crear cuenta gratis
-        </a>
-        <a
-          routerLink="/iniciar-sesion"
-          class="block w-full min-h-[52px] flex items-center justify-center rounded-2xl border border-[var(--portal-border)] text-[var(--portal-text-soft)] font-semibold text-sm hover:border-[var(--portal-border-strong)] active:scale-[0.98] transition-transform"
-        >
-          Ya tengo cuenta
-        </a>
+    @if (completion().done < completion().total) {
+    <div class="pf-card">
+      <h3>El asistente te conoce al {{ (completion().done / completion().total) * 100 | number: '1.0-0' }} %</h3>
+      <div class="ua-bar" role="progressbar" [attr.aria-valuenow]="completion().done" aria-valuemin="0" [attr.aria-valuemax]="completion().total"><span [style.width.%]="(completion().done / completion().total) * 100"></span></div>
+      <p class="pf-muted">Te falta:</p>
+      <div class="pf-chips">
+        @for (item of completion().items; track item.key) {
+          @if (!item.done) {<a class="pf-chip" [routerLink]="appPaths.profile" [queryParams]="{ tab: item.key === 'preferredPlatforms' || item.key === 'favoriteGenres' ? 'gustos' : 'asistente' }">{{ item.label }}</a>}
+        }
       </div>
     </div>
-  </ng-template>
-</div>
+    }
+
+    @if (nextReminder(); as r) {
+    <div class="pf-card">
+      <h3>Próximo recordatorio</h3>
+      <p class="ua-live"><span class="ua-dot"></span>{{ $any(r.payload)?.programTitle || r.title }}</p>
+      <span class="pf-small">{{ $any(r.payload)?.startTime | date: 'EEE d, HH:mm' }}@if ($any(r.payload)?.channel) { · {{ $any(r.payload).channel }}}</span>
+    </div>
+    }
+
+    <div class="pf-card">
+      <h3>Pregunta al asistente</h3>
+      <div class="ua-asks">@for (ask of assistantAsks; track ask) {<button type="button" (click)="openAssistant()">{{ ask }}</button>}</div>
+    </div>
+    }
+  </section>
+
+  <div class="ua">
+    @if (auth) {
+    <nav class="ua-chips" aria-label="Mi perfil">
+      @for (l of perfilLinks; track l.label) {
+      <a [routerLink]="l.path" [queryParams]="l.queryParams" [class.on]="activeTab() === l.tab" [attr.aria-current]="activeTab() === l.tab ? 'page' : null">{{ l.label }}</a>
+      }
+    </nav>
+
+    <header class="ua-intro">
+      <nav class="ua-bc" aria-label="Migas de pan">
+        <a [routerLink]="appPaths.home">Inicio</a><span aria-hidden="true">›</span><a [routerLink]="appPaths.profile">Mi perfil</a>
+        @if (activeTab() !== 'overview') {<span aria-hidden="true">›</span><span aria-current="page">{{ activeLabel() }}</span>}
+      </nav>
+      <h1>{{ activeTab() === 'overview' ? 'Hola, ' + firstName() : activeLabel() }}</h1>
+      <p>{{ activeHint() }}</p>
+      <button type="button" class="ua-ctx-btn" (click)="contextOpen.set(true)">Mi ficha</button>
+    </header>
+
+    @if (error$ | async; as error) {
+    <div class="pf-empty" role="alert"><strong>No se pudo cargar tu perfil</strong><span>{{ error }}</span><button type="button" class="pf-btn pf-btn--pri" (click)="retry()">Reintentar</button></div>
+    }
+
+    @switch (activeTab()) {
+    @case ('overview') {
+    <section class="pf-sec" aria-labelledby="ua-now">
+      <div class="pf-head"><h2 id="ua-now">Tus canales ahora</h2><a [routerLink]="appPaths.profile" [queryParams]="{ tab: 'canales' }">Mis canales ›</a></div>
+      <app-my-channels mode="glance"></app-my-channels>
+    </section>
+
+    <section class="pf-sec" aria-labelledby="ua-pending">
+      <div class="pf-head"><h2 id="ua-pending">Tienes pendiente</h2><a [routerLink]="appPaths.profile" [queryParams]="{ tab: 'lista' }">Mi lista ›</a></div>
+      @if (watchlist().length) {
+      <div class="pf-grid pf-grid--poster">
+        @for (item of watchlist().slice(0, 6); track item.id) {
+        <a class="ua-poster" [routerLink]="link(item.contentId) || appPaths.profile" [queryParams]="link(item.contentId) ? null : { tab: 'lista' }">
+          @if (item.poster) {<img [src]="item.poster" alt="" loading="lazy" />} @else {<span class="ua-poster__ph">{{ item.title.charAt(0) }}</span>}
+          <strong>{{ item.title }}</strong>
+        </a>
+        }
+      </div>
+      } @else {
+      <div class="pf-empty"><strong>Nada pendiente</strong><span>Pulsa «Guardar» en cualquier película, serie o programa y lo tendrás aquí.</span></div>
+      }
+    </section>
+
+    <section class="pf-sec" aria-labelledby="ua-foryou">
+      <div class="pf-head"><h2 id="ua-foryou">Esta noche para ti</h2><a [routerLink]="appPaths.forYou">Para ti ›</a></div>
+      @if (forYou().length) {
+      <div class="pf-grid pf-grid--poster">@for (item of forYou(); track item.catalogId) {<app-panel-tile [item]="item" variant="poster"></app-panel-tile>}</div>
+      } @else {
+      <div class="pf-empty"><strong>Cuéntanos qué te gusta</strong><span>Con tus plataformas y géneros te proponemos qué ver cada noche.</span><a class="pf-btn pf-btn--pri" [routerLink]="appPaths.profile" [queryParams]="{ tab: 'gustos' }">Elegir gustos y plataformas</a></div>
+      }
+    </section>
+
+    <section class="pf-sec" aria-labelledby="ua-fb">
+      <div class="pf-head"><h2 id="ua-fb">Tu fútbol</h2><a [routerLink]="appPaths.profile" [queryParams]="{ tab: 'futbol' }">Mi fútbol ›</a></div>
+      <div class="ua-links">
+        <a [routerLink]="appPaths.profile" [queryParams]="{ tab: 'futbol' }"><strong>Tus equipos y sus partidos</strong><span>Sus próximos partidos y dónde verlos</span></a>
+        <a [routerLink]="appPaths.sports"><strong>Partidos de hoy</strong><span>Horarios y canal de cada partido</span></a>
+        <a [routerLink]="appPaths.sports + '/clasificaciones'"><strong>Clasificaciones</strong><span>LaLiga, Premier, Champions…</span></a>
+      </div>
+    </section>
+    }
+    @case ('canales') {<app-my-channels mode="manage"></app-my-channels>}
+    @case ('futbol') {<app-my-football></app-my-football>}
+    @case ('lista') {<app-my-library></app-my-library>}
+    @case ('asistente') {<app-my-assistant></app-my-assistant>}
+    @case ('gustos') {<app-my-tastes></app-my-tastes>}
+    @case ('avisos') {<app-my-notices></app-my-notices>}
+    @case ('cuenta') {<app-my-account></app-my-account>}
+    }
+    } @else {
+    <!-- Signed out: nothing private to show, so explain what an account gives and invite to sign in. -->
+    <header class="ua-intro">
+      <h1>Tu Guía TV, a tu manera</h1>
+      <p>Con una cuenta gratuita la guía se adapta a ti.</p>
+    </header>
+    <div class="pf-grid">
+      <div class="pf-card"><h3>Tus canales</h3><p class="pf-muted">Qué echan ahora y después solo en los canales que ves.</p></div>
+      <div class="pf-card"><h3>Tu lista</h3><p class="pf-muted">Guarda películas y series para verlas más tarde y valora lo que ves.</p></div>
+      <div class="pf-card"><h3>Un asistente que te conoce</h3><p class="pf-muted">Recomendaciones según tus plataformas, tu plan y lo que no quieres ver, y recordatorios de programas.</p></div>
+      <div class="pf-card"><h3>Tu fútbol</h3><p class="pf-muted">Los partidos de tus equipos y dónde verlos, en todos tus dispositivos.</p></div>
+    </div>
+    <div class="pf-actions">
+      <a class="pf-btn pf-btn--pri" routerLink="/registro">Crear cuenta gratis</a>
+      <a class="pf-btn" routerLink="/iniciar-sesion" [queryParams]="{ redirect: '/perfil' }">Ya tengo cuenta</a>
+    </div>
+    }
+  </div>
+</app-panel-shell>

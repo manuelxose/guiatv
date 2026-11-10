@@ -1,90 +1,124 @@
-<div *ngIf="safeLdHtml" [innerHTML]="safeLdHtml"></div>
+@if (safeLdHtml) {<div [innerHTML]="safeLdHtml"></div>}
 
-<app-unified-portal-shell tone="rankings" [breadcrumbItems]="[]" [showHero]="false">
-  <app-portal-context-nav kind="blog" [breadcrumbItems]="breadcrumbItems"></app-portal-context-nav>
-  <app-editorial-masthead [compact]="true"></app-editorial-masthead>
+<app-panel-shell sideLabel="Guías" contextLabel="Rankings" [(contextOpen)]="contextOpen">
+  <app-panel-nav panelSide title="Guías" [links]="sideLinks" [groups]="sideGroups"></app-panel-nav>
 
-  <header class="rankings-header">
-    <h1>Rankings para decidir qué ver</h1>
-    <p>Listas editoriales de películas, series y plataformas, ordenadas con criterio y sin depender de comisiones comerciales.</p>
-  </header>
-
-  <section *ngIf="loading" class="rankings-loading" aria-busy="true" aria-label="Cargando rankings">
-    <app-unified-skeleton-block [count]="1" [columns]="1" cardHeight="22rem"></app-unified-skeleton-block>
-    <app-unified-skeleton-block [count]="4" [columns]="1" cardHeight="10rem"></app-unified-skeleton-block>
+  <!-- Right panel: rankings by platform and the assistant. -->
+  <section panelContext class="cx" aria-labelledby="rkx-title">
+    <h2 id="rkx-title" class="cx__label">Rankings por plataforma</h2>
+    <ul class="cx__list">
+      @for (post of posts; track post.slug) {
+      <li><a [routerLink]="post.canonicalPath"><span><strong>{{ post.title }}</strong><small>Actualizado {{ post.modifiedAt | date: 'd MMM y' }}</small></span></a></li>
+      }
+    </ul>
+    @if (platformName) {
+    <div class="cx__block">
+      <h3>{{ platformName }} en Guía TV</h3>
+      <ul class="cx__list">
+        <li><a [routerLink]="appPaths.platforms" [queryParams]="{ platform: platformName }"><span><strong>Catálogo y precio</strong><small>Lo más visto y novedades</small></span></a></li>
+        <li><a [routerLink]="appPaths.explore" [queryParams]="{ platforms: platformName }"><span><strong>Qué ver hoy en {{ platformName }}</strong><small>Recomendaciones del día</small></span></a></li>
+      </ul>
+    </div>
+    }
+    <div class="cx__assistant">
+      <strong>Pregunta al asistente</strong>
+      <div class="cx__asks">
+        <button type="button" (click)="openAssistant()">¿Qué serie veo en {{ platformName || 'Netflix' }}?</button>
+        <button type="button" (click)="openAssistant()">Lo mejor de este mes</button>
+      </div>
+    </div>
   </section>
 
-  <app-unified-async-state
-    *ngIf="!loading && error"
-    kind="error"
-    title="Los rankings no están disponibles ahora mismo"
-    [message]="error"
-    actionLabel="Reintentar"
-    (action)="retry()"
-  ></app-unified-async-state>
-
-  <ng-container *ngIf="!loading && !error">
-    <app-unified-async-state
-      *ngIf="!posts.length"
-      kind="empty"
-      title="Todavía no hay rankings publicados"
-      message="Estamos preparando nuevas selecciones editoriales. Mientras tanto, puedes consultar el resto de guías."
-    ></app-unified-async-state>
-
-    <nav *ngIf="categories.length" class="ranking-filters" aria-label="Filtrar rankings por tema">
-      <button
-        type="button"
-        (click)="selectCategory('all')"
-        [attr.aria-pressed]="selectedCategory === 'all'"
-      >
-        Todos <span>{{ posts.length }}</span>
-      </button>
-      <button
-        *ngFor="let category of categories"
-        type="button"
-        (click)="selectCategory(category.slug)"
-        [attr.aria-pressed]="selectedCategory === category.slug"
-      >
-        {{ category.name }} <span>{{ category.count }}</span>
-      </button>
+  <div class="qv">
+    <nav class="qv__subnav chips" aria-label="Guías">
+      @for (l of sideLinks; track l.label) {<a [routerLink]="l.path">{{ l.label }}</a>}
     </nav>
 
-    <section *ngIf="filteredPosts.length" class="ranking-collection" aria-labelledby="ranking-collection-title">
-      <div class="ranking-collection__header">
-        <h2 id="ranking-collection-title">{{ selectedCategoryName }}</h2>
-        <span>{{ filteredPosts.length }} {{ filteredPosts.length === 1 ? 'lista' : 'listas' }}</span>
-      </div>
+    <header class="qv__intro">
+      <nav class="qv__bc" aria-label="Migas de pan">
+        <a [routerLink]="appPaths.home">Inicio</a><span aria-hidden="true">›</span><a [routerLink]="appPaths.blog">Guías</a><span aria-hidden="true">›</span>
+        @if (selectedCategoryName) {<a [routerLink]="appPaths.top10">Rankings</a><span aria-hidden="true">›</span><span aria-current="page">{{ selectedCategoryName }}</span>} @else {<span aria-current="page">Rankings</span>}
+      </nav>
+      <h1>{{ selectedCategoryName ? 'Rankings de ' + selectedCategoryName + ': las mejores series y películas' : 'Rankings: lo mejor de cada plataforma' }}</h1>
+      <p>Las series y películas que más merecen la pena en cada servicio de streaming en España, con criterio editorial y sin ordenar por comisión.</p>
+      <button type="button" class="qv__ctx-btn" (click)="contextOpen = true">Rankings por plataforma ›</button>
+    </header>
 
-      <ol class="ranking-list">
-        <li
-          *ngFor="let post of filteredPosts; let index = index; trackBy: trackPost"
-          [class.ranking-entry--lead]="index === 0 && selectedCategory === 'all'"
-        >
-          <a [routerLink]="post.canonicalPath" class="ranking-entry group">
-            <strong class="ranking-entry__position" [attr.aria-label]="'Posición ' + (index + 1)">
-              {{ (index + 1).toString().padStart(2, '0') }}
-            </strong>
-            <div class="ranking-entry__media">
-              <img [src]="post.coverImage" [alt]="post.title" width="640" height="400" loading="lazy" />
-            </div>
-            <div class="ranking-entry__copy">
-              <span>{{ post.primaryCategory?.isRankingCategory ? 'Selección editorial' : (post.primaryCategory?.name || 'Ranking') }}</span>
-              <h3>{{ post.title }}</h3>
-              <p>{{ post.excerptText }}</p>
-              <small>{{ post.publishedAt | date : 'dd MMM yyyy' }} · {{ post.readingMinutes }} min de lectura</small>
-            </div>
-          </a>
-        </li>
-      </ol>
+    @if (categories.length) {
+    <nav class="flt" aria-label="Filtrar rankings">
+      <div class="flt__row">
+        <span class="flt__label" id="rk-plat">Plataforma</span>
+        <div class="chips" role="group" aria-labelledby="rk-plat">
+          <a [routerLink]="[]" [queryParams]="{ categoria: null }" [class.on]="selectedCategory === 'all'" [attr.aria-current]="selectedCategory === 'all' ? 'true' : null">Todas</a>
+          @for (c of categories; track c.slug) {<a [routerLink]="[]" [queryParams]="{ categoria: c.slug }" [class.on]="selectedCategory === c.slug" [attr.aria-current]="selectedCategory === c.slug ? 'true' : null">{{ c.name }}</a>}
+        </div>
+      </div>
+      @if (selectedCategory !== 'all') {
+      <div class="flt__active">
+        <span class="flt__label">Filtros activos</span>
+        <a class="flt__tag" [routerLink]="[]" [queryParams]="{ categoria: null }">{{ selectedCategoryName || selectedCategory }} <span aria-hidden="true">×</span></a>
+        <span class="flt__count">{{ filteredPosts.length }} {{ filteredPosts.length === 1 ? 'ranking' : 'rankings' }}</span>
+      </div>
+      }
+    </nav>
+    }
+
+    @if (loading) {
+    <div class="qv__grid" aria-busy="true">@for (i of [1, 2, 3, 4]; track i) {<div class="qv__skeleton qv__skeleton--tv"></div>}</div>
+    } @else if (error) {
+    <app-unified-async-state kind="error" title="Los rankings no están disponibles ahora mismo" [message]="error" actionLabel="Reintentar" (action)="retry()"></app-unified-async-state>
+    } @else {
+    @if (featured && selectedCategory === 'all') {
+    <section aria-labelledby="rk-lead">
+      <div class="qv__sec-head"><h2 id="rk-lead" class="qv__h2">Destacado</h2></div>
+      <a class="lead" [routerLink]="featured.canonicalPath">
+        <span class="lead__img">@if (featured.coverImage) {<img [src]="featured.coverImage" [alt]="featured.coverAlt || featured.title" width="1200" height="514" loading="eager" />}<span class="pill pill--live">Ranking</span></span>
+        <strong>{{ featured.title }}</strong>
+        <small>{{ featured.excerptText }}</small>
+      </a>
+    </section>
+    }
+
+    @if (filteredPosts.length) {
+    <section aria-labelledby="rk-list">
+      <div class="qv__sec-head"><h2 id="rk-list" class="qv__h2">{{ selectedCategoryName ? 'Rankings de ' + selectedCategoryName : 'Todos los rankings' }} <small>· {{ filteredPosts.length }}</small></h2></div>
+      <div class="qv__posts">
+        @for (post of filteredPosts; track trackPost($index, post)) {
+        <a class="post" [routerLink]="post.canonicalPath">
+          <span class="post__img">@if (post.coverImage) {<img [src]="post.coverImage" [alt]="post.coverAlt || ''" loading="lazy" decoding="async" />}</span>
+          <span class="post__cat">Ranking · {{ post.readingMinutes }} min</span>
+          <strong>{{ post.title }}</strong>
+          @if (post.excerptText) {<small>{{ post.excerptText }}</small>}
+        </a>
+        }
+      </div>
+    </section>
+    } @else {
+    <div class="qv__empty">
+      <strong>No hay rankings de esta plataforma todavía</strong>
+      <a [routerLink]="[]" [queryParams]="{ categoria: null }">Ver todos los rankings</a>
+    </div>
+    }
+    }
+
+    @if (platformItems.length) {
+    <section aria-labelledby="rk-catalogue">
+      <div class="qv__sec-head"><h2 id="rk-catalogue" class="qv__h2">Lo más visto ahora en {{ platformName }}</h2><a [routerLink]="appPaths.platforms" [queryParams]="{ platform: platformName }">Catálogo de {{ platformName }} ›</a></div>
+      <div class="qv__grid qv__grid--poster">
+        @for (item of platformItems; track item.catalogId) {<app-panel-tile [item]="item" variant="poster"></app-panel-tile>}
+      </div>
+    </section>
+    }
+
+    <section class="qv__about" aria-labelledby="rk-about">
+      <h2 id="rk-about" class="qv__h2">Cómo hacemos los rankings</h2>
+      <p>
+        Cada ranking reúne lo mejor de una plataforma según su valoración, su popularidad en España y que esté disponible de verdad en el catálogo.
+        Para ver qué tiene cada servicio ahora mismo, entra en <a [routerLink]="appPaths.platforms">Plataformas</a>; para comparar precios, en el
+        <a [routerLink]="appPaths.streamingComparison">comparador</a>; y para decidir qué ver hoy, en <a [routerLink]="appPaths.explore">Qué ver hoy</a>.
+      </p>
     </section>
 
-    <app-unified-async-state
-      *ngIf="posts.length && !filteredPosts.length"
-      kind="empty"
-      title="No hay rankings en este tema"
-      message="Prueba otro filtro para descubrir más selecciones editoriales."
-      actionLabel="Ver todos"
-      (action)="selectCategory('all')"
-    ></app-unified-async-state>
-  </ng-container>
-</app-unified-portal-shell>
+    <app-faq-section [heading]="selectedCategoryName ? 'Preguntas frecuentes sobre los rankings de ' + selectedCategoryName : 'Preguntas frecuentes sobre los rankings'" [items]="faq"></app-faq-section>
+  </div>
+</app-panel-shell>

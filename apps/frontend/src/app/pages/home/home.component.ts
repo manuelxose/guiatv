@@ -1,30 +1,47 @@
 import { CommonModule } from '@angular/common';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { ChangeDetectionStrategy, Component, computed, effect, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { Router, RouterModule } from '@angular/router';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { RouterModule } from '@angular/router';
 import { catchError, of } from 'rxjs';
-import {
-  UnifiedPortalShellComponent,
-} from '../../components/unified-portal-shell/unified-portal-shell.component';
-import { UnifiedProgramCardComponent } from '../../components/unified-program-card/unified-program-card.component';
-import { HomeHeroComponent, HomeHeroItem } from '../../components/home-hero/home-hero.component';
+import { TvReadItemDTO } from '../../api/models';
+import { FaqItem, FaqSectionComponent } from '../../components/faq-section/faq-section.component';
+import { PanelNavComponent, PanelNavGroup, PanelNavLink } from '../../components/panel-nav/panel-nav.component';
+import { PanelShellComponent } from '../../components/panel-shell/panel-shell.component';
+import { PanelTileComponent } from '../../components/panel-tile/panel-tile.component';
 import { PlatformBadgeComponent } from '../../components/platform-badge/platform-badge.component';
-import { UnifiedEditorialModuleComponent } from '../../components/unified-editorial-module/unified-editorial-module.component';
-import { UnifiedSectionHeaderComponent } from '../../components/unified-section-header/unified-section-header.component';
-import { UnifiedSkeletonBlockComponent } from '../../components/unified-skeleton-block/unified-skeleton-block.component';
 import { UnifiedAsyncStateComponent } from '../../components/unified-async-state/unified-async-state.component';
-import { ChannelCardComponent } from '../../components/channel-card/channel-card.component';
-import {
-  PORTAL_ICON_PATHS,
-} from '../../config/portal-navigation.config';
-import { APP_PATHS } from '../../config/route-map';
-import { PortalHomeFacade } from '../../state/portal-home.facade';
+import { UnifiedSkeletonBlockComponent } from '../../components/unified-skeleton-block/unified-skeleton-block.component';
+import { PORTAL_ICON_PATHS } from '../../config/portal-navigation.config';
+import { APP_PATHS, channelCanonicalPath } from '../../config/route-map';
+import { FootballMatchDTO } from '../../features/football/football.models';
+import { ChatService } from '../../services/chat.service';
 import { MetaService } from '../../services/meta.service';
-import { normalizeToCard } from '../../utils/tv-normalizers';
-import { generateOrganizationSchema, generateWebApplicationSchema, serializeJsonLd } from '../../utils/utils';
-import { UnifiedPortalRailSection } from '../../models/portal-shell.models';
-import { FootballMatchCardComponent } from '../../features/football/components/football-match-card/football-match-card.component';
+import { PortalHomeFacade } from '../../state/portal-home.facade';
+import { normalizeToCard, UnifiedCardData } from '../../utils/tv-normalizers';
+import {
+  generateItemListSchema,
+  generateOrganizationSchema,
+  generateWebApplicationSchema,
+  serializeJsonLd,
+} from '../../utils/utils';
+
+const BASE_URL = 'https://guiaprogramaciontv.com';
+const MADRID = 'Europe/Madrid';
+const timeFmt = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: MADRID });
+const dayFmt = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: MADRID });
+const hhmm = (iso?: string): string => (iso ? timeFmt.format(new Date(iso)) : '');
+
+/** One row of the right panel: a channel with what it airs now and next. */
+export interface ChannelNowRow {
+  name: string;
+  path: string;
+  icon: string;
+  now: UnifiedCardData | null;
+  next: UnifiedCardData | null;
+}
+
+export type HomeContextTab = 'now' | 'tonight' | 'football';
 
 @Component({
   selector: 'app-home',
@@ -32,289 +49,192 @@ import { FootballMatchCardComponent } from '../../features/football/components/f
   imports: [
     CommonModule,
     RouterModule,
-    UnifiedPortalShellComponent,
-    UnifiedProgramCardComponent,
-    HomeHeroComponent,
+    PanelShellComponent,
+    PanelNavComponent,
+    PanelTileComponent,
     PlatformBadgeComponent,
-    UnifiedEditorialModuleComponent,
-    UnifiedSectionHeaderComponent,
     UnifiedSkeletonBlockComponent,
     UnifiedAsyncStateComponent,
-    ChannelCardComponent,
-    FootballMatchCardComponent,
+    FaqSectionComponent,
   ],
   templateUrl: './home.component.html',
   styleUrls: ['./home.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HomeComponent {
-  public readonly appPaths = APP_PATHS;
-  public readonly iconPaths = PORTAL_ICON_PATHS;
-  public readonly safeLdHtml: SafeHtml | null;
-  public readonly breadcrumbItems: { name: string; url: string }[] = [];
-  public readonly error = signal<string | null>(null);
-  public readonly homeState = toSignal(
+  readonly appPaths = APP_PATHS;
+  readonly hhmm = hhmm;
+  readonly error = signal<string | null>(null);
+  readonly homeState = toSignal(
     this.portalHomeFacade.getHomeState().pipe(
       catchError(() => {
-        this.error.set('No se pudo cargar la portada unificada ahora mismo.');
+        this.error.set('No se pudo cargar la portada ahora mismo.');
         return of(null);
       })
     ),
     { initialValue: null }
   );
-  public readonly loading = computed(() => !this.error() && !this.homeState());
-  public readonly liveNow = computed(() => this.homeState()?.liveNow || []);
-  public readonly tonight = computed(() => this.homeState()?.tonight || []);
-  public readonly featuredPlatforms = computed(() => this.homeState()?.featuredPlatforms || []);
-  public readonly featuredChannels = computed(() => this.homeState()?.featuredChannels || []);
-  public readonly streamingHighlights = computed(() => this.homeState()?.streamingHighlights.slice(0, 8) || []);
-  public readonly trendingItems = computed(() => this.homeState()?.trendingItems.slice(0, 8) || []);
-  public readonly movieHighlights = computed(() => this.homeState()?.movieHighlights || []);
-  public readonly seriesHighlights = computed(() => this.homeState()?.seriesHighlights || []);
-  public readonly footballHighlights = computed(() => this.homeState()?.footballHighlights || []);
-  public readonly editorialGuides = computed(() => this.homeState()?.editorialHub.guidePosts.slice(0, 3) || []);
-  public readonly rankingHighlights = computed(() => this.homeState()?.rankingHighlights.slice(0, 4) || []);
-  public readonly heroLead = computed(() =>
-    this.liveNow()[0] || this.tonight()[0] || this.streamingHighlights()[0] || null
-  );
-  public readonly heroItems = computed<HomeHeroItem[]>(() => {
-    const candidates = [
-      ...this.liveNow().slice(0, 3).map((item) => ({ item, source: 'live' as const })),
-      ...this.tonight().slice(0, 2).map((item) => ({ item, source: 'tonight' as const })),
-      ...this.streamingHighlights().slice(0, 2).map((item) => ({ item, source: 'platform' as const })),
-    ];
+  readonly loading = computed(() => !this.error() && !this.homeState());
+
+  readonly liveNow = computed(() => this.homeState()?.liveNow || []);
+  readonly tonight = computed(() => this.homeState()?.tonight || []);
+  readonly featuredPlatforms = computed(() => this.homeState()?.featuredPlatforms || []);
+  readonly featuredChannels = computed(() => this.homeState()?.featuredChannels || []);
+  readonly trendingItems = computed(() => this.homeState()?.trendingItems.slice(0, 8) || []);
+  readonly movieHighlights = computed(() => this.homeState()?.movieHighlights.slice(0, 8) || []);
+  readonly seriesHighlights = computed(() => this.homeState()?.seriesHighlights.slice(0, 8) || []);
+  readonly footballHighlights = computed(() => this.homeState()?.footballHighlights || []);
+  /** Guides and rankings in one block (deduplicated), the editorial entry points with most search demand. */
+  readonly guidePosts = computed(() => {
+    const state = this.homeState();
     const seen = new Set<string>();
-
-    return candidates.flatMap(({ item, source }) => {
-      const card = normalizeToCard(item);
-      if (!card.title || !card.image || !card.detailPath || seen.has(card.detailPath)) return [];
-      seen.add(card.detailPath);
-
-      const secondaryPath = source === 'platform' ? APP_PATHS.platforms : card.channelPath;
-      return [{
-        id: `${source}-${card.id}`,
-        eyebrow: source === 'live' ? 'En emisión' : source === 'tonight' ? 'Esta noche' : 'Estreno en plataformas',
-        title: card.title,
-        description: card.description,
-        meta: card.subtitle || [card.channelName, card.category].filter(Boolean).join(' · '),
-        image: card.image,
-        progress: source === 'live' ? card.progressPercent : 0,
-        primaryLabel: 'Ver programa',
-        primaryPath: card.detailPath,
-        secondaryLabel: source === 'platform' ? 'Ver en plataformas' : 'Abrir canal',
-        secondaryPath,
-      } satisfies HomeHeroItem];
-    }).slice(0, 5);
+    return [...(state?.editorialHub.guidePosts || []), ...(state?.rankingHighlights || [])]
+      .filter((post) => post.canonicalPath && !seen.has(post.id) && seen.add(post.id))
+      .slice(0, 6);
   });
-  public readonly rightRailLabel = 'Portada';
-  public readonly leftRailSections = computed<UnifiedPortalRailSection[]>(() => [
+
+  /** Films on linear TV today (global tonight feed + each featured channel's tonight), deduplicated, by start time. */
+  readonly tvMovies = computed<TvReadItemDTO[]>(() => {
+    const seen = new Set<string>();
+    return [...this.tonight(), ...this.featuredChannels().flatMap((c) => c.tonight || [])]
+      .filter((item) => normalizeToCard(item).contentType === 'movie')
+      .filter((item) => {
+        const key = `${item.channel.id}-${item.airing.start}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => a.airing.start.localeCompare(b.airing.start))
+      .slice(0, 8);
+  });
+
+  /** "lunes, 9 de noviembre": the day the page is about (freshness for people and crawlers). */
+  readonly today = dayFmt.format(new Date());
+
+  // ── Left panel ──
+  readonly sideLinks: PanelNavLink[] = [
+    { label: 'Inicio', path: APP_PATHS.home, iconPath: PORTAL_ICON_PATHS.home, exact: true },
+    { label: 'Qué echan ahora', path: APP_PATHS.guide, queryParams: { liveView: 'now' }, iconPath: PORTAL_ICON_PATHS.liveDot },
+    { label: 'Esta noche', path: APP_PATHS.guide, queryParams: { liveView: 'night' }, iconPath: PORTAL_ICON_PATHS.clock },
+    { label: 'Parrilla completa', path: APP_PATHS.guide, queryParams: { liveView: 'now' }, iconPath: PORTAL_ICON_PATHS.calendar },
+    { label: 'Películas en TV', path: APP_PATHS.movies, iconPath: PORTAL_ICON_PATHS.play },
+    { label: 'Series en TV', path: APP_PATHS.series, iconPath: PORTAL_ICON_PATHS.channels },
+    { label: 'Fútbol hoy', path: APP_PATHS.sports, iconPath: PORTAL_ICON_PATHS.sports },
+    { label: 'Mi lista', path: APP_PATHS.profile, iconPath: PORTAL_ICON_PATHS.bookmark },
+  ];
+  readonly sideGroups = computed<PanelNavGroup[]>(() => [
     {
-      id: 'home-discover-now',
-      eyebrow: 'Descubrir ahora',
-      title: 'Empieza por intención',
-      description: 'Lo que más se usa vive en el rail secundario, no en otra barra arriba.',
-      items: [
-        {
-          id: 'home-live-now',
-          label: 'Ahora en TV',
-          description: 'Lineal vivo y zapping',
-          iconPath: this.iconPaths.liveDot,
-          path: APP_PATHS.guide,
-          queryParams: { liveView: 'now' },
-        },
-        {
-          id: 'home-tonight',
-          label: 'Esta noche',
-          description: 'Prime time y directo fuerte',
-          iconPath: this.iconPaths.clock,
-          path: APP_PATHS.guide,
-          queryParams: { liveView: 'night' },
-        },
-        {
-          id: 'home-sports-live',
-          label: 'Deportes en vivo',
-          description: 'Agenda y eventos activos',
-          iconPath: this.iconPaths.sports,
-          path: APP_PATHS.sports,
-          queryParams: { timeRange: 'live' },
-        },
-        {
-          id: 'home-trending',
-          label: 'Tendencias',
-          description: 'Lo que más se mueve ahora',
-          iconPath: this.iconPaths.trends,
-          path: APP_PATHS.stats,
-        },
-        {
-          id: 'home-featured',
-          label: 'Destacados',
-          description: 'Mezcla editorial y catálogo',
-          iconPath: this.iconPaths.sparkles,
-          path: APP_PATHS.explore,
-          queryParams: { intent: 'featured' },
-        },
-      ],
+      title: 'Canales',
+      links: this.channelRows().map((row) => ({ label: row.name, path: row.path, logoUrl: row.icon })),
+      empty: 'Cargando canales…',
     },
     {
-      id: 'home-directories',
-      eyebrow: 'Directorios',
-      title: 'Saltos rápidos',
-      description: 'Canales, plataformas y géneros siguen accesibles sin duplicar menús.',
-      items: [
-        {
-          id: 'home-channels',
-          label: 'Canales',
-          description: 'Abrir TV por señales',
-          iconPath: this.iconPaths.channels,
-          path: APP_PATHS.channels,
-        },
-        {
-          id: 'home-platforms',
-          label: 'Plataformas',
-          description: 'Ver servicios y catálogos',
-          iconPath: this.iconPaths.platforms,
-          path: APP_PATHS.platforms,
-        },
-        {
-          id: 'home-sports',
-          label: 'Deportes',
-          description: 'Entrar por disciplina',
-          iconPath: this.iconPaths.sports,
-          path: APP_PATHS.sports,
-        },
-        {
-          id: 'home-genres',
-          label: 'Géneros',
-          description: 'Explorar por tipo de contenido',
-          iconPath: this.iconPaths.discover,
-          path: APP_PATHS.explore,
-        },
+      title: 'Guías',
+      links: [
+        { label: 'Precios del streaming', path: `${APP_PATHS.blog}/precios-plataformas-streaming-espana` },
+        { label: 'Qué plataforma elegir', path: `${APP_PATHS.blog}/netflix-hbo-max-disney-prime-video-que-plan-elegir` },
       ],
     },
   ]);
 
-  public readonly rightRailSections = computed<UnifiedPortalRailSection[]>(() => [
-    {
-      id: 'home-live',
-      eyebrow: 'Ahora',
-      title: 'TV en emisión',
-      description: 'Acceso lateral a lo más vivo del lineal.',
-      variant: 'feature',
-      items: this.liveNow().slice(0, 4).map((item, index) => toRailProgramItem(item, `home-live-${index}`)),
-    },
-    {
-      id: 'home-platforms',
-      eyebrow: 'Servicios',
-      title: 'Top plataformas',
-      description: 'Directorio premium a los catálogos que más importan.',
-      variant: 'logos',
-      items: this.featuredPlatforms().slice(0, 5).map((platform) => ({
-        id: `home-platform-${platform.name}`,
-        label: platform.name,
-        description: 'Abrir catálogo filtrado',
-        imageUrl: platform.logoUrl || '',
-        path: APP_PATHS.platforms,
-        queryParams: { platform: platform.name },
-      })),
-    },
-    {
-      id: 'home-sports',
-      eyebrow: 'Fútbol',
-      title: 'Partidos y dónde verlos',
-      description: 'La suite de fútbol con partidos en directo y dónde ver cada uno.',
-      variant: 'compact',
-      items: [
-        {
-          id: 'home-football',
-          label: 'Fútbol hoy',
-          description: 'Partidos en directo, horarios y dónde verlos',
-          iconPath: this.iconPaths.sports,
-          path: APP_PATHS.sports,
-        },
-      ],
-    },
-  ]);
+  // ── Right panel: a remote control for right now ──
+  readonly contextOpen = signal(false);
+  readonly contextTab = signal<HomeContextTab>('now');
+  readonly channelRows = computed<ChannelNowRow[]>(() =>
+    this.featuredChannels().map(({ channel, current, next }) => ({
+      name: channel.name,
+      path: channelCanonicalPath(channel, channel.id),
+      icon: channel.icon || '',
+      now: current ? normalizeToCard(current) : null,
+      next: next ? normalizeToCard(next) : null,
+    }))
+  );
+  readonly tonightCards = computed(() =>
+    [...this.tonight()].sort((a, b) => a.airing.start.localeCompare(b.airing.start)).map((item) => normalizeToCard(item))
+  );
+  readonly todaysMatches = computed(() =>
+    [...this.footballHighlights()].sort((a, b) => a.kickoffAt.localeCompare(b.kickoffAt)).slice(0, 8)
+  );
+
+  // ── Assistant (opens over the right panel, see app.component) ──
+  readonly assistantAsks = ['¿Qué veo esta noche?', 'Una película para hoy', '¿Dónde veo el fútbol?'];
+
+  openAssistant(): void {
+    this.chatService.requestOpenChat('portal-assistant');
+  }
+
+  // ── SEO ──
+  /** Questions people search for, answered from today's data so the text is fresh every day. */
+  readonly faq = computed<FaqItem[]>(() => {
+    const now = this.channelRows().filter((r) => r.now).slice(0, 4);
+    const night = this.tonightCards().slice(0, 4);
+    const films = this.tvMovies().slice(0, 3).map((m) => normalizeToCard(m));
+    const match = this.todaysMatches()[0];
+    const items: FaqItem[] = [];
+    if (now.length) {
+      items.push({
+        question: '¿Qué echan ahora en la tele?',
+        answer: `Ahora mismo ${now.map((r) => `${r.name} emite «${r.now!.title}»`).join(', ')}. En TV en directo tienes todos los canales.`,
+      });
+    }
+    if (night.length) {
+      items.push({
+        question: '¿Qué ponen esta noche en televisión?',
+        answer: `Esta noche: ${night.map((c) => `«${c.title}» en ${c.channelName} a las ${hhmm(c.startTime)}`).join(', ')}.`,
+      });
+    }
+    if (films.length) {
+      items.push({
+        question: '¿Qué películas echan hoy en la tele?',
+        answer: `Hoy en TV: ${films.map((f) => `«${f.title}» (${f.channelName}, ${hhmm(f.startTime)})`).join(', ')}.`,
+      });
+    }
+    items.push({
+      question: '¿Dónde ver el fútbol hoy?',
+      answer: match
+        ? `${match.homeTeam.name} – ${match.awayTeam.name} (${match.competition.name}) se juega a las ${hhmm(match.kickoffAt)}${match.broadcasts.length ? ` y lo emite ${match.broadcasts.map((b) => b.channelName).join(', ')}` : ''}. En la sección de fútbol están todos los partidos y sus canales.`
+        : 'En la sección de fútbol tienes los partidos de hoy con su hora y el canal que los emite.',
+    });
+    items.push({
+      question: '¿Cómo consultar la programación de mañana?',
+      answer: 'En la parrilla de TV puedes cambiar de día y ver la programación completa de los canales de TDT, autonómicos y de pago.',
+    });
+    return items;
+  });
+
+  readonly structuredData = computed<SafeHtml>(() => {
+    const live = this.liveNow().map((item) => normalizeToCard(item));
+    const schemas: object[] = [
+      { '@context': 'https://schema.org', '@type': 'WebSite', name: 'Guía Programación TV', url: BASE_URL },
+      generateOrganizationSchema(BASE_URL),
+      generateWebApplicationSchema(BASE_URL),
+    ];
+    if (live.length) schemas.push(generateItemListSchema(live, 'Qué echan ahora en la tele', BASE_URL));
+    return this.sanitizer.bypassSecurityTrustHtml(
+      schemas.map((s) => `<script type="application/ld+json">${serializeJsonLd(s)}</script>`).join('')
+    );
+  });
 
   constructor(
     private readonly portalHomeFacade: PortalHomeFacade,
     private readonly metaService: MetaService,
     private readonly sanitizer: DomSanitizer,
-    private readonly router: Router
+    private readonly chatService: ChatService
   ) {
     this.metaService.setMetaTags({
-      title: 'Programación TV hoy: qué ver en televisión y streaming | Guía TV',
+      title: 'Programación TV hoy: qué echan ahora y esta noche en la tele | Guía TV',
       description:
-        'Programación de TV en España en directo: qué ponen hoy en cada canal, películas y series, fútbol y dónde verlo en televisión o streaming.',
+        'Programación de TV de hoy en España: qué echan ahora y esta noche en La 1, Antena 3, Telecinco, laSexta y todos los canales, con películas, series y fútbol y dónde verlos.',
       canonicalUrl: '/',
       type: 'website',
     });
-    this.safeLdHtml = this.buildStructuredData();
-
-    // The hero's first item is the page's LCP candidate and its artwork is
-    // frequently hosted on a third-party streaming-platform origin the
-    // browser hasn't connected to yet. Preconnecting as soon as SSR (or the
-    // client) resolves it — rather than waiting for the browser to discover
-    // the <img> tag — shaves the DNS/TCP/TLS handshake off the image's real
-    // load time instead of only its transfer time.
-    effect(() => {
-      this.metaService.preconnectImageOrigin(this.heroItems()[0]?.image);
-    });
   }
 
-  onTopPillChange(value: string): void {
-    const routeMap: Record<string, { path: string; queryParams?: Record<string, string> }> = {
-      'live-now': { path: APP_PATHS.guide, queryParams: { liveView: 'now' } },
-      tonight: { path: APP_PATHS.guide, queryParams: { liveView: 'night' } },
-      platforms: { path: APP_PATHS.platforms },
-      'sports-live': { path: APP_PATHS.sports, queryParams: { timeRange: 'live' } },
-      trending: { path: APP_PATHS.stats },
-      free: { path: APP_PATHS.explore, queryParams: { availability: 'free' } },
-    };
-    const target = routeMap[value];
-    if (target) {
-      void this.router.navigate([target.path], {
-        queryParams: target.queryParams,
-      });
-    }
+  matchPath(match: FootballMatchDTO): string {
+    return `${APP_PATHS.football}/partido/${match.slug || match.id}`;
   }
 
   trackByPlatform(_index: number, platform: { name: string }): string {
     return platform.name;
   }
-
-  private buildStructuredData(): SafeHtml {
-    const baseUrl = 'https://guiaprogramaciontv.com';
-    const schemas = [
-      {
-        '@context': 'https://schema.org',
-        '@type': 'WebSite',
-        name: 'Guía Programación TV',
-        url: baseUrl,
-      },
-      generateOrganizationSchema(baseUrl),
-      generateWebApplicationSchema(baseUrl),
-    ];
-
-    return this.sanitizer.bypassSecurityTrustHtml(
-      schemas
-        .map((schema) => `<script type="application/ld+json">${serializeJsonLd(schema)}</script>`)
-        .join('')
-    );
-  }
-}
-
-function toRailProgramItem(
-  item: Parameters<typeof normalizeToCard>[0],
-  fallbackId: string
-): UnifiedPortalRailSection['items'][number] {
-  const card = normalizeToCard(item);
-  return {
-    id: card.id || fallbackId,
-    label: card.title,
-    description: [card.channelName, card.subtitle || card.category].filter(Boolean).join(' · '),
-    badge: card.liveNow ? 'LIVE' : card.sport || card.category,
-    imageUrl: card.channelIcon || card.image,
-    iconPath: card.liveNow ? PORTAL_ICON_PATHS.liveDot : PORTAL_ICON_PATHS.play,
-    path: card.detailPath,
-  };
 }

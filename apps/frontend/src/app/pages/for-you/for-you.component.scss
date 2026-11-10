@@ -1,0 +1,32 @@
+// Recommendation card: the shared tile plus the match and the reason; the rest comes from the Qué ver stylesheet.
+.fy {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+}
+
+.fy__match {
+  justify-self: start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--section-accent) 20%, transparent);
+  color: var(--section-accent-text);
+  font-size: 0.6875rem;
+  font-weight: 800;
+}
+
+.fy__reason {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  color: var(--sv2-text-muted);
+  font-size: var(--sv2-fs-xs);
+  line-height: 1.45;
+}
+
+.qv__empty .btn {
+  border: 0;
+  cursor: pointer;
+}

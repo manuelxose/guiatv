@@ -1,0 +1,249 @@
+<div [innerHTML]="structuredData()"></div>
+
+<app-panel-shell sideLabel="Plataformas" [contextLabel]="current()?.name || 'Precios'" [(contextOpen)]="contextOpen">
+  <app-panel-nav panelSide title="Plataformas" [links]="sideLinks" [groups]="sideGroups()"></app-panel-nav>
+
+  <!-- Right panel: the selected platform's card (plans, specs, where to sign up) or the price list. -->
+  <section panelContext class="cx" aria-labelledby="px-title">
+    @if (current(); as p) {
+    <div class="cx__card">
+      <div class="px__id">
+        <span class="px__logo" [style.background]="platformLogo(p) ? null : p.color" aria-hidden="true">
+          @if (platformLogo(p); as logo) {<img [src]="logo" [alt]="''" width="40" height="40" loading="lazy" (error)="onLogoError(p)" />} @else {{{ p.name.charAt(0) }}}
+        </span>
+        <span><strong id="px-title">{{ p.name }}</strong><small>Streaming · España</small></span>
+      </div>
+      @if (p.main; as m) {
+      <dl class="cx__kv">
+        @for (o of p.offers; track o.id) {<div><dt>{{ o.plan.name }}</dt><dd>{{ o.pricing.monthlyLabel }}</dd></div>}
+        <div><dt>Anual</dt><dd>{{ m.pricing.annualLabel }}</dd></div>
+        <div><dt>Prueba gratis</dt><dd>{{ m.trialDays ? m.trialDays + ' días' : 'No' }}</dd></div>
+        <div><dt>Pantallas</dt><dd>{{ m.features.simultaneousStreams }}</dd></div>
+        <div><dt>Calidad máxima</dt><dd>{{ m.features.maxResolution }}</dd></div>
+        <div><dt>Descargas</dt><dd>{{ yesNo(m.features.downloads) }}</dd></div>
+        <div><dt>Anuncios</dt><dd>{{ yesNo(m.features.ads) }}</dd></div>
+        <div><dt>Permanencia</dt><dd>{{ m.requirements.commitmentMonths ? m.requirements.commitmentMonths + ' meses' : 'No' }}</dd></div>
+      </dl>
+      @if (m.outbound.path) {
+      <a class="btn btn--pri btn--block" [href]="outboundUrl(m)" target="_blank" [attr.rel]="outboundRel(m)">{{ m.outbound.label || 'Ir a ' + p.name }}<span class="sr-only"> (abre una pestaña nueva)</span></a>
+      }
+      <small class="cx__muted">Precios revisados en la web oficial. {{ m.disclosure }}</small>
+      } @else {
+      <small class="cx__muted">Sin datos de precio confirmados.</small>
+      }
+      <a class="cx__more" [routerLink]="appPaths.streamingComparison">Compararla con otras ›</a>
+    </div>
+    @if (alternatives().length) {
+    <div class="cx__block">
+      <h3>Alternativas</h3>
+      <ul class="cx__list">
+        @for (a of alternatives(); track a.key) {
+        <li><a [routerLink]="path" [queryParams]="link({ platform: a })">@if (platformLogo(a); as logo) {<img class="cx__logo" [src]="logo" [alt]="''" width="26" height="26" loading="lazy" aria-hidden="true" (error)="onLogoError(a)" />}<span><strong>{{ a.name }}</strong><small>{{ a.from || 'Ver catálogo' }}</small></span></a></li>
+        }
+      </ul>
+    </div>
+    }
+    } @else {
+    <h2 id="px-title" class="cx__label">Precio de cada plataforma</h2>
+    <ul class="cx__list">
+      @for (p of platforms(); track p.key) {
+      <li><a [routerLink]="path" [queryParams]="link({ platform: p })">@if (platformLogo(p); as logo) {<img class="cx__logo" [src]="logo" [alt]="''" width="26" height="26" loading="lazy" aria-hidden="true" (error)="onLogoError(p)" />}<span><strong>{{ p.name }}</strong><small>{{ p.from || 'Ver catálogo' }}</small></span></a></li>
+      }
+    </ul>
+    <a class="cx__more" [routerLink]="appPaths.streamingComparison">Comparar planes, pantallas y calidad ›</a>
+    }
+
+    <div class="cx__assistant">
+      <strong>Pregunta al asistente</strong>
+      <div class="cx__asks">
+        @for (ask of assistantAsks(); track ask) {<button type="button" (click)="openAssistant()">{{ ask }}</button>}
+      </div>
+    </div>
+  </section>
+
+  <div class="qv">
+    <nav class="qv__subnav chips" aria-label="Plataformas">
+      @for (l of sideLinks; track l.label) {<a [routerLink]="l.path" [queryParams]="l.queryParams">{{ l.label }}</a>}
+    </nav>
+
+    <header class="qv__intro">
+      <nav class="qv__bc" aria-label="Migas de pan">
+        <a [routerLink]="appPaths.home">Inicio</a><span aria-hidden="true">›</span>
+        @if (isHome()) {<span aria-current="page">Plataformas</span>} @else {<a [routerLink]="path">Plataformas</a><span aria-hidden="true">›</span><span aria-current="page">{{ current()?.name || h1() }}</span>}
+      </nav>
+      <h1>{{ h1() }}</h1>
+      <p>{{ intro() }}</p>
+      @if (current(); as p) {
+      @if (p.main; as m) {
+      <ul class="px__facts" aria-label="Datos de {{ p.name }}">
+        <li>{{ p.from }}</li>
+        <li>{{ m.trialDays ? 'Prueba de ' + m.trialDays + ' días' : 'Sin prueba gratis' }}</li>
+        <li>{{ m.features.simultaneousStreams }} pantallas</li>
+        <li>{{ m.features.maxResolution }}</li>
+        @if (m.features.downloads) {<li>Descargas</li>}
+        @if (m.features.liveContent) {<li>Directo</li>}
+      </ul>
+      }
+      <button type="button" class="qv__ctx-btn" (click)="contextOpen.set(true)">Planes y precio de <strong>{{ p.name }}</strong> ›</button>
+      } @else {
+      <button type="button" class="qv__ctx-btn" (click)="contextOpen.set(true)">Precio de cada plataforma ›</button>
+      }
+    </header>
+
+    <!-- Filters: links on this page; "Orden" only with a platform, "Acceso" only without one. -->
+    <nav class="flt" aria-label="Filtros">
+      <div class="flt__row">
+        <span class="flt__label" id="pf-plat">Plataforma</span>
+        <div class="chips chips--sm" role="group" aria-labelledby="pf-plat">
+          @for (o of facets().platforms; track o.label) {<a [routerLink]="[]" [queryParams]="o.params" [class.on]="o.on" [attr.aria-current]="o.on ? 'true' : null">{{ o.label }}</a>}
+        </div>
+      </div>
+      <div class="flt__row">
+        <span class="flt__label" id="pf-tipo">Tipo</span>
+        <div class="chips" role="group" aria-labelledby="pf-tipo">
+          @for (o of facets().tipos; track o.label) {<a [routerLink]="[]" [queryParams]="o.params" [class.on]="o.on" [attr.aria-current]="o.on ? 'true' : null">{{ o.label }}</a>}
+        </div>
+      </div>
+      @if (facets().ordenes.length) {
+      <div class="flt__row">
+        <span class="flt__label" id="pf-orden">Orden</span>
+        <div class="chips" role="group" aria-labelledby="pf-orden">
+          @for (o of facets().ordenes; track o.label) {<a [routerLink]="[]" [queryParams]="o.params" [class.on]="o.on" [attr.aria-current]="o.on ? 'true' : null">{{ o.label }}</a>}
+        </div>
+      </div>
+      }
+      @if (facets().accesos.length) {
+      <div class="flt__row">
+        <span class="flt__label" id="pf-acceso">Acceso</span>
+        <div class="chips" role="group" aria-labelledby="pf-acceso">
+          @for (o of facets().accesos; track o.label) {<a [routerLink]="[]" [queryParams]="o.params" [class.on]="o.on" [attr.aria-current]="o.on ? 'true' : null">{{ o.label }}</a>}
+        </div>
+      </div>
+      }
+      @if (activeFilters().length) {
+      <div class="flt__active">
+        <span class="flt__label">Filtros activos</span>
+        @for (a of activeFilters(); track a.label) {<a class="flt__tag" [routerLink]="[]" [queryParams]="a.params" [attr.aria-label]="'Quitar filtro ' + a.label">{{ a.label }} <span aria-hidden="true">×</span></a>}
+        <a class="flt__clear" [routerLink]="path">Quitar todos</a>
+        @if (status() === 'ready') {<span class="flt__count">{{ items().length }} títulos</span>}
+      </div>
+      }
+    </nav>
+
+    @if (!isHome()) {
+    <section aria-labelledby="pl-results">
+      <div class="qv__sec-head"><h2 id="pl-results" class="qv__h2">{{ resultsHeading() }}@if (status() === 'ready') { <small>· {{ items().length }}{{ filters().page > 1 ? ' · página ' + filters().page : '' }}</small>}</h2>
+        @if (current()?.guide; as g) {<a [routerLink]="g">Mejores títulos de {{ current()!.name }} ›</a>}
+      </div>
+      @switch (status()) {
+        @case ('loading') {
+        <div class="qv__grid qv__grid--poster" aria-busy="true">@for (i of [1, 2, 3, 4, 5, 6]; track i) {<div class="qv__skeleton"></div>}</div>
+        }
+        @case ('error') {
+        <div class="qv__empty">No pudimos cargar el catálogo. <a [routerLink]="[]" [queryParams]="link({})">Reintentar</a></div>
+        }
+        @default {
+        @if (items().length) {
+        <div class="qv__grid qv__grid--poster">
+          @for (item of items(); track item.catalogId; let i = $index) {<app-panel-tile [item]="item" variant="poster" [affiliate]="i < 8 && !current()" placement="search-result"></app-panel-tile>}
+        </div>
+        @if (filters().page > 1 || hasMore()) {
+        <nav class="qv__pager" aria-label="Páginas">
+          @if (filters().page > 1) {<a [routerLink]="[]" [queryParams]="link({ page: filters().page - 1 })" rel="prev">‹ Anterior</a>}
+          @if (hasMore()) {<a [routerLink]="[]" [queryParams]="link({ page: filters().page + 1 })" rel="next">Siguiente ›</a>}
+        </nav>
+        }
+        } @else {
+        <div class="qv__empty">
+          <strong>No hay títulos con estos filtros</strong>
+          <span>@if (filters().page > 1) {<a [routerLink]="[]" [queryParams]="link({ page: 1 })">Volver a la primera página</a> · }<a [routerLink]="path">Ver todas las plataformas</a></span>
+        </div>
+        }
+        }
+      }
+    </section>
+    }
+
+    <section aria-labelledby="pl-cards">
+      <div class="qv__sec-head"><h2 id="pl-cards" class="qv__h2">{{ current() ? 'Alternativas a ' + current()!.name : 'Elige tu plataforma' }}</h2><a [routerLink]="appPaths.streamingComparison">Comparador ›</a></div>
+      <div class="px__cards">
+        @for (p of current() ? alternatives() : platforms(); track p.key) {
+        <article class="px__card">
+          <a class="px__card-main" [routerLink]="path" [queryParams]="link({ platform: p })">
+            <span class="px__logo" [style.background]="platformLogo(p) ? null : p.color" aria-hidden="true">
+              @if (platformLogo(p); as logo) {<img [src]="logo" [alt]="''" width="40" height="40" loading="lazy" (error)="onLogoError(p)" />} @else {{{ p.name.charAt(0) }}}
+            </span>
+            <span><strong>{{ p.name }}</strong><small>{{ p.from || 'Ver catálogo' }}</small></span>
+          </a>
+          @if (p.main?.bestFor) {<p>{{ p.main!.bestFor }}</p>}
+          <span class="px__card-links">
+            <a [routerLink]="path" [queryParams]="link({ platform: p })">Catálogo ›</a>
+            @if (p.guide) {<a [routerLink]="p.guide">Mejores títulos ›</a>}
+          </span>
+        </article>
+        }
+      </div>
+    </section>
+
+    @if (isHome()) {
+    @for (r of rails(); track r.platform.key) {
+    <section [attr.aria-labelledby]="'pl-rail-' + r.platform.key">
+      <div class="qv__sec-head"><h2 [id]="'pl-rail-' + r.platform.key" class="qv__h2">Lo más visto en {{ r.platform.name }}</h2><a [routerLink]="[]" [queryParams]="link({ platform: r.platform })">Todo {{ r.platform.name }} ›</a></div>
+      <div class="qv__grid qv__grid--poster">
+        @for (item of r.items; track item.catalogId; let i = $index) {<app-panel-tile [item]="item" variant="poster" [affiliate]="i < 2" placement="search-result"></app-panel-tile>}
+      </div>
+    </section>
+    }
+
+    @if (freeItems().length) {
+    <section aria-labelledby="pl-free">
+      <div class="qv__sec-head"><h2 id="pl-free" class="qv__h2">Gratis sin suscripción</h2><a [routerLink]="[]" [queryParams]="link({ gratis: true })">Ver todo lo gratis ›</a></div>
+      <div class="qv__grid qv__grid--poster">
+        @for (item of freeItems(); track item.catalogId) {<app-panel-tile [item]="item" variant="poster"></app-panel-tile>}
+      </div>
+    </section>
+    }
+
+    <section aria-labelledby="pl-table">
+      <div class="qv__sec-head"><h2 id="pl-table" class="qv__h2">Comparativa rápida de precios</h2><a [routerLink]="appPaths.streamingComparison">Comparador completo ›</a></div>
+      <div class="px__table-wrap">
+        <table class="px__table">
+          <thead><tr><th scope="col">Plataforma</th><th scope="col">Desde</th><th scope="col">Anual</th><th scope="col">Prueba</th><th scope="col">Pantallas</th><th scope="col">Calidad</th></tr></thead>
+          <tbody>
+            @for (p of platforms(); track p.key) {
+            @if (p.main; as m) {
+            <tr>
+              <th scope="row"><a [routerLink]="path" [queryParams]="link({ platform: p })">@if (platformLogo(p); as logo) {<img class="px__row-logo" [src]="logo" [alt]="''" width="22" height="22" loading="lazy" aria-hidden="true" (error)="onLogoError(p)" />}{{ p.name }}</a></th>
+              <td>{{ m.pricing.monthlyLabel }}</td><td>{{ m.pricing.annualLabel }}</td><td>{{ m.trialDays ? m.trialDays + ' días' : 'No' }}</td><td>{{ m.features.simultaneousStreams }}</td><td>{{ m.features.maxResolution }}</td>
+            </tr>
+            }
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="qv__note">Precios orientativos revisados en las webs oficiales; promociones y paquetes con operadoras pueden cambiarlos. Más detalle en la <a routerLink="/guias/precios-plataformas-streaming-espana">guía de precios de las plataformas</a>.</p>
+    </section>
+    }
+
+    <section class="qv__about" aria-labelledby="pl-about">
+      @if (current(); as p) {
+      <h2 id="pl-about" class="qv__h2">Sobre {{ p.name }}</h2>
+      @if (p.main?.highlight) {<p>{{ p.main!.highlight }}</p>}
+      <p>
+        En esta página tienes lo más visto en {{ p.name }} y sus novedades, con la ficha de cada título. Para decidir qué ver hoy entre
+        la tele y todas tus plataformas usa <a [routerLink]="appPaths.explore" [queryParams]="{ platforms: p.name }">Qué ver hoy en {{ p.name }}</a>@if (p.guide) {, y consulta los <a [routerLink]="p.guide">mejores títulos de {{ p.name }}</a>}.
+      </p>
+      } @else {
+      <h2 id="pl-about" class="qv__h2">Cómo elegir plataforma</h2>
+      <p>
+        Cada plataforma tiene su fuerte: Netflix las series y los estrenos propios, Prime Video la relación precio/catálogo, Disney+ las
+        franquicias y el público familiar, HBO Max las series de prestigio, Movistar Plus+ el deporte y el cine, y Filmin el cine de autor.
+        Mira qué tiene cada una, compara precio y prestaciones en el <a [routerLink]="appPaths.streamingComparison">comparador</a> y, para
+        decidir qué ver ahora, usa <a [routerLink]="appPaths.explore">Qué ver hoy</a>.
+      </p>
+      }
+    </section>
+
+    <app-faq-section [heading]="current() ? 'Preguntas frecuentes sobre ' + current()!.name : 'Preguntas frecuentes sobre las plataformas'" [items]="faq()"></app-faq-section>
+  </div>
+</app-panel-shell>

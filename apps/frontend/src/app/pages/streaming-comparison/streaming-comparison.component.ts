@@ -1,10 +1,18 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
-import { RouterModule } from '@angular/router';
+import { ChangeDetectorRef, Component, DestroyRef, inject, OnInit } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, Params, RouterModule } from '@angular/router';
+import { FaqItem, FaqSectionComponent } from '../../components/faq-section/faq-section.component';
+import { PanelNavComponent } from '../../components/panel-nav/panel-nav.component';
+import { PanelShellComponent } from '../../components/panel-shell/panel-shell.component';
+import { PLATAFORMAS_LINKS, STREAMING_PLATFORMS } from '../../config/plataformas-nav';
+import { ChatService } from '../../services/chat.service';
+import { MetaService } from '../../services/meta.service';
 import { UnifiedAsyncStateComponent } from '../../components/unified-async-state/unified-async-state.component';
 import { UnifiedSkeletonBlockComponent } from '../../components/unified-skeleton-block/unified-skeleton-block.component';
 import { APP_PATHS } from '../../config/route-map';
 import { getCatalogPlatformByKey } from '../../data/catalog-platforms.data';
+import { resolvePlatformLogoUrl } from '../../utils/platform-logos';
 import { AnalyticsService } from '../../services/analytics.service';
 import { outboundRel } from '../../services/affiliate.service';
 import {
@@ -29,12 +37,25 @@ interface FilterOption<T extends string> {
     RouterModule,
     UnifiedAsyncStateComponent,
     UnifiedSkeletonBlockComponent,
+    PanelShellComponent,
+    PanelNavComponent,
+    FaqSectionComponent,
   ],
   templateUrl: './streaming-comparison.component.html',
-  styleUrls: ['./streaming-comparison.component.scss'],
+  styleUrls: ['../que-ver/que-ver.component.scss', './streaming-comparison.component.scss'],
 })
 export class StreamingComparisonComponent implements OnInit {
   readonly appPaths = APP_PATHS;
+  readonly sideLinks = PLATAFORMAS_LINKS;
+  contextOpen = false;
+  readonly assistantAsks = ['¿Qué plataforma me conviene?', '¿Cuál es la más barata con fútbol?', '¿Netflix o HBO Max?'];
+  readonly faq: FaqItem[] = [
+    { question: '¿Cuál es la plataforma de streaming más barata?', answer: 'Ordena por «Precio: menor primero» para verlas de la más barata a la más cara. RTVE Play y Pluto TV son gratis.' },
+    { question: '¿Qué plataforma tiene fútbol?', answer: 'Elige la prioridad «Fútbol» o la prestación «Fútbol» y verás solo las ofertas que lo incluyen.' },
+    { question: '¿Los precios están actualizados?', answer: 'Cada oferta indica cuándo se verificó por última vez en la web oficial del servicio. Promociones y paquetes con operadoras pueden cambiar el precio final.' },
+    { question: '¿Guía TV cobra por estas ofertas?', answer: 'Algunos enlaces son de afiliado y van marcados como patrocinados. El orden de las ofertas nunca depende de la comisión.' },
+    { question: '¿Puedo ver qué tiene cada plataforma antes de contratar?', answer: 'Sí: en Plataformas tienes lo más visto y las novedades del catálogo de cada servicio, con la ficha de cada título.' },
+  ];
   readonly intentOptions: FilterOption<MonetizationIntent>[] = [
     { value: 'cheapest', label: 'Más barato' },
     { value: 'football', label: 'Fútbol' },
@@ -69,12 +90,75 @@ export class StreamingComparisonComponent implements OnInit {
   errorMessage = '';
   selectionMessage = '';
   private openedTracked = false;
+  /** Provider ids whose logo URL failed: the card falls back to initials. */
+  private readonly failedLogos = new Set<string>();
   private readonly monetizationService = inject(MonetizationService);
   private readonly analytics = inject(AnalyticsService);
   private readonly changeDetector = inject(ChangeDetectorRef);
+  private readonly route = inject(ActivatedRoute);
+  private readonly meta = inject(MetaService);
+  private readonly chat = inject(ChatService);
+  private readonly destroyRef = inject(DestroyRef);
 
   ngOnInit(): void {
-    this.loadOffers();
+    this.meta.setMetaTags({
+      title: 'Comparador de plataformas de streaming: precios y planes | Guía TV',
+      description: 'Compara Netflix, Prime Video, Disney+, HBO Max, Movistar Plus+ y más: precio, pantallas, calidad, anuncios y permanencia de cada plan en España.',
+      canonicalUrl: APP_PATHS.streamingComparison,
+      type: 'website',
+    });
+    // The filters live in the URL (?prioridad=, ?prestaciones=, ?orden=): every view is a shareable link.
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+      const intent = params.get('prioridad') || '';
+      const sort = params.get('orden') || '';
+      this.selectedIntent = this.isIntent(intent) ? intent : undefined;
+      this.selectedFeatures = new Set(
+        (params.get('prestaciones') || '').split(',').filter((f): f is MonetizationFeature => this.featureOptions.some((o) => o.value === f))
+      );
+      this.selectedSort = this.sortOptions.some((o) => o.value === sort) ? (sort as MonetizationSort) : 'recommended';
+      this.loadOffers();
+    });
+  }
+
+  get selectedFeatureList(): MonetizationFeature[] {
+    return [...this.selectedFeatures];
+  }
+
+  /** Link to one filter change; a feature toggles, defaults are dropped. */
+  linkFor(change: { intent?: MonetizationIntent | null; feature?: MonetizationFeature; sort?: MonetizationSort }): Params {
+    const intent = change.intent === undefined ? this.selectedIntent : change.intent;
+    const features = new Set(this.selectedFeatures);
+    if (change.feature) {
+      if (features.has(change.feature)) features.delete(change.feature);
+      else features.add(change.feature);
+    }
+    const sort = change.sort ?? (change.intent !== undefined ? 'recommended' : this.selectedSort);
+    return {
+      prioridad: intent || null,
+      prestaciones: features.size ? [...features].join(',') : null,
+      orden: sort === 'recommended' ? null : sort,
+    };
+  }
+
+  intentLabel(value: MonetizationIntent): string {
+    return this.intentOptions.find((o) => o.value === value)?.label || value;
+  }
+
+  featureName(value: MonetizationFeature): string {
+    return this.featureOptions.find((o) => o.value === value)?.label || value;
+  }
+
+  sortLabel(value: MonetizationSort): string {
+    return this.sortOptions.find((o) => o.value === value)?.label || value;
+  }
+
+  /** Catalogue filter name for an offer's provider (the offers API says "Max", the catalogue "HBO Max"). */
+  platformName(offer: MonetizationOffer): string | null {
+    return STREAMING_PLATFORMS.find((p) => p.key === offer.provider.id)?.name || null;
+  }
+
+  openAssistant(): void {
+    this.chat.requestToggleAssistant();
   }
 
   get selectedOffers(): MonetizationOffer[] {
@@ -184,8 +268,13 @@ export class StreamingComparisonComponent implements OnInit {
     }, 'compare_offer');
   }
 
-  platformLogo(offer: MonetizationOffer): string | undefined {
-    return getCatalogPlatformByKey(offer.provider.id)?.logoUrl;
+  platformLogo(offer: MonetizationOffer): string {
+    if (this.failedLogos.has(offer.provider.id)) return '';
+    return resolvePlatformLogoUrl(offer.provider.name, getCatalogPlatformByKey(offer.provider.id)?.logoUrl);
+  }
+
+  onLogoError(offer: MonetizationOffer): void {
+    this.failedLogos.add(offer.provider.id);
   }
 
   initials(name: string): string {

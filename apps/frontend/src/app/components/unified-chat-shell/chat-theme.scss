@@ -1,0 +1,62 @@
+// The chat is rendered by app.component, outside app-panel-shell, so it brings the shell tokens itself
+// (same palette, both themes). The older chat pieces read --portal-*/--assistant-*: map them onto the shell
+// palette and the section accent so every piece of the chat looks like the rest of the site.
+@use '../../sports-v2/styles/tokens' as t;
+
+@mixin chat-bridge {
+  --portal-bg: var(--sv2-surface-1);
+  --portal-bg-deep: var(--sv2-bg);
+  --portal-bg-elevated: var(--sv2-bg);
+  --portal-surface: var(--sv2-surface-1);
+  --portal-surface-soft: var(--sv2-surface-1);
+  --portal-surface-strong: var(--sv2-surface-2);
+  --portal-card: var(--sv2-surface-1);
+  --portal-divider: var(--sv2-border);
+  --portal-border: var(--sv2-border);
+  --portal-border-strong: var(--sv2-border-strong);
+  --portal-text: var(--sv2-text);
+  --portal-text-soft: var(--sv2-text);
+  --portal-text-muted: var(--sv2-text-muted);
+  --portal-text-faint: var(--sv2-text-faint);
+
+  --guide-accent: var(--section-accent-text);
+  --assistant-bubble-bg: transparent;
+  --assistant-card-bg: var(--sv2-bg);
+  --assistant-card-border: var(--sv2-border);
+  --assistant-card-shadow: none;
+  --assistant-action-bg: var(--sv2-surface-2);
+  --assistant-badge-bg: var(--sv2-surface-2);
+  --assistant-badge-border: var(--sv2-border);
+  --assistant-badge-text: var(--sv2-text-muted);
+  --assistant-chip-bg: transparent;
+  --assistant-chip-text: var(--sv2-text);
+  --assistant-chip-border: var(--sv2-border-strong);
+  --assistant-chip-hover-bg: var(--sv2-surface-2);
+  --assistant-chip-hover-border: var(--section-accent);
+  --assistant-chip-selected-bg: var(--section-accent);
+  --assistant-chip-selected-text: var(--section-accent-ink);
+  --assistant-chip-selected-border: var(--section-accent);
+  --assistant-list-active-bg: color-mix(in srgb, var(--section-accent) 14%, transparent);
+  --assistant-list-active-border: var(--section-accent);
+  --assistant-danger: var(--sv2-live);
+  --assistant-danger-soft: color-mix(in srgb, var(--sv2-live) 14%, transparent);
+  --status-live: var(--sv2-live);
+  --status-live-soft: color-mix(in srgb, var(--sv2-live) 14%, transparent);
+  --text-2xs: 0.6875rem;
+  --text-xs: var(--sv2-fs-xs);
+  --text-sm: var(--sv2-fs-sm);
+  --text-base: var(--sv2-fs-md);
+  --text-lg: var(--sv2-fs-lg);
+}
+
+:host {
+  @include t.sv2-tokens;
+  @include chat-bridge;
+  background: var(--sv2-surface-1);
+  color-scheme: dark;
+}
+
+:host-context(html[data-theme='light']) {
+  @include t.sv2-tokens-light;
+  color-scheme: light;
+}

@@ -18,7 +18,7 @@ import { NAV_ITEMS } from './nav-items';
         @for (item of items; track item.label) {
           <li>
             <a
-              [routerLink]="link(item.segments)"
+              [routerLink]="item.path || link(item.segments)"
               routerLinkActive="active"
               ariaCurrentWhenActive="page"
               [routerLinkActiveOptions]="{ exact: item.segments.length === 0 }"

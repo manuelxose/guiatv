@@ -17,6 +17,7 @@ export type ChatDestination = 'assistant' | 'social';
   selector: 'app-unified-chat-shell',
   standalone: true,
   imports: [CommonModule, AIChatbotComponent, SocialChatPanelComponent],
+  styleUrl: './chat-theme.scss',
   template: `
     <div class="unified-chat">
       <app-ai-chatbot
@@ -79,7 +80,7 @@ export type ChatDestination = 'assistant' | 'social';
     }
     .unified-chat__social-title { display: flex; min-width: 0; align-items: center; justify-content: center; gap: .45rem; }
     .unified-chat__social-title h2 { margin: 0; color: var(--portal-text); font-size: var(--text-base); font-weight: 800; text-wrap: balance; }
-    .unified-chat__social-title span { display: inline-flex; min-width: 1.2rem; height: 1.2rem; align-items: center; justify-content: center; border-radius: var(--radius-pill); background: var(--guide-accent); color: #fff; padding: 0 .3rem; font-size: .65rem; font-weight: 800; }
+    .unified-chat__social-title span { display: inline-flex; min-width: 1.2rem; height: 1.2rem; align-items: center; justify-content: center; border-radius: var(--radius-pill); background: var(--section-accent); color: var(--section-accent-ink); padding: 0 .3rem; font-size: .65rem; font-weight: 800; }
     .unified-chat__icon-button { display: inline-flex; width: 44px; height: 44px; align-items: center; justify-content: center; border: 0; border-radius: .8rem; background: transparent; color: var(--portal-text-muted); cursor: pointer; touch-action: manipulation; }
     .unified-chat__icon-button:hover { background: var(--portal-bg-elevated); color: var(--portal-text); }
     .unified-chat__icon-button:focus-visible { outline: 3px solid color-mix(in srgb, var(--guide-accent) 45%, transparent); outline-offset: 2px; }

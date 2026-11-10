@@ -1,0 +1,227 @@
+// Same tokens and metrics as the football shell (sports-v2), so every section shares one frame.
+@use '../../sports-v2/styles/tokens' as t;
+
+:host {
+  @include t.sv2-tokens;
+  display: block;
+  height: 100dvh;
+  overflow: hidden;
+  color-scheme: dark;
+}
+
+:host-context(html[data-theme='light']) {
+  @include t.sv2-tokens-light;
+  color-scheme: light;
+}
+
+.shell {
+  display: grid;
+  height: 100%;
+  gap: 8px;
+  padding: 8px;
+  grid-template-rows: var(--sv2-topbar-h) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'top' 'main';
+}
+
+.skip {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  z-index: 100;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--section-accent);
+  color: var(--section-accent-ink);
+  font-weight: 700;
+  text-decoration: none;
+
+  &:focus {
+    top: 8px;
+  }
+}
+
+// Above the panels, so the search dropdown is never covered.
+.top {
+  grid-area: top;
+  position: relative;
+  z-index: 45;
+}
+
+.main {
+  grid-area: main;
+  // Containing block for absolutely positioned descendants (.sr-only labels, pills…): without it they resolve against
+  // the document, escape this scroll container and make the whole page scroll — the footer then rose with the window.
+  position: relative;
+  overflow-y: auto;
+  padding: 16px;
+  outline: none;
+}
+
+.side {
+  grid-area: side;
+  position: relative;
+  display: none;
+  overflow: hidden;
+}
+
+.panel {
+  min-width: 0;
+  border-radius: var(--sv2-r-lg);
+  background: var(--sv2-surface-1);
+  border: 1px solid var(--sv2-border);
+}
+
+// Context panel: drawer below desktop.
+.ctx {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(420px, 100%);
+  overflow-y: auto;
+  border-radius: 0;
+  transform: translateX(100%);
+  visibility: hidden;
+  transition: transform var(--sv2-dur) var(--sv2-ease), visibility 0s linear var(--sv2-dur);
+  box-shadow: var(--sv2-shadow);
+
+  &.open {
+    transform: none;
+    visibility: visible;
+    transition-delay: 0s;
+  }
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  border: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+// Drawer header with its own close button (the header toggle is covered by the drawer).
+.ctx-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px 10px 16px;
+  border-bottom: 1px solid var(--sv2-border);
+  background: var(--sv2-surface-1);
+  font-weight: 700;
+}
+
+// Header controls projected into the shared header (same look as the football ones).
+.extra {
+  display: contents;
+}
+
+.ib {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--sv2-surface-2);
+  color: var(--sv2-text-muted);
+  cursor: pointer;
+  flex: none;
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  &:hover {
+    background: var(--sv2-surface-3);
+    color: var(--sv2-text);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--sv2-focus);
+    outline-offset: 2px;
+  }
+}
+
+.side-toggle {
+  display: none;
+}
+
+// Phones: room for the app's bottom navigation bar.
+@media (max-width: 767px) {
+  .shell {
+    padding-bottom: calc(8px + var(--bottom-nav-h, 64px) + max(0.35rem, var(--safe-bottom, 0px)));
+  }
+
+  .ib {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+// Tablet: menu as an icon rail.
+@media (min-width: 768px) {
+  .shell {
+    grid-template-columns: var(--sv2-sidebar-w-collapsed) minmax(0, 1fr);
+    grid-template-areas: 'top top' 'side main';
+  }
+
+  .side {
+    display: block;
+  }
+}
+
+// Desktop: three panels.
+@media (min-width: 1200px) {
+  .shell {
+    grid-template-columns: var(--sv2-sidebar-w) minmax(0, 1fr) var(--sv2-context-w);
+    grid-template-areas: 'top top top' 'side main ctx';
+
+    &.collapsed {
+      grid-template-columns: var(--sv2-sidebar-w-collapsed) minmax(0, 1fr) var(--sv2-context-w);
+    }
+
+    &.no-ctx {
+      grid-template-columns: var(--sv2-sidebar-w) minmax(0, 1fr);
+      grid-template-areas: 'top top' 'side main';
+    }
+
+    &.no-ctx.collapsed {
+      grid-template-columns: var(--sv2-sidebar-w-collapsed) minmax(0, 1fr);
+    }
+  }
+
+  .ctx {
+    grid-area: ctx;
+    z-index: auto;
+    position: relative;
+    width: auto;
+    transform: none;
+    visibility: visible;
+    box-shadow: none;
+    border-radius: var(--sv2-r-lg);
+  }
+
+  .backdrop,
+  .ctx-toggle,
+  .ctx-bar {
+    display: none;
+  }
+
+  .side-toggle {
+    display: inline-grid;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ctx {
+    transition: none;
+  }
+}

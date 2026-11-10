@@ -12,9 +12,6 @@
     (itemSelect)="onSectionSelect($event)"
     (action)="toggleFilterDock()"
   ></app-portal-context-nav>
-  <section id="tab-panel-live" role="tabpanel" *ngIf="activeTab() === 'live'">
-    <app-live-guide-view></app-live-guide-view>
-  </section>
   <section id="tab-panel-discover" role="tabpanel" *ngIf="activeTab() === 'discover'">
     <app-discover-view></app-discover-view>
   </section>

@@ -1,3 +1,5 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { Location } from '@angular/common';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
@@ -44,7 +46,7 @@ describe('sports-v2 navigation flows', () => {
   beforeEach(async () => {
     localStorage.removeItem('guiatv.sports-v2.follows');
     TestBed.configureTestingModule({
-      providers: [provideRouter([{ path: 'deportes/futbol', children: sportsV2Routes(DemoFootballData) }]), { provide: SPORTS_NOW, useValue: () => TEST_NOW }],
+      providers: [provideRouter([{ path: 'deportes/futbol', children: sportsV2Routes(DemoFootballData) }]), provideHttpClient(), provideHttpClientTesting(), { provide: SPORTS_NOW, useValue: () => TEST_NOW }],
     });
     h = await RouterTestingHarness.create();
   });

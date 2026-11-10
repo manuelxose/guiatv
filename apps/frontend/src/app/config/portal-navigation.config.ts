@@ -64,11 +64,18 @@ export interface PortalDestination {
  * route disguised as a tab.
  */
 export interface PortalMobileDestination {
-  id: PortalDestination['id'] | 'more';
+  id: PortalDestination['id'] | 'more' | 'assistant';
   label: string;
   path?: string;
   iconPath: string;
-  kind: 'route' | 'more';
+  kind: 'route' | 'more' | 'assistant';
+}
+
+/** One group of the mobile "Menú" sheet: every capability of the app, reachable from the phone. */
+export interface PortalMenuGroup {
+  title: string;
+  iconPath: string;
+  links: Array<{ label: string; path: string; queryParams?: Record<string, string> }>;
 }
 
 export interface PortalContextDestination {
@@ -267,14 +274,18 @@ export function resolvePortalPrimaryDestination(path: string): PortalPrimaryDest
   if (normalized.startsWith(APP_PATHS.platforms) || normalized.startsWith(APP_PATHS.streamingComparison)) return 'streaming';
   if (
     normalized.startsWith(APP_PATHS.guide) ||
+    normalized.startsWith(APP_PATHS.movies) ||
+    normalized.startsWith(APP_PATHS.series) ||
     normalized === APP_PATHS.channels ||
-    normalized.startsWith(`${APP_PATHS.channels}/`)
+    normalized.startsWith(`${APP_PATHS.channels}/`) ||
+    // A TV programme or airing page belongs to TV; film and series pages stay under "Qué ver".
+    /^\/(programas|program-full-details|detalles)\//.test(normalized) ||
+    /^\/contenido\/program(:|%3A)/i.test(normalized)
   ) return 'live';
   if (
     normalized.startsWith(APP_PATHS.explore) ||
-    normalized.startsWith(APP_PATHS.movies) ||
-    normalized.startsWith(APP_PATHS.series) ||
     normalized.startsWith(APP_PATHS.stats) ||
+    normalized.startsWith(APP_PATHS.forYou) ||
     /^\/(contenido|peliculas|series|programas|detalles|pelicula-details)\//.test(normalized)
   ) return 'discover';
   return null;
@@ -284,13 +295,80 @@ export function resolvePortalPrimaryDestination(path: string): PortalPrimaryDest
 export const PORTAL_MOBILE_PRIMARY_DESTINATIONS: readonly PortalMobileDestination[] = [
   { ...PORTAL_GLOBAL_DESTINATIONS.find((destination) => destination.id === 'home')!, kind: 'route' },
   { ...PORTAL_GLOBAL_DESTINATIONS.find((destination) => destination.id === 'live')!, kind: 'route' },
+  // The assistant is the centre of the app: the middle slot of the bar opens it.
+  { id: 'assistant', label: 'Asistente', iconPath: PORTAL_ICON_PATHS.sparkles, kind: 'assistant' },
   { ...PORTAL_GLOBAL_DESTINATIONS.find((destination) => destination.id === 'sports')!, kind: 'route' },
-  { ...PORTAL_GLOBAL_DESTINATIONS.find((destination) => destination.id === 'discover')!, kind: 'route' },
   {
     id: 'more',
-    label: 'Más',
+    label: 'Menú',
     iconPath: PORTAL_ICON_PATHS.menu,
     kind: 'more',
+  },
+] as const;
+
+export const PORTAL_MOBILE_MENU: readonly PortalMenuGroup[] = [
+  {
+    title: 'Televisión',
+    iconPath: PORTAL_ICON_PATHS.live,
+    links: [
+      { label: 'Qué echan ahora', path: APP_PATHS.guide, queryParams: { liveView: 'now' } },
+      { label: 'Esta noche', path: APP_PATHS.guide, queryParams: { liveView: 'night' } },
+      { label: 'Parrilla completa', path: APP_PATHS.guide, queryParams: { liveView: 'now' } },
+      { label: 'Canales', path: APP_PATHS.channels },
+      { label: 'Películas en TV', path: APP_PATHS.movies },
+      { label: 'Series en TV', path: APP_PATHS.series },
+    ],
+  },
+  {
+    title: 'Qué ver',
+    iconPath: PORTAL_ICON_PATHS.discover,
+    links: [
+      { label: 'Qué ver hoy', path: APP_PATHS.explore },
+      { label: 'Para ti', path: APP_PATHS.forYou },
+      { label: 'Tendencias', path: APP_PATHS.stats },
+      { label: 'Rankings', path: APP_PATHS.top10 },
+    ],
+  },
+  {
+    title: 'Plataformas',
+    iconPath: PORTAL_ICON_PATHS.streaming,
+    links: [
+      { label: 'Plataformas de streaming', path: APP_PATHS.platforms },
+      { label: 'Comparador', path: APP_PATHS.streamingComparison },
+      { label: 'Precios', path: `${APP_PATHS.blog}/precios-plataformas-streaming-espana` },
+      { label: 'Qué plataforma elegir', path: `${APP_PATHS.blog}/netflix-hbo-max-disney-prime-video-que-plan-elegir` },
+    ],
+  },
+  {
+    title: 'Fútbol',
+    iconPath: PORTAL_ICON_PATHS.sports,
+    links: [
+      { label: 'Partidos de hoy', path: APP_PATHS.football },
+      { label: 'En directo', path: `${APP_PATHS.football}/en-directo` },
+      { label: 'Resultados', path: `${APP_PATHS.football}/resultados` },
+      { label: 'Competiciones', path: `${APP_PATHS.football}/competiciones` },
+      { label: 'Clasificaciones', path: `${APP_PATHS.football}/clasificaciones` },
+      { label: 'Mi fútbol', path: `${APP_PATHS.football}/siguiendo` },
+    ],
+  },
+  {
+    title: 'Guías',
+    iconPath: PORTAL_ICON_PATHS.editorial,
+    links: [
+      { label: 'Todas las guías', path: APP_PATHS.blog },
+      { label: 'Streaming', path: `${APP_PATHS.blog}/categoria/streaming` },
+      { label: 'Fútbol', path: `${APP_PATHS.blog}/categoria/futbol` },
+    ],
+  },
+  {
+    title: 'Tu cuenta',
+    iconPath: PORTAL_ICON_PATHS.account,
+    links: [
+      { label: 'Mi perfil y mi lista', path: APP_PATHS.profile },
+      { label: 'Comunidad', path: APP_PATHS.community },
+      { label: 'Acceder', path: APP_PATHS.login },
+      { label: 'Crear cuenta', path: APP_PATHS.register },
+    ],
   },
 ] as const;
 
@@ -330,7 +408,7 @@ export function getPortalPublicContextualLeftRailSection(
         items: [
           { id: 'public-live-now', label: 'En emisión', description: 'Lo que está activo', iconPath: PORTAL_ICON_PATHS.liveDot, path: APP_PATHS.guide, queryParams: { liveView: 'now' } },
           { id: 'public-live-night', label: 'Esta noche', description: 'Prime time', iconPath: PORTAL_ICON_PATHS.clock, path: APP_PATHS.guide, queryParams: { liveView: 'night' } },
-          { id: 'public-live-channels', label: 'Canales', description: 'Directorio lineal', iconPath: PORTAL_ICON_PATHS.channels, path: APP_PATHS.guide, queryParams: { liveView: 'day' } },
+          { id: 'public-live-channels', label: 'Canales', description: 'Directorio lineal', iconPath: PORTAL_ICON_PATHS.channels, path: APP_PATHS.guide, queryParams: { liveView: 'now' } },
         ],
       };
     case 'streaming':
@@ -481,7 +559,7 @@ export function resolvePortalPublicTopPillTarget(
       now: { path: APP_PATHS.guide, queryParams: { liveView: 'now' } },
       next: { path: APP_PATHS.guide, queryParams: { liveView: 'next' } },
       night: { path: APP_PATHS.guide, queryParams: { liveView: 'night' } },
-      day: { path: APP_PATHS.guide, queryParams: { liveView: 'day' } },
+      day: { path: APP_PATHS.guide, queryParams: { liveView: 'now' } },
       tdt: { path: APP_PATHS.guide, queryParams: { group: 'tdt' } },
       'sports-tv': { path: APP_PATHS.guide, queryParams: { group: 'deporte' } },
     }[value] || null;

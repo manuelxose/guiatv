@@ -61,7 +61,7 @@ import { Sv2TeamIdentityComponent } from './team-identity';
     }
     .save { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%; background: transparent; color: var(--sv2-text-faint); cursor: pointer; --sv2-icon: 18px; }
     .save:hover { color: var(--sv2-text); background: var(--sv2-surface-3); }
-    .save.on { color: var(--sv2-accent); }
+    .save.on { color: var(--sv2-accent-text); }
     .save:focus-visible { outline: 2px solid var(--sv2-focus); outline-offset: 2px; }
     @media (prefers-reduced-motion: reduce) { .body { transition: none; } .clock.live .glyph { animation: none; } }
   `,

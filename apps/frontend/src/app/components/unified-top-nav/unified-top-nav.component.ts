@@ -1,72 +1,48 @@
-import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
-import { A11yModule } from '@angular/cdk/a11y';
-import {
-  ChangeDetectionStrategy,
-  Component,
-  DestroyRef,
-  ElementRef,
-  HostListener,
-  PLATFORM_ID,
-  ViewChild,
-  computed,
-  effect,
-  inject,
-  input,
-  output,
-  signal,
-} from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { NavigationEnd, Params, Router, RouterModule } from '@angular/router';
-import { filter } from 'rxjs';
+import { NavigationEnd, Router, RouterModule } from '@angular/router';
+import { filter, map } from 'rxjs';
 import { APP_PATHS } from '../../config/route-map';
 import {
   PORTAL_ICON_PATHS,
   PORTAL_PRIMARY_DESTINATIONS,
-  PortalPrimaryDestinationId,
   resolvePortalPrimaryDestination,
 } from '../../config/portal-navigation.config';
+import { ChatService } from '../../services/chat.service';
 import { ThemeService } from '../../services/theme.service';
-import { ViewportService } from '../../services/viewport.service';
+import { UserService } from '../../services/user.service';
 import { NotificationBellComponent } from '../notification-bell/notification-bell.component';
 import { UnifiedSearchComponent } from '../unified-search/unified-search.component';
 
-export interface UnifiedTopNavTab {
-  id: PortalPrimaryDestinationId;
-  label: string;
-  path: string;
-  hint: string;
-  iconPath: string;
-}
-
-export interface UnifiedTopNavShortcut {
-  label: string;
-  path: string;
-  iconPath: string;
-  queryParams?: Params;
-  description?: string;
-}
-
+/**
+ * The one header of the whole site (portal and football): brand, section links,
+ * centred search, theme, notifications and account. Shells can project their own
+ * leading control (`utnLead`), search (`utnSearch`) and extra actions (`utnActions`).
+ */
 @Component({
   selector: 'app-unified-top-nav',
   standalone: true,
-  imports: [CommonModule, A11yModule, RouterModule, UnifiedSearchComponent, NotificationBellComponent],
+  imports: [RouterModule, UnifiedSearchComponent, NotificationBellComponent],
   templateUrl: './unified-top-nav.component.html',
   styleUrl: './unified-top-nav.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UnifiedTopNavComponent {
-  readonly appPaths = APP_PATHS;
-  readonly viewport = inject(ViewportService);
   private readonly router = inject(Router);
-  private readonly document = inject(DOCUMENT);
-  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly user = inject(UserService);
+  private readonly chat = inject(ChatService);
   readonly theme = inject(ThemeService);
-  readonly isAuthenticated = input(false);
-  readonly profileName = input('Cuenta');
-  readonly showLeftRail = input(true);
+
+  /** Portal shells pin the header to the viewport; the football shell places it in its own grid. */
+  readonly fixed = input(true);
+  /** Sub-brand shown after the logo, e.g. "Sports". */
+  readonly brandSuffix = input('');
+  readonly showLeftRail = input(false);
   readonly showRightRail = input(false);
   readonly rightRailLabel = input('Panel contextual');
-
+  /** The assistant is the centre of the app; shells where it is not available yet pass false. */
+  readonly showAssistant = input(true);
   readonly leftRailToggle = output<void>();
   readonly rightRailToggle = output<void>();
 
@@ -74,106 +50,45 @@ export class UnifiedTopNavComponent {
   readonly loginPath = APP_PATHS.login;
   readonly profilePath = APP_PATHS.profile;
   readonly iconPaths = PORTAL_ICON_PATHS;
-  isShrunk = false;
-  readonly mobileSearchOpen = signal(false);
+  readonly tabs = [{ id: 'home', label: 'Inicio', path: APP_PATHS.home }, ...PORTAL_PRIMARY_DESTINATIONS];
+
+  readonly isAuthenticated = toSignal(this.user.isAuthenticated$, { initialValue: false });
+  readonly profileName = toSignal(this.user.getProfile().pipe(map((p) => p?.name || 'Cuenta')), { initialValue: 'Cuenta' });
+  readonly sectionsOpen = signal(false);
   readonly searchQuery = signal('');
-  @ViewChild(UnifiedSearchComponent) private readonly search?: UnifiedSearchComponent;
-  @ViewChild('mobileSearchTrigger') private readonly mobileSearchTrigger?: ElementRef<HTMLButtonElement>;
-  private readonly navigation = toSignal(
-    this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)),
-    { initialValue: null }
+
+  private readonly url = toSignal(
+    this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+      map((e) => e.urlAfterRedirects),
+    ),
+    { initialValue: this.router.url },
   );
-  readonly activeTab = computed(() =>
-    resolvePortalPrimaryDestination(this.navigation()?.urlAfterRedirects || this.router.url)
-  );
-  readonly tabs: UnifiedTopNavTab[] = PORTAL_PRIMARY_DESTINATIONS.map((destination) => ({
-    id: destination.id as UnifiedTopNavTab['id'],
-    label: destination.label,
-    path: destination.path,
-    hint: destination.hint,
-    iconPath: destination.iconPath,
-  }));
+  readonly activeTab = computed(() => {
+    const url = this.url();
+    return resolvePortalPrimaryDestination(url) ?? (url.split(/[?#]/)[0] === APP_PATHS.home ? 'home' : null);
+  });
 
   constructor() {
-    effect(() => {
-      if (!this.viewport.isMobile() && this.mobileSearchOpen()) {
-        this.closeMobileSearch();
-      }
-    });
-    inject(DestroyRef).onDestroy(() => this.setDocumentScrollLocked(false));
-  }
-
-  get currentStatusLabel(): string {
-    if (this.activeTab() === 'streaming') {
-      return 'Catálogo en foco';
-    }
-    if (this.activeTab() === 'discover') {
-      return 'Discovery activo';
-    }
-    if (this.activeTab() === 'sports') {
-      return 'Agenda en vivo';
-    }
-    return 'En directo ahora';
-  }
-
-  @HostListener('window:scroll')
-  onWindowScroll(): void {
-    if (!this.isBrowser) {
-      return;
-    }
-    const shouldShrink = this.viewport.shouldShrinkTopNav() && window.scrollY > 48;
-    if (shouldShrink !== this.isShrunk) {
-      this.isShrunk = shouldShrink;
-    }
-  }
-
-  trackByTab(_index: number, tab: UnifiedTopNavTab): string {
-    return tab.id;
-  }
-
-  cycleTheme(): void {
-    this.theme.toggle();
-  }
-
-  openMobileSearch(): void {
-    this.mobileSearchOpen.set(true);
-    this.setDocumentScrollLocked(true);
-    if (this.isBrowser) {
-      setTimeout(() => this.search?.focusInput());
-    }
-  }
-
-  closeMobileSearch(): void {
-    const wasOpen = this.mobileSearchOpen();
-    this.mobileSearchOpen.set(false);
-    this.setDocumentScrollLocked(false);
-    if (wasOpen && this.isBrowser) {
-      setTimeout(() => this.mobileSearchTrigger?.nativeElement.focus());
-    }
-  }
-
-  onSearchSubmit(value: string): void {
-    this.closeMobileSearch();
-    this.searchQuery.set(value);
-    void this.router.navigate([APP_PATHS.explore], { queryParams: value ? { q: value } : {} });
-  }
-
-  @HostListener('document:keydown.escape')
-  onEscape(): void {
-    if (this.mobileSearchOpen()) {
-      this.closeMobileSearch();
-    }
+    // The section colour (design-tokens.scss, --section-accent*) follows the route; pages without a section use the home colour.
+    const root = inject(DOCUMENT).documentElement;
+    effect(() => root.setAttribute('data-section', this.activeTab() ?? 'home'));
   }
 
   get themeLabel(): string {
-    return this.theme.resolved === 'dark'
-      ? 'Cambiar a tema claro'
-      : 'Cambiar a tema oscuro';
+    return this.theme.resolved === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro';
   }
 
-  private setDocumentScrollLocked(locked: boolean): void {
-    if (this.isBrowser) {
-      this.document.body.classList.toggle('portal-overlay-open', locked);
-    }
+  openAssistant(): void {
+    this.chat.requestToggleAssistant();
+  }
+
+  sectionsFocusOut(ev: FocusEvent): void {
+    if (!(ev.currentTarget as HTMLElement).contains(ev.relatedTarget as Node | null)) this.sectionsOpen.set(false);
+  }
+
+  onSearchSubmit(value: string): void {
+    this.searchQuery.set(value);
+    void this.router.navigate([APP_PATHS.explore], { queryParams: value ? { q: value } : {} });
   }
 }

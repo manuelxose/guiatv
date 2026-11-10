@@ -15,6 +15,10 @@ import { EntityBroadcastListComponent } from '../../components/entity-broadcast-
 import { UnifiedAsyncStateComponent } from '../../components/unified-async-state/unified-async-state.component';
 import { UnifiedSkeletonBlockComponent } from '../../components/unified-skeleton-block/unified-skeleton-block.component';
 import { WhereToWatchComponent } from '../../components/where-to-watch/where-to-watch.component';
+import { PanelNavComponent } from '../../components/panel-nav/panel-nav.component';
+import { PanelShellComponent } from '../../components/panel-shell/panel-shell.component';
+import { TV_SECTION_LINKS } from '../../config/tv-section-nav';
+import { ChatService } from '../../services/chat.service';
 import { broadcastDisplay, buildMovieSchema, ENTITY_CANONICAL_PATH, formatRuntime, GUIDE_TIME_ZONE, kindLabel, PublicEntity } from './entity-detail.model';
 
 const SITE = 'https://guiaprogramaciontv.com';
@@ -26,14 +30,24 @@ const TICK_MS = 30_000;
   standalone: true,
   imports: [
     CommonModule, RouterLink, CatalogDetailComponent, BreadcrumbComponent, EntityBroadcastListComponent,
-    UnifiedAsyncStateComponent, UnifiedSkeletonBlockComponent, WhereToWatchComponent,
+    UnifiedAsyncStateComponent, UnifiedSkeletonBlockComponent, WhereToWatchComponent, PanelShellComponent, PanelNavComponent,
   ],
   styles: [':host { display: block; min-width: 0; }'],
   template: `
     @if (legacy) {
       <app-catalog-detail />
     } @else {
-      <div class="min-h-[60vh] bg-[var(--portal-bg)] text-[var(--portal-text)]">
+      <app-panel-shell sideLabel="Programación TV" [contextLabel]="entity ? 'Ficha de ' + entity.title : 'Ficha'" [(contextOpen)]="contextOpen">
+      <app-panel-nav panelSide title="Programación TV" [links]="sideLinks"></app-panel-nav>
+      <section panelContext class="grid gap-3 p-4 text-sm">
+        @if (entity; as e) {
+          <strong class="text-base">{{ e.title }}</strong>
+          <span class="text-[var(--sv2-text-muted)]">{{ kind }}@if (e.year) { · {{ e.year }}}@if (runtime) { · {{ runtime }}}</span>
+          @if (e.genres?.length) { <span>{{ e.genres!.join(', ') }}</span> }
+        }
+        <button type="button" class="min-h-9 rounded-full border border-[var(--sv2-border-strong)] px-3 text-xs font-semibold" (click)="openAssistant()">Pregunta al asistente</button>
+      </section>
+      <div class="min-h-[60vh] min-w-0 text-[var(--sv2-text)]">
         @if (loading) {
           <div class="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8" role="status" aria-live="polite" aria-busy="true">
             <span class="sr-only">Cargando ficha…</span>
@@ -156,6 +170,7 @@ const TICK_MS = 30_000;
           </div>
         }
       </div>
+      </app-panel-shell>
     }
   `,
 })
@@ -181,6 +196,12 @@ export class EntityDetailComponent implements OnInit {
   runtime: string | null = null;
   kind = '';
   updated = '';
+  readonly sideLinks = TV_SECTION_LINKS;
+  contextOpen = false;
+  private readonly chat = inject(ChatService);
+  openAssistant(): void {
+    this.chat.requestToggleAssistant();
+  }
   readonly exploreLinks = [
     { label: 'Qué ver hoy en TV', path: APP_PATHS.explore },
     { label: 'Películas en TV', path: APP_PATHS.movies },

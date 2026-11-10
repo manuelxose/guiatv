@@ -1,0 +1,67 @@
+// Ranking list; everything else comes from the Qué ver stylesheet.
+.popular-page__list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: none;
+
+  a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: var(--sv2-r-md);
+    color: var(--sv2-text);
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+      background: var(--sv2-surface-2);
+    }
+  }
+}
+
+.rank {
+  width: 32px;
+  flex: none;
+  color: var(--section-accent-text);
+  font-size: 1.375rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.rank__thumb {
+  display: block;
+  width: 48px;
+  aspect-ratio: 2 / 3;
+  flex: none;
+  overflow: hidden;
+  border-radius: var(--sv2-r-sm);
+  background: var(--sv2-surface-3);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.rank__body {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+
+  strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  small {
+    color: var(--sv2-text-muted);
+    font-size: var(--sv2-fs-xs);
+  }
+}

@@ -15,7 +15,7 @@ import {
 describe('route map', () => {
   it('defines five deliberate mobile destinations from the shared portal model', () => {
     expect(PORTAL_MOBILE_PRIMARY_DESTINATIONS.map((tab) => tab.id)).toEqual([
-      'home', 'live', 'sports', 'discover', 'more',
+      'home', 'live', 'assistant', 'sports', 'more',
     ]);
     PORTAL_MOBILE_PRIMARY_DESTINATIONS.forEach((tab) => {
       expect(tab.label.length).toBeGreaterThan(0);

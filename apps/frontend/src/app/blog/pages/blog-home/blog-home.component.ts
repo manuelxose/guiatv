@@ -1,72 +1,70 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { Subject, combineLatest, forkJoin, map, of, takeUntil } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { UnifiedPortalShellComponent } from '../../../components/unified-portal-shell/unified-portal-shell.component';
-import { EditorialPostCardComponent } from '../../components/editorial-post-card/editorial-post-card.component';
-import { EditorialMastheadComponent } from '../../components/editorial-masthead/editorial-masthead.component';
-import { CatalogRailComponent } from '../../../components/catalog-rail/catalog-rail.component';
-import { APP_PATHS } from '../../../config/route-map';
-import { MetaService } from '../../../services/meta.service';
-import { CatalogItem, CatalogService } from '../../../services/catalog.service';
-import { getCatalogPlatformByKey } from '../../../data/catalog-platforms.data';
-import {
-  EditorialCategorySection,
-  EditorialPost,
-} from '../../models/editorial.models';
-import { EditorialService } from '../../services/editorial.service';
-import { generateCollectionPageSchema, serializeJsonLd } from '../../../utils/utils';
-import { PortalContextNavComponent } from '../../../components/portal-context-nav/portal-context-nav.component';
+import { TvReadItemDTO } from '../../../api/models';
+import { FaqItem, FaqSectionComponent } from '../../../components/faq-section/faq-section.component';
+import { PanelNavComponent, PanelNavGroup } from '../../../components/panel-nav/panel-nav.component';
+import { PanelShellComponent } from '../../../components/panel-shell/panel-shell.component';
+import { PanelTileComponent } from '../../../components/panel-tile/panel-tile.component';
 import { UnifiedAsyncStateComponent } from '../../../components/unified-async-state/unified-async-state.component';
-import { UnifiedSkeletonBlockComponent } from '../../../components/unified-skeleton-block/unified-skeleton-block.component';
+import { GUIAS_LINKS, guiasCategoryGroups, guiasSectionName } from '../../../config/guias-nav';
+import { STREAMING_PLATFORMS } from '../../../config/plataformas-nav';
+import { APP_PATHS } from '../../../config/route-map';
+import { CatalogItem, CatalogService } from '../../../services/catalog.service';
+import { ChatService } from '../../../services/chat.service';
+import { MetaService } from '../../../services/meta.service';
+import { TvDataFacade } from '../../../state/tv-data.facade';
+import { generateCollectionPageSchema, generateItemListSchema, serializeJsonLd } from '../../../utils/utils';
+import { EditorialCategory, EditorialCategorySection, EditorialPost } from '../../models/editorial.models';
+import { EditorialService } from '../../services/editorial.service';
 
+const BASE_URL = 'https://guiaprogramaciontv.com';
+
+/**
+ * /guias: the editorial hub inside the shared shell. Lead story, latest guides, one block per
+ * category, rankings, and "qué ver hoy" with real catalogue and tonight's free TV. Categories in the
+ * left panel come from the API, so every link has posts behind it.
+ */
 @Component({
   selector: 'app-blog-home',
   standalone: true,
-  imports: [
-    CommonModule,
-    RouterModule,
-    UnifiedPortalShellComponent,
-    EditorialPostCardComponent,
-    EditorialMastheadComponent,
-    CatalogRailComponent,
-    PortalContextNavComponent,
-    UnifiedAsyncStateComponent,
-    UnifiedSkeletonBlockComponent,
-  ],
+  imports: [DatePipe, RouterModule, PanelShellComponent, PanelNavComponent, PanelTileComponent, FaqSectionComponent, UnifiedAsyncStateComponent],
   templateUrl: './blog-home.component.html',
-  styleUrls: ['./blog-home.component.scss'],
+  styleUrls: ['../../../pages/que-ver/que-ver.component.scss', './blog-home.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BlogHomeComponent implements OnInit, OnDestroy {
+  private readonly chat = inject(ChatService);
+  private readonly facade = inject(TvDataFacade);
+
   public readonly appPaths = APP_PATHS;
-  public readonly breadcrumbItems = [
-    { name: 'Inicio', url: APP_PATHS.home },
-    { name: 'Guías', url: APP_PATHS.blog },
-  ];
+  public readonly sideLinks = GUIAS_LINKS;
+  public readonly sectionName = guiasSectionName;
+  public sideGroups: PanelNavGroup[] = [];
+  public categories: EditorialCategory[] = [];
+  public contextOpen = false;
+  public readonly assistantAsks = ['¿Dónde veo LaLiga?', '¿Qué plataforma me conviene?', '¿Es legal grabar la tele?'];
 
   public loading = true;
   public error: string | null = null;
   public hero: EditorialPost | null = null;
   public latestPosts: EditorialPost[] = [];
   public latestStories: EditorialPost[] = [];
+  /** Every published guide, newest first: the "Todas las guías" list. */
+  public allPosts: EditorialPost[] = [];
   public trendPosts: EditorialPost[] = [];
   public rankingPosts: EditorialPost[] = [];
-  public cineSection: EditorialCategorySection | null = null;
-  public seriesSection: EditorialCategorySection | null = null;
-  public streamingSection: EditorialCategorySection | null = null;
-  public streamingPlatforms: Record<string, string[]> = {};
-  public collections: EditorialCategorySection[] = [];
+  public sections: EditorialCategorySection[] = [];
+  public faq: FaqItem[] = [];
   public safeLdHtml: SafeHtml | null = null;
 
-  // "Qué ver hoy" — real catalog data, same CatalogService.queryState pattern
-  // already used by the article page's linked modules. No fabricated content.
+  // "Qué ver hoy": real catalogue and TV, so the hub links the guides with what can be watched now.
   public moviesToday: CatalogItem[] = [];
-  public seriesTonight: CatalogItem[] = [];
-  public tvTonight: CatalogItem[] = [];
-  public watchTodayLoaded = false;
+  public seriesToday: CatalogItem[] = [];
+  public tvTonight: TvReadItemDTO[] = [];
 
   private readonly destroy$ = new Subject<void>();
 
@@ -87,8 +85,6 @@ export class BlogHomeComponent implements OnInit, OnDestroy {
       image: '/assets/images/blog-og-image.webp',
       type: 'website',
     });
-    this.buildStructuredData();
-
     this.loadHub();
     this.loadWatchToday();
   }
@@ -101,8 +97,16 @@ export class BlogHomeComponent implements OnInit, OnDestroy {
     return post.id || `${post.slug}-${index}`;
   }
 
-  public platformsFor(post: EditorialPost): string[] {
-    return this.streamingPlatforms[post.slug] || [];
+  /** Streaming services a guide talks about, as links to their catalogue page. */
+  public platformsFor(post: EditorialPost | null): Array<{ name: string; color: string }> {
+    return (post?.relatedPlatformKeys || [])
+      .map((key) => STREAMING_PLATFORMS.find((p) => p.key === key))
+      .filter((p): p is (typeof STREAMING_PLATFORMS)[number] => Boolean(p))
+      .map((p) => ({ name: p.name, color: p.color }));
+  }
+
+  public openAssistant(): void {
+    this.chat.requestToggleAssistant();
   }
 
   private loadHub(): void {
@@ -112,21 +116,21 @@ export class BlogHomeComponent implements OnInit, OnDestroy {
       this.editorialService.getHubState(),
       this.editorialService.getEditorialSections(),
       this.editorialService.getPosts(),
+      this.editorialService.getCategories(),
     ])
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: ([hub, sections, posts]) => {
+        next: ([hub, sections, posts, categories]) => {
           this.hero = hub.hero;
+          this.allPosts = posts;
           this.latestPosts = hub.latestPosts;
+          this.categories = categories.filter((c) => c.count > 0);
+          this.sideGroups = guiasCategoryGroups(this.categories);
 
-          const featuredSlugs = new Set([
-            hub.hero?.slug,
-            ...hub.latestPosts.map((post) => post.slug),
-          ].filter(Boolean) as string[]);
+          const featuredSlugs = new Set([hub.hero?.slug, ...hub.latestPosts.map((post) => post.slug)].filter(Boolean) as string[]);
           this.latestStories = posts.filter((post) => !featuredSlugs.has(post.slug)).slice(0, 6);
 
-          // Lower sections only add stories the lead, "Sigue leyendo" and the main grid have not shown:
-          // with a small archive they were repeating the same cards three times.
+          // Lower sections only add stories not shown above: with a small archive they repeated the same cards.
           const shown = new Set([...featuredSlugs, ...this.latestStories.map((post) => post.slug)]);
           const unseen = (list: EditorialPost[]) => list.filter((post) => !shown.has(post.slug));
           const section = (value: EditorialCategorySection | null) => {
@@ -134,17 +138,12 @@ export class BlogHomeComponent implements OnInit, OnDestroy {
             return value && remaining.length ? { ...value, posts: remaining } : null;
           };
           this.trendPosts = unseen(hub.trendPosts);
-          this.rankingPosts = unseen(hub.rankingPosts);
-          this.cineSection = section(sections.cine);
-          this.seriesSection = section(sections.series);
-          this.streamingSection = section(sections.streaming);
-          this.collections = sections.collections.map(section).filter((value): value is EditorialCategorySection => Boolean(value));
-          this.streamingPlatforms = {};
-          sections.streaming?.posts.forEach((post) => {
-            this.streamingPlatforms[post.slug] = post.relatedPlatformKeys
-              .map((key) => getCatalogPlatformByKey(key)?.name)
-              .filter((name): name is string => Boolean(name));
-          });
+          this.rankingPosts = hub.rankingPosts;
+          this.sections = [sections.streaming, sections.cine, sections.series, ...sections.collections]
+            .map(section)
+            .filter((value): value is EditorialCategorySection => Boolean(value));
+          this.faq = this.buildFaq(posts);
+          this.buildStructuredData(posts);
 
           this.loading = false;
           this.changeDetector.markForCheck();
@@ -159,54 +158,72 @@ export class BlogHomeComponent implements OnInit, OnDestroy {
   }
 
   private loadWatchToday(): void {
-    const moviesToday$ = this.catalogService
-      .queryState({ types: ['movie'], sort: 'popular', limit: 10 })
-      .pipe(
-        map((result) => result.data?.items || []),
+    const popular = (type: 'movie' | 'series') =>
+      this.catalogService.queryState({ types: [type], sort: 'popular', limit: 10 }).pipe(
+        map((result) => (result.data?.items || []).slice(0, 8)),
         catchError(() => of([] as CatalogItem[]))
       );
-    const seriesTonight$ = this.catalogService
-      .queryState({ types: ['series'], sort: 'rating', limit: 10 })
-      .pipe(
-        map((result) => result.data?.items || []),
-        catchError(() => of([] as CatalogItem[]))
-      );
-    const tvTonight$ = this.catalogService
-      .queryState({ types: ['program'], availability: ['live'], sort: 'airtime', limit: 10 })
-      .pipe(
-        map((result) => result.data?.items || []),
-        catchError(() => of([] as CatalogItem[]))
-      );
+    // Tonight on free TV, one card per broadcast (the provider repeats feeds).
+    const tonight$ = this.facade.getTonightPrograms({ group: 'tdt', limit: 48 }).pipe(
+      map((items) => {
+        const seen = new Set<string>();
+        return items
+          .filter((i) => {
+            const key = `${i.program.title.trim().toLowerCase()}|${i.airing.start}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })
+          .slice(0, 8);
+      }),
+      catchError(() => of([] as TvReadItemDTO[]))
+    );
 
-    forkJoin({ moviesToday: moviesToday$, seriesTonight: seriesTonight$, tvTonight: tvTonight$ })
+    forkJoin({ movies: popular('movie'), series: popular('series'), tonight: tonight$ })
       .pipe(takeUntil(this.destroy$))
       .subscribe((data) => {
-        this.moviesToday = data.moviesToday;
-        this.seriesTonight = data.seriesTonight;
-        this.tvTonight = data.tvTonight;
-        this.watchTodayLoaded = true;
+        this.moviesToday = data.movies;
+        this.seriesToday = data.series;
+        this.tvTonight = data.tonight;
         this.changeDetector.markForCheck();
       });
+  }
+
+  private buildFaq(posts: EditorialPost[]): FaqItem[] {
+    const find = (re: RegExp) => posts.find((p) => re.test(p.slug));
+    const laliga = find(/laliga/);
+    const prices = find(/precios-plataformas/);
+    const legal = find(/grabar-tele|copia-privada/);
+    return [
+      { question: '¿Qué tipo de guías publica Guía TV?', answer: `Guías prácticas sobre streaming, fútbol y televisión en España: dónde ver cada competición, precios y planes de las plataformas, rankings de lo mejor de cada servicio y normativa de TV. Ahora mismo hay ${posts.length} guías publicadas.` },
+      { question: '¿Dónde ver LaLiga esta temporada?', answer: laliga ? `Lo explicamos en «${laliga.title}», con los canales y plataformas que emiten cada jornada.` : 'En la sección de fútbol tienes cada partido con el canal que lo emite.' },
+      { question: '¿Cuánto cuestan las plataformas de streaming?', answer: prices ? `Tienes todos los precios en «${prices.title}» y la comparativa al día en el comparador de plataformas.` : 'Consulta el comparador de plataformas para ver precio, pantallas y calidad de cada servicio.' },
+      { question: '¿Es legal grabar la televisión?', answer: legal ? `Sí, con matices: lo contamos en «${legal.title}».` : 'La copia privada permite grabar para uso personal; lo explicamos en las guías de televisión.' },
+      { question: '¿Cada cuánto se actualizan las guías?', answer: 'Revisamos precios, derechos de emisión y rankings cuando cambian, y cada guía indica su fecha de actualización.' },
+    ];
+  }
+
+  private buildStructuredData(posts: EditorialPost[]): void {
+    const collection = generateCollectionPageSchema(
+      {
+        name: 'Guías de streaming, fútbol y TV',
+        description: 'Dónde ver cada competición, precios de las plataformas de streaming en España y rankings por servicio, con fuentes oficiales.',
+        path: '/guias',
+      },
+      BASE_URL
+    );
+    const list = generateItemListSchema(
+      posts.slice(0, 10).map((p) => ({ title: p.title, detailPath: p.canonicalPath, image: p.coverImage })),
+      'Guías de Guía TV',
+      BASE_URL
+    );
+    this.safeLdHtml = this.sanitizer.bypassSecurityTrustHtml(
+      [collection, list].map((s) => `<script type="application/ld+json">${serializeJsonLd(s)}</script>`).join('')
+    );
   }
 
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
-  }
-
-  private buildStructuredData(): void {
-    const baseUrl = 'https://guiaprogramaciontv.com';
-    const schema = generateCollectionPageSchema(
-      {
-        name: 'Guías de streaming, fútbol y TV',
-        description:
-          'Dónde ver cada competición, precios de las plataformas de streaming en España y rankings por servicio, con fuentes oficiales.',
-        path: '/guias',
-      },
-      baseUrl
-    );
-    this.safeLdHtml = this.sanitizer.bypassSecurityTrustHtml(
-      `<script type="application/ld+json">${serializeJsonLd(schema)}</script>`
-    );
   }
 }

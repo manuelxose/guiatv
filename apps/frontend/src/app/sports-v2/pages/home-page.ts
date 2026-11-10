@@ -1,3 +1,4 @@
+import { FOOTBALL_NEWS_PATH } from '../shell/nav-items';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { sv2Link } from '../sports-v2.paths';
@@ -111,7 +112,7 @@ export class Sv2HomePageComponent {
   protected readonly fixtures = sv2Link('partidos');
   protected readonly results = sv2Link('resultados');
   protected readonly competitions = sv2Link('competiciones');
-  protected readonly news = sv2Link('noticias');
+  protected readonly news = [FOOTBALL_NEWS_PATH];
   protected readonly following = sv2Link('siguiendo');
 
   protected readonly myNext = computed(() => this.store.myMatches().filter((m) => m.status !== 'finished').slice(0, 4));

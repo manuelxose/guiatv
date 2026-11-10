@@ -22,10 +22,8 @@ import { UserService } from '../../services/user.service';
 import { UnifiedGuideStateService, UnifiedGuideTab } from '../../state/unified-guide.state';
 import { UnifiedShellUiStateService } from '../../state/unified-shell-ui.state';
 import { DiscoverViewComponent } from './views/discover-view.component';
-import { LiveGuideViewComponent } from './views/live-guide-view.component';
 import { StreamingViewComponent } from './views/streaming-view.component';
 import { StreamingComparisonComponent } from '../streaming-comparison/streaming-comparison.component';
-import { UnifiedTopNavTab } from '../../components/unified-top-nav/unified-top-nav.component';
 
 const TAB_META: Record<UnifiedGuideTab, { title: string; seoTitle?: string; description: string; path: string }> = {
   live: {
@@ -56,7 +54,6 @@ const TAB_META: Record<UnifiedGuideTab, { title: string; seoTitle?: string; desc
     RouterModule,
     UnifiedPortalShellComponent,
     PortalContextNavComponent,
-    LiveGuideViewComponent,
     DiscoverViewComponent,
     StreamingViewComponent,
     StreamingComparisonComponent,

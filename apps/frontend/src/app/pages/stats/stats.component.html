@@ -1,0 +1,118 @@
+<div [innerHTML]="structuredData()"></div>
+
+<app-panel-shell sideLabel="Qué ver" contextLabel="Número 1" [(contextOpen)]="contextOpen">
+  <app-panel-nav panelSide title="Qué ver" [links]="sideLinks"></app-panel-nav>
+
+  <!-- Right panel: the number one with where to watch it, and the assistant. -->
+  <section panelContext class="cx" aria-labelledby="tx-title">
+    <h2 id="tx-title" class="cx__label">Número 1 hoy</h2>
+    @if (top(); as t) {
+    <div class="cx__card">
+      <a class="cx__media" [routerLink]="t.path" tabindex="-1" aria-hidden="true">
+        @if (t.item.backdrop || t.card.image) {<img [src]="t.item.backdrop || t.card.image" alt="" loading="lazy" decoding="async" />}
+        <span class="pill pill--live">#1</span>
+      </a>
+      <p class="cx__now"><strong>{{ t.card.title }}</strong></p>
+      <small class="cx__muted">{{ t.where }}{{ t.where && t.genre ? ' · ' : '' }}{{ t.genre }}</small>
+      @if (t.item.synopsis) {<p class="cx__desc">{{ t.item.synopsis }}</p>}
+      <a class="btn btn--pri btn--block" [routerLink]="t.path">Ver ficha</a>
+    </div>
+    }
+    <div class="cx__block">
+      <h3>Rankings por plataforma</h3>
+      <ul class="cx__list">
+        <li><a routerLink="/guias/mejores-series-y-peliculas-netflix-espana"><span><strong>Lo mejor de Netflix</strong></span></a></li>
+        <li><a routerLink="/guias/mejores-series-y-peliculas-prime-video-espana"><span><strong>Lo mejor de Prime Video</strong></span></a></li>
+        <li><a routerLink="/guias/mejores-series-y-peliculas-disney-plus-espana"><span><strong>Lo mejor de Disney+</strong></span></a></li>
+        <li><a routerLink="/guias/mejores-series-y-peliculas-hbo-max-espana"><span><strong>Lo mejor de HBO Max</strong></span></a></li>
+        <li><a routerLink="/guias/mejores-series-y-peliculas-movistar-plus-espana"><span><strong>Lo mejor de Movistar Plus+</strong></span></a></li>
+      </ul>
+      <a class="cx__more" [routerLink]="appPaths.top10">Todos los rankings ›</a>
+    </div>
+    <div class="cx__assistant">
+      <strong>Pregunta al asistente</strong>
+      <div class="cx__asks">
+        @for (ask of assistantAsks; track ask) {<button type="button" (click)="openAssistant()">{{ ask }}</button>}
+      </div>
+    </div>
+  </section>
+
+  <div class="qv">
+    <nav class="qv__subnav chips" aria-label="Qué ver">
+      @for (l of sideLinks; track l.label) {<a [routerLink]="l.path" [queryParams]="l.queryParams">{{ l.label }}</a>}
+    </nav>
+
+    <header class="qv__intro">
+      <nav class="qv__bc" aria-label="Migas de pan">
+        <a [routerLink]="appPaths.home">Inicio</a><span aria-hidden="true">›</span><a [routerLink]="queVer">Qué ver hoy</a><span aria-hidden="true">›</span><span aria-current="page">Tendencias</span>
+      </nav>
+      <h1>Tendencias: lo más popular hoy en TV y streaming</h1>
+      <p>El ranking de los títulos que más interés despiertan hoy en España, las películas y series de moda en las plataformas y lo más destacado de esta noche en la TV en abierto.</p>
+      @if (top(); as t) {<button type="button" class="qv__ctx-btn" (click)="contextOpen.set(true)">Número 1: <strong>{{ t.card.title }}</strong> · Dónde verlo ›</button>}
+    </header>
+
+    <section aria-labelledby="popular-heading">
+      <div class="qv__sec-head"><h2 id="popular-heading" class="qv__h2">Popular ahora</h2><a [routerLink]="queVer">Qué ver hoy ›</a></div>
+      @switch (status()) {
+        @case ('loading') {<p class="qv__empty" role="status">Cargando contenidos populares…</p>}
+        @case ('error') {<p class="qv__empty" role="alert">No hemos podido cargar las tendencias ahora mismo.</p>}
+        @default {
+        @if (ranking().length) {
+        <ol class="popular-page__list">
+          @for (r of ranking(); track r.path; let i = $index) {
+          <li>
+            <a [routerLink]="r.path">
+              <span class="rank" aria-hidden="true">{{ i + 1 }}</span>
+              <span class="rank__thumb">@if (r.card.image) {<img [src]="r.card.image" alt="" width="48" height="72" loading="lazy" decoding="async" />}</span>
+              <span class="rank__body"><strong>{{ r.card.title }}</strong>@if (r.where || r.genre) {<small>{{ r.where }}{{ r.where && r.genre ? ' · ' : '' }}{{ r.genre }}</small>}</span>
+            </a>
+          </li>
+          }
+        </ol>
+        } @else {
+        <p class="qv__empty">Todavía no hay contenidos populares disponibles.</p>
+        }
+        }
+      }
+    </section>
+
+    @if (movies().length) {
+    <section aria-labelledby="tr-movies">
+      <div class="qv__sec-head"><h2 id="tr-movies" class="qv__h2">Películas en tendencia</h2><a [routerLink]="queVer" [queryParams]="{ types: 'movie', donde: 'streaming' }">Ver películas ›</a></div>
+      <div class="qv__grid qv__grid--poster">
+        @for (item of movies(); track $index; let i = $index) {<app-panel-tile [item]="item" variant="poster" [affiliate]="i < 4" placement="search-result"></app-panel-tile>}
+      </div>
+    </section>
+    }
+
+    @if (series().length) {
+    <section aria-labelledby="tr-series">
+      <div class="qv__sec-head"><h2 id="tr-series" class="qv__h2">Series en tendencia</h2><a [routerLink]="queVer" [queryParams]="{ types: 'series', donde: 'streaming' }">Ver series ›</a></div>
+      <div class="qv__grid qv__grid--poster">
+        @for (item of series(); track $index; let i = $index) {<app-panel-tile [item]="item" variant="poster" [affiliate]="i < 4" placement="search-result"></app-panel-tile>}
+      </div>
+    </section>
+    }
+
+    @if (tonight().length) {
+    <section aria-labelledby="tr-tonight">
+      <div class="qv__sec-head"><h2 id="tr-tonight" class="qv__h2">Lo más destacado esta noche en abierto</h2><a [routerLink]="queVer" [queryParams]="{ cuando: 'noche', donde: 'abierto' }">Toda la noche ›</a></div>
+      <div class="qv__grid">
+        @for (item of tonight(); track $index) {<app-panel-tile [item]="item"></app-panel-tile>}
+      </div>
+    </section>
+    }
+
+    <section class="qv__about" aria-labelledby="tr-about">
+      <h2 id="tr-about" class="qv__h2">Sobre las tendencias</h2>
+      <p>
+        Actualizamos el ranking cada día con la popularidad de cada título en las plataformas de streaming en España y la actividad en Guía TV.
+        Para decidir qué ver ahora, usa los filtros de <a [routerLink]="queVer">Qué ver hoy</a>; para la tele, la
+        <a [routerLink]="appPaths.guide">parrilla en directo</a> y las <a [routerLink]="appPaths.movies">películas</a> y
+        <a [routerLink]="appPaths.series">series que echan hoy</a>. Compara servicios en el <a [routerLink]="appPaths.streamingComparison">comparador de plataformas</a>.
+      </p>
+    </section>
+
+    <app-faq-section heading="Preguntas frecuentes sobre las tendencias" [items]="faq()"></app-faq-section>
+  </div>
+</app-panel-shell>

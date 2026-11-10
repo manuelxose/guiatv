@@ -1,254 +1,211 @@
-<div *ngIf="safeLdHtml" [innerHTML]="safeLdHtml"></div>
+@if (safeLdHtml) {<div [innerHTML]="safeLdHtml"></div>}
 
-<app-unified-portal-shell
-  tone="editorial"
-  [breadcrumbItems]="[]"
-  [showHero]="false"
->
-  <app-portal-context-nav kind="blog" [breadcrumbItems]="breadcrumbItems"></app-portal-context-nav>
-  <app-editorial-masthead></app-editorial-masthead>
+<app-panel-shell sideLabel="Guías" contextLabel="Destacada" [(contextOpen)]="contextOpen">
+  <app-panel-nav panelSide title="Guías" [links]="sideLinks" [groups]="sideGroups"></app-panel-nav>
 
-  <section *ngIf="loading" class="editorial-loading" aria-busy="true" aria-label="Cargando publicaciones">
-    <app-unified-skeleton-block [count]="1" [columns]="1" cardHeight="26rem"></app-unified-skeleton-block>
-    <app-unified-skeleton-block [count]="4" [columns]="2" cardHeight="8rem"></app-unified-skeleton-block>
+  <!-- Right panel: the lead guide with its contents and the services it mentions, the categories and the assistant. -->
+  <section panelContext class="cx" aria-labelledby="gx-title">
+    @if (hero) {
+    <div class="cx__card">
+      <h2 id="gx-title" class="cx__label">En portada</h2>
+      @if (hero.primaryCategory) {<span class="pill pill--live gx__pill">{{ hero.primaryCategory.name }}</span>}
+      <p class="cx__now"><strong>{{ hero.title }}</strong></p>
+      <small class="cx__muted">Actualizada {{ hero.modifiedAt | date: 'd MMM y' }} · {{ hero.readingMinutes }} min</small>
+      <a class="btn btn--pri btn--block" [routerLink]="hero.canonicalPath">Leer guía</a>
+      @if (hero.tocItems.length) {
+      <h3>En esta guía</h3>
+      <ol class="gx__toc">
+        @for (t of hero.tocItems.slice(0, 6); track t.id) {<li><a [routerLink]="hero.canonicalPath" [fragment]="t.id">{{ t.label }}</a></li>}
+      </ol>
+      }
+      @if (platformsFor(hero).length) {
+      <h3>Mencionado en la guía</h3>
+      <div class="chips chips--wrap">
+        @for (p of platformsFor(hero); track p.name) {<a [routerLink]="appPaths.platforms" [queryParams]="{ platform: p.name }">{{ p.name }}</a>}
+      </div>
+      }
+    </div>
+    } @else {
+    <h2 id="gx-title" class="cx__label">Guías</h2>
+    }
+
+    @if (categories.length) {
+    <div class="cx__block">
+      <h3>Temas</h3>
+      <ul class="cx__list">
+        @for (c of categories; track c.slug) {
+        <li><a [routerLink]="c.canonicalPath"><span><strong>{{ sectionName(c.slug, c.name) }}</strong><small>{{ c.count }} {{ c.count === 1 ? 'guía' : 'guías' }}</small></span></a></li>
+        }
+      </ul>
+    </div>
+    }
+
+    <div class="cx__assistant">
+      <strong>Pregunta al asistente</strong>
+      <div class="cx__asks">
+        @for (ask of assistantAsks; track ask) {<button type="button" (click)="openAssistant()">{{ ask }}</button>}
+      </div>
+    </div>
   </section>
 
-  <app-unified-async-state
-    *ngIf="!loading && error"
-    kind="error"
-    title="Las guías no están disponibles ahora mismo"
-    [message]="error"
-    actionLabel="Reintentar"
-    (action)="retry()"
-  ></app-unified-async-state>
+  <div class="qv">
+    <nav class="qv__subnav chips" aria-label="Guías">
+      @for (l of sideLinks; track l.label) {<a [routerLink]="l.path">{{ l.label }}</a>}
+    </nav>
 
-  <ng-container *ngIf="!loading && !error">
-    <app-unified-async-state
-      *ngIf="!hero"
-      kind="empty"
-      title="Todavía no hay publicaciones"
-      message="Estamos preparando nuevas guías, análisis y recomendaciones. Vuelve pronto para descubrirlas."
-    ></app-unified-async-state>
+    <header class="qv__intro">
+      <nav class="qv__bc" aria-label="Migas de pan">
+        <a [routerLink]="appPaths.home">Inicio</a><span aria-hidden="true">›</span><span aria-current="page">Guías</span>
+      </nav>
+      <h1>Guías de streaming, fútbol y TV</h1>
+      <p>Dónde ver cada competición, cuánto cuesta cada plataforma, lo mejor de cada catálogo y lo que dice la ley sobre la tele, con datos reales de programación y catálogo.</p>
+      @if (hero) {<button type="button" class="qv__ctx-btn" (click)="contextOpen = true">En portada: <strong>{{ hero.title }}</strong> ›</button>}
+    </header>
 
-    <!-- FEATURE STORY -->
-    <section *ngIf="hero" class="editorial-lead" aria-label="Portada editorial">
-      <a [routerLink]="hero.canonicalPath" class="editorial-lead__story group">
-        <div class="editorial-lead__image">
-          <img [src]="hero.coverImage" [alt]="hero.title" width="1200" height="800" loading="eager" fetchpriority="high" />
+    <nav class="flt" aria-label="Temas">
+      <div class="flt__row">
+        <span class="flt__label">Temas</span>
+        <div class="chips">
+          @for (l of sideLinks; track l.label) {<a [routerLink]="l.path" routerLinkActive="on" [routerLinkActiveOptions]="{ exact: !!l.exact }" ariaCurrentWhenActive="page">{{ l.label }}</a>}
         </div>
-        <div class="editorial-lead__copy">
-          <span>{{ hero.primaryCategory?.name || 'Selección editorial' }}</span>
-          <h2>{{ hero.title }}</h2>
-          <p>{{ hero.excerptText }}</p>
-          <small>{{ hero.publishedAt | date : 'dd MMM yyyy' }} · {{ hero.readingMinutes }} min de lectura</small>
-        </div>
+      </div>
+    </nav>
+
+    @if (loading) {
+    <div class="qv__grid" aria-busy="true">@for (i of [1, 2, 3, 4]; track i) {<div class="qv__skeleton qv__skeleton--tv"></div>}</div>
+    } @else if (error) {
+    <app-unified-async-state kind="error" title="Las guías no están disponibles ahora mismo" [message]="error" actionLabel="Reintentar" (action)="retry()"></app-unified-async-state>
+    } @else {
+    @if (hero) {
+    <section aria-labelledby="g-lead">
+      <div class="qv__sec-head"><h2 id="g-lead" class="qv__h2">Destacada</h2><a [routerLink]="[]" fragment="todas">Todas las guías ›</a></div>
+      <a class="lead" [routerLink]="hero.canonicalPath">
+        <span class="lead__img">@if (hero.coverImage) {<img [src]="hero.coverImage" [alt]="hero.coverAlt || hero.title" width="1200" height="514" loading="eager" fetchpriority="high" />}@if (hero.primaryCategory) {<span class="pill pill--live">{{ hero.primaryCategory.name }}</span>}</span>
+        <strong>{{ hero.title }}</strong>
+        <small>{{ hero.excerptText }}</small>
+        <small class="lead__meta">{{ hero.publishedAt | date: 'd MMM y' }} · {{ hero.readingMinutes }} min de lectura</small>
       </a>
+    </section>
+    }
 
-      <aside *ngIf="latestPosts.length" class="editorial-latest" aria-labelledby="latest-heading">
-        <h2 id="latest-heading">Sigue leyendo</h2>
-        <a *ngFor="let post of latestPosts; trackBy: trackPost" [routerLink]="post.canonicalPath">
-          <span>{{ post.primaryCategory?.name || 'Guía' }}</span>
-          <h3>{{ post.title }}</h3>
-          <small>{{ post.publishedAt | date : 'dd MMM' }} · {{ post.readingMinutes }} min</small>
+    @if (latestPosts.length) {
+    <section aria-labelledby="g-next">
+      <div class="qv__sec-head"><h2 id="g-next" class="qv__h2">Sigue leyendo</h2></div>
+      <div class="qv__posts qv__posts--4">
+        @for (post of latestPosts; track trackPost($index, post)) {
+        <a class="post" [routerLink]="post.canonicalPath">
+          <span class="post__img">@if (post.coverImage) {<img [src]="post.coverImage" [alt]="post.coverAlt || ''" loading="lazy" decoding="async" />}</span>
+          <span class="post__cat">{{ post.primaryCategory?.name || 'Guía' }} · {{ post.readingMinutes }} min</span>
+          <strong>{{ post.title }}</strong>
         </a>
-      </aside>
-    </section>
-
-    <!-- QUÉ VER HOY — real TV/streaming data, not editorial posts -->
-    <section
-      *ngIf="watchTodayLoaded && (moviesToday.length || seriesTonight.length || tvTonight.length)"
-      class="editorial-section editorial-watch-today"
-      aria-label="Qué ver hoy"
-    >
-      <div class="editorial-section__header">
-        <div>
-          <p class="editorial-section__eyebrow">Qué ver hoy</p>
-          <h2 class="text-2xl font-semibold text-[var(--portal-text)]">Datos reales de programación y catálogo</h2>
-          <p>La ventaja de Guía TV frente a una revista: recomendaciones conectadas con lo que hay disponible ahora mismo.</p>
-        </div>
-      </div>
-
-      <div class="editorial-watch-today__rails">
-        <app-catalog-rail
-          *ngIf="moviesToday.length"
-          eyebrow="Cine"
-          title="Películas recomendadas hoy"
-          [linkLabel]="'Ver todas'"
-          [linkPath]="appPaths.explore"
-          [linkQueryParams]="{ types: 'movie' }"
-          [items]="moviesToday"
-        ></app-catalog-rail>
-
-        <app-catalog-rail
-          *ngIf="seriesTonight.length"
-          eyebrow="Series"
-          title="Series mejor valoradas para maratonear"
-          [linkLabel]="'Ver todas'"
-          [linkPath]="appPaths.explore"
-          [linkQueryParams]="{ types: 'series' }"
-          [items]="seriesTonight"
-        ></app-catalog-rail>
-
-        <app-catalog-rail
-          *ngIf="tvTonight.length"
-          eyebrow="Televisión"
-          title="Lo mejor de la TV esta noche"
-          [linkLabel]="'Ver parrilla'"
-          [linkPath]="appPaths.live"
-          [items]="tvTonight"
-        ></app-catalog-rail>
+        }
       </div>
     </section>
+    }
 
-    <!-- ÚLTIMAS HISTORIAS -->
-    <section id="guias" *ngIf="latestStories.length" class="editorial-section scroll-mt-32">
-      <div class="editorial-section__header">
-        <div>
-          <p class="editorial-section__eyebrow">Últimas historias</p>
-          <h2 class="text-2xl font-semibold text-[var(--portal-text)]">Guías, análisis y actualidad</h2>
-          <p>Guías prácticas conectadas con el catálogo, la programación y las plataformas.</p>
-        </div>
-      </div>
-      <div class="editorial-card-grid editorial-card-grid--stories">
-        <app-editorial-post-card
-          *ngFor="let post of latestStories; trackBy: trackPost"
-          [post]="post"
-        ></app-editorial-post-card>
+    @if (latestStories.length) {
+    <section id="g-latest" aria-labelledby="g-latest-h">
+      <div class="qv__sec-head"><h2 id="g-latest-h" class="qv__h2">Guías, análisis y actualidad</h2></div>
+      <div class="qv__posts">
+        @for (post of latestStories; track trackPost($index, post)) {
+        <a class="post" [routerLink]="post.canonicalPath">
+          <span class="post__img">@if (post.coverImage) {<img [src]="post.coverImage" [alt]="post.coverAlt || ''" loading="lazy" decoding="async" />}</span>
+          <span class="post__cat">{{ post.primaryCategory?.name || 'Guía' }} · {{ post.readingMinutes }} min</span>
+          <strong>{{ post.title }}</strong>
+          @if (post.excerptText) {<small>{{ post.excerptText }}</small>}
+        </a>
+        }
       </div>
     </section>
+    }
 
-    <!-- AHORA MISMO — trend-classified posts, numbered editorial list, no fabricated metrics -->
-    <section *ngIf="trendPosts.length" class="editorial-section editorial-numbered">
-      <div class="editorial-section__header">
-        <div>
-          <p class="editorial-section__eyebrow">Ahora mismo</p>
-          <h2 class="text-2xl font-semibold text-[var(--portal-text)]">Selección editorial de lo que se mueve</h2>
-        </div>
-      </div>
-      <ol class="editorial-numbered-list">
-        <li *ngFor="let post of trendPosts; let index = index; trackBy: trackPost">
-          <a [routerLink]="post.canonicalPath">
-            <strong>{{ index + 1 < 10 ? '0' + (index + 1) : index + 1 }}</strong>
-            <span>
-              <small>{{ post.primaryCategory?.name || 'Tendencia' }} · {{ post.readingMinutes }} min</small>
-              <b>{{ post.title }}</b>
-            </span>
-          </a>
-        </li>
+    @if (rankingPosts.length) {
+    <section aria-labelledby="g-rankings">
+      <div class="qv__sec-head"><h2 id="g-rankings" class="qv__h2">Rankings: lo mejor de cada plataforma</h2><a [routerLink]="appPaths.top10">Todos los rankings ›</a></div>
+      <ol class="g-num">
+        @for (post of rankingPosts.slice(0, 6); track trackPost($index, post); let i = $index) {
+        <li><a [routerLink]="post.canonicalPath"><span class="g-num__n">{{ i + 1 }}</span><span><strong>{{ post.title }}</strong><small>{{ post.primaryCategory?.name || 'Ranking' }} · {{ post.readingMinutes }} min</small></span></a></li>
+        }
       </ol>
     </section>
+    }
 
-    <!-- CINE -->
-    <section *ngIf="cineSection" class="editorial-section editorial-vertical editorial-vertical--cine">
-      <div class="editorial-section__header">
-        <div>
-          <p class="editorial-section__eyebrow">Cine</p>
-          <h2 class="text-2xl font-semibold text-[var(--portal-text)]">{{ cineSection.category.name }}</h2>
-          <p *ngIf="cineSection.category.description">{{ cineSection.category.description }}</p>
-        </div>
-        <a [routerLink]="cineSection.category.canonicalPath" class="editorial-section__link">Ver películas en TV hoy →</a>
-      </div>
-      <div class="editorial-vertical__layout">
-        <app-editorial-post-card [post]="cineSection.posts[0]"></app-editorial-post-card>
-        <div class="editorial-vertical__support">
-          <app-editorial-post-card
-            *ngFor="let post of cineSection.posts.slice(1); trackBy: trackPost"
-            [post]="post"
-            variant="compact"
-          ></app-editorial-post-card>
-        </div>
-      </div>
-    </section>
-
-    <!-- SERIES — alternate composition: horizontal feature + text-first list -->
-    <section *ngIf="seriesSection" class="editorial-section editorial-series">
-      <div class="editorial-section__header">
-        <div>
-          <p class="editorial-section__eyebrow">Series</p>
-          <h2 class="text-2xl font-semibold text-[var(--portal-text)]">{{ seriesSection.category.name }}</h2>
-        </div>
-        <a [routerLink]="seriesSection.category.canonicalPath" class="editorial-section__link">Series por plataforma →</a>
-      </div>
-      <div class="editorial-series__layout">
-        <a [routerLink]="seriesSection.posts[0].canonicalPath" class="editorial-series__feature group">
-          <div class="editorial-series__feature-image">
-            <img [src]="seriesSection.posts[0].coverImage" [alt]="seriesSection.posts[0].title" width="640" height="400" loading="lazy" />
-          </div>
-          <div>
-            <span>{{ seriesSection.posts[0].primaryCategory?.name || 'Series' }}</span>
-            <h3>{{ seriesSection.posts[0].title }}</h3>
-            <p>{{ seriesSection.posts[0].excerptText }}</p>
-          </div>
+    @for (s of sections; track s.category.slug) {
+    <section [attr.aria-labelledby]="'g-sec-' + s.category.slug">
+      <div class="qv__sec-head"><h2 [id]="'g-sec-' + s.category.slug" class="qv__h2">{{ s.category.name }}</h2><a [routerLink]="s.category.canonicalPath">Todas las de {{ s.category.name }} ›</a></div>
+      @if (s.category.description) {<p class="qv__note">{{ s.category.description }}</p>}
+      <div class="qv__posts">
+        @for (post of s.posts; track trackPost($index, post)) {
+        <a class="post" [routerLink]="post.canonicalPath">
+          <span class="post__img">@if (post.coverImage) {<img [src]="post.coverImage" [alt]="post.coverAlt || ''" loading="lazy" decoding="async" />}</span>
+          <span class="post__cat">{{ post.primaryCategory?.name || s.category.name }} · {{ post.readingMinutes }} min</span>
+          <strong>{{ post.title }}</strong>
         </a>
-        <ul class="editorial-series__list">
-          <li *ngFor="let post of seriesSection.posts.slice(1); trackBy: trackPost">
-            <a [routerLink]="post.canonicalPath">
-              <span>{{ post.primaryCategory?.name || 'Series' }} · {{ post.readingMinutes }} min</span>
-              <b>{{ post.title }}</b>
-            </a>
-          </li>
-        </ul>
+        }
       </div>
     </section>
+    }
 
-    <!-- STREAMING — platform-oriented -->
-    <section *ngIf="streamingSection" class="editorial-section">
-      <div class="editorial-section__header">
-        <div>
-          <p class="editorial-section__eyebrow">Streaming</p>
-          <h2 class="text-2xl font-semibold text-[var(--portal-text)]">{{ streamingSection.category.name }}</h2>
-        </div>
-        <a [routerLink]="appPaths.platforms" class="editorial-section__link">Comparar plataformas →</a>
-      </div>
-      <div class="editorial-card-grid editorial-card-grid--streaming">
-        <app-editorial-post-card
-          *ngFor="let post of streamingSection.posts; trackBy: trackPost"
-          [post]="post"
-          [platforms]="platformsFor(post)"
-        ></app-editorial-post-card>
-      </div>
-    </section>
-
-    <!-- RANKINGS / GUÍA TV SELECTS -->
-    <section *ngIf="rankingPosts.length" class="editorial-section editorial-numbered editorial-numbered--selects">
-      <div class="editorial-section__header">
-        <div>
-          <p class="editorial-section__eyebrow">Guía TV Selects</p>
-          <h2 class="text-2xl font-semibold text-[var(--portal-text)]">Listas y selecciones editoriales</h2>
-          <p>Criterio editorial explícito, sin ordenar por comisión comercial.</p>
-        </div>
-        <a [routerLink]="appPaths.top10" class="editorial-section__link editorial-section__link--accent">Abrir rankings</a>
-      </div>
-      <ol class="editorial-numbered-list editorial-numbered-list--selects">
-        <li *ngFor="let post of rankingPosts.slice(0, 6); let index = index; trackBy: trackPost">
-          <a [routerLink]="post.canonicalPath">
-            <strong>{{ index + 1 < 10 ? '0' + (index + 1) : index + 1 }}</strong>
-            <span>
-              <small>{{ post.primaryCategory?.name || 'Ranking' }} · {{ post.readingMinutes }} min</small>
-              <b>{{ post.title }}</b>
-            </span>
-          </a>
-        </li>
+    @if (trendPosts.length) {
+    <section aria-labelledby="g-trends">
+      <div class="qv__sec-head"><h2 id="g-trends" class="qv__h2">Ahora mismo</h2></div>
+      <ol class="g-num">
+        @for (post of trendPosts; track trackPost($index, post); let i = $index) {
+        <li><a [routerLink]="post.canonicalPath"><span class="g-num__n">{{ i + 1 }}</span><span><strong>{{ post.title }}</strong><small>{{ post.primaryCategory?.name || 'Tendencia' }} · {{ post.readingMinutes }} min</small></span></a></li>
+        }
       </ol>
     </section>
+    }
+    }
 
-    <!-- ESPECIALES / COLLECTIONS -->
-    <section *ngFor="let collection of collections" class="editorial-section editorial-collection">
-      <div class="editorial-section__header">
-        <div>
-          <p class="editorial-section__eyebrow">Especiales</p>
-          <h2 class="text-2xl font-semibold text-[var(--portal-text)]">{{ collection.category.name }}</h2>
-          <p *ngIf="collection.category.description">{{ collection.category.description }}</p>
-        </div>
-        <a [routerLink]="collection.category.canonicalPath" class="editorial-section__link">Ver colección</a>
-      </div>
-      <div class="editorial-collection__rail">
-        <app-editorial-post-card
-          *ngFor="let post of collection.posts; trackBy: trackPost"
-          [post]="post"
-          variant="compact"
-        ></app-editorial-post-card>
+    @if (moviesToday.length) {
+    <section aria-labelledby="g-movies">
+      <div class="qv__sec-head"><h2 id="g-movies" class="qv__h2">Películas más vistas en streaming</h2><a [routerLink]="appPaths.explore" [queryParams]="{ types: 'movie', donde: 'streaming' }">Qué ver hoy ›</a></div>
+      <div class="qv__grid qv__grid--poster">
+        @for (item of moviesToday; track item.catalogId) {<app-panel-tile [item]="item" variant="poster"></app-panel-tile>}
       </div>
     </section>
-  </ng-container>
-</app-unified-portal-shell>
+    }
+
+    @if (seriesToday.length) {
+    <section aria-labelledby="g-series">
+      <div class="qv__sec-head"><h2 id="g-series" class="qv__h2">Series más vistas en streaming</h2><a [routerLink]="appPaths.explore" [queryParams]="{ types: 'series', donde: 'streaming' }">Ver series ›</a></div>
+      <div class="qv__grid qv__grid--poster">
+        @for (item of seriesToday; track item.catalogId) {<app-panel-tile [item]="item" variant="poster"></app-panel-tile>}
+      </div>
+    </section>
+    }
+
+    @if (tvTonight.length) {
+    <section aria-labelledby="g-tonight">
+      <div class="qv__sec-head"><h2 id="g-tonight" class="qv__h2">Lo mejor de la TV en abierto esta noche</h2><a [routerLink]="appPaths.explore" [queryParams]="{ cuando: 'noche', donde: 'abierto' }">Toda la noche ›</a></div>
+      <div class="qv__grid">
+        @for (item of tvTonight; track $index) {<app-panel-tile [item]="item"></app-panel-tile>}
+      </div>
+    </section>
+    }
+
+    @if (allPosts.length) {
+    <section id="todas" aria-labelledby="g-all">
+      <div class="qv__sec-head"><h2 id="g-all" class="qv__h2">Todas las guías <small>· {{ allPosts.length }}</small></h2></div>
+      <ul class="g-all">
+        @for (post of allPosts; track post.slug) {
+        <li><a [routerLink]="post.canonicalPath"><span class="post__cat">{{ post.primaryCategory?.name || 'Guía' }}</span><strong>{{ post.title }}</strong><small>{{ post.modifiedAt | date: 'd MMM y' }} · {{ post.readingMinutes }} min</small></a></li>
+        }
+      </ul>
+    </section>
+    }
+
+    <section class="qv__about" aria-labelledby="g-about">
+      <h2 id="g-about" class="qv__h2">Sobre las guías de Guía TV</h2>
+      <p>
+        Escribimos guías prácticas con fuentes oficiales y datos reales de programación y catálogo: dónde ver
+        <a [routerLink]="appPaths.football">el fútbol de hoy</a>, cuánto cuestan y qué ofrece cada plataforma en el
+        <a [routerLink]="appPaths.streamingComparison">comparador</a> y en <a [routerLink]="appPaths.platforms">Plataformas</a>, y qué ver esta noche en
+        <a [routerLink]="appPaths.explore">Qué ver hoy</a>. Las listas no se ordenan por comisión comercial.
+      </p>
+    </section>
+
+    <app-faq-section heading="Preguntas frecuentes sobre las guías" [items]="faq"></app-faq-section>
+  </div>
+</app-panel-shell>

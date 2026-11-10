@@ -1,142 +1,194 @@
-import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { AsyncPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { PanelNavComponent } from '../../components/panel-nav/panel-nav.component';
+import { PanelShellComponent } from '../../components/panel-shell/panel-shell.component';
+import { PERFIL_LINKS } from '../../config/perfil-nav';
+import { APP_PATHS } from '../../config/route-map';
+import { MetaService } from '../../services/meta.service';
 import { UserService } from '../../services/user.service';
+import { resolvePlatformLogoUrl } from '../../utils/platform-logos';
+import { sameValue } from '../../utils/taste-profile';
+import { avatarSrc } from '../../utils/avatar-src';
 
+interface PublicProfile {
+  id: string;
+  name: string;
+  avatar?: string;
+  bio?: string;
+  location?: string;
+  favoriteGenres?: string[];
+  preferredPlatforms?: string[];
+  isFollowing?: boolean;
+  isFollower?: boolean;
+  blocked?: boolean;
+  stats?: { followers: number; following: number; ratings: number; lists: number };
+}
+
+/** Public profile (/perfil/:userId): who the person is, what they watch and where, and what you have in common. */
 @Component({
   selector: 'app-public-profile',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [AsyncPipe, RouterLink, PanelShellComponent, PanelNavComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  styleUrls: ['../user-area/perfil-ui.scss', './public-profile.component.scss'],
   template: `
-    <div class="min-h-screen bg-gradient-to-br from-[var(--portal-bg)] via-[var(--portal-bg-deep)] to-[var(--portal-bg-deep)] py-8 px-4">
-      <div class="max-w-3xl mx-auto">
-        <div *ngIf="loading" class="text-center py-20">
-          <div class="inline-block h-8 w-8 animate-spin rounded-full border-2 border-[var(--portal-border-strong)] border-t-[var(--accent-live)]"></div>
+    <app-panel-shell sideLabel="Perfil" contextLabel="Guía TV" [(contextOpen)]="contextOpen">
+      @let auth = user.isAuthenticated$ | async;
+      <div panelSide>@if (auth) {<app-panel-nav title="Mi perfil" [links]="links"></app-panel-nav>}</div>
+
+      <section panelContext class="pp-ctx" aria-label="Guía TV">
+        @if (auth) {
+        <div class="pf-card">
+          <h3>Tu perfil</h3>
+          <p class="pf-muted">Tus canales, tu lista y un asistente que conoce tus gustos.</p>
+          <a class="pf-btn pf-btn--pri" [routerLink]="appPaths.profile">Ir a mi perfil</a>
         </div>
-
-        <div *ngIf="error" class="text-center py-20">
-          <p class="text-[var(--portal-text-muted)] text-lg">{{ error }}</p>
-          <button (click)="goBack()" class="mt-4 px-6 py-2 rounded-xl bg-[var(--portal-surface-strong)] text-[var(--portal-text)] text-sm hover:bg-[var(--portal-surface-strong)]">Volver</button>
+        } @else {
+        <div class="pf-card">
+          <h3>Crea tu perfil gratis</h3>
+          <p class="pf-muted">Guarda tus canales y tu lista, sigue a tus equipos y recibe recomendaciones de qué ver.</p>
+          <a class="pf-btn pf-btn--pri" routerLink="/registro">Crear cuenta</a>
+          <a class="pf-link" routerLink="/iniciar-sesion">Ya tengo cuenta ›</a>
         </div>
-
-        <div *ngIf="profile && !loading">
-          <div *ngIf="profile.blocked" class="text-center py-20">
-            <p class="text-[var(--portal-text-muted)] text-lg">Este perfil no está disponible.</p>
-            <button (click)="goBack()" class="mt-4 px-6 py-2 rounded-xl bg-[var(--portal-surface-strong)] text-[var(--portal-text)] text-sm hover:bg-[var(--portal-surface-strong)]">Volver</button>
-          </div>
-
-          <div *ngIf="!profile.blocked" class="space-y-6">
-            <div class="bg-[var(--portal-surface-soft)] border border-[var(--portal-border)] rounded-2xl p-6 shadow-[0_20px_40px_rgba(0,0,0,0.35)]">
-              <div class="flex items-start gap-5">
-                <div class="h-20 w-20 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-strong)] overflow-hidden flex items-center justify-center text-2xl text-[var(--portal-text-soft)] shrink-0">
-                  <img *ngIf="profile.avatar" [src]="profile.avatar" class="w-full h-full object-cover" alt="" />
-                  <span *ngIf="!profile.avatar">{{ (profile.name || 'U').slice(0, 1) }}</span>
-                </div>
-                <div class="flex-1 min-w-0">
-                  <h1 class="text-2xl font-bold text-[var(--portal-text)]">{{ profile.name }}</h1>
-                  <p *ngIf="profile.bio" class="text-sm text-[var(--portal-text-muted)] mt-1">{{ profile.bio }}</p>
-                  <p *ngIf="profile.location" class="text-xs text-[var(--portal-text-muted)] mt-1">📍 {{ profile.location }}</p>
-
-                  <div class="flex items-center gap-3 mt-4">
-                    <button
-                      type="button"
-                      (click)="onToggleFollow()"
-                      class="min-h-[40px] px-5 rounded-xl text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-live)]"
-                      [ngClass]="profile.isFollowing
-                        ? 'border border-[var(--portal-border)] bg-[var(--portal-surface-strong)] text-[var(--portal-text-soft)] hover:border-[var(--portal-border-strong)]'
-                        : 'bg-[var(--accent-live-strong)] text-white hover:opacity-90'"
-                    >
-                      {{ profile.isFollowing ? 'Siguiendo' : 'Seguir' }}
-                    </button>
-                    <span *ngIf="profile.isFollower" class="text-xs text-[var(--portal-text-muted)] border border-[var(--portal-border)] px-2 py-1 rounded-full">Te sigue</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div *ngIf="profile.stats" class="grid grid-cols-3 sm:grid-cols-5 gap-3">
-              <div *ngFor="let stat of statItems" class="bg-[var(--portal-surface-soft)] border border-[var(--portal-border)] rounded-xl p-4 text-center">
-                <p class="text-lg font-bold text-[var(--portal-text)]">{{ stat.value }}</p>
-                <p class="text-[10px] text-[var(--portal-text-muted)] uppercase tracking-wider mt-1">{{ stat.label }}</p>
-              </div>
-            </div>
-
-            <div *ngIf="profile.favoriteGenres?.length" class="bg-[var(--portal-surface-soft)] border border-[var(--portal-border)] rounded-2xl p-6">
-              <h3 class="text-sm font-semibold text-[var(--portal-text)] mb-3">Géneros favoritos</h3>
-              <div class="flex flex-wrap gap-2">
-                <span *ngFor="let genre of profile.favoriteGenres" class="text-xs px-3 py-1.5 rounded-full border border-[var(--portal-border)] text-[var(--portal-text-soft)] bg-[var(--portal-surface-strong)]">
-                  {{ genre }}
-                </span>
-              </div>
-            </div>
-
-            <div *ngIf="profile.preferredPlatforms?.length" class="bg-[var(--portal-surface-soft)] border border-[var(--portal-border)] rounded-2xl p-6">
-              <h3 class="text-sm font-semibold text-[var(--portal-text)] mb-3">Plataformas</h3>
-              <div class="flex flex-wrap gap-2">
-                <span *ngFor="let platform of profile.preferredPlatforms" class="text-xs px-3 py-1.5 rounded-full border border-[var(--portal-border)] text-[var(--portal-text-soft)] bg-[var(--portal-surface-strong)]">
-                  {{ platform }}
-                </span>
-              </div>
-            </div>
+        }
+        <div class="pf-card">
+          <h3>Descubre</h3>
+          <div class="pp-links">
+            <a routerLink="/programacion-tv/que-ver-hoy">Qué ver hoy</a>
+            <a routerLink="/programacion-tv/en-directo">TV en directo</a>
+            <a routerLink="/plataformas">Plataformas</a>
           </div>
         </div>
+      </section>
+
+      <div class="pp">
+        <nav class="pp-bc" aria-label="Migas de pan"><a [routerLink]="appPaths.home">Inicio</a><span aria-hidden="true">›</span><span aria-current="page">Perfil</span></nav>
+
+        @if (loading()) {
+        <div class="pf-skel" aria-busy="true"><div></div><div></div></div>
+        } @else if (error() || !profile()) {
+        <div class="pf-empty"><strong>{{ error() || 'Este perfil no existe.' }}</strong>@if (!auth) {<span>Inicia sesión para ver perfiles de otros usuarios.</span><a class="pf-btn pf-btn--pri" routerLink="/iniciar-sesion">Iniciar sesión</a>}</div>
+        } @else if (profile()!.blocked) {
+        <div class="pf-empty"><strong>Este perfil no está disponible.</strong></div>
+        } @else {
+        @let p = profile()!;
+        <header class="pp-hero">
+          <span class="pp-avatar">@if (photo(p.avatar); as src) {<img [src]="src" alt="" />} @else { {{ initials(p.name) }} }</span>
+          <div class="pp-hero__body">
+            <h1>{{ p.name }}</h1>
+            @if (p.location && p.location !== '-') {<span class="pf-small">{{ p.location }}</span>}
+            @if (p.bio) {<p class="pf-muted">{{ p.bio }}</p>}
+            <div class="pf-actions">
+              @if (isMe()) {
+              <a class="pf-btn" [routerLink]="appPaths.profile" [queryParams]="{ tab: 'cuenta' }">Editar mi perfil</a>
+              } @else if (auth) {
+              <button type="button" class="pf-btn" [class.pf-btn--pri]="!p.isFollowing" (click)="toggleFollow()">{{ p.isFollowing ? 'Siguiendo' : 'Seguir' }}</button>
+              @if (p.isFollower) {<span class="pf-small">Te sigue</span>}
+              }
+            </div>
+          </div>
+        </header>
+
+        @if (p.stats) {
+        <div class="pp-stats">
+          <div><strong>{{ p.stats.ratings }}</strong><span>valoraciones</span></div>
+          <div><strong>{{ p.stats.lists }}</strong><span>listas públicas</span></div>
+          <div><strong>{{ p.stats.followers }}</strong><span>seguidores</span></div>
+          <div><strong>{{ p.stats.following }}</strong><span>siguiendo</span></div>
+        </div>
+        }
+
+        @if (common().platforms.length || common().genres.length) {
+        <section class="pf-card pp-common" aria-labelledby="pp-common">
+          <h2 id="pp-common">En común contigo</h2>
+          @if (common().platforms.length) {<p>Los dos tenéis <strong>{{ common().platforms.join(', ') }}</strong>.</p>}
+          @if (common().genres.length) {<p>A los dos os gusta <strong>{{ common().genres.join(', ').toLowerCase() }}</strong>.</p>}
+        </section>
+        }
+
+        <section class="pf-sec" aria-labelledby="pp-plat">
+          <div class="pf-head"><h2 id="pp-plat">Dónde ve la tele</h2></div>
+          @if (p.preferredPlatforms?.length) {
+          <div class="pf-chips">@for (pl of p.preferredPlatforms; track pl) {<span class="pf-chip">@if (logo(pl); as src) {<img [src]="src" alt="" width="22" height="22" />}{{ pl }}</span>}</div>
+          } @else {<p class="pf-muted">No ha compartido sus plataformas.</p>}
+        </section>
+
+        <section class="pf-sec" aria-labelledby="pp-gen">
+          <div class="pf-head"><h2 id="pp-gen">Lo que le gusta</h2></div>
+          @if (p.favoriteGenres?.length) {
+          <div class="pf-chips">@for (g of p.favoriteGenres; track g) {<span class="pf-chip">{{ g }}</span>}</div>
+          } @else {<p class="pf-muted">{{ p.bio === undefined ? 'Su perfil es privado.' : 'No ha compartido sus gustos.' }}</p>}
+        </section>
+        }
       </div>
-    </div>
+    </app-panel-shell>
   `,
-  styles: [],
 })
-export class PublicProfileComponent implements OnInit {
-  profile: any = null;
-  loading = true;
-  error = '';
+export class PublicProfileComponent {
+  protected readonly user = inject(UserService);
+  private readonly meta = inject(MetaService);
 
-  get statItems(): { label: string; value: number }[] {
-    if (!this.profile?.stats) return [];
-    const s = this.profile.stats;
-    return [
-      { label: 'Seguidores', value: s.followers || 0 },
-      { label: 'Siguiendo', value: s.following || 0 },
-      { label: 'Valoraciones', value: s.ratings || 0 },
-      { label: 'Listas', value: s.lists || 0 },
-      { label: 'Recomendaciones', value: s.recommendations || 0 },
-    ];
+  readonly links = PERFIL_LINKS;
+  readonly appPaths = APP_PATHS;
+  readonly contextOpen = signal(false);
+  readonly loading = signal(true);
+  readonly error = signal('');
+  readonly profile = signal<PublicProfile | null>(null);
+  private readonly me = toSignal(this.user.getProfile(), { requireSync: true });
+
+  readonly isMe = computed(() => !!this.profile() && this.profile()!.id === this.me().id);
+  /** Platforms and genres the viewer shares with this person (only when signed in and both are known). */
+  readonly common = computed(() => {
+    const p = this.profile();
+    const me = this.me();
+    if (!p || this.isMe() || !me.id) return { platforms: [] as string[], genres: [] as string[] };
+    return {
+      platforms: (p.preferredPlatforms ?? []).filter((x) => me.preferredPlatforms.some((y) => sameValue(x, y))),
+      genres: (p.favoriteGenres ?? []).filter((x) => me.favoriteGenres.some((y) => sameValue(x, y))),
+    };
+  });
+
+  constructor() {
+    inject(ActivatedRoute)
+      .paramMap.pipe(takeUntilDestroyed())
+      .subscribe((params) => this.load(String(params.get('userId') || '')));
   }
 
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private userService: UserService
-  ) {}
+  initials(name: string): string {
+    return (name || 'U').split(/\s+/).slice(0, 2).map((w) => w.charAt(0).toUpperCase()).join('');
+  }
 
-  ngOnInit(): void {
-    const userId = this.route.snapshot.paramMap.get('userId');
-    if (!userId) {
-      this.error = 'Usuario no encontrado';
-      this.loading = false;
-      return;
-    }
+  photo(avatar?: string): string {
+    return avatarSrc(avatar);
+  }
 
-    this.userService.getPublicProfile(userId).subscribe({
-      next: (profile) => {
-        this.profile = profile;
-        this.loading = false;
-        if (!profile) this.error = 'Usuario no encontrado';
+  logo(name: string): string {
+    return resolvePlatformLogoUrl(name);
+  }
+
+  toggleFollow(): void {
+    const p = this.profile();
+    if (!p) return;
+    this.user.toggleFollow(p.id).subscribe(() => this.profile.set({ ...p, isFollowing: !p.isFollowing }));
+  }
+
+  private load(userId: string): void {
+    this.loading.set(true);
+    this.error.set('');
+    // Personal pages are never indexed.
+    this.meta.setMetaTags({ title: 'Perfil | Guía TV', description: 'Perfil de usuario en Guía TV.', canonicalUrl: `/perfil/${userId}`, robots: 'noindex, follow' });
+    this.user.getPublicProfile(userId).subscribe({
+      next: (profile: PublicProfile | null) => {
+        this.profile.set(profile);
+        this.loading.set(false);
+        if (profile?.name) this.meta.setMetaTags({ title: `${profile.name} | Guía TV`, description: `Perfil de ${profile.name} en Guía TV.`, canonicalUrl: `/perfil/${userId}`, robots: 'noindex, follow' });
       },
       error: () => {
-        this.error = 'Error al cargar el perfil';
-        this.loading = false;
+        this.error.set('No se pudo cargar este perfil.');
+        this.loading.set(false);
       },
     });
-  }
-
-  onToggleFollow(): void {
-    if (!this.profile) return;
-    this.userService.toggleFollow(this.profile.id).subscribe(() => {
-      this.profile = { ...this.profile, isFollowing: !this.profile.isFollowing };
-    });
-  }
-
-  goBack(): void {
-    this.router.navigateByUrl('/comunidad');
   }
 }

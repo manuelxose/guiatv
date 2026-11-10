@@ -1,0 +1,96 @@
+<app-panel-shell sideLabel="Qué ver" contextLabel="Tus gustos" [(contextOpen)]="contextOpen">
+  <app-panel-nav panelSide title="Qué ver" [links]="sideLinks"></app-panel-nav>
+
+  <!-- Right panel: how recommendations work, shortcuts and the assistant. -->
+  <section panelContext class="cx" aria-labelledby="fx-title">
+    <h2 id="fx-title" class="cx__label">Tus recomendaciones</h2>
+    <div class="cx__card">
+      <p class="cx__desc">Usamos tus géneros y plataformas favoritas, y lo que guardas o valoras, para proponerte qué ver. Cuanto más completes tu perfil, mejores serán.</p>
+      @if (requiresAuth) {
+      <button type="button" class="btn btn--pri btn--block" (click)="goToLogin()">Iniciar sesión</button>
+      } @else {
+      <button type="button" class="btn btn--pri btn--block" (click)="goToSettings()">Editar mis gustos</button>
+      }
+    </div>
+    <div class="cx__block">
+      <h3>Mientras tanto</h3>
+      <ul class="cx__list">
+        <li><a [routerLink]="queVer" [queryParams]="{ cuando: 'noche', donde: 'abierto' }"><span><strong>Esta noche en abierto</strong><small>Películas y series gratis</small></span></a></li>
+        <li><a [routerLink]="appPaths.stats"><span><strong>Tendencias</strong><small>Lo más popular hoy</small></span></a></li>
+        <li><a [routerLink]="queVer" [queryParams]="{ donde: 'gratis' }"><span><strong>Gratis</strong><small>Sin suscripción</small></span></a></li>
+      </ul>
+    </div>
+    <div class="cx__assistant">
+      <strong>Pregunta al asistente</strong>
+      <div class="cx__asks">
+        @for (ask of assistantAsks; track ask) {<button type="button" (click)="openAssistant()">{{ ask }}</button>}
+      </div>
+    </div>
+  </section>
+
+  <div class="qv">
+    <nav class="qv__subnav chips" aria-label="Qué ver">
+      @for (l of sideLinks; track l.label) {<a [routerLink]="l.path" [queryParams]="l.queryParams">{{ l.label }}</a>}
+    </nav>
+
+    <header class="qv__intro">
+      <nav class="qv__bc" aria-label="Migas de pan">
+        <a [routerLink]="appPaths.home">Inicio</a><span aria-hidden="true">›</span><a [routerLink]="queVer">Qué ver hoy</a><span aria-hidden="true">›</span><span aria-current="page">Para ti</span>
+      </nav>
+      <h1>Para ti</h1>
+      <p>Recomendaciones personalizadas según tus gustos y tus plataformas, con dónde ver cada título.</p>
+    </header>
+
+    <section aria-labelledby="fy-list">
+      <h2 id="fy-list" class="qv__h2">{{ requiresAuth || noPreferences ? 'Empieza aquí' : 'Recomendado para ti' }}</h2>
+
+      @if (loading) {
+      <div class="qv__grid qv__grid--poster" aria-busy="true">@for (i of [1, 2, 3, 4, 5, 6]; track i) {<div class="qv__skeleton"></div>}</div>
+      } @else if (requiresAuth) {
+      <div class="qv__empty">
+        <strong>Inicia sesión para ver tus recomendaciones</strong>
+        <span>La sección Para ti usa tus gustos, plataformas favoritas y actividad para recomendarte títulos.</span>
+        <button type="button" class="btn btn--pri" (click)="goToLogin()">Acceder</button>
+      </div>
+      } @else if (noPreferences) {
+      <div class="qv__empty">
+        <strong>Aún no tenemos tus gustos</strong>
+        <span>Elige tus géneros y plataformas favoritas para que podamos recomendarte contenido.</span>
+        <button type="button" class="btn btn--pri" (click)="goToSettings()">Completar perfil</button>
+      </div>
+      } @else if (error) {
+      <div class="qv__empty" role="alert">
+        <strong>{{ error }}</strong>
+        <button type="button" class="qv__more" (click)="loadRecommendations()">Reintentar</button>
+      </div>
+      } @else if (!items.length) {
+      <div class="qv__empty">
+        <strong>Sin recomendaciones ahora</strong>
+        <span>No hay títulos que coincidan con tus gustos en este momento. Prueba más tarde o <a routerLink="/perfil" [queryParams]="{ tab: 'gustos' }">ajusta tus preferencias</a>.</span>
+      </div>
+      } @else {
+      <div class="qv__grid qv__grid--poster">
+        @for (rec of items; track trackById($index, rec)) {
+        <div class="fy">
+          <app-panel-tile [item]="asCatalogItem(rec)" variant="poster"></app-panel-tile>
+          <span class="fy__match">{{ rec.score * 100 | number: '1.0-0' }}% afinidad</span>
+          @if (rec.reason) {<p class="fy__reason">{{ rec.reason }}</p>}
+        </div>
+        }
+      </div>
+      @if (hasMore) {
+      <button type="button" class="qv__more" (click)="loadMore()" [disabled]="loadingMore">{{ loadingMore ? 'Cargando…' : 'Cargar más' }}</button>
+      }
+      }
+    </section>
+
+    @if (popular().length) {
+    <section aria-labelledby="fy-popular">
+      <div class="qv__sec-head"><h2 id="fy-popular" class="qv__h2">Lo más visto en streaming</h2><a [routerLink]="appPaths.stats">Tendencias ›</a></div>
+      <div class="qv__grid qv__grid--poster">
+        @for (item of popular(); track item.catalogId) {<app-panel-tile [item]="item" variant="poster"></app-panel-tile>}
+      </div>
+    </section>
+    }
+  </div>
+</app-panel-shell>

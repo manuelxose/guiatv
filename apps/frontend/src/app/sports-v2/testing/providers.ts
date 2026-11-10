@@ -1,4 +1,6 @@
 import { EnvironmentProviders, Provider } from '@angular/core';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { DemoFootballData, FootballData, SPORTS_NOW } from '../data/football-data';
 import { FollowStorage, MemoryFollowStorage } from '../data/follow-storage';
@@ -12,6 +14,9 @@ export const TEST_TODAY = '2026-11-05';
 /** Everything the store needs, with demo data, in-memory follows and a fixed clock. */
 export const sv2TestProviders = (...extra: Provider[]): (Provider | EnvironmentProviders)[] => [
   provideRouter([]),
+  // The shared site header reads the signed-in user (UserService needs HttpClient).
+  provideHttpClient(),
+  provideHttpClientTesting(),
   { provide: SPORTS_NOW, useValue: () => TEST_NOW },
   { provide: FootballData, useClass: DemoFootballData },
   { provide: FollowStorage, useClass: MemoryFollowStorage },

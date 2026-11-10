@@ -59,7 +59,9 @@ export class Sv2ArticleCardComponent {
   protected when(): string {
     return stamp(this.item().publishedAt);
   }
+  /** Blog guides open in Guías (their canonical page); other news keep the football article page. */
   protected link(): string[] {
-    return sv2Link('noticias', this.item().slug);
+    const canonical = this.item().canonicalPath;
+    return canonical ? [canonical] : sv2Link('noticias', this.item().slug);
   }
 }

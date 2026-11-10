@@ -1,292 +1,234 @@
-import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit } from '@angular/core';
-import { ActivatedRoute, ParamMap, Params, Router, RouterModule } from '@angular/router';
-import { Subject, combineLatest, takeUntil } from 'rxjs';
-import { CatalogCardComponent } from '../../components/catalog-card/catalog-card.component';
-import { CatalogFiltersComponent } from '../../components/catalog-filters/catalog-filters.component';
-import { CatalogRailComponent } from '../../components/catalog-rail/catalog-rail.component';
-import { APP_PATHS } from '../../config/route-map';
-import {
-  CatalogContentType,
-  CatalogItem,
-  CatalogPlatform,
-  CatalogQuery,
-  FALLBACK_CATALOG_GENRES,
-} from '../../services/catalog.service';
-import { CatalogFiltersService } from '../../services/catalog-filters.service';
-import { MetaService } from '../../services/meta.service';
-import { BreadcrumbComponent, BreadcrumbItem } from '../../components/breadcrumb/breadcrumb.component';
-import { FaqSectionComponent, FaqItem } from '../../components/faq-section/faq-section.component';
+import { DecimalPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { DiscoveryService } from '../../services/discovery.service';
-import { serializeJsonLd } from '../../utils/utils';
+import { ActivatedRoute, Params, RouterModule } from '@angular/router';
+import { Observable, catchError, map, of, startWith, switchMap } from 'rxjs';
+import { TvReadItemDTO } from '../../api/models';
+import { FaqItem, FaqSectionComponent } from '../../components/faq-section/faq-section.component';
+import { PanelNavComponent, PanelNavGroup } from '../../components/panel-nav/panel-nav.component';
+import { PanelShellComponent } from '../../components/panel-shell/panel-shell.component';
+import { PanelTileComponent } from '../../components/panel-tile/panel-tile.component';
+import { APP_PATHS } from '../../config/route-map';
+import { TV_SECTION_LINKS } from '../../config/tv-section-nav';
+import { ChatService } from '../../services/chat.service';
+import { MetaService } from '../../services/meta.service';
+import { TvDataFacade } from '../../state/tv-data.facade';
+import { normalizeToCard } from '../../utils/tv-normalizers';
+import { generateItemListSchema, serializeJsonLd } from '../../utils/utils';
 
 type ContentPageType = 'series' | 'movies';
+type TvView = 'hoy' | 'ahora' | 'noche' | 'manana';
+type LoadState = { status: 'loading' | 'ready' | 'error'; items: TvReadItemDTO[] };
 
+const BASE_URL = 'https://guiaprogramaciontv.com';
+const timeFmt = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' });
+const VIEWS: ReadonlyArray<{ id: TvView; label: string }> = [
+  { id: 'hoy', label: 'Hoy' },
+  { id: 'ahora', label: 'Ahora' },
+  { id: 'noche', label: 'Esta noche' },
+  { id: 'manana', label: 'Mañana' },
+];
+const GROUPS: ReadonlyArray<{ id: '' | 'tdt'; label: string }> = [
+  { id: '', label: 'Todos los canales' },
+  { id: 'tdt', label: 'TDT en abierto' },
+];
+
+/**
+ * "Películas en TV" and "Series en TV": only what linear TV airs (no streaming catalogue).
+ * When (today, now, tonight, tomorrow) and channels (all / free-to-air) are URL params, so
+ * every combination is a crawlable, indexable page.
+ */
 @Component({
   selector: 'app-content-page',
   standalone: true,
-  imports: [
-    CommonModule,
-    RouterModule,
-    CatalogFiltersComponent,
-    CatalogCardComponent,
-    CatalogRailComponent,
-    BreadcrumbComponent,
-    FaqSectionComponent,
-  ],
+  imports: [DecimalPipe, RouterModule, PanelShellComponent, PanelNavComponent, PanelTileComponent, FaqSectionComponent],
   templateUrl: './content-page.component.html',
   styleUrls: ['./content-page.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ContentPageComponent implements OnInit, OnDestroy {
-  public readonly appPaths = APP_PATHS;
-  public contentType: ContentPageType = 'movies';
-  public loading = true;
-  public error: string | null = null;
-  public degradedFilters = false;
-  public degradedMessage: string | null = null;
-  public catalogUnavailable = false;
-  public filters: CatalogQuery = {};
-  public items: CatalogItem[] = [];
-  public liveItems: CatalogItem[] = [];
-  public genres: string[] = [];
-  public platforms: CatalogPlatform[] = [];
-  public hasMore = false;
-  public total = 0;
-  public breadcrumbItems: BreadcrumbItem[] = [];
-  public safeLdHtml: SafeHtml | null = null;
+export class ContentPageComponent {
+  private readonly route = inject(ActivatedRoute);
+  private readonly facade = inject(TvDataFacade);
+  private readonly meta = inject(MetaService);
+  private readonly sanitizer = inject(DomSanitizer);
+  private readonly chat = inject(ChatService);
 
-  public readonly moviesFaq: FaqItem[] = [
-    {
-      question: '¿Dónde puedo ver películas gratis en España?',
-      answer: 'Canales de TDT como Antena 3, Telecinco, La 1, Atrescine y DePelícula emiten películas a diario sin coste. También existen plataformas de streaming gratuitas con publicidad como Pluto TV y Rakuten TV.',
-    },
-    {
-      question: '¿Cómo sé en qué plataforma está disponible una película?',
-      answer: 'Cada ficha de película muestra las plataformas donde está disponible, ya sea en streaming, alquiler o emisión lineal. Puedes filtrar por plataforma para ver solo el catálogo que te interese.',
-    },
-    {
-      question: '¿Puedo filtrar por género o plataforma de streaming?',
-      answer: 'Sí. Usa los filtros de esta página para seleccionar el género (acción, comedia, drama, thriller…) y la plataforma (Netflix, Prime Video, Disney+, Movistar+ y más).',
-    },
-    {
-      question: '¿Qué películas se emiten hoy en televisión?',
-      answer: 'En la sección «En directo» de esta página puedes ver las películas que se están emitiendo ahora mismo en los canales de televisión españoles.',
-    },
-  ];
+  readonly appPaths = APP_PATHS;
+  readonly sideLinks = TV_SECTION_LINKS;
+  readonly views = VIEWS;
+  readonly groups = GROUPS;
+  readonly contextOpen = signal(false);
 
-  public readonly seriesFaq: FaqItem[] = [
-    {
-      question: '¿Dónde puedo ver series en streaming en España?',
-      answer: 'Las principales plataformas son Netflix, HBO Max, Disney+, Amazon Prime Video, Movistar Plus+, Atresplayer y RTVE Play. Cada una ofrece catálogos diferentes con series originales y de producción internacional.',
-    },
-    {
-      question: '¿Cómo encuentro series según mis gustos?',
-      answer: 'Utiliza los filtros de esta página: selecciona tu género favorito (drama, comedia, thriller, ciencia ficción…) y la plataforma que prefieras. También puedes ordenar por popularidad o valoración.',
-    },
-    {
-      question: '¿Qué series se emiten hoy en la televisión española?',
-      answer: 'En la sección «En directo» de esta página aparecen las series que se están emitiendo ahora mismo en los canales de TV. También puedes consultar la guía de programación para ver la parrilla completa.',
-    },
-    {
-      question: '¿Se pueden filtrar series por plataforma?',
-      answer: 'Sí. El filtro de plataformas te permite ver únicamente las series disponibles en Netflix, HBO Max, Disney+, Prime Video, Movistar+ u otras plataformas de tu elección.',
-    },
-  ];
+  readonly type = toSignal(
+    this.route.data.pipe(map((d) => (d['type'] === 'series' ? 'series' : 'movies') as ContentPageType)),
+    { initialValue: (this.route.snapshot.data['type'] === 'series' ? 'series' : 'movies') as ContentPageType }
+  );
+  private readonly params = toSignal(this.route.queryParamMap, { initialValue: this.route.snapshot.queryParamMap });
+  readonly view = computed<TvView>(() => {
+    const v = this.params().get('vista') as TvView;
+    return VIEWS.some((x) => x.id === v) ? v : 'hoy';
+  });
+  readonly group = computed<'' | 'tdt'>(() => (this.params().get('grupo') === 'tdt' ? 'tdt' : ''));
+  readonly category = computed(() => (this.type() === 'series' ? 'Series' : 'Cine'));
+  readonly path = computed(() => (this.type() === 'series' ? APP_PATHS.series : APP_PATHS.movies));
+  readonly noun = computed(() => (this.type() === 'series' ? 'series' : 'películas'));
+  readonly Noun = computed(() => (this.type() === 'series' ? 'Series' : 'Películas'));
 
-  private readonly destroy$ = new Subject<void>();
-  private remotePlatformsDegraded = false;
-  private catalogStateDegraded = false;
+  private readonly refresh = signal(0);
+  private readonly request = computed(() => ({ view: this.view(), group: this.group(), category: this.category(), refresh: this.refresh() }));
+  private readonly state = toSignal(
+    toObservable(this.request).pipe(
+      switchMap((req) =>
+        this.load(req.view, req.category, req.group).pipe(
+          map((items): LoadState => ({ status: 'ready', items })),
+          catchError(() => of<LoadState>({ status: 'error', items: [] })),
+          startWith<LoadState>({ status: 'loading', items: [] })
+        )
+      )
+    ),
+    { initialValue: { status: 'loading', items: [] } as LoadState }
+  );
+  /** Right panel: what of this type is on air right now. */
+  readonly live = toSignal(
+    toObservable(computed(() => ({ category: this.category(), group: this.group() }))).pipe(
+      switchMap((r) => this.facade.getLivePrograms({ category: r.category, group: r.group || undefined, limit: 24 }).pipe(catchError(() => of([]))))
+    ),
+    { initialValue: [] as TvReadItemDTO[] }
+  );
 
-  constructor(
-    private readonly route: ActivatedRoute,
-    private readonly router: Router,
-    private readonly metaService: MetaService,
-    private readonly filtersService: CatalogFiltersService,
-    private readonly sanitizer: DomSanitizer,
-    private readonly discoveryService: DiscoveryService
-  ) {}
-
-  ngOnInit(): void {
-    combineLatest([this.route.data, this.route.queryParamMap])
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(([data, params]) => {
-        this.contentType = (data['type'] || 'movies') as ContentPageType;
-        this.filters = this.resolveFilters(this.paramMapToParams(params));
-        this.updateMeta();
-        this.loadContent();
-      });
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
-  onFiltersChange(next: CatalogQuery): void {
-    this.filters = {
-      ...this.filters,
-      ...next,
-      types: [this.fixedCatalogType],
-      page: 1,
-    };
-    this.navigateWithFilters();
-  }
-
-  resetFilters(): void {
-    this.filters = this.buildDefaultFilters();
-    this.navigateWithFilters();
-  }
-
-  loadMore(): void {
-    this.filters = {
-      ...this.filters,
-      limit: Number(this.filters.limit || 24) + 24,
-    };
-    this.navigateWithFilters();
-  }
-
-  get pageTitle(): string {
-    return this.contentType === 'series' ? 'Series en TV y streaming' : 'Películas en TV y streaming';
-  }
-
-  get pageSubtitle(): string {
-    return this.contentType === 'series'
-      ? 'Series en emisión, bajo demanda y ordenadas por plataforma, valoración y disponibilidad.'
-      : 'Películas en directo, catálogo streaming y opciones gratuitas desde un mismo explorador.';
-  }
-
-  get fixedCatalogType(): CatalogContentType {
-    return this.contentType === 'series' ? 'series' : 'movie';
-  }
-
-  get faqItems(): FaqItem[] {
-    return this.contentType === 'series' ? this.seriesFaq : this.moviesFaq;
-  }
-
-  retryCurrentView(): void {
-    this.loadContent();
-  }
-
-  private resolveFilters(params: Params): CatalogQuery {
-    const defaults = this.buildDefaultFilters();
-    const filters = this.filtersService.fromQueryParams(params, defaults);
-    filters.types = [this.fixedCatalogType];
-    filters.limit = filters.limit || 24;
-    return filters;
-  }
-
-  private buildDefaultFilters(): CatalogQuery {
-    return {
-      types: [this.fixedCatalogType],
-      availability: [],
-      genres: [],
-      platforms: [],
-      sort: 'popular',
-      limit: 24,
-      page: 1,
-    };
-  }
-
-  private navigateWithFilters(): void {
-    this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: this.filtersService.toQueryParams(this.filters),
-      queryParamsHandling: '',
-    });
-  }
-
-  private loadContent(): void {
-    this.loading = true;
-    this.error = null;
-
-    this.discoveryService
-      .browse({
-        type: this.contentType === 'series' ? 'series' : 'movie',
-        q: this.filters.q,
-        genre: this.filters.genres?.join(','),
-        platform: this.filters.platforms?.join(','),
-        availability: this.filters.availability?.join(','),
-        sort: this.filters.sort,
-        limit: this.filters.limit,
-        page: this.filters.page,
+  readonly status = computed(() => this.state().status);
+  /**
+   * One card per airing, by start time; "today" hides what has already finished.
+   * The same broadcast often arrives through several feeds (sub-channels, aliases), so
+   * the key is the title and start time, not the channel; the first feed seen wins.
+   */
+  readonly items = computed(() => {
+    const seen = new Set<string>();
+    const now = Date.now();
+    return this.state()
+      .items.filter((item) => {
+        const key = `${item.program.title.trim().toLowerCase()}|${item.airing.start}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return this.view() !== 'hoy' || new Date(item.airing.end).getTime() > now;
       })
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (response) => {
-          this.items = response.items || [];
-          this.liveItems = response.liveItems || [];
-          this.genres = response.availableGenres?.length
-            ? response.availableGenres
-            : FALLBACK_CATALOG_GENRES;
-          this.platforms = response.availablePlatforms || [];
-          this.total = response.meta?.total || 0;
-          this.hasMore = Boolean(response.meta?.hasMore);
-          this.catalogUnavailable = false;
-          this.catalogStateDegraded = false;
-          this.remotePlatformsDegraded = false;
-          this.syncDegradedFilters();
-          this.buildItemListLd();
-          this.degradedMessage = null;
-          this.loading = false;
-        },
-        error: () => {
-          this.error = 'No se pudo cargar este contenido.';
-          this.loading = false;
-        },
-      });
-  }
+      .sort((a, b) => a.airing.start.localeCompare(b.airing.start));
+  });
+  /** Cards rendered (the rest behind "Ver más", so the page stays light). */
+  readonly shown = signal(48);
+  readonly visibleItems = computed(() => this.items().slice(0, this.shown()));
+  readonly liveCards = computed(() => {
+    const seen = new Set<string>();
+    return this.live()
+      .filter((item) => {
+        const key = item.program.title.trim().toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 12)
+      .map((item) => normalizeToCard(item));
+  });
 
-  private updateMeta(): void {
-    const label = this.contentType === 'series' ? 'Series' : 'Películas';
-    this.breadcrumbItems = [
-      { name: 'Inicio', url: '/' },
-      { name: label, url: this.router.url.split('?')[0] },
+  readonly h1 = computed(() => {
+    const n = this.Noun();
+    const when = { hoy: 'hoy en TV', ahora: 'en la tele ahora', noche: 'de esta noche en TV', manana: 'mañana en TV' }[this.view()];
+    return `${n} ${when}${this.group() === 'tdt' ? ' en abierto' : ''}`;
+  });
+  readonly intro = computed(() =>
+    this.type() === 'series'
+      ? 'Las series que emiten hoy los canales de televisión, con su hora y canal. Toca una para ver su ficha y los próximos episodios.'
+      : 'Las películas que emiten hoy los canales de televisión, con su hora y canal. Toca una para ver su ficha y dónde verla.'
+  );
+  readonly crumb = computed(() => `${this.Noun()} en TV`);
+
+  readonly sideGroups = computed<PanelNavGroup[]>(() => [
+    { title: 'Cuándo', links: VIEWS.map((v) => ({ label: v.label, path: this.path(), queryParams: this.linkFor({ vista: v.id }), active: this.view() === v.id })) },
+    { title: 'Canales', links: GROUPS.map((g) => ({ label: g.label, path: this.path(), queryParams: this.linkFor({ grupo: g.id }), active: this.group() === g.id })) },
+  ]);
+  readonly assistantAsks = computed(() =>
+    this.type() === 'series'
+      ? ['¿Qué serie veo esta noche?', 'Series de estreno en la tele', '¿Cuándo echan el próximo episodio?']
+      : ['¿Qué película veo esta noche?', 'Una comedia en la tele hoy', 'Películas de acción en abierto']
+  );
+
+  readonly faq = computed<FaqItem[]>(() => {
+    const n = this.noun();
+    const top = this.items().slice(0, 3).map((i) => `«${i.program.title}» (${i.channel.name}, ${this.hhmm(i.airing.start)})`);
+    return [
+      {
+        question: `¿Qué ${n} echan hoy en la tele?`,
+        answer: top.length
+          ? `Próximamente: ${top.join(', ')}. En esta página tienes todas, con su hora y canal.`
+          : `En esta página tienes las ${n} que emiten hoy los canales de televisión, con su hora y canal.`,
+      },
+      {
+        question: `¿Dónde ver ${n} gratis en la tele?`,
+        answer: `Los canales de TDT en abierto emiten ${n} a diario sin coste. Usa el filtro «TDT en abierto» para ver solo esas.`,
+      },
+      {
+        question: `¿Qué ${n} ponen esta noche?`,
+        answer: `En «Esta noche» tienes las ${n} del prime time de todos los canales, ordenadas por hora.`,
+      },
+      {
+        question: `¿Cómo saber qué ${n} echan mañana?`,
+        answer: `Cambia a «Mañana» para ver la programación de ${n} del día siguiente en todos los canales.`,
+      },
     ];
-    this.metaService.setMetaTags({
-      title: `${this.pageTitle} - Guía TV`,
-      description: this.pageSubtitle,
-      canonicalUrl: this.router.url,
+  });
+
+  readonly structuredData = computed<SafeHtml | null>(() => {
+    const cards = this.items().slice(0, 10).map((item) => normalizeToCard(item));
+    if (!cards.length) return null;
+    return this.sanitizer.bypassSecurityTrustHtml(
+      `<script type="application/ld+json">${serializeJsonLd(generateItemListSchema(cards, this.h1(), BASE_URL))}</script>`
+    );
+  });
+
+  constructor() {
+    // A new filter starts again from the first page of cards.
+    effect(() => {
+      this.request();
+      this.shown.set(48);
+    });
+    effect(() => {
+      const query = new URLSearchParams();
+      if (this.view() !== 'hoy') query.set('vista', this.view());
+      if (this.group()) query.set('grupo', this.group());
+      const qs = query.toString();
+      this.meta.setMetaTags({
+        title: `${this.h1()}: horarios y canales | Guía TV`,
+        description: `${this.h1()}: todas las ${this.noun()} que emiten los canales de televisión, con su hora y canal, para no perderte ninguna.`,
+        // Each when/channels combination is a page of its own (8 at most).
+        canonicalUrl: `${this.path()}${qs ? `?${qs}` : ''}`,
+      });
     });
   }
 
-  private paramMapToParams(paramMap: ParamMap): Params {
-    const params: Params = {};
-    for (const key of paramMap.keys) {
-      params[key] = paramMap.get(key);
-    }
-    return params;
+  /** Link to one filter option, keeping the other one; defaults are dropped so URLs stay clean. */
+  linkFor(change: { vista?: TvView; grupo?: string }): Params {
+    const vista = change.vista ?? this.view();
+    const grupo = change.grupo ?? this.group();
+    return { vista: vista === 'hoy' ? null : vista, grupo: grupo || null };
   }
 
-  private syncDegradedFilters(): void {
-    this.degradedFilters = this.remotePlatformsDegraded || this.catalogStateDegraded;
+  hhmm(iso?: string): string {
+    return iso ? timeFmt.format(new Date(iso)) : '';
   }
 
-  private buildItemListLd(): void {
-    if (!this.items.length) {
-      this.safeLdHtml = null;
-      return;
-    }
-    const baseUrl = 'https://guiaprogramaciontv.com';
-    const schema = {
-      '@context': 'https://schema.org',
-      '@type': 'CollectionPage',
-      name: this.pageTitle,
-      description: this.pageSubtitle,
-      url: `${baseUrl}${this.router.url.split('?')[0]}`,
-      mainEntity: {
-        '@type': 'ItemList',
-        numberOfItems: this.total,
-        itemListElement: this.items.slice(0, 20).map((item, i) => ({
-          '@type': 'ListItem',
-          position: i + 1,
-          name: item.title,
-          url: `${baseUrl}${item.detailPath || '/contenido/' + item.catalogId}`,
-        })),
-      },
-    };
-    this.safeLdHtml = this.sanitizer.bypassSecurityTrustHtml(
-      `<script type="application/ld+json">${serializeJsonLd(schema)}</script>`
-    );
+  openAssistant(): void {
+    this.chat.requestToggleAssistant();
+  }
+
+  retry(): void {
+    this.refresh.update((v) => v + 1);
+  }
+
+  private load(view: TvView, category: string, group: string): Observable<TvReadItemDTO[]> {
+    const filters = { category, group: group || undefined };
+    if (view === 'ahora') return this.facade.getLivePrograms({ ...filters, limit: 48 });
+    if (view === 'noche') return this.facade.getTonightPrograms({ ...filters, limit: 96 });
+    return this.facade.getAllPrograms({ ...filters, date: view === 'manana' ? 'tomorrow' : 'today', limit: 240 });
   }
 }

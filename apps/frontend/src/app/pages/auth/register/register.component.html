@@ -1,222 +1,44 @@
-<div class="min-h-screen bg-gradient-to-br from-[var(--portal-bg)] via-[var(--portal-bg-deep)] to-[var(--portal-bg-deep)] text-[var(--portal-text)]">
-  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-    <header class="space-y-2">
-      <p class="text-sm text-[var(--portal-text-muted)] uppercase tracking-[0.2em]">
-        Comunidad Guía TV
-      </p>
-      <h1 class="text-3xl sm:text-4xl font-extrabold">
-        Crea tu cuenta en segundos
-      </h1>
-      <p class="text-[var(--portal-text-soft)] max-w-3xl">
-        Crea tu cuenta con email y contraseña o con Google para guardar tus
-        favoritos y participar en la comunidad.
-      </p>
-    </header>
+<app-auth-layout heading="Crea tu cuenta" lead="Gratis y en un minuto. El asistente aprende tus plataformas y gustos para recomendarte qué ver.">
+  @if (isAuthenticated$ | async) {
+  <span class="af__active">Ya tienes la sesión iniciada</span>
+  }
 
-    <div class="grid lg:grid-cols-2 gap-6">
-      <section
-        class="bg-[var(--portal-surface-strong)] border border-[var(--portal-border)] rounded-2xl p-6 shadow-xl shadow-black/20 backdrop-blur-sm"
-      >
-        <div class="flex items-center justify-between mb-4">
-          <div>
-            <p class="text-sm text-[var(--portal-text-muted)]">Registro rapido</p>
-            <h2 class="text-xl font-semibold">Crear cuenta</h2>
-          </div>
-          <span
-            class="px-3 py-1 rounded-full text-xs bg-[var(--accent-streaming-soft)] text-[var(--accent-streaming)] border border-transparent"
-            *ngIf="isAuthenticated$ | async"
-          >
-            Sesion activa
-          </span>
-        </div>
-
-        <form class="space-y-4" (ngSubmit)="onPasswordRegister()">
-          <div>
-            <label
-              class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wide"
-              for="register-name"
-              >Nombre (opcional)</label
-            >
-            <input
-              id="register-name"
-              name="name"
-              type="text"
-              autocomplete="name"
-              [(ngModel)]="registerData.name"
-              class="mt-2 w-full min-h-[44px] rounded-lg bg-[var(--portal-surface)]/60 border border-[var(--portal-border)] px-3 text-sm text-[var(--portal-text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-live)]"
-              placeholder="Tu nombre"
-            />
-          </div>
-          <div>
-            <label
-              class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wide"
-              for="register-email"
-              >Email</label
-            >
-            <input
-              id="register-email"
-              name="email"
-              type="email"
-              required
-              autocomplete="email"
-              [(ngModel)]="registerData.email"
-              class="mt-2 w-full min-h-[44px] rounded-lg bg-[var(--portal-surface)]/60 border border-[var(--portal-border)] px-3 text-sm text-[var(--portal-text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-live)]"
-              placeholder="tu@email.com"
-            />
-          </div>
-          <div>
-            <label
-              class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wide"
-              for="register-password"
-              >Contrasena</label
-            >
-            <input
-              id="register-password"
-              name="password"
-              type="password"
-              required
-              autocomplete="new-password"
-              [(ngModel)]="registerData.password"
-              class="mt-2 w-full min-h-[44px] rounded-lg bg-[var(--portal-surface)]/60 border border-[var(--portal-border)] px-3 text-sm text-[var(--portal-text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-live)]"
-              placeholder="Minimo 8 caracteres"
-            />
-          </div>
-          <div>
-            <label
-              class="text-xs text-[var(--portal-text-muted)] uppercase tracking-wide"
-              for="register-confirm"
-              >Confirmar contrasena</label
-            >
-            <input
-              id="register-confirm"
-              name="confirmPassword"
-              type="password"
-              required
-              autocomplete="new-password"
-              [(ngModel)]="registerData.confirmPassword"
-              class="mt-2 w-full min-h-[44px] rounded-lg bg-[var(--portal-surface)]/60 border border-[var(--portal-border)] px-3 text-sm text-[var(--portal-text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-live)]"
-              placeholder="Repite la contrasena"
-            />
-          </div>
-          <button
-            type="submit"
-            class="w-full min-h-[44px] rounded-lg bg-[var(--accent-live-strong)] hover:opacity-90 text-white font-semibold shadow disabled:opacity-60"
-            [disabled]="loading"
-          >
-            {{ loading ? 'Creando...' : 'Crear cuenta con email' }}
-          </button>
-        </form>
-
-        <div class="flex items-center gap-3 text-xs text-[var(--portal-text-muted)] my-4">
-          <span class="flex-1 h-px bg-[var(--portal-surface-strong)]/60"></span>
-          <span>o</span>
-          <span class="flex-1 h-px bg-[var(--portal-surface-strong)]/60"></span>
-        </div>
-
-        <button
-          type="button"
-          class="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-lg bg-[var(--portal-surface)] text-[var(--portal-text)] font-semibold shadow hover:shadow-lg transition-all duration-200 mb-4"
-          (click)="onGoogleRegister()"
-          [disabled]="loading"
-        >
-          <svg
-            class="h-5 w-5"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 48 48"
-          >
-            <path
-              fill="#EA4335"
-              d="M24 9.5c3.54 0 6 1.54 7.38 2.83l5.4-5.4C33.64 3.91 29.14 2 24 2 14.82 2 6.91 7.66 3.44 15.26l6.58 5.11C12.23 13.2 17.59 9.5 24 9.5z"
-            />
-            <path
-              fill="#4285F4"
-              d="M46.5 24.5c0-1.6-.14-3.11-.4-4.5H24v9h12.7c-.5 2.6-2 4.8-4.3 6.3l6.6 5.1C43.9 37.5 46.5 31.5 46.5 24.5z"
-            />
-            <path
-              fill="#FBBC05"
-              d="M9.02 28.65a14.9 14.9 0 0 1 0-9.3L2.44 14.2a22.46 22.46 0 0 0 0 19.6l6.58-5.15z"
-            />
-            <path
-              fill="#34A853"
-              d="M24 46c6.14 0 11.3-2.02 15.07-5.4l-6.6-5.1C30.39 36.5 27.39 37.5 24 37.5c-6.41 0-11.77-3.7-13.98-9.1l-6.58 5.1C6.91 40.34 14.82 46 24 46z"
-            />
-            <path fill="none" d="M2 2h44v44H2z" />
-          </svg>
-          <span>{{ loading ? 'Conectando...' : 'Crear cuenta con Google' }}</span>
-        </button>
-
-        <div class="text-sm text-[var(--portal-text-muted)]">
-          Ya tienes cuenta?
-          <a
-            routerLink="/iniciar-sesion"
-            class="text-[var(--portal-text)] underline hover:opacity-90 font-semibold"
-          >
-            Iniciar sesion
-          </a>
-        </div>
-
-        <p class="text-xs text-[var(--portal-text-muted)] mt-4">
-          Usa tu cuenta para acceder a tus favoritos desde cualquier dispositivo.
-        </p>
-
-        <p
-          *ngIf="statusMessage"
-          class="mt-4 text-sm rounded-lg px-4 py-3 border"
-          [ngClass]="{
-            'text-[var(--accent-streaming)] bg-[var(--accent-streaming-soft)] border-transparent':
-              statusTone === 'success',
-            'text-[var(--accent-live)] bg-[var(--accent-live-soft)] border-transparent':
-              statusTone === 'error',
-            'text-[var(--accent-discover)] bg-[var(--accent-discover-soft)] border-transparent':
-              statusTone === 'info'
-          }"
-        >
-          {{ statusMessage }}
-        </p>
-      </section>
-
-      <section
-        class="bg-[var(--portal-surface-strong)] border border-[var(--portal-border)] rounded-2xl p-6 shadow-xl shadow-black/20 backdrop-blur-sm space-y-5"
-      >
-        <div>
-          <p class="text-sm text-[var(--portal-text-muted)]">Tu cuenta incluye</p>
-          <h2 class="text-xl font-semibold">Cuenta lista para la comunidad</h2>
-        </div>
-
-        <div class="space-y-4 text-sm text-[var(--portal-text-soft)]">
-          <div class="flex items-start gap-2">
-            <span
-              class="h-6 w-6 rounded-full bg-[var(--accent-live-soft)] text-[var(--accent-live)] flex items-center justify-center text-xs"
-              >1</span
-            >
-            <p>
-              Crea tu cuenta con email y contrasena en minutos.
-            </p>
-          </div>
-          <div class="flex items-start gap-2">
-            <span
-              class="h-6 w-6 rounded-full bg-[var(--accent-live-soft)] text-[var(--accent-live)] flex items-center justify-center text-xs"
-              >2</span
-            >
-            <p>
-              Usa Google si prefieres un registro rapido y seguro.
-            </p>
-          </div>
-          <div class="flex items-start gap-2">
-            <span
-              class="h-6 w-6 rounded-full bg-[var(--accent-live-soft)] text-[var(--accent-live)] flex items-center justify-center text-xs"
-              >3</span
-            >
-            <p>
-              Acceso a funcionalidades privadas dentro de Mi cuenta.
-            </p>
-          </div>
-        </div>
-
-        <div class="rounded-xl border border-[var(--portal-border)] bg-[var(--portal-surface)]/50 p-4 text-sm text-[var(--portal-text-soft)]">
-          Elige email o Google para crear tu cuenta y empezar a personalizar tu guía.
-        </div>
-      </section>
+  <form class="af" (ngSubmit)="onPasswordRegister()">
+    <div class="af__field">
+      <label for="register-name">Nombre (opcional)</label>
+      <input id="register-name" name="name" type="text" autocomplete="name" [(ngModel)]="registerData.name" placeholder="Tu nombre" />
     </div>
-  </div>
-</div>
+    <div class="af__field">
+      <label for="register-email">Email</label>
+      <input id="register-email" name="email" type="email" required autocomplete="email" [(ngModel)]="registerData.email" placeholder="tu@email.com" />
+    </div>
+    <div class="af__field">
+      <label for="register-password">Contraseña</label>
+      <input id="register-password" name="password" type="password" required autocomplete="new-password" [(ngModel)]="registerData.password" placeholder="Mínimo 8 caracteres" />
+    </div>
+    <div class="af__field">
+      <label for="register-confirm">Repite la contraseña</label>
+      <input id="register-confirm" name="confirmPassword" type="password" required autocomplete="new-password" [(ngModel)]="registerData.confirmPassword" placeholder="Repite la contraseña" />
+    </div>
+    <button type="submit" class="af__submit" [disabled]="loading">{{ loading ? 'Creando…' : 'Crear cuenta' }}</button>
+  </form>
+
+  <div class="af__divider">o</div>
+
+  <button type="button" class="af__google" (click)="onGoogleRegister()" [disabled]="loading">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6 1.54 7.38 2.83l5.4-5.4C33.64 3.91 29.14 2 24 2 14.82 2 6.91 7.66 3.44 15.26l6.58 5.11C12.23 13.2 17.59 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.5 24.5c0-1.6-.14-3.11-.4-4.5H24v9h12.7c-.5 2.6-2 4.8-4.3 6.3l6.6 5.1C43.9 37.5 46.5 31.5 46.5 24.5z" />
+      <path fill="#FBBC05" d="M9.02 28.65a14.9 14.9 0 0 1 0-9.3L2.44 14.2a22.46 22.46 0 0 0 0 19.6l6.58-5.15z" />
+      <path fill="#34A853" d="M24 46c6.14 0 11.3-2.02 15.07-5.4l-6.6-5.1C30.39 36.5 27.39 37.5 24 37.5c-6.41 0-11.77-3.7-13.98-9.1l-6.58 5.1C6.91 40.34 14.82 46 24 46z" />
+    </svg>
+    <span>{{ loading ? 'Conectando…' : 'Crear cuenta con Google' }}</span>
+  </button>
+
+  @if (statusMessage) {
+  <p class="af__status" [class.af__status--success]="statusTone === 'success'" [class.af__status--error]="statusTone === 'error'" role="status">{{ statusMessage }}</p>
+  }
+
+  <p class="af__switch">¿Ya tienes cuenta? <a routerLink="/iniciar-sesion">Inicia sesión</a></p>
+  <p class="af__legal">Al crear la cuenta aceptas los <a routerLink="/terminos">términos</a> y la <a routerLink="/privacidad">política de privacidad</a>.</p>
+</app-auth-layout>

@@ -42,6 +42,8 @@ export interface UnifiedLiveFilters {
   flags?: UnifiedLiveFlag[];
   q?: string;
   limit?: number;
+  /** ISO country code (e.g. 'GB'); omitted or 'es'/'all' keeps today's unfiltered Spanish channels. */
+  country?: string;
 }
 
 export interface UnifiedDiscoverFilters {
@@ -133,6 +135,9 @@ export class TvDataFacade {
       // A full linear-TV day rarely exceeds 32 programmes per channel. Keep
       // this bounded so the guide does not download and parse tens of MB.
       itemsPerChannel: 32,
+      // Light per-item projection (no synopsis, image sets or provenance): ~5× smaller, also in the SSR transfer state.
+      fields: 'grid',
+      country: filters.country,
     }).pipe(
       retry({ count: 2, delay: 350 }),
       map((response) => this.applyLiveFilters(
@@ -560,6 +565,10 @@ export class TvDataFacade {
     item: TvReadItemDTO,
     filters: ReturnType<TvDataFacade['normalizeDiscoverFilters']>
   ): boolean {
+    // A TV airing is not on any streaming platform: a platform filter means catalogue titles only.
+    if (filters.platforms.length) {
+      return false;
+    }
     if (!this.matchesAvailabilityFlags(filters.availability, {
       live: Boolean(item.airing.liveNow || item.availability.live),
       streaming: Boolean(item.availability.streaming),
@@ -603,10 +612,8 @@ export class TvDataFacade {
     }
 
     if (filters.platforms.length) {
-      const platformNames = (item.primaryPlatforms || []).map((entry) => entry.toLowerCase());
-      const matchesPlatform = filters.platforms.some((platform) =>
-        platformNames.includes(platform.toLowerCase())
-      );
+      const platformNames = new Set((item.primaryPlatforms || []).map(platformKey));
+      const matchesPlatform = filters.platforms.some((platform) => platformNames.has(platformKey(platform)));
       if (!matchesPlatform) {
         return false;
       }
@@ -651,7 +658,8 @@ export class TvDataFacade {
     return this.document.visibilityState !== 'hidden';
   }
 
-  private applyLiveFilters(items: TvReadItemDTO[], filters: UnifiedLiveFilters): TvReadItemDTO[] {
+  /** Client-side channel filters (type, region, availability); the guide page applies them without a new request. */
+  applyLiveFilters(items: TvReadItemDTO[], filters: UnifiedLiveFilters): TvReadItemDTO[] {
     return items.filter((item) => {
       if (filters.channel && item.channel.id !== filters.channel) {
         return false;
@@ -713,6 +721,25 @@ export class TvDataFacade {
     const specific = availability.filter((value) => value && value !== 'streaming');
     return specific.length ? specific.join(',') : 'streaming';
   }
+}
+
+/** Provider names that are the same service as a platform filter (TMDB spells some differently). */
+const PLATFORM_ALIASES: Record<string, string> = {
+  'movistar plus': 'movistar',
+  'movistar plus ficcion total': 'movistar',
+  rtve: 'rtve play',
+  max: 'hbo max',
+};
+
+/** Same normalisation as the backend (accents, "+" and punctuation dropped), then aliases: "Apple TV+" = "Apple TV". */
+export function platformKey(name: string): string {
+  const key = String(name || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+  return PLATFORM_ALIASES[key] || key;
 }
 
 function isTvItem(item: UnifiedDiscoveryItem): item is TvReadItemDTO {

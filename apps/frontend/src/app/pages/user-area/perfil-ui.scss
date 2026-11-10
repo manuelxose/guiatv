@@ -1,0 +1,206 @@
+// Shared building blocks of the profile area (user-area and every tab component include this file),
+// drawn with the shell's --sv2-* tokens and the section accent so they follow both themes.
+:host { display: grid; align-content: start; gap: 28px; color: var(--sv2-text); }
+
+.pf-sec { display: grid; gap: 12px; }
+
+.pf-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+
+  h2 { margin: 0; font-size: 1.125rem; }
+  p { flex-basis: 100%; margin: 0; color: var(--sv2-text-muted); font-size: var(--sv2-fs-sm); line-height: 1.45; }
+  a, .pf-link { color: var(--section-accent-text); font-size: var(--sv2-fs-sm); font-weight: 700; text-decoration: none; &:hover { text-decoration: underline; } }
+}
+
+.pf-card {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--sv2-border);
+  border-radius: 14px;
+  background: var(--sv2-surface-1);
+
+  h3 { margin: 0; font-size: var(--sv2-fs-sm); }
+}
+
+.pf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.pf-grid--poster { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
+
+.pf-muted { margin: 0; color: var(--sv2-text-muted); font-size: var(--sv2-fs-sm); line-height: 1.45; }
+.pf-small { color: var(--sv2-text-faint); font-size: var(--sv2-fs-xs); }
+
+// Toggle chips (multi-select preferences).
+.pf-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.pf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--sv2-border-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sv2-text);
+  font: inherit;
+  font-size: var(--sv2-fs-sm);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover { border-color: var(--section-accent); }
+  &.on, &[aria-pressed='true'], &[aria-current] { border-color: transparent; background: var(--section-accent); color: var(--section-accent-ink); }
+  &--neg.on, &--neg[aria-pressed='true'] { background: var(--sv2-live); color: #11160a; }
+  &:disabled { opacity: 0.5; cursor: progress; }
+  .x { font-weight: 800; }
+}
+
+.pf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 18px;
+  border: 1px solid var(--sv2-border-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sv2-text);
+  font: inherit;
+  font-size: var(--sv2-fs-sm);
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+
+  &--pri { border-color: transparent; background: var(--section-accent); color: var(--section-accent-ink); }
+  &--danger { border-color: color-mix(in srgb, var(--sv2-live) 60%, transparent); color: var(--sv2-live); }
+  &--sm { min-height: 32px; padding: 0 12px; font-size: var(--sv2-fs-xs); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.pf-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.pf-field {
+  display: grid;
+  gap: 6px;
+  font-size: var(--sv2-fs-sm);
+  font-weight: 600;
+
+  small { color: var(--sv2-text-faint); font-weight: 400; }
+}
+
+.pf-input {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 14px;
+  border: 1px solid var(--sv2-border-strong);
+  border-radius: 10px;
+  background: var(--sv2-bg);
+  color: var(--sv2-text);
+  font: inherit;
+  font-weight: 400;
+
+  &:focus-visible { outline: 2px solid var(--section-accent); outline-offset: 1px; }
+}
+
+textarea.pf-input { min-height: 84px; resize: vertical; }
+
+.pf-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.pf-inline { display: flex; gap: 8px; .pf-input { flex: 1; } }
+
+// Switch rows (on/off settings).
+.pf-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-top: 1px solid var(--sv2-border);
+  cursor: pointer;
+
+  &:first-of-type { border-top: 0; }
+  span { display: grid; gap: 2px; font-size: var(--sv2-fs-sm); font-weight: 600; }
+  small { color: var(--sv2-text-muted); font-weight: 400; }
+
+  input {
+    flex: none;
+    width: 40px;
+    height: 22px;
+    margin: 0;
+    border-radius: 999px;
+    background: var(--sv2-surface-3);
+    appearance: none;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.15s; }
+    &:checked { background: var(--section-accent); &::after { transform: translateX(18px); } }
+    &:focus-visible { outline: 2px solid var(--section-accent); outline-offset: 2px; }
+  }
+}
+
+// Rows (lists of items with actions).
+.pf-rows { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+
+.pf-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--sv2-border);
+  border-radius: 12px;
+  background: var(--sv2-surface-1);
+  font-size: var(--sv2-fs-sm);
+
+  .pf-row__main { display: grid; flex: 1; gap: 2px; min-width: 0; }
+  .pf-row__main > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  a { color: inherit; text-decoration: none; &:hover { text-decoration: underline; } }
+  &.unread { border-color: color-mix(in srgb, var(--section-accent) 50%, var(--sv2-border)); }
+}
+
+.pf-thumb {
+  flex: none;
+  width: 40px;
+  height: 60px;
+  border-radius: 6px;
+  background: var(--sv2-surface-3);
+  object-fit: cover;
+}
+
+// Filter links (view switches inside a tab).
+.pf-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.pf-empty {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: 18px;
+  border: 1px dashed var(--sv2-border-strong);
+  border-radius: 14px;
+  color: var(--sv2-text-muted);
+  font-size: var(--sv2-fs-sm);
+  line-height: 1.45;
+
+  strong { color: var(--sv2-text); }
+}
+
+.pf-note { margin: 0; color: var(--section-accent-text); font-size: var(--sv2-fs-xs); font-weight: 700; &--err { color: var(--sv2-live); } }
+
+.pf-skel { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; div { height: 72px; border-radius: 12px; background: var(--sv2-surface-2); animation: pf-pulse 1.4s ease-in-out infinite; } }
+@keyframes pf-pulse { 50% { opacity: 0.5; } }
+
+.pf-select { appearance: auto; }
+
+.pf-stars { display: inline-flex; gap: 2px; button { padding: 0 1px; border: 0; background: none; color: var(--sv2-text-faint); font-size: 1rem; line-height: 1; cursor: pointer; &.on { color: #f6c453; } } }
+
+button.pf-link { padding: 0; border: 0; background: none; font: inherit; color: var(--section-accent-text); font-size: var(--sv2-fs-sm); font-weight: 700; cursor: pointer; &:hover { text-decoration: underline; } }
+
+// Platform brand marks inside chips (logos are often white: dark tile).
+.pf-chip img { width: 22px; height: 22px; margin-left: -6px; padding: 2px; border-radius: 6px; background: #12151a; object-fit: contain; }

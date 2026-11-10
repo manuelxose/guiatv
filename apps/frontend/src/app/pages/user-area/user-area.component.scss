@@ -1,8 +1,157 @@
-:host {
-  display: block;
-  font-family: 'Inter', 'Roboto', 'Source Sans 3', sans-serif;
+// Frame of the profile area (menu, header, right panel, Hoy). Shared blocks come from perfil-ui.scss.
+.ua,
+.ua-ctx { display: grid; align-content: start; gap: 28px; color: var(--sv2-text); }
+.ua-ctx { gap: 14px; padding: 16px; }
+
+.ua-side__admin { display: block; margin: 12px 16px; color: var(--section-accent-text); font-size: var(--sv2-fs-sm); font-weight: 700; text-decoration: none; }
+
+.ua-intro {
+  display: grid;
+  gap: 6px;
+
+  h1 { margin: 0; font-size: clamp(1.5rem, 2.4vw, 2rem); line-height: 1.15; }
+  p { margin: 0; color: var(--sv2-text-muted); font-size: var(--sv2-fs-sm); }
 }
 
-.user-area-login-cta {
-  min-height: calc(100dvh - var(--top-bar-h, 0px) - var(--bottom-nav-h, 0px));
+.ua-bc {
+  display: flex;
+  gap: 6px;
+  color: var(--sv2-text-faint);
+  font-size: var(--sv2-fs-xs);
+
+  a { color: inherit; text-decoration: none; &:hover { color: var(--sv2-text); } }
+}
+
+.ua-ctx-btn {
+  display: none;
+  justify-self: start;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--sv2-border-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sv2-text);
+  font-size: var(--sv2-fs-xs);
+  font-weight: 700;
+  cursor: pointer;
+
+  @media (max-width: 1199px) { display: inline-flex; align-items: center; }
+}
+
+// Phone: the menu as chips (the left panel is hidden there).
+.ua-chips {
+  display: none;
+  gap: 8px;
+  margin: 0 -4px;
+  padding: 2px 4px;
+  overflow-x: auto;
+
+  @media (max-width: 899px) { display: flex; }
+
+  a {
+    flex: none;
+    min-height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--sv2-border);
+    border-radius: 999px;
+    background: var(--sv2-surface-1);
+    color: var(--sv2-text-muted);
+    font-size: var(--sv2-fs-sm);
+    font-weight: 600;
+    line-height: 34px;
+    text-decoration: none;
+    white-space: nowrap;
+
+    &.on { border-color: transparent; background: var(--section-accent); color: var(--section-accent-ink); }
+  }
+}
+
+// ── Right panel ──
+.ua-label { margin: 0; color: var(--sv2-text-faint); font-size: var(--sv2-fs-xs); font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.ua-id { display: flex; align-items: center; gap: 12px; }
+.ua-id__text { display: grid; min-width: 0; strong, small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } small { color: var(--sv2-text-muted); } }
+
+.ua-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: var(--section-accent);
+  color: var(--section-accent-ink);
+  font-weight: 800;
+  overflow: hidden;
+
+  img { width: 100%; height: 100%; object-fit: cover; }
+}
+
+.ua-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin: 0;
+  text-align: center;
+
+  div { display: grid; }
+  dd { margin: 0; font-weight: 800; }
+  dt { color: var(--sv2-text-muted); font-size: 0.6875rem; }
+}
+
+.ua-bar { height: 8px; border-radius: 999px; background: var(--sv2-surface-3); overflow: hidden; span { display: block; height: 100%; border-radius: inherit; background: var(--section-accent); } }
+
+.ua-live { display: flex; align-items: center; gap: 8px; margin: 0; font-size: var(--sv2-fs-sm); font-weight: 700; }
+.ua-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sv2-live); }
+
+.ua-asks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  button {
+    padding: 6px 12px;
+    border: 1px solid var(--sv2-border-strong);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--sv2-text);
+    font-size: var(--sv2-fs-xs);
+    text-align: left;
+    cursor: pointer;
+
+    &:hover { border-color: var(--section-accent); }
+  }
+}
+
+// ── Hoy ──
+.ua-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+
+  a {
+    display: grid;
+    gap: 2px;
+    padding: 14px;
+    border: 1px solid var(--sv2-border);
+    border-radius: 14px;
+    background: var(--sv2-surface-1);
+    color: inherit;
+    text-decoration: none;
+
+    &:hover { border-color: var(--section-accent); }
+    strong { font-size: var(--sv2-fs-sm); }
+    span { color: var(--sv2-text-muted); font-size: var(--sv2-fs-xs); }
+  }
+}
+
+.ua-poster {
+  display: grid;
+  gap: 6px;
+  color: inherit;
+  text-decoration: none;
+
+  img, .ua-poster__ph { width: 100%; aspect-ratio: 2 / 3; border-radius: 10px; background: var(--sv2-surface-2); object-fit: cover; }
+  .ua-poster__ph { display: grid; place-items: center; color: var(--sv2-text-faint); font-size: 2rem; font-weight: 800; }
+  strong { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: var(--sv2-fs-sm); line-height: 1.3; }
+  &:hover strong { text-decoration: underline; }
 }

@@ -100,6 +100,9 @@ export class TvApiService {
     channelId?: string;
     q?: string;
     itemsPerChannel?: number;
+    fields?: 'grid';
+    /** ISO country code (e.g. 'GB'); omitted or 'es'/'all' keeps today's unfiltered Spanish channels. */
+    country?: string;
   }): Observable<ApiResponse<TvReadScheduleResponseDTO>> {
     const params: Record<string, any> = {
       date: query.date ?? 'today',
@@ -108,6 +111,8 @@ export class TvApiService {
       channelId: query.channelId,
       q: query.q,
       itemsPerChannel: query.itemsPerChannel,
+      fields: query.fields,
+      country: query.country,
     };
     return this.cachedGet<ApiResponse<TvReadScheduleResponseDTO>>(
       `/tv/read/schedule:${JSON.stringify(params)}`,

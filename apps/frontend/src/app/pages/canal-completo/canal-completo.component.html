@@ -1,18 +1,114 @@
-<main class="min-h-screen bg-[var(--portal-bg)] text-[var(--portal-text)]">
-  <div *ngIf="isLoading" class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8" aria-busy="true" aria-label="Cargando canal">
-    <div class="h-8 w-64 rounded-full bg-[var(--portal-surface-strong)] animate-pulse"></div>
-    <div class="mt-6 flex items-center gap-4">
-      <div class="h-16 w-16 flex-none rounded-xl bg-[var(--portal-surface-strong)] animate-pulse"></div>
-      <div class="flex-1 space-y-3">
-        <div class="h-6 w-48 rounded-full bg-[var(--portal-surface-strong)] animate-pulse"></div>
-        <div class="h-4 w-72 max-w-full rounded-full bg-[var(--portal-surface-strong)] animate-pulse"></div>
+@if (structuredData) {<div [innerHTML]="structuredData"></div>}
+<app-panel-shell sideLabel="Programación TV" [contextLabel]="canal || 'Canal'" [(contextOpen)]="contextOpen">
+  <app-panel-nav panelSide title="Programación TV" [links]="sideLinks" [groups]="sideGroups"></app-panel-nav>
+
+  <!-- Right panel: the channel card, where to watch it and the assistant. -->
+  <section panelContext class="cx" aria-labelledby="cx-title">
+    <div class="cx__card">
+      <div class="cx__id">
+        <span class="ch-logo">@if (logo) {<img [src]="logo" alt="" width="48" height="48" (error)="onChannelLogoError()" />} @else {<span>{{ canal.charAt(0) }}</span>}</span>
+        <span><strong id="cx-title">{{ canal }}</strong><small>{{ distributionLabel() }} · {{ accessLabel() }}</small></span>
+      </div>
+      @if (currentProgram; as live) {
+      <a class="cx__media" [routerLink]="live.detailPath" tabindex="-1" aria-hidden="true">
+        @if (live.image) {<img [src]="live.image" alt="" loading="lazy" decoding="async" />}
+        <span class="pill pill--live">En directo</span>
+      </a>
+      <p class="cx__now"><strong>{{ live.title }}</strong></p>
+      <small class="cx__muted">{{ formatTimeRange(live) }}@if (live.category) { · {{ live.category }}}</small>
+      @if (live.description) {<p class="cx__desc">{{ live.description }}</p>}
+      <span class="bar" role="progressbar" aria-label="Progreso del programa en emisión" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="progressPercentage(live)"><i [style.width.%]="progressPercentage(live)"></i></span>
+      <a class="btn btn--pri btn--block" [routerLink]="live.detailPath">Ver ficha</a>
+      <app-interaction-buttons [compact]="true" [itemId]="live.id" [title]="live.title" [type]="live.contentType" [genres]="live.category ? [live.category] : []" [image]="live.image"></app-interaction-buttons>
+      } @else if (!isLoading) {
+      <small class="cx__muted">Sin emisión en directo confirmada ahora mismo.</small>
+      }
+    </div>
+
+    @if (nextPrograms.length) {
+    <div class="cx__block">
+      <h3>Después</h3>
+      <ul class="cx__list">
+        @for (p of nextPrograms.slice(0, 4); track p.id) {
+        <li><a [routerLink]="p.detailPath"><time>{{ formatTime(p.start) }}</time><span><strong>{{ p.title }}</strong>@if (p.category) {<small>{{ p.category }}</small>}</span></a></li>
+        }
+      </ul>
+    </div>
+    }
+
+    <div class="cx__block">
+      <h3>Dónde verlo</h3>
+      @if (whereToWatch.length) {
+      <dl class="cx__kv">
+        @for (row of whereToWatch; track row[0]) {<div><dt>{{ row[0] }}</dt><dd>{{ row[1] }}</dd></div>}
+      </dl>
+      } @else {
+      <small class="cx__muted">{{ isLoading ? 'Cargando…' : 'Sin datos de distribución confirmados.' }}</small>
+      }
+      @if (channelAffiliateOffers.length) {
+      <div class="cx__offers">
+        @for (offer of channelAffiliateOffers; track $index) {
+        <app-affiliate-cta [offer]="offer" variant="secondary" [appAffiliateImpression]="offer" [appAffiliateImpressionContext]="channelAffiliateImpressionContext()" [appAffiliateImpressionPage]="channelPagePath"></app-affiliate-cta>
+        }
+        <app-affiliate-disclosure [sponsored]="showChannelSponsoredDisclosure" [compact]="true"></app-affiliate-disclosure>
+      </div>
+      }
+    </div>
+
+    <div class="cx__assistant">
+      <strong>Pregunta al asistente</strong>
+      <div class="cx__asks">
+        @for (ask of assistantAsks; track ask) {<button type="button" (click)="openAssistant()">{{ ask }}</button>}
       </div>
     </div>
-    <div class="mt-8 h-72 rounded-xl bg-[var(--portal-surface-strong)] animate-pulse"></div>
-    <app-unified-skeleton-block class="mt-6 block" [count]="6" [columns]="1" cardHeight="4.75rem"></app-unified-skeleton-block>
-  </div>
+  </section>
 
-  <div *ngIf="!isLoading && error" class="mx-auto min-h-[70vh] max-w-3xl px-6 py-20">
+  <div class="cp">
+    <!-- Phones have no left panel: the TV menu becomes a row of links. -->
+    <nav class="cp__subnav chips" aria-label="Programación TV">
+      @for (l of sideLinks; track l.path) {<a [routerLink]="l.path">{{ l.label }}</a>}
+    </nav>
+
+    <header class="cp__intro">
+      <nav class="cp__bc" aria-label="Migas de pan">
+        <a [routerLink]="appPaths.home">Inicio</a><span aria-hidden="true">›</span><a [routerLink]="appPaths.channels">Canales</a><span aria-hidden="true">›</span><span aria-current="page">{{ canal }}</span>
+      </nav>
+      <div class="cp__title">
+        <span class="ch-logo ch-logo--lg">@if (logo) {<img [src]="logo" [alt]="'Logotipo de ' + canal" width="56" height="56" (error)="onChannelLogoError()" />} @else {<span>{{ canal.charAt(0) }}</span>}</span>
+        <h1>Programación de {{ canal }} {{ dayText }}</h1>
+      </div>
+      <p>{{ channelDescription || 'Horarios de ' + canal + ': qué echan ahora, a continuación y esta noche, con enlace a cada programa.' }}</p>
+      @if (channel) {
+      <ul class="cp__facts" aria-label="Datos del canal">
+        <li>{{ distributionLabel() }}</li>
+        <li>{{ accessLabel() }}</li>
+        @if (channel.quality?.resolution && channel.quality?.resolution !== 'unknown') {<li>{{ channel.quality!.resolution.toUpperCase() }}</li>}
+        @for (f of contentFacetLabels; track f) {<li>{{ f }}</li>}
+        @if (programs.length) {<li>{{ programs.length }} emisiones {{ dayText }}</li>}
+      </ul>
+      }
+      <button type="button" class="cp__ctx-btn" (click)="contextOpen = true">
+        @if (currentProgram; as live) {Ahora: <strong>{{ live.title }}</strong> · Dónde verlo ›} @else {Ficha del canal y dónde verlo ›}
+      </button>
+    </header>
+
+    <nav class="cp__filters" aria-label="Elegir día y género">
+      <div class="chips">
+        @for (d of days; track d.value) {<a [routerLink]="[]" [queryParams]="paramsFor({ dia: d.param })" [class.on]="activeDayAlias === d.value" [attr.aria-current]="activeDayAlias === d.value ? 'true' : null">{{ d.label }}</a>}
+      </div>
+      @if (genres.length) {
+      <div class="chips chips--sm">
+        <a [routerLink]="[]" [queryParams]="paramsFor({ genero: 'all' })" [class.on]="selectedGenre === 'all'" [attr.aria-current]="selectedGenre === 'all' ? 'true' : null">Todo</a>
+        @for (g of genres; track g.slug) {<a [routerLink]="[]" [queryParams]="paramsFor({ genero: g.slug })" [class.on]="selectedGenre === g.slug" [attr.aria-current]="selectedGenre === g.slug ? 'true' : null">{{ g.label }}</a>}
+      </div>
+      }
+    </nav>
+
+    @if (isLoading) {
+    <div class="tl" aria-busy="true" aria-label="Cargando programación">
+      @for (i of [1, 2, 3, 4, 5, 6, 7, 8]; track i) {<div class="tl__row tl__row--skeleton"></div>}
+    </div>
+    } @else if (error) {
     <app-unified-async-state
       [kind]="channelNotFound ? 'empty' : 'error'"
       [title]="channelNotFound ? 'Canal no disponible' : 'No hemos podido cargar esta señal'"
@@ -20,298 +116,116 @@
       [actionLabel]="channelNotFound ? undefined : 'Reintentar'"
       (action)="retry()"
     ></app-unified-async-state>
-    <a
-      routerLink="/programacion-tv/en-directo"
-      class="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full border border-[var(--portal-border)] bg-[var(--portal-surface-soft)] px-5 text-sm font-semibold text-[var(--portal-text)]"
-    >
-      Volver a la guía
-    </a>
-  </div>
+    <a class="cp__more" [routerLink]="appPaths.channels">Ver todos los canales ›</a>
+    } @else {
+    @if (nowAndNext.length) {
+    <section aria-labelledby="cp-now">
+      <div class="cp__sec-head"><h2 id="cp-now" class="cp__h2">Qué echan ahora en {{ canal }}</h2><a [routerLink]="appPaths.guide">TV en directo ›</a></div>
+      <div class="cp__grid">
+        @for (p of nowAndNext; track p.id) {<app-panel-tile [item]="p.raw"></app-panel-tile>}
+      </div>
+    </section>
+    }
 
-  <ng-container *ngIf="!isLoading && !error">
-    <!-- ============================================================ -->
-    <!-- HERO — compact Spotify-style channel header                  -->
-    <!-- ============================================================ -->
-    <section class="relative overflow-hidden">
-      <div
-        class="absolute inset-0"
-        [style.background-image]="heroBackdrop ? 'url(' + heroBackdrop + ')' : null"
-        [style.background-size]="heroBackdrop ? 'cover' : null"
-        [style.background-position]="heroBackdrop ? 'center 20%' : null"
-        aria-hidden="true"
-      ></div>
-      <div
-        class="absolute inset-0 backdrop-blur-2xl"
-        [ngClass]="heroBackdrop
-          ? 'bg-[linear-gradient(180deg,color-mix(in_oklch,var(--portal-bg-deep)_55%,transparent)_0%,var(--portal-bg)_92%)]'
-          : 'bg-[radial-gradient(circle_at_top_left,color-mix(in_oklch,var(--accent-live)_14%,transparent),transparent_38%),radial-gradient(circle_at_top_right,color-mix(in_oklch,var(--accent-discover)_10%,transparent),transparent_32%),linear-gradient(180deg,var(--portal-bg-deep)_0%,var(--portal-bg)_100%)]'"
-        aria-hidden="true"
-      ></div>
-
-      <div class="relative mx-auto max-w-7xl px-4 pb-6 pt-5 sm:px-6 lg:px-8 lg:pb-8 lg:pt-8">
-        <app-breadcrumb [items]="breadcrumbItems" [embedded]="true"></app-breadcrumb>
-
-        <div class="mt-4 flex flex-col gap-5 sm:flex-row sm:items-end">
-          <div class="flex h-20 w-20 flex-none items-center justify-center rounded-xl border border-[var(--portal-border)] bg-[var(--portal-bg-elevated)] p-2.5 shadow-[var(--shadow-md)] sm:h-24 sm:w-24">
-            <span *ngIf="!logo" class="text-xl font-black text-[var(--portal-text-soft)]" aria-hidden="true">{{ canal.slice(0, 2) }}</span>
-            <img
-              *ngIf="logo"
-              [src]="logo"
-              [alt]="'Logotipo de ' + canal"
-              width="96"
-              height="96"
-              class="max-h-full max-w-full object-contain"
-              (error)="onChannelLogoError($event)"
-            />
-          </div>
-
-          <div class="min-w-0 flex-1">
-            <div class="flex flex-wrap items-center gap-2">
-              <span
-                *ngIf="filteredCurrentProgram?.liveNow"
-                class="inline-flex items-center gap-1.5 rounded-full bg-[var(--accent-live-strong)] px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-white"
-              >
-                <span class="live-dot" aria-hidden="true"></span>
-                En directo
-              </span>
-              <span class="rounded-full border border-[var(--portal-border)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--portal-text-soft)]">
-                {{ accessLabel() }}
-              </span>
-            </div>
-
-            <h1 class="mt-2 text-3xl font-black leading-tight tracking-tight text-[var(--portal-text)] sm:text-4xl">
-              {{ canal }}
-            </h1>
-
-            <p class="mt-2 max-w-2xl text-sm leading-6 text-[var(--portal-text-muted)]">
-              <ng-container *ngIf="filteredCurrentProgram as live; else noLive">
-                Ahora: <span class="font-semibold text-[var(--portal-text-soft)]">{{ live.title }}</span>
-                <span class="tnum"> · {{ formatTimeRange(live) }}</span>
-                <ng-container *ngIf="filteredNextPrograms[0] as upNext"> · Después: {{ upNext.title }}</ng-container>
-              </ng-container>
-              <ng-template #noLive>{{ channelDescription || 'Consulta la programación completa de ' + canal + '.' }}</ng-template>
-            </p>
-
-            <div *ngIf="filteredCurrentProgram?.liveNow" class="mt-3 max-w-md" role="progressbar" aria-label="Progreso del programa en emisión" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="progressPercentage(filteredCurrentProgram!)">
-              <div class="h-1 overflow-hidden rounded-full bg-[var(--portal-surface-strong)]">
-                <div class="h-full rounded-full bg-[var(--accent-live)]" [style.width.%]="progressPercentage(filteredCurrentProgram!)"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="mt-5 flex flex-wrap items-center gap-2">
-          <a
-            *ngIf="filteredCurrentProgram as live"
-            [routerLink]="[live.detailPath]"
-            class="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full bg-[var(--accent-discover)] px-5 text-sm font-bold text-black transition-transform hover:scale-[1.02] active:scale-95"
-          >
-            Ver ficha
+    <section aria-labelledby="cp-schedule">
+      <div class="cp__sec-head"><h2 id="cp-schedule" class="cp__h2">Parrilla de {{ canal }} {{ dayText }}</h2><a [routerLink]="appPaths.guide">Parrilla de todos los canales ›</a></div>
+      <p class="cp__note">Horarios de España peninsular. Mostramos las emisiones confirmadas; la parrilla puede estar incompleta.</p>
+      @if (filteredSchedule.length) {
+      <ol class="tl">
+        @for (p of filteredSchedule; track p.id) {
+        <li>
+          <a class="tl__row" [routerLink]="p.detailPath" [class.now]="p.liveNow" [class.past]="isPastProgram(p)">
+            <time>{{ formatTime(p.start) }}</time>
+            <span class="tl__thumb">@if (p.image) {<img [src]="p.image" alt="" width="96" height="54" loading="lazy" decoding="async" />}</span>
+            <span class="tl__body">
+              <strong>{{ p.title }}</strong>
+              <small>{{ p.normalizedCategory !== 'Otros' ? p.normalizedCategory + ' · ' : '' }}{{ formatTimeRange(p) }} · {{ p.durationMinutes }} min</small>
+              @if (p.description) {<span class="tl__desc">{{ p.description }}</span>}
+              @if (p.liveNow) {<span class="bar" aria-hidden="true"><i [style.width.%]="progressPercentage(p)"></i></span>}
+            </span>
+            @if (p.liveNow) {<span class="pill pill--live">Ahora</span>}
           </a>
-          <app-interaction-buttons
-            *ngIf="filteredCurrentProgram as live"
-            [itemId]="live.id"
-            [title]="live.title"
-            [type]="live.contentType"
-            [genres]="live.category ? [live.category] : []"
-            [image]="live.image"
-          ></app-interaction-buttons>
-
-          <div class="ml-auto flex flex-wrap items-center gap-2">
-            <button
-              *ngFor="let day of days"
-              type="button"
-              (click)="cambiarDia(day.value)"
-              [attr.aria-pressed]="activeDayAlias === day.value"
-              class="min-h-[36px] rounded-full border px-3.5 text-xs font-semibold transition-colors"
-              [ngClass]="diaSeleccionado === day.label
-                ? 'border-transparent bg-[var(--portal-text)] text-[var(--portal-bg)]'
-                : 'border-[var(--portal-border)] text-[var(--portal-text-soft)] hover:border-[var(--portal-border-strong)] hover:text-[var(--portal-text)]'"
-            >
-              {{ day.label }}
-            </button>
-          </div>
-        </div>
-
-        <div class="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-[var(--portal-text-muted)]">
-          <span>{{ distributionLabel() }}</span>
-          <span *ngFor="let provider of providerLabels">{{ provider }}</span>
-          <span *ngIf="resolutionLabel() as resolution">{{ resolution }}</span>
-          <span *ngFor="let facet of contentFacetLabels">{{ facet }}</span>
-        </div>
-
-        <div *ngIf="channelAffiliateOffers.length" class="mt-4 flex flex-wrap items-center gap-3">
-          <app-affiliate-cta
-            *ngFor="let offer of channelAffiliateOffers"
-            [offer]="offer"
-            variant="secondary"
-            [appAffiliateImpression]="offer"
-            [appAffiliateImpressionContext]="channelAffiliateImpressionContext()"
-            [appAffiliateImpressionPage]="channelPagePath"
-          ></app-affiliate-cta>
-          <app-affiliate-disclosure [sponsored]="showChannelSponsoredDisclosure" [compact]="true"></app-affiliate-disclosure>
-        </div>
+        </li>
+        }
+      </ol>
+      } @else {
+      <div class="cp__empty">
+        <strong>Sin emisiones para esta selección</strong>
+        <a [routerLink]="[]" [queryParams]="paramsFor({ genero: 'all' })">Ver toda la programación</a>
       </div>
+      }
     </section>
 
-    <section class="mx-auto max-w-7xl px-4 pb-16 pt-8 sm:px-6 lg:px-8 lg:pt-10">
-      <!-- ============================================================ -->
-      <!-- AHORA EN EMISIÓN — dominant "now playing" block               -->
-      <!-- ============================================================ -->
-      <div *ngIf="filteredCurrentProgram as live" class="mb-12 lg:mb-16">
-        <p class="eyebrow text-[var(--portal-text-soft)]">Ahora en emisión</p>
-        <h2 class="mt-1 text-2xl font-bold tracking-tight text-[var(--portal-text)]">{{ canal }}</h2>
-        <div class="mt-4">
-          <app-unified-program-card
-            [item]="live.raw"
-            variant="feature"
-            [showChannel]="false"
-            [enableAffiliateCta]="true"
-            affiliatePlacement="channel-page"
-          ></app-unified-program-card>
-        </div>
+    @if (filteredTonightPrograms.length) {
+    <section aria-labelledby="cp-tonight">
+      <div class="cp__sec-head"><h2 id="cp-tonight" class="cp__h2">{{ activeDayAlias === 'today' ? 'Qué ponen esta noche' : 'La noche de ' + dayText }} en {{ canal }}</h2><a [routerLink]="appPaths.guide" [queryParams]="{ liveView: 'night' }">Parrilla de esta noche ›</a></div>
+      <div class="cp__grid">
+        @for (p of filteredTonightPrograms.slice(0, 8); track p.id) {<app-panel-tile [item]="p.raw"></app-panel-tile>}
       </div>
+    </section>
+    }
 
-      <p *ngIf="!filteredCurrentProgram" class="mb-12 text-sm text-[var(--portal-text-muted)] lg:mb-16">
-        Este canal no tiene ninguna emisión en directo confirmada ahora mismo{{ selectedCategory !== 'all' ? ' para el filtro seleccionado' : '' }}.
+    @if (selectedGenre === 'all' && filmsAndSeries.length > 1) {
+    <section aria-labelledby="cp-films">
+      <div class="cp__sec-head"><h2 id="cp-films" class="cp__h2">Películas y series en {{ canal }} {{ dayText }}</h2><a [routerLink]="appPaths.movies">Películas en TV ›</a></div>
+      <div class="cp__grid">
+        @for (p of filmsAndSeries; track p.id) {<app-panel-tile [item]="p.raw"></app-panel-tile>}
+      </div>
+    </section>
+    }
+
+    <section class="cp__about" aria-labelledby="cp-about">
+      <h2 id="cp-about" class="cp__h2">Sobre {{ canal }}</h2>
+      @if (channelDescription) {<p>{{ channelDescription }}</p>}
+      <p>
+        {{ canal }} es un canal {{ accessLabel().toLowerCase() }}@if (channel?.distribution === 'terrestrial') { de la TDT}@if (providerLabels.length) {, disponible en {{ providerLabels.join(', ') }}}.
+        @if (programs.length) {
+        <span>{{ dayLabel }} tiene {{ programs.length }} emisiones confirmadas{{ genreSummary ? ': ' + genreSummary : '' }}.</span>
+        }
+        En esta página tienes su programación hora a hora con enlace a la ficha de cada programa, lo que echan ahora y lo que ponen esta noche.
       </p>
-
-      <!-- ============================================================ -->
-      <!-- A CONTINUACIÓN — compact horizontal rail                      -->
-      <!-- ============================================================ -->
-      <div *ngIf="filteredNextPrograms.length" class="mb-12 lg:mb-16">
-        <div class="mb-4 flex items-end justify-between gap-3">
-          <div>
-            <p class="eyebrow text-[var(--portal-text-muted)]">A continuación</p>
-            <h2 class="mt-1 text-xl font-bold tracking-tight text-[var(--portal-text)]">Lo que viene después</h2>
-          </div>
-        </div>
-        <div class="rail-scroll -mx-4 flex gap-3 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8" role="list">
-          <div
-            *ngFor="let program of filteredNextPrograms; trackBy: trackProgram"
-            role="listitem"
-            class="w-[168px] flex-none sm:w-[200px]"
-          >
-            <app-unified-program-card [item]="program.raw" variant="compact" [showChannel]="false"></app-unified-program-card>
-          </div>
-        </div>
-      </div>
-
-      <!-- ============================================================ -->
-      <!-- SCHEDULE — chronological timeline                             -->
-      <!-- ============================================================ -->
-      <section *ngIf="filteredTonightPrograms.length" class="mb-12 lg:mb-16" aria-labelledby="channel-tonight-heading">
-        <p class="eyebrow text-[var(--portal-text-muted)]">En horario de noche</p>
-        <h2 id="channel-tonight-heading" class="mt-1 text-xl font-bold tracking-tight text-[var(--portal-text)]">
-          {{ activeDayAlias === 'today' ? 'Esta noche' : 'La noche de ' + diaSeleccionado.toLowerCase() }}
-        </h2>
-        <div class="rail-scroll -mx-4 mt-4 flex gap-3 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8" role="list">
-          <div *ngFor="let program of filteredTonightPrograms; trackBy: trackProgram" role="listitem" class="w-[168px] flex-none sm:w-[200px]">
-            <app-unified-program-card [item]="program.raw" variant="compact" [showChannel]="false"></app-unified-program-card>
-          </div>
-        </div>
-      </section>
-
-      <div class="mb-12 lg:mb-16">
-        <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p class="eyebrow text-[var(--portal-text-muted)]">Parrilla</p>
-            <h2 class="mt-1 text-xl font-bold tracking-tight text-[var(--portal-text)]">Programación de {{ diaSeleccionado.toLowerCase() }}</h2>
-            <p class="mt-2 text-sm text-[var(--portal-text-muted)]">Horarios de España peninsular. Mostramos las emisiones confirmadas; la parrilla puede estar incompleta.</p>
-          </div>
-        </div>
-
-        <div class="mb-5 flex flex-wrap gap-2" role="group" aria-label="Filtrar por categoría">
-          <button
-            *ngFor="let category of quickCategoryTabs"
-            type="button"
-            (click)="selectCategory(category.key)"
-            [attr.aria-pressed]="selectedCategory === category.key"
-            class="min-h-[36px] rounded-full border px-3.5 text-xs font-semibold transition-colors"
-            [ngClass]="selectedCategory === category.key
-              ? 'border-transparent bg-[var(--portal-text)] text-[var(--portal-bg)]'
-              : 'border-[var(--portal-border)] text-[var(--portal-text-soft)] hover:border-[var(--portal-border-strong)] hover:text-[var(--portal-text)]'"
-          >
-            {{ category.label }}
-          </button>
-          <button
-            *ngFor="let category of extraCategories"
-            type="button"
-            (click)="selectCategory(category)"
-            [attr.aria-pressed]="selectedCategory === category"
-            class="min-h-[36px] rounded-full border px-3.5 text-xs font-semibold transition-colors"
-            [ngClass]="selectedCategory === category
-              ? 'border-transparent bg-[var(--portal-text)] text-[var(--portal-bg)]'
-              : 'border-[var(--portal-border)] text-[var(--portal-text-soft)] hover:border-[var(--portal-border-strong)] hover:text-[var(--portal-text)]'"
-          >
-            {{ category }}
-          </button>
-        </div>
-
-        <div *ngIf="!filteredSchedule.length" class="px-2 py-14 text-center">
-          <p class="eyebrow text-[var(--portal-text-muted)]">Parrilla vacía</p>
-          <h3 class="mt-3 text-lg font-semibold text-[var(--portal-text)]">Sin emisiones para esta selección</h3>
-          <p class="mx-auto mt-2 max-w-md text-sm leading-6 text-[var(--portal-text-muted)]">
-            Este canal no tiene emisiones registradas para el día o la categoría elegidos. Prueba otro día o limpia el filtro.
-          </p>
-          <button
-            type="button"
-            (click)="selectCategory('all')"
-            class="mt-6 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[var(--accent-discover)] px-6 text-sm font-bold text-black active:scale-95"
-          >
-            Limpiar filtro
-          </button>
-        </div>
-
-        <ol *ngIf="filteredSchedule.length" class="divide-y divide-[var(--portal-divider)]">
-          <li
-            *ngFor="let program of filteredSchedule; trackBy: trackProgram"
-            class="schedule-row flex items-center gap-3 py-2.5"
-            [class.schedule-row--live]="program.liveNow"
-          >
-            <span class="schedule-row__now-marker" aria-hidden="true"></span>
-            <div class="min-w-0 flex-1">
-              <app-unified-program-card [item]="program.raw" variant="epg-row" [showChannel]="true" [showActions]="false"></app-unified-program-card>
-              <div *ngIf="program.liveNow" class="mt-1.5 h-1 overflow-hidden rounded-full bg-[var(--portal-surface-strong)]" role="progressbar" aria-label="Progreso de la emisión" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="progressPercentage(program)">
-                <div class="h-full rounded-full bg-[var(--accent-live)]" [style.width.%]="progressPercentage(program)"></div>
-              </div>
-            </div>
-            <div class="flex flex-none flex-col items-end gap-1.5">
-              <span *ngIf="!program.liveNow" class="text-xs text-[var(--portal-text-muted)]">{{ isPastProgram(program) ? 'Finalizado' : 'Próximamente' }}</span>
-              <span
-                *ngIf="program.liveNow"
-                class="inline-flex items-center gap-1 rounded-full bg-[var(--accent-live-strong)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-white"
-              >
-                En directo
-              </span>
-              <a
-                [routerLink]="[program.detailPath]"
-                [attr.aria-label]="'Ver ficha de ' + program.title"
-                class="inline-flex min-h-[36px] items-center justify-center rounded-full border border-[var(--portal-border)] px-3 text-xs font-semibold text-[var(--portal-text-soft)] transition-colors hover:border-[var(--portal-border-strong)] hover:text-[var(--portal-text)]"
-              >
-                Abrir
-              </a>
-            </div>
-          </li>
-        </ol>
-      </div>
-
-      <!-- ============================================================ -->
-      <!-- CANALES RELACIONADOS — compact horizontal rail                -->
-      <!-- ============================================================ -->
-      <div *ngIf="relatedChannels.length">
-        <p class="eyebrow text-[var(--portal-text-muted)]">Descubre más</p>
-        <h2 class="mt-1 text-xl font-bold tracking-tight text-[var(--portal-text)]">Canales relacionados</h2>
-        <div class="rail-scroll -mx-4 mt-4 flex gap-3 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8" role="list">
-          <div
-            *ngFor="let related of relatedChannels; trackBy: trackChannel"
-            role="listitem"
-            class="w-[260px] flex-none sm:w-[280px]"
-          >
-            <app-channel-card [entry]="related" [headingLevel]="3"></app-channel-card>
-          </div>
-        </div>
-      </div>
+      <p>
+        Consulta también la <a [routerLink]="appPaths.guide">parrilla de TV</a> con todos los canales, las
+        <a [routerLink]="appPaths.movies">películas</a> y <a [routerLink]="appPaths.series">series que echan hoy en TV</a>@if (groupLink; as g) { o la guía de <a [routerLink]="appPaths.channels" [queryParams]="{ grupo: g.group }">{{ g.label }}</a>}.
+      </p>
     </section>
-  </ng-container>
-</main>
+    }
+
+    @if (otherChannelCards.length || otherChannels.length) {
+    <section aria-labelledby="cp-others">
+      <div class="cp__sec-head">
+        <h2 id="cp-others" class="cp__h2">Qué echan en otros canales</h2>
+        <a [routerLink]="appPaths.channels">Guía de canales ›</a>
+      </div>
+      @if (otherChannelCards.length) {
+      <div class="cp__grid">
+        @for (c of otherChannelCards; track c.path) {
+        <a class="ch-card" [routerLink]="c.path">
+          <span class="ch-card__head">
+            <span class="ch-logo ch-logo--sm">@if (c.icon) {<img [src]="c.icon" alt="" width="36" height="36" loading="lazy" />} @else {<span>{{ c.name.charAt(0) }}</span>}</span>
+            <strong>{{ c.name }}</strong>
+          </span>
+          @if (c.now) {
+          <span class="ch-card__now"><span class="pill pill--soft">Ahora</span><span class="ch-card__t">{{ c.now.title }}</span></span>
+          @if (c.now.progressPercent) {<span class="bar" aria-hidden="true"><i [style.width.%]="c.now.progressPercent"></i></span>}
+          } @else {
+          <small>Ver su programación de hoy</small>
+          }
+          @if (c.next) {<small>Después: {{ c.next.title }}</small>}
+        </a>
+        }
+      </div>
+      }
+      @if (otherChannels.length) {
+      <div class="chips chips--wrap">
+        @for (c of otherChannels; track c.path) {<a [routerLink]="c.path">{{ c.name }}</a>}
+      </div>
+      }
+    </section>
+    }
+
+    @if (faq.length) {
+    <app-faq-section [heading]="'Preguntas frecuentes sobre ' + canal" [items]="faq"></app-faq-section>
+    }
+  </div>
+</app-panel-shell>

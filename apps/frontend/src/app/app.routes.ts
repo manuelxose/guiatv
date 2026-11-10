@@ -8,7 +8,8 @@ export const routes: Routes = [
     path: '',
     loadComponent: () =>
       import('./pages/home/home.component').then((m) => m.HomeComponent),
-    title: 'Inicio - Guía TV',
+    // Same as the meta title set by HomeComponent: the router's title would otherwise replace it.
+    title: 'Programación TV hoy: qué echan ahora y esta noche en la tele | Guía TV',
     data: { layout: 'portal-page' },
   },
   {
@@ -35,34 +36,24 @@ export const routes: Routes = [
       import('./pages/user-area/user-area.component').then(
         (m) => m.UserAreaComponent
       ),
-    title: 'Perfil - Guía TV',
-    // 'overview' — Mi GuíaTV's content-first home (completion meter, "para
-    // ti" rail). /comunidad keeps its own 'feed' default below; these are
-    // two distinct entry URLs sharing one component, not meant to converge.
-    data: { defaultTab: 'overview', robots: 'noindex, nofollow', layout: 'private-shell' },
+    // No route title: the page sets its own (the router would overwrite it on every tab change).
+    data: { robots: 'noindex, nofollow', layout: 'portal-page' },
   },
   {
     path: 'mi-cuenta',
     redirectTo: 'perfil',
     pathMatch: 'full',
   },
-  {
-    path: 'comunidad',
-    loadComponent: () =>
-      import('./pages/user-area/user-area.component').then(
-        (m) => m.UserAreaComponent
-      ),
-    title: 'Comunidad - Guía TV',
-    data: { defaultTab: 'feed', robots: 'noindex, nofollow', layout: 'private-shell' },
-  },
+  // The social feed is gone; old links land on the profile.
+  { path: 'comunidad', redirectTo: 'perfil', pathMatch: 'full' },
   {
     path: 'perfil/:userId',
     loadComponent: () =>
       import('./pages/public-profile/public-profile.component').then(
         (m) => m.PublicProfileComponent
       ),
-    title: 'Perfil - Guía TV',
-    data: { layout: 'public-shell' },
+    // No route title: the page sets the person's name.
+    data: { layout: 'portal-page' },
   },
   {
     path: 'para-ti',
@@ -70,8 +61,8 @@ export const routes: Routes = [
       import('./pages/for-you/for-you.component').then(
         (m) => m.ForYouComponent
       ),
-    title: 'Para ti - Guía TV',
-    data: { robots: 'noindex, nofollow', layout: 'private-shell' },
+    // No route title: the page sets its own (noindex) meta.
+    data: { robots: 'noindex, nofollow', layout: 'portal-page' },
   },
   {
     path: 'admin',
@@ -89,7 +80,7 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/content-page/content-page.component').then((m) => m.ContentPageComponent),
     title: 'Series - Guía TV',
-    data: { type: 'series', layout: 'public-shell' }
+    data: { type: 'series', layout: 'portal-page' }
   },
   {
     path: 'programacion-tv/peliculas',
@@ -98,16 +89,14 @@ export const routes: Routes = [
         (m) => m.ContentPageComponent
       ),
     title: 'Películas - Guía TV',
-    data: { type: 'movies', layout: 'public-shell' }
+    data: { type: 'movies', layout: 'portal-page' }
   },
   {
     path: 'programacion-tv/en-directo',
     loadComponent: () =>
-      import('./pages/unified-guide/unified-guide.component').then(
-        (m) => m.UnifiedGuideComponent
-      ),
-    title: 'TV en directo - Guía TV',
-    data: { tab: 'live', layout: 'portal-page' },
+      import('./pages/tv-guide/tv-guide.component').then((m) => m.TvGuideComponent),
+    // No route title: the page sets it from its filters, and the router would reset it on every filter link.
+    data: { layout: 'portal-page' },
   },
   {
     path: 'canales',
@@ -116,7 +105,7 @@ export const routes: Routes = [
         (m) => m.ChannelCatalogComponent
       ),
     title: 'Canales de televisión - Guía TV',
-    data: { layout: 'public-shell' },
+    data: { layout: 'portal-page' },
   },
   {
     path: 'canales/:id',
@@ -124,8 +113,8 @@ export const routes: Routes = [
       import('./pages/canal-completo/canal-completo.component').then(
         (m) => m.CanalCompletoComponent
       ),
-    title: 'Canal - Guía TV',
-    data: { layout: 'public-shell' },
+    // No route title: the page sets it from its day filter, and the router would reset it on every filter link.
+    data: { layout: 'portal-page' },
   },
   {
     path: 'programacion-tv/ver-canal/:id',
@@ -134,27 +123,22 @@ export const routes: Routes = [
   },
   {
     path: 'programacion-tv/que-ver-hoy',
-    loadComponent: () =>
-      import('./pages/unified-guide/unified-guide.component').then(
-        (m) => m.UnifiedGuideComponent
-      ),
-    title: 'Qué Ver Hoy - Guía TV',
-    data: { tab: 'discover', layout: 'portal-page' }
+    loadComponent: () => import('./pages/que-ver/que-ver.component').then((m) => m.QueVerComponent),
+    // No route title: the page sets it from its filters, and the router would reset it on every filter link.
+    data: { layout: 'portal-page' },
   },
   {
     path: 'plataformas',
-    loadComponent: () =>
-      import('./pages/unified-guide/unified-guide.component').then(
-        (m) => m.UnifiedGuideComponent
-      ),
-    title: 'Plataformas - Guía TV',
-    data: { tab: 'streaming', layout: 'portal-page' }
+    loadComponent: () => import('./pages/plataformas/plataformas.component').then((m) => m.PlataformasComponent),
+    // No route title: the page sets it from its filters, and the router would reset it on every filter link.
+    data: { layout: 'portal-page' },
   },
   {
     // Sports v2: the football section (docs/sports-v2/ROUTES.md). Legacy FOOTBALL_ROUTES is no longer mounted.
     path: 'deportes/futbol',
     loadChildren: () => import('./sports-v2/sports-v2.routes').then((m) => m.SPORTS_V2_ROUTES),
-    data: { layout: 'minimal-shell' },
+    // Same layout as every section: the app's bottom bar and assistant; the frame is app-panel-shell.
+    data: { layout: 'portal-page' },
   },
   {
     path: 'deportes',
@@ -168,7 +152,7 @@ export const routes: Routes = [
         (m) => m.CatalogDetailComponent
       ),
     title: 'Contenido - Guía TV',
-    data: { layout: 'public-shell' },
+    data: { layout: 'portal-page' },
   },
   {
     path: 'ver-canal/:id',
@@ -183,7 +167,7 @@ export const routes: Routes = [
         (m) => m.CatalogDetailComponent
       ),
     title: 'Detalles del Programa - Guía TV',
-    data: { legacyCatalogMode: 'program', robots: 'noindex, follow', layout: 'public-shell' },
+    data: { legacyCatalogMode: 'program', robots: 'noindex, follow', layout: 'portal-page' },
   },
   {
     path: 'pelicula-details/:id',
@@ -192,7 +176,7 @@ export const routes: Routes = [
         (m) => m.CatalogDetailComponent
       ),
     title: 'Películas - Detalle - Guía TV',
-    data: { legacyCatalogMode: 'movie', robots: 'noindex, follow', layout: 'public-shell' },
+    data: { legacyCatalogMode: 'movie', robots: 'noindex, follow', layout: 'portal-page' },
   },
 
   // SEO-friendly movie route: slug-only (no id exposed)
@@ -203,7 +187,7 @@ export const routes: Routes = [
         (m) => m.EntityDetailComponent
       ),
     title: 'Películas - Detalle - Guía TV',
-    data: { contentType: 'movie', layout: 'public-shell' }
+    data: { contentType: 'movie', layout: 'portal-page' }
   },
   {
     path: 'series/:slug',
@@ -212,7 +196,7 @@ export const routes: Routes = [
         (m) => m.EntityDetailComponent
       ),
     title: 'Series - Detalle - Guía TV',
-    data: { contentType: 'series', layout: 'public-shell' }
+    data: { contentType: 'series', layout: 'portal-page' }
   },
 
   // SEO-friendly program route: slug-only (no id exposed)
@@ -223,7 +207,7 @@ export const routes: Routes = [
         (m) => m.EntityDetailComponent
       ),
     title: 'Programas - Detalle - Guía TV',
-    data: { contentType: 'program', layout: 'public-shell' }
+    data: { contentType: 'program', layout: 'portal-page' }
   },
 
   // Pre-2026-10-20 URLs (the HTTP 301s live in scripts/ssr-server.mjs; these cover in-app navigation).
@@ -231,7 +215,7 @@ export const routes: Routes = [
   {
     path: 'guias',
     children: BLOG_ROUTES && BLOG_ROUTES.length ? BLOG_ROUTES[0].children : [],
-    title: 'Guías - Guía TV',
+    // No route title: each Guías page sets its own (a route title would override it on navigation).
     data: { layout: 'portal-page' },
   },
   { path: 'editorial/categoria/:slug', redirectTo: 'guias/categoria/:slug', pathMatch: 'full' },
@@ -248,7 +232,7 @@ export const routes: Routes = [
         (m) => m.CatalogDetailComponent
       ),
     title: 'Detalles del Programa - Guía TV',
-    data: { legacyCatalogMode: 'program', robots: 'noindex, follow', layout: 'public-shell' },
+    data: { legacyCatalogMode: 'program', robots: 'noindex, follow', layout: 'portal-page' },
   },
   {
     path: 'sobre-nosotros',
@@ -269,11 +253,9 @@ export const routes: Routes = [
   {
     path: 'comparador-streaming',
     loadComponent: () =>
-      import('./pages/unified-guide/unified-guide.component').then(
-        (m) => m.UnifiedGuideComponent
-      ),
-    title: 'Comparador de Streaming - Guía TV',
-    data: { tab: 'streaming', platformMode: 'compare', layout: 'portal-page' },
+      import('./pages/streaming-comparison/streaming-comparison.component').then((m) => m.StreamingComparisonComponent),
+    // No route title: the page sets its own meta title.
+    data: { layout: 'portal-page' },
   },
   {
     path: 'developers',
@@ -308,8 +290,8 @@ export const routes: Routes = [
       import('./pages/stats/stats.component').then(
         (m) => m.StatsComponent
       ),
-    title: 'Tendencias TV y Streaming - Guía TV',
-    data: { layout: 'public-shell' },
+    // No route title: the page sets it (the router title would override the meta title).
+    data: { layout: 'portal-page' },
   },
   {
     path: 'avisolegal',

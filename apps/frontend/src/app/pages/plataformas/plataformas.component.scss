@@ -1,0 +1,197 @@
+// Platform cards, facts and the price table; the rest comes from the Qué ver stylesheet.
+.px__logo {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 800;
+
+  img {
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    object-fit: contain;
+  }
+}
+
+.cx__logo {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 6px;
+  object-fit: contain;
+}
+
+.px__id {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  > span:last-child {
+    display: grid;
+  }
+
+  strong {
+    font-size: var(--sv2-fs-md);
+  }
+
+  small {
+    color: var(--sv2-text-muted);
+    font-size: var(--sv2-fs-xs);
+  }
+}
+
+.px__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--sv2-surface-2);
+    color: var(--sv2-text-muted);
+    font-size: var(--sv2-fs-xs);
+    font-weight: 600;
+  }
+
+  li:first-child {
+    background: color-mix(in srgb, var(--section-accent) 20%, var(--sv2-surface-2));
+    color: var(--sv2-text);
+  }
+}
+
+.px__cards {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.px__card {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--sv2-border);
+  border-radius: var(--sv2-r-md);
+  background: var(--sv2-surface-2);
+
+  &:hover {
+    border-color: var(--section-accent-text);
+  }
+
+  p {
+    margin: 0;
+    color: var(--sv2-text-muted);
+    font-size: var(--sv2-fs-xs);
+    line-height: 1.45;
+  }
+}
+
+.px__card-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--sv2-text);
+  text-decoration: none;
+
+  > span:last-child {
+    display: grid;
+  }
+
+  strong {
+    font-size: var(--sv2-fs-sm);
+  }
+
+  small {
+    color: var(--section-accent-text);
+    font-size: var(--sv2-fs-xs);
+    font-weight: 700;
+  }
+}
+
+.px__card-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+
+  a {
+    color: var(--section-accent-text);
+    font-size: var(--sv2-fs-xs);
+    font-weight: 700;
+    text-decoration: none;
+  }
+}
+
+.px__table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--sv2-border);
+  border-radius: var(--sv2-r-md);
+}
+
+.px__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--sv2-fs-sm);
+
+  th,
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--sv2-border);
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  thead th {
+    background: var(--sv2-surface-2);
+    color: var(--sv2-text-muted);
+    font-size: var(--sv2-fs-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  tbody tr:last-child th,
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  a {
+    color: var(--sv2-text);
+    font-weight: 700;
+    text-decoration: none;
+
+    &:hover {
+      color: var(--section-accent-text);
+    }
+  }
+
+  .px__row-logo {
+    width: 22px;
+    height: 22px;
+    flex: none;
+    border-radius: 5px;
+    object-fit: contain;
+  }
+
+  tbody th a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

@@ -1,105 +1,168 @@
-<app-unified-portal-shell tone="editorial" [breadcrumbItems]="[]" [showHero]="false">
-  <app-portal-context-nav kind="blog" [breadcrumbItems]="breadcrumbItems"></app-portal-context-nav>
-  <app-editorial-masthead [compact]="true"></app-editorial-masthead>
-  <div *ngIf="safeLdHtml" [innerHTML]="safeLdHtml"></div>
+@if (safeLdHtml) {<div [innerHTML]="safeLdHtml"></div>}
 
-  <div class="editorial-category-page">
-    <section *ngIf="loading" aria-busy="true" aria-label="Cargando categoría" class="category-loading">
-      <app-unified-skeleton-block [count]="1" [columns]="1" cardHeight="16rem"></app-unified-skeleton-block>
-      <app-unified-skeleton-block [count]="4" [columns]="2" cardHeight="18rem"></app-unified-skeleton-block>
-    </section>
+<app-panel-shell sideLabel="Guías" [contextLabel]="state?.category?.name || 'Guías'" [(contextOpen)]="contextOpen">
+  <app-panel-nav panelSide title="Guías" [links]="sideLinks" [groups]="sideGroups"></app-panel-nav>
 
-    <app-unified-async-state
-      *ngIf="!loading && error"
-      kind="error"
-      title="La categoría no está disponible ahora mismo"
-      [message]="error"
-      actionLabel="Reintentar"
-      (action)="retry()"
-    ></app-unified-async-state>
+  <!-- Right panel: the lead guide of the category, other topics and the assistant. -->
+  <section panelContext class="cx" aria-labelledby="cgx-title">
+    <h2 id="cgx-title" class="cx__label">{{ state?.category?.name || 'Guías' }}</h2>
+    @if (state?.featuredPost; as lead) {
+    <div class="cx__card">
+      <p class="cx__now"><strong>{{ lead.title }}</strong></p>
+      <small class="cx__muted">Actualizada {{ lead.modifiedAt | date: 'd MMM y' }} · {{ lead.readingMinutes }} min</small>
+      <a class="btn btn--pri btn--block" [routerLink]="lead.canonicalPath">Leer guía</a>
+      @if (lead.tocItems.length) {
+      <h3>En esta guía</h3>
+      <ol class="gx__toc">
+        @for (t of lead.tocItems.slice(0, 6); track t.id) {<li><a [routerLink]="lead.canonicalPath" [fragment]="t.id">{{ t.label }}</a></li>}
+      </ol>
+      }
+    </div>
+    }
+    @if (platform) {
+    <div class="cx__block">
+      <h3>{{ platform }} en Guía TV</h3>
+      <ul class="cx__list">
+        <li><a [routerLink]="appPaths.platforms" [queryParams]="{ platform: platform }"><span><strong>Catálogo y precio</strong><small>Lo más visto y novedades</small></span></a></li>
+        <li><a [routerLink]="appPaths.explore" [queryParams]="{ platforms: platform }"><span><strong>Qué ver hoy en {{ platform }}</strong><small>Recomendaciones del día</small></span></a></li>
+        <li><a [routerLink]="appPaths.streamingComparison"><span><strong>Comparar con otras</strong><small>Precio, pantallas y calidad</small></span></a></li>
+      </ul>
+    </div>
+    }
+    @if (categories.length) {
+    <div class="cx__block">
+      <h3>Otros temas</h3>
+      <ul class="cx__list">
+        @for (c of categories; track c.slug) {
+        @if (c.slug !== state?.category?.slug) {<li><a [routerLink]="c.canonicalPath"><span><strong>{{ sectionName(c.slug, c.name) }}</strong><small>{{ c.count }} {{ c.count === 1 ? 'guía' : 'guías' }}</small></span></a></li>}
+        }
+      </ul>
+    </div>
+    }
+    <div class="cx__assistant">
+      <strong>Pregunta al asistente</strong>
+      <div class="cx__asks">
+        <button type="button" (click)="openAssistant()">Resume las guías de {{ state?.category?.name || 'este tema' }}</button>
+        <button type="button" (click)="openAssistant()">¿Qué me recomiendas leer?</button>
+      </div>
+    </div>
+  </section>
 
-    <app-unified-async-state
-      *ngIf="!loading && notFound"
-      kind="empty"
-      title="Categoría no encontrada"
-      message="La página que buscas no existe o ha cambiado de dirección."
-    ></app-unified-async-state>
+  <div class="qv">
+    <nav class="qv__subnav chips" aria-label="Guías">
+      @for (l of sideLinks; track l.label) {<a [routerLink]="l.path">{{ l.label }}</a>}
+    </nav>
 
-    <ng-container *ngIf="!loading && state">
-      <header class="category-header">
-        <h1>{{ state.category.name }}</h1>
-        <p>
-          {{ state.category.description || ('Guías, análisis y recomendaciones editoriales sobre ' + state.category.name + '.') }}
-        </p>
-      </header>
-
-      <article *ngIf="state.featuredPost" class="category-lead">
-        <a [routerLink]="state.featuredPost.canonicalPath" class="category-lead__story group">
-          <div class="category-lead__media">
-            <img
-              [src]="state.featuredPost.coverImage"
-              [alt]="state.featuredPost.title"
-              width="960"
-              height="600"
-              loading="eager"
-            />
-          </div>
-          <div class="category-lead__copy">
-            <span>Lectura destacada</span>
-            <h2>{{ state.featuredPost.title }}</h2>
-            <p>{{ state.featuredPost.excerptText }}</p>
-            <small>{{ state.featuredPost.publishedAt | date : 'dd MMM yyyy' }} · {{ state.featuredPost.readingMinutes }} min de lectura</small>
-          </div>
-        </a>
-
-        <nav class="category-actions" aria-label="Continuar explorando">
-          <a [routerLink]="appPaths.platforms">Ver plataformas <span aria-hidden="true">→</span></a>
-          <a [routerLink]="appPaths.top10">Abrir rankings <span aria-hidden="true">→</span></a>
-        </nav>
-      </article>
-
-      <section *ngIf="state.relatedRankings.length" class="category-section" aria-labelledby="category-rankings-title">
-        <div class="category-section__header">
-          <h2 id="category-rankings-title">Rankings de {{ state.category.name }}</h2>
-          <a [routerLink]="appPaths.top10">Ver todos los rankings</a>
-        </div>
-        <ol class="category-ranking-list">
-          <li *ngFor="let post of state.relatedRankings; let index = index; trackBy: trackPost">
-            <a [routerLink]="post.canonicalPath">
-              <strong>{{ (index + 1).toString().padStart(2, '0') }}</strong>
-              <span>
-                <b>{{ post.title }}</b>
-                <small>{{ post.readingMinutes }} min de lectura</small>
-              </span>
-            </a>
-          </li>
-        </ol>
-      </section>
-
-      <section *ngIf="state.posts.length" class="category-section" aria-labelledby="category-archive-title">
-        <div class="category-section__header">
-          <h2 id="category-archive-title">Más lecturas sobre {{ state.category.name }}</h2>
-          <span>{{ state.posts.length }} {{ state.posts.length === 1 ? 'artículo' : 'artículos' }}</span>
-        </div>
-        <div class="category-card-grid">
-          <app-editorial-post-card
-            *ngFor="let post of state.posts; trackBy: trackPost"
-            [post]="post"
-          ></app-editorial-post-card>
-        </div>
-      </section>
-
-      <nav *ngIf="state.siblingCategories.length" class="category-related" aria-label="Otros temas editoriales">
-        <h2>Otros temas</h2>
-        <div>
-          <a
-            *ngFor="let category of state.siblingCategories"
-            [routerLink]="category.canonicalPath"
-          >
-            {{ category.name }}
-          </a>
-        </div>
+    @if (loading) {
+    <div class="qv__grid" aria-busy="true" aria-label="Cargando categoría">@for (i of [1, 2, 3, 4]; track i) {<div class="qv__skeleton qv__skeleton--tv"></div>}</div>
+    } @else if (error) {
+    <app-unified-async-state kind="error" title="Esta categoría no está disponible ahora mismo" [message]="error" actionLabel="Reintentar" (action)="retry()"></app-unified-async-state>
+    } @else if (notFound) {
+    <app-unified-async-state kind="empty" title="Categoría no encontrada" message="La página que buscas no existe o ha cambiado de dirección."></app-unified-async-state>
+    <a class="cx__more" [routerLink]="appPaths.blog">Ver todas las guías ›</a>
+    } @else if (state) {
+    <header class="qv__intro">
+      <nav class="qv__bc" aria-label="Migas de pan">
+        <a [routerLink]="appPaths.home">Inicio</a><span aria-hidden="true">›</span><a [routerLink]="appPaths.blog">Guías</a><span aria-hidden="true">›</span><span aria-current="page">{{ state.category.name }}</span>
       </nav>
-    </ng-container>
+      <h1>{{ platform ? 'Guías de ' + platform + ': qué ver, precio y lo mejor' : 'Guías de ' + state.category.name }}</h1>
+      <p>{{ state.category.description || 'Guías, análisis y recomendaciones sobre ' + state.category.name + ', con fuentes oficiales y datos reales de programación y catálogo.' }}</p>
+      <button type="button" class="qv__ctx-btn" (click)="contextOpen = true">Lo esencial de <strong>{{ state.category.name }}</strong> ›</button>
+    </header>
+
+    <nav class="flt" aria-label="Temas">
+      <div class="flt__row">
+        <span class="flt__label">Temas</span>
+        <div class="chips">
+          @for (l of sideLinks; track l.label) {<a [routerLink]="l.path" routerLinkActive="on" [routerLinkActiveOptions]="{ exact: !!l.exact }" ariaCurrentWhenActive="page">{{ l.label }}</a>}
+        </div>
+      </div>
+    </nav>
+
+    @if (upcoming) {
+    <div class="qv__empty">
+      <strong>Muy pronto, guías de {{ state.category.name }}</strong>
+      <span>Estamos preparando esta sección. Mientras tanto tienes las últimas guías y, abajo, contenido relacionado.</span>
+      @if (platform) {<a [routerLink]="appPaths.platforms" [queryParams]="{ platform: platform }">Ver el catálogo y el precio de {{ platform }}</a>}
+      @else if (state.category.slug === 'comparativas') {<a [routerLink]="appPaths.streamingComparison">Abrir el comparador de plataformas</a>}
+    </div>
+    }
+
+    @if (state.featuredPost; as lead) {
+    <section aria-labelledby="cg-lead">
+      <div class="qv__sec-head"><h2 id="cg-lead" class="qv__h2">Destacada</h2></div>
+      <a class="lead" [routerLink]="lead.canonicalPath">
+        <span class="lead__img">@if (lead.coverImage) {<img [src]="lead.coverImage" [alt]="lead.coverAlt || lead.title" width="1200" height="514" loading="eager" />}<span class="pill pill--live">{{ state.category.name }}</span></span>
+        <strong>{{ lead.title }}</strong>
+        <small>{{ lead.excerptText }}</small>
+        <small class="lead__meta">{{ lead.publishedAt | date: 'd MMM y' }} · {{ lead.readingMinutes }} min de lectura</small>
+      </a>
+    </section>
+    }
+
+    @if (state.relatedRankings.length) {
+    <section aria-labelledby="cg-rankings">
+      <div class="qv__sec-head"><h2 id="cg-rankings" class="qv__h2">Rankings de {{ state.category.name }}</h2><a [routerLink]="appPaths.top10">Todos los rankings ›</a></div>
+      <ol class="g-num">
+        @for (post of state.relatedRankings; track trackPost($index, post); let i = $index) {
+        <li><a [routerLink]="post.canonicalPath"><span class="g-num__n">{{ i + 1 }}</span><span><strong>{{ post.title }}</strong><small>{{ post.readingMinutes }} min</small></span></a></li>
+        }
+      </ol>
+    </section>
+    }
+
+    @if (state.posts.length) {
+    <section aria-labelledby="cg-archive">
+      <div class="qv__sec-head"><h2 id="cg-archive" class="qv__h2">Más guías sobre {{ state.category.name }} <small>· {{ state.posts.length }}</small></h2></div>
+      <div class="qv__posts">
+        @for (post of state.posts; track trackPost($index, post)) {
+        <a class="post" [routerLink]="post.canonicalPath">
+          <span class="post__img">@if (post.coverImage) {<img [src]="post.coverImage" [alt]="post.coverAlt || ''" loading="lazy" decoding="async" />}</span>
+          <span class="post__cat">{{ post.primaryCategory?.name || state.category.name }} · {{ post.readingMinutes }} min</span>
+          <strong>{{ post.title }}</strong>
+          @if (post.excerptText) {<small>{{ post.excerptText }}</small>}
+        </a>
+        }
+      </div>
+    </section>
+    }
+
+    @if (platformItems.length) {
+    <section aria-labelledby="cg-catalogue">
+      <div class="qv__sec-head"><h2 id="cg-catalogue" class="qv__h2">Lo más visto ahora en {{ platform }}</h2><a [routerLink]="appPaths.platforms" [queryParams]="{ platform: platform }">Catálogo de {{ platform }} ›</a></div>
+      <div class="qv__grid qv__grid--poster">
+        @for (item of platformItems; track item.catalogId) {<app-panel-tile [item]="item" variant="poster"></app-panel-tile>}
+      </div>
+    </section>
+    }
+
+    @if (latest.length) {
+    <section aria-labelledby="cg-latest">
+      <div class="qv__sec-head"><h2 id="cg-latest" class="qv__h2">Últimas guías</h2><a [routerLink]="appPaths.blog">Todas las guías ›</a></div>
+      <div class="qv__posts">
+        @for (post of latest; track post.slug) {
+        <a class="post" [routerLink]="post.canonicalPath">
+          <span class="post__img">@if (post.coverImage) {<img [src]="post.coverImage" [alt]="post.coverAlt || ''" loading="lazy" decoding="async" />}</span>
+          <span class="post__cat">{{ post.primaryCategory?.name || 'Guía' }} · {{ post.readingMinutes }} min</span>
+          <strong>{{ post.title }}</strong>
+        </a>
+        }
+      </div>
+    </section>
+    }
+
+    @if (state.siblingCategories.length) {
+    <section aria-labelledby="cg-related">
+      <div class="qv__sec-head"><h2 id="cg-related" class="qv__h2">Otros temas</h2><a [routerLink]="appPaths.blog">Todas las guías ›</a></div>
+      <div class="chips chips--wrap">
+        @for (c of state.siblingCategories; track c.slug) {<a [routerLink]="c.canonicalPath">{{ c.name }}</a>}
+      </div>
+    </section>
+    }
+
+    @if (faq.length) {
+    <app-faq-section [heading]="'Preguntas frecuentes sobre ' + state.category.name" [items]="faq"></app-faq-section>
+    }
+    }
   </div>
-</app-unified-portal-shell>
+</app-panel-shell>

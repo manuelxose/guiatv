@@ -1,48 +1,79 @@
-<main class="comparison">
-  <header class="comparison__header">
-    <div>
-      <h1>Compara plataformas con datos útiles</h1>
-      <p>Elige hasta tres ofertas y revisa precio, pantallas, calidad y condiciones antes de salir al proveedor.</p>
+<app-panel-shell sideLabel="Plataformas" contextLabel="Tu comparación" [(contextOpen)]="contextOpen">
+  <app-panel-nav panelSide title="Plataformas" [links]="sideLinks"></app-panel-nav>
+
+  <!-- Right panel: the current selection, how the site earns money, and the assistant. -->
+  <section panelContext class="cx" aria-labelledby="cmpx-title">
+    <h2 id="cmpx-title" class="cx__label">Tu comparación</h2>
+    @if (selectedOffers.length) {
+    <ul class="cx__list">
+      @for (offer of selectedOffers; track offer.id) {
+      <li>
+        @if (platformName(offer); as name) {<a [routerLink]="appPaths.platforms" [queryParams]="{ platform: name }"><span><strong>{{ offer.provider.name }} · {{ offer.plan.name }}</strong><small>{{ offer.pricing.monthlyLabel }} · ver catálogo</small></span></a>}
+        @else {<span class="cmp__row"><strong>{{ offer.provider.name }} · {{ offer.plan.name }}</strong><small>{{ offer.pricing.monthlyLabel }}</small></span>}
+      </li>
+      }
+    </ul>
+    } @else {
+    <small class="cx__muted">Elige hasta tres ofertas para verlas juntas.</small>
+    }
+    <div class="cx__card">
+      <h3>Cómo gana dinero Guía TV</h3>
+      <p class="cx__desc">{{ disclosure || 'El orden se decide por precio y prestaciones, nunca por comisión.' }}</p>
     </div>
-    <a [routerLink]="appPaths.platforms">Explorar catálogos</a>
+    <div class="cx__assistant">
+      <strong>Pregunta al asistente</strong>
+      <div class="cx__asks">
+        @for (ask of assistantAsks; track ask) {<button type="button" (click)="openAssistant()">{{ ask }}</button>}
+      </div>
+    </div>
+  </section>
+
+<main class="comparison qv">
+  <nav class="qv__subnav chips" aria-label="Plataformas">
+    @for (l of sideLinks; track l.label) {<a [routerLink]="l.path" [queryParams]="l.queryParams">{{ l.label }}</a>}
+  </nav>
+
+  <header class="qv__intro">
+    <nav class="qv__bc" aria-label="Migas de pan">
+      <a [routerLink]="appPaths.home">Inicio</a><span aria-hidden="true">›</span><a [routerLink]="appPaths.platforms">Plataformas</a><span aria-hidden="true">›</span><span aria-current="page">Comparador</span>
+    </nav>
+    <h1>Comparador de plataformas de streaming: precios y planes en España</h1>
+    <p>Elige hasta tres ofertas y compara precio, pantallas, calidad, anuncios y permanencia antes de contratar.</p>
+    <button type="button" class="qv__ctx-btn" (click)="contextOpen = true">Tu comparación: <strong>{{ selectedOffers.length }}/3</strong> ›</button>
   </header>
 
-  <section class="comparison__controls" aria-labelledby="comparison-filters-title">
-    <div class="comparison__controls-head">
-      <div>
-        <h2 id="comparison-filters-title">Qué necesitas</h2>
-        <p>Las recomendaciones se basan en prestaciones y precio, no en comisiones.</p>
+  <!-- Filters: links that change the URL (?prioridad=, ?prestaciones=, ?orden=), so every view can be shared. -->
+  <nav class="flt" aria-label="Filtros del comparador">
+    <div class="flt__row">
+      <span class="flt__label" id="cmp-prio">Prioridad</span>
+      <div class="chips" role="group" aria-labelledby="cmp-prio">
+        <a [routerLink]="[]" [queryParams]="linkFor({ intent: null })" [class.on]="!selectedIntent" [attr.aria-current]="!selectedIntent ? 'true' : null">Todas</a>
+        @for (option of intentOptions; track option.value) {<a [routerLink]="[]" [queryParams]="linkFor({ intent: option.value })" [class.on]="selectedIntent === option.value" [attr.aria-current]="selectedIntent === option.value ? 'true' : null">{{ option.label }}</a>}
       </div>
-      <button *ngIf="hasActiveFilters" type="button" class="text-action" (click)="clearFilters()">Limpiar filtros</button>
     </div>
-
-    <div class="comparison__control-row">
-      <label>
-        Prioridad
-        <select [value]="selectedIntent || ''" (change)="changeIntent($any($event.target).value)">
-          <option value="">Todas las ofertas</option>
-          <option *ngFor="let option of intentOptions" [value]="option.value">{{ option.label }}</option>
-        </select>
-      </label>
-      <label>
-        Orden
-        <select [value]="selectedSort" (change)="changeSort($any($event.target).value)">
-          <option *ngFor="let option of sortOptions" [value]="option.value">{{ option.label }}</option>
-        </select>
-      </label>
+    <div class="flt__row">
+      <span class="flt__label" id="cmp-feat">Imprescindible</span>
+      <div class="chips chips--sm" role="group" aria-labelledby="cmp-feat">
+        @for (option of featureOptions; track option.value) {<a [routerLink]="[]" [queryParams]="linkFor({ feature: option.value })" [class.on]="selectedFeatures.has(option.value)" [attr.aria-current]="selectedFeatures.has(option.value) ? 'true' : null">{{ option.label }}</a>}
+      </div>
     </div>
-
-    <fieldset class="comparison__feature-filters">
-      <legend>Prestaciones imprescindibles</legend>
-      <button
-        *ngFor="let option of featureOptions"
-        type="button"
-        [class.is-active]="selectedFeatures.has(option.value)"
-        [attr.aria-pressed]="selectedFeatures.has(option.value)"
-        (click)="toggleFeature(option.value)"
-      >{{ option.label }}</button>
-    </fieldset>
-  </section>
+    <div class="flt__row">
+      <span class="flt__label" id="cmp-sort">Orden</span>
+      <div class="chips" role="group" aria-labelledby="cmp-sort">
+        @for (option of sortOptions; track option.value) {<a [routerLink]="[]" [queryParams]="linkFor({ sort: option.value })" [class.on]="selectedSort === option.value" [attr.aria-current]="selectedSort === option.value ? 'true' : null">{{ option.label }}</a>}
+      </div>
+    </div>
+    @if (hasActiveFilters) {
+    <div class="flt__active">
+      <span class="flt__label">Filtros activos</span>
+      @if (selectedIntent) {<a class="flt__tag" [routerLink]="[]" [queryParams]="linkFor({ intent: null })">{{ intentLabel(selectedIntent) }} <span aria-hidden="true">×</span></a>}
+      @for (f of selectedFeatureList; track f) {<a class="flt__tag" [routerLink]="[]" [queryParams]="linkFor({ feature: f })">{{ featureName(f) }} <span aria-hidden="true">×</span></a>}
+      @if (selectedSort !== 'recommended') {<a class="flt__tag" [routerLink]="[]" [queryParams]="linkFor({ sort: 'recommended' })">{{ sortLabel(selectedSort) }} <span aria-hidden="true">×</span></a>}
+      <a class="flt__clear" [routerLink]="appPaths.streamingComparison">Quitar todos</a>
+      @if (!loading) {<span class="flt__count">{{ offers.length }} ofertas</span>}
+    </div>
+    }
+  </nav>
 
   <app-unified-skeleton-block
     *ngIf="loading"
@@ -66,7 +97,7 @@
     kind="empty"
     title="No hay ofertas con estos filtros"
     message="Prueba a quitar alguna prestación o cambia tu prioridad."
-    actionLabel="Limpiar filtros"
+    actionLabel="Quitar filtros"
     (action)="clearFilters()"
   ></app-unified-async-state>
 
@@ -90,7 +121,7 @@
         >
           <div class="offer__identity">
             <span class="offer__logo">
-              <img *ngIf="platformLogo(offer)" [src]="platformLogo(offer)" [alt]="offer.provider.name" loading="lazy" />
+              <img *ngIf="platformLogo(offer)" [src]="platformLogo(offer)" [alt]="offer.provider.name" loading="lazy" (error)="onLogoError(offer)" />
               <span *ngIf="!platformLogo(offer)">{{ initials(offer.provider.name) }}</span>
             </span>
             <div>
@@ -152,7 +183,10 @@
             <tr>
               <th scope="col">Característica</th>
               <th *ngFor="let offer of selectedOffers; trackBy: trackOffer" scope="col">
-                <strong>{{ offer.provider.name }}</strong>
+                <span class="th-brand">
+                  <img *ngIf="platformLogo(offer)" [src]="platformLogo(offer)" [alt]="''" width="22" height="22" loading="lazy" aria-hidden="true" (error)="onLogoError(offer)" />
+                  <strong>{{ offer.provider.name }}</strong>
+                </span>
                 <span>{{ offer.plan.name }}</span>
               </th>
             </tr>
@@ -213,4 +247,16 @@
       <p>Un botón “Ver oferta” puede ser afiliado y queda marcado como patrocinado. “Consultar proveedor” es un enlace comercial directo sin comisión configurada.</p>
     </aside>
   </ng-container>
+
+  <section class="qv__about" aria-labelledby="cmp-about">
+    <h2 id="cmp-about" class="qv__h2">Cómo usar el comparador</h2>
+    <p>
+      Filtra por lo que te importa (precio, cine, fútbol, familia, sin permanencia) y por las prestaciones imprescindibles, y marca hasta
+      tres ofertas para verlas juntas: las filas que cambian entre ellas aparecen resaltadas. Para ver qué tiene cada servicio, abre su
+      catálogo en <a [routerLink]="appPaths.platforms">Plataformas</a> o decide qué ver hoy en <a [routerLink]="appPaths.explore">Qué ver hoy</a>.
+    </p>
+  </section>
+
+  <app-faq-section heading="Preguntas frecuentes sobre el comparador" [items]="faq"></app-faq-section>
 </main>
+</app-panel-shell>

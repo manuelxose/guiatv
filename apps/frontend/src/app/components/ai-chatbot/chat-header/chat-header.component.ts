@@ -1,111 +1,93 @@
-import { CommonModule } from '@angular/common';
-import {
-  Component,
-  ElementRef,
-  EventEmitter,
-  HostListener,
-  Input,
-  Output,
-  ViewChild,
-} from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostListener, Input, Output, ViewChild } from '@angular/core';
 
+/** Assistant header: identity and how well it knows you, history, new chat, a menu for the rest, close. */
 @Component({
   selector: 'app-chat-header',
   standalone: true,
-  imports: [CommonModule],
   template: `
-    <header class="chat-header">
-      <div class="chat-header__row">
-        <h2 class="chat-header__brand">
-          <span class="chat-header__brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none"><path d="M7 8.5h10A2.5 2.5 0 0 1 19.5 11v6A2.5 2.5 0 0 1 17 19.5H7A2.5 2.5 0 0 1 4.5 17v-6A2.5 2.5 0 0 1 7 8.5Z" stroke="currentColor" stroke-width="1.8"/><path d="m9 4 3 4.5L15 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 14h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="16" cy="14" r="1" fill="currentColor"/></svg>
-          </span>
-          <span class="chat-header__brand-full">Asistente GuíaTV</span>
-          <span class="chat-header__brand-short">GuíaTV</span>
-        </h2>
-        <div class="chat-header__actions">
-          <button type="button" class="chat-header__icon" (click)="openSocial.emit()" aria-label="Abrir chat con personas">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+    <header class="ch">
+      <div class="ch__id">
+        <span class="ch__mark" aria-hidden="true">✦</span>
+        <div class="ch__text">
+          <h2>Asistente</h2>
+          @if (isAuthenticated && knowledge !== null) {
+          <button type="button" class="ch__status" (click)="openAiProfile.emit()" [attr.aria-label]="'Te conoce al ' + knowledge + ' %. Personalizar'">
+            <span class="ch__meter" aria-hidden="true"><span [style.width.%]="knowledge"></span></span>
+            Perfil {{ knowledge }}%
           </button>
-          <button *ngIf="isAuthenticated" type="button" class="chat-header__icon chat-header__primary-action" (click)="toggleSidebar.emit()" aria-label="Conversaciones">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7"></path></svg>
-          </button>
-          <button *ngIf="isAuthenticated" type="button" class="chat-header__icon chat-header__primary-action" (click)="openProfile.emit()" [attr.aria-label]="profileIncomplete ? 'Completar Perfil IA' : 'Abrir Perfil IA'">
-            <span *ngIf="profileIncomplete" class="chat-header__dot" aria-hidden="true"></span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37a1.724 1.724 0 0 0 2.573-1.066z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"></path></svg>
-          </button>
-          <button *ngIf="isAuthenticated" type="button" class="chat-header__icon chat-header__primary-action" (click)="newConversation.emit()" aria-label="Nueva conversación">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
-          </button>
-
-          <div class="chat-header__more-wrap">
-            <button #moreButton type="button" class="chat-header__icon chat-header__mobile-action" (click)="toggleMore()" aria-label="Más opciones del asistente" aria-haspopup="menu" [attr.aria-expanded]="moreOpen">
-              <span *ngIf="profileIncomplete" class="chat-header__dot" aria-hidden="true"></span>
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="19" cy="12" r="1.7"></circle></svg>
-            </button>
-            <div *ngIf="moreOpen" #moreMenu class="chat-header__menu" role="menu" aria-label="Opciones del asistente" tabindex="-1" (keydown.escape)="closeMenuFromEvent($event)">
-              <button *ngIf="isAuthenticated" type="button" role="menuitem" (click)="choose('conversations')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7"></path></svg><span>Conversaciones</span></button>
-              <button *ngIf="isAuthenticated" type="button" role="menuitem" (click)="choose('profile')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM4.5 21a7.5 7.5 0 0 1 15 0"></path></svg><span>{{ profileIncomplete ? 'Completar Perfil IA' : 'Perfil IA' }}</span><span *ngIf="profileIncomplete" class="chat-header__pending">Pendiente</span></button>
-              <button *ngIf="isAuthenticated" type="button" role="menuitem" (click)="choose('new')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg><span>Nueva conversación</span></button>
-              <button type="button" role="menuitem" (click)="choose('minimize')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m5 9 7 7 7-7"></path></svg><span>Minimizar asistente</span></button>
-            </div>
-          </div>
-
-          <button type="button" class="chat-header__icon chat-header__mobile-minimize" (click)="closePanel.emit()" aria-label="Minimizar asistente">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m5 9 7 7 7-7"></path></svg>
-          </button>
-
-          <button type="button" class="chat-header__icon chat-header__desktop-action" (click)="closePanel.emit()" aria-label="Cerrar asistente">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"></path></svg>
-          </button>
+          } @else {
+          <small>TV, plataformas y fútbol</small>
+          }
         </div>
+      </div>
+
+      <div class="ch__actions">
+        @if (isAuthenticated) {
+        <button type="button" class="ch__btn" (click)="toggleSidebar.emit()" aria-label="Tus conversaciones" title="Tus conversaciones">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v4l2.5 2.5M21 12a9 9 0 1 1-3-6.7M21 4v4h-4" /></svg>
+        </button>
+        <button type="button" class="ch__btn" (click)="newConversation.emit()" aria-label="Nueva conversación" title="Nueva conversación">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+        </button>
+        }
+        <div class="ch__more">
+          <button #moreButton type="button" class="ch__btn" (click)="toggleMore()" aria-label="Más opciones" aria-haspopup="menu" [attr.aria-expanded]="moreOpen">
+            @if (profileIncomplete) {<span class="ch__dot" aria-hidden="true"></span>}
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.2" /><circle cx="12" cy="12" r="1.2" /><circle cx="19" cy="12" r="1.2" /></svg>
+          </button>
+          @if (moreOpen) {
+          <div #moreMenu class="ch__menu" role="menu" aria-label="Opciones del asistente" (keydown.escape)="closeMenuFromEvent($event)">
+            @if (isAuthenticated) {
+            <button type="button" role="menuitem" (click)="choose('aiProfile')"><strong>Mi perfil IA</strong><small>Lo que sabe de ti y cómo te recomienda</small></button>
+            <button type="button" role="menuitem" (click)="choose('profile')"><strong>Preguntas rápidas</strong><small>Completa tus gustos en un minuto</small>@if (profileIncomplete) {<em>Pendiente</em>}</button>
+            }
+            <button type="button" role="menuitem" (click)="choose('social')"><strong>Chat con personas</strong><small>Tus conversaciones con otros usuarios</small></button>
+          </div>
+          }
+        </div>
+        <button type="button" class="ch__btn" (click)="closePanel.emit()" aria-label="Cerrar asistente" title="Cerrar">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18 18 6M6 6l12 12" /></svg>
+        </button>
       </div>
     </header>
   `,
   styles: [`
-    :host { display: block; position: relative; z-index: var(--z-header); flex: 0 0 auto; }
-    .chat-header { border-bottom: 1px solid var(--portal-border); background: var(--portal-surface-strong); padding: max(.5rem, var(--safe-top)) 1rem .5rem; }
-    .chat-header__row { display: grid; min-height: 44px; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .5rem; }
-    h2 { min-width: 0; margin: 0; overflow: hidden; color: var(--portal-text); font-size: var(--text-base); font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
-    .chat-header__brand { display: flex; align-items: center; gap: .5rem; }
-    .chat-header__brand-mark { display: inline-flex; width: 2rem; height: 2rem; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: .72rem; background: var(--guide-accent); color: white; box-shadow: 0 4px 12px color-mix(in srgb, var(--guide-accent) 22%, transparent); }
-    .chat-header__brand-mark svg { width: 1.35rem; height: 1.35rem; }
-    .chat-header__brand-short { display: none; }
-    .chat-header__actions { display: flex; flex: 0 0 auto; align-items: center; gap: .25rem; }
-    .chat-header__icon { position: relative; display: inline-flex; width: 44px; height: 44px; align-items: center; justify-content: center; border: 0; border-radius: .85rem; background: transparent; color: var(--portal-text-muted); cursor: pointer; touch-action: manipulation; transition: color 150ms ease, background-color 150ms ease; }
-    .chat-header__icon:hover, .chat-header__icon:active { background: var(--portal-bg-elevated); color: var(--portal-text); }
-    .chat-header__icon svg { width: 1.15rem; height: 1.15rem; }
-    .chat-header__dot { position: absolute; top: .42rem; right: .42rem; width: .48rem; height: .48rem; border: 2px solid var(--portal-surface-strong); border-radius: 999px; background: var(--guide-accent); }
-    .chat-header__more-wrap { position: relative; display: none; }
-    .chat-header__mobile-action { display: none; }
-    .chat-header__mobile-minimize { display: none; }
-    .chat-header__menu { position: absolute; top: calc(100% + .45rem); right: 0; width: min(17rem, calc(100vw - 1.5rem)); overflow: hidden; border: 1px solid var(--portal-border); border-radius: 1rem; background: var(--portal-bg-elevated); box-shadow: var(--shadow-lg); padding: .4rem; }
-    .chat-header__menu button { display: grid; width: 100%; min-height: 48px; grid-template-columns: 1.25rem minmax(0, 1fr) auto; align-items: center; gap: .7rem; border: 0; border-radius: .75rem; background: transparent; color: var(--portal-text); padding: .55rem .7rem; text-align: left; cursor: pointer; touch-action: manipulation; }
-    .chat-header__menu button:hover, .chat-header__menu button:active { background: var(--portal-surface-strong); }
-    .chat-header__menu svg { width: 1.15rem; height: 1.15rem; stroke-width: 1.8; color: var(--portal-text-soft); }
-    .chat-header__menu span { min-width: 0; font-size: var(--text-sm); font-weight: 700; }
-    .chat-header__pending { border-radius: 999px; background: var(--assistant-chip-selected-bg); color: var(--assistant-chip-selected-text); padding: .2rem .45rem; font-size: var(--text-2xs) !important; }
-    button:focus-visible { outline: 3px solid color-mix(in srgb, var(--guide-accent) 45%, transparent); outline-offset: 2px; }
-    @media (max-width: 767px) {
-      .chat-header { padding: .25rem .5rem; }
-      .chat-header__brand-full, .chat-header__desktop-action, .chat-header__more-wrap, .chat-header__mobile-action { display: none; }
-      .chat-header__brand-short, .chat-header__mobile-minimize { display: inline-flex; }
-      .chat-header__actions { gap: 0; }
-    }
-    @media (max-width: 359px) {
-      .chat-header__brand-short { display: none; }
-      .chat-header__brand { gap: 0; }
-      .chat-header__icon { width: 42px; }
-    }
-    @media (prefers-reduced-motion: reduce) { .chat-header__icon { transition: none; } }
+    :host { display: block; position: relative; z-index: var(--z-header, 20); flex: 0 0 auto; }
+    .ch { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 64px; padding: max(8px, var(--safe-top, 0px)) 10px 8px 14px; border-bottom: 1px solid var(--sv2-border); background: var(--sv2-surface-1); }
+    .ch__id { display: flex; flex: 1; align-items: center; gap: 10px; min-width: 0; overflow: hidden; }
+    .ch__mark { display: grid; flex: none; place-items: center; width: 36px; height: 36px; border-radius: 11px; background: var(--section-accent); color: var(--section-accent-ink); font-size: 1.05rem; font-weight: 800; }
+    .ch__text { display: grid; gap: 2px; min-width: 0; }
+    h2 { margin: 0; color: var(--sv2-text); font-size: var(--sv2-fs-md); font-weight: 800; line-height: 1.1; }
+    small { color: var(--sv2-text-muted); font-size: var(--sv2-fs-xs); }
+    .ch__status { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: var(--sv2-text-muted); font: inherit; font-size: var(--sv2-fs-xs); cursor: pointer; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .ch__status:hover { color: var(--sv2-text); }
+    .ch__meter { flex: none; width: 28px; height: 4px; border-radius: 999px; background: var(--sv2-surface-3); overflow: hidden; }
+    .ch__meter span { display: block; height: 100%; border-radius: inherit; background: var(--section-accent); }
+    .ch__actions { display: flex; flex: none; align-items: center; gap: 2px; }
+    .ch__btn { position: relative; display: inline-grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 10px; background: transparent; color: var(--sv2-text-muted); cursor: pointer; }
+    .ch__btn:hover { background: var(--sv2-surface-2); color: var(--sv2-text); }
+    .ch__btn:focus-visible, .ch__status:focus-visible, .ch__menu button:focus-visible { outline: 2px solid var(--section-accent); outline-offset: 2px; }
+    .ch__btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .ch__btn circle { fill: currentColor; stroke: none; }
+    .ch__dot { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border: 2px solid var(--sv2-surface-1); border-radius: 50%; background: var(--section-accent); }
+    .ch__more { position: relative; }
+    .ch__menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 5; display: grid; width: min(17rem, calc(100vw - 1.5rem)); padding: 6px; border: 1px solid var(--sv2-border-strong); border-radius: 14px; background: var(--sv2-surface-1); box-shadow: var(--sv2-shadow); }
+    .ch__menu button { display: grid; gap: 2px; padding: 10px 12px; border: 0; border-radius: 10px; background: transparent; color: var(--sv2-text); text-align: left; cursor: pointer; position: relative; }
+    .ch__menu button:hover { background: var(--sv2-surface-2); }
+    .ch__menu strong { font-size: var(--sv2-fs-sm); }
+    .ch__menu em { position: absolute; top: 10px; right: 10px; padding: 1px 8px; border-radius: 999px; background: var(--section-accent); color: var(--section-accent-ink); font-size: 0.6875rem; font-style: normal; font-weight: 800; }
+    @media (max-width: 359px) { .ch__status { display: none; } }
   `],
 })
 export class ChatHeaderComponent {
   @Input() isAuthenticated = false;
   @Input() profileIncomplete = false;
+  /** How well the assistant knows the user, 0–100; null hides the meter. */
+  @Input() knowledge: number | null = null;
   @Output() newConversation = new EventEmitter<void>();
   @Output() closePanel = new EventEmitter<void>();
   @Output() openProfile = new EventEmitter<void>();
+  @Output() openAiProfile = new EventEmitter<void>();
   @Output() toggleSidebar = new EventEmitter<void>();
   @Output() openSocial = new EventEmitter<void>();
 
@@ -120,27 +102,21 @@ export class ChatHeaderComponent {
     if (this.moreOpen) setTimeout(() => this.moreMenu?.nativeElement.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus());
   }
 
-  choose(action: 'conversations' | 'profile' | 'new' | 'minimize'): void {
+  choose(action: 'aiProfile' | 'profile' | 'social'): void {
     this.moreOpen = false;
-    if (action === 'conversations') this.toggleSidebar.emit();
+    if (action === 'aiProfile') this.openAiProfile.emit();
     if (action === 'profile') this.openProfile.emit();
-    if (action === 'new') this.newConversation.emit();
-    if (action === 'minimize') this.closePanel.emit();
+    if (action === 'social') this.openSocial.emit();
   }
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
-    if (this.moreOpen && !this.host.nativeElement.contains(event.target as Node)) this.closeMenu();
+    if (this.moreOpen && !this.host.nativeElement.contains(event.target as Node)) this.moreOpen = false;
   }
 
   closeMenuFromEvent(event: Event): void {
     event.preventDefault();
     event.stopPropagation();
-    this.closeMenu();
-  }
-
-  private closeMenu(): void {
-    if (!this.moreOpen) return;
     this.moreOpen = false;
     setTimeout(() => this.moreButton?.nativeElement.focus());
   }

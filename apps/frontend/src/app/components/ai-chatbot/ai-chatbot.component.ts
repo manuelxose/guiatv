@@ -35,6 +35,9 @@ import { ChatConversationSidebarComponent } from './chat-conversation-sidebar/ch
 import { ChatProfilePanelComponent } from './chat-profile-panel/chat-profile-panel.component';
 import { PreferenceAnswer } from '../../interfaces/chat-profile.types';
 
+import { ChatHomeComponent } from './chat-home/chat-home.component';
+import { computePersonalizationCompletion } from '../../utils/personalization-completion';
+
 @Component({
   selector: 'app-ai-chatbot',
   standalone: true,
@@ -47,6 +50,7 @@ import { PreferenceAnswer } from '../../interfaces/chat-profile.types';
     ChatSkeletonComponent,
     ChatConversationSidebarComponent,
     ChatProfilePanelComponent,
+    ChatHomeComponent,
   ],
   templateUrl: './ai-chatbot.component.html',
   styleUrl: './ai-chatbot.component.scss',
@@ -399,11 +403,25 @@ export class AIChatbotComponent implements AfterViewInit {
     void this.router.navigate(['/registro']);
   }
 
+  /** Empty conversation (only the greeting): show the personalized start instead of a lone bubble. */
+  get showHome(): boolean {
+    return this.sessionState === 'authenticated' && this.messages.every((m) => m.id === 'welcome');
+  }
+
+  /** How well the assistant knows the user (0–100), for the header meter. */
+  get knowledge(): number | null {
+    if (this.sessionState !== 'authenticated') return null;
+    const c = computePersonalizationCompletion({ preferredPlatforms: this.profilePlatforms, favoriteGenres: this.profileGenres }, this.assistantMemory);
+    return Math.round((c.done / c.total) * 100);
+  }
+
+  openAiProfile(): void {
+    void this.router.navigate(['/perfil'], { queryParams: { tab: 'asistente' } });
+  }
+
   goToAccountSettings(): void {
     this.close.emit();
-    void this.router.navigate(['/mi-cuenta'], {
-      queryParams: { tab: 'settings' },
-    });
+    void this.router.navigate(['/perfil'], { queryParams: { tab: 'asistente' } });
   }
 
   scrollToBottom(): void {
@@ -422,7 +440,14 @@ export class AIChatbotComponent implements AfterViewInit {
     this.showScrollFab = distanceFromBottom > 120;
   }
 
+  /** Follow-ups and the regional note belong to the latest answer only; older ones would just repeat. */
+  private isLatestAnswer(message: ChatMessage): boolean {
+    const answers = this.messages.filter((m) => m.role === 'assistant' && m.id !== 'welcome');
+    return answers[answers.length - 1] === message;
+  }
+
   getMessageSuggestions(message: ChatMessage): string[] {
+    if (!this.isLatestAnswer(message)) return [];
     const latestUserMessage = this.getLatestUserMessage();
     const seen = new Set<string>();
     const normalizedLast = this.normalize(latestUserMessage);
@@ -449,11 +474,14 @@ export class AIChatbotComponent implements AfterViewInit {
       .slice(0, 3);
   }
 
+  /** Ask only when there is no saved choice; with a saved community show the short "Incluyo… · Cambiar" note. */
   shouldShowAutonomicPrompt(message: ChatMessage): boolean {
+    const ctx = message.queryContext;
     return Boolean(
       message.role === 'assistant' &&
-        message.queryContext?.autonomicPromptRequired &&
-        message.queryContext?.hasAutonomicMatches
+        this.isLatestAnswer(message) &&
+        ctx?.hasAutonomicMatches &&
+        (ctx.autonomicPromptRequired || ctx.savedAutonomousCommunity)
     );
   }
 

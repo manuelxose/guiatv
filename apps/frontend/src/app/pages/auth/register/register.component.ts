@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { AuthLayoutComponent } from '../../../components/auth-layout/auth-layout.component';
 import { Router, RouterModule } from '@angular/router';
 import { MenuStateService } from '../../../services/menu-state.service';
 import { UserService } from '../../../services/user.service';
@@ -10,7 +11,7 @@ import { Subject, filter, takeUntil } from 'rxjs';
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, AuthLayoutComponent],
   templateUrl: './register.component.html',
   styleUrls: ['./register.component.scss'],
 })

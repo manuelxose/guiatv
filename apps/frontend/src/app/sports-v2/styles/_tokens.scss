@@ -14,9 +14,10 @@
   --sv2-text-muted: #a4adba;
   --sv2-text-faint: #7f8997;
 
-  // Brand accent (pitch lime) and its readable-on-accent ink.
+  // Brand accent (pitch lime), its readable-on-accent ink, and the accent when used as text.
   --sv2-accent: #c6f25a;
   --sv2-accent-ink: #11160a;
+  --sv2-accent-text: #c6f25a;
   --sv2-focus: #ffffff;
 
   // Semantic match status colours, each also paired with a glyph + label.
@@ -59,4 +60,25 @@
   color: var(--sv2-text);
   background: var(--sv2-bg);
   font-variant-numeric: normal;
+}
+
+// Light theme (html[data-theme='light'], set by ThemeService). Same roles, light surfaces;
+// text and status colours keep at least 4.5:1 on surface-1 (#fff).
+@mixin sv2-tokens-light {
+  --sv2-bg: #f4f5f7;
+  --sv2-surface-1: #ffffff;
+  --sv2-surface-2: #e8eaee;
+  --sv2-surface-3: #dde0e5;
+  --sv2-border: rgba(15, 20, 30, 0.08);
+  --sv2-border-strong: rgba(15, 20, 30, 0.16);
+  --sv2-text: #121417;
+  --sv2-text-muted: #4b5361;
+  --sv2-text-faint: #646d7a;
+  --sv2-accent-text: #3f6212;
+  --sv2-focus: #121417;
+  --sv2-live: #c62828;
+  --sv2-finished: #5b6472;
+  --sv2-scheduled: #1d63c4;
+  --sv2-postponed: #8a5a00;
+  --sv2-shadow: 0 8px 24px rgba(15, 20, 30, 0.12);
 }

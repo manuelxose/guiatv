@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ChatbotRecommendation } from '../../../interfaces/chatbot.interface';
-import { PlatformBadgeComponent } from '../../platform-badge/platform-badge.component';
+import { resolvePlatformLogoUrl } from '../../../utils/platform-logos';
 import { AffiliateCTAComponent } from '../../affiliate-cta/affiliate-cta.component';
 import { AffiliateDisclosureComponent } from '../../affiliate-disclosure/affiliate-disclosure.component';
 import { AffiliateImpressionDirective } from '../../../directives/affiliate-impression.directive';
@@ -21,342 +21,117 @@ import { AffiliateResolvedOffer } from '../../../interfaces/affiliate.interface'
   standalone: true,
   imports: [
     CommonModule,
-    PlatformBadgeComponent,
     AffiliateCTAComponent,
     AffiliateDisclosureComponent,
     AffiliateImpressionDirective,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [`
-    .recommendation-card {
-      background: var(--assistant-card-bg);
-      border-color: var(--assistant-card-border);
-      box-shadow: var(--assistant-card-shadow);
-    }
-    /* app-platform-badge is sized for looser layouts (unified-program-card);
-       compact it here to fit this card's dense info column. */
-    .rec-platform-badge ::ng-deep .platform-badge {
-      min-height: 20px;
-      gap: 0.3rem;
-      padding: 0.15rem 0.5rem 0.15rem 0.3rem;
-      font-size: 0.62rem;
-    }
-    .rec-platform-badge ::ng-deep .platform-badge__mark,
-    .rec-platform-badge ::ng-deep .platform-badge img {
-      width: 1rem;
-      height: 1rem;
-    }
+    :host { display: block; min-width: 0; }
+    .rc { position: relative; display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; padding: 10px; border: 1px solid var(--sv2-border); border-radius: 14px; background: var(--sv2-bg); transition: border-color var(--sv2-dur) var(--sv2-ease); }
+    .rc:hover { border-color: var(--sv2-border-strong); }
+    .rc--live { border-color: color-mix(in srgb, var(--sv2-live) 45%, var(--sv2-border)); }
+
+    .rc__poster { position: relative; display: grid; place-items: center; width: 64px; height: 96px; padding: 0; overflow: hidden; border: 0; border-radius: 10px; background: var(--sv2-surface-2); color: var(--sv2-text-faint); font-size: 0.6875rem; font-weight: 800; cursor: pointer; }
+    .rc__poster img { width: 100%; height: 100%; object-fit: cover; }
+    .rc__poster:focus-visible { outline: 2px solid var(--section-accent); outline-offset: 2px; }
+    /* Fixed scrims: these sit on unpredictable poster artwork, not on a themed surface. */
+    .rc__rating { position: absolute; top: 4px; right: 4px; padding: 1px 5px; border-radius: 6px; background: rgba(0, 0, 0, .75); color: #f6c453; font-size: 0.625rem; font-weight: 800; }
+    .rc__livetag { position: absolute; top: 4px; left: 4px; padding: 1px 5px; border-radius: 6px; background: #e53935; color: #fff; font-size: 0.5625rem; font-weight: 800; letter-spacing: .04em; }
+    .rc__progress { position: absolute; right: 0; bottom: 0; left: 0; height: 4px; background: rgba(0, 0, 0, .5); }
+    .rc__progress span { display: block; height: 100%; background: #e53935; }
+
+    .rc__body { display: grid; align-content: start; gap: 4px; min-width: 0; }
+    .rc__top { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
+    .rc__title { flex: 1; min-width: 0; margin: 0; overflow: hidden; color: var(--sv2-text); font-size: var(--sv2-fs-sm); font-weight: 700; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .rc__title button { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+    .rc__title button:hover { text-decoration: underline; }
+    .rc__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; margin: 0; color: var(--sv2-text-muted); font-size: var(--sv2-fs-xs); }
+    .rc__meta .live { color: var(--sv2-live); font-weight: 800; }
+    .rc__meta .sep { color: var(--sv2-text-faint); }
+    .rc__meta .plat { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+    .rc__meta img { width: 16px; height: 16px; border-radius: 4px; background: #12151a; object-fit: contain; vertical-align: -3px; }
+    .rc__reason { display: -webkit-box; margin: 2px 0 0; overflow: hidden; color: var(--sv2-text); font-size: var(--sv2-fs-xs); line-height: 1.4; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .rc__reason::before { content: '✦ '; color: var(--section-accent-text); font-weight: 800; }
+    .rc__synopsis { margin: 4px 0 0; color: var(--sv2-text-muted); font-size: var(--sv2-fs-xs); line-height: 1.45; }
+
+    .rc__actions { display: flex; align-items: center; gap: 0; margin-top: 2px; margin-left: -6px; }
+    .rc__icon { display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--sv2-text-muted); cursor: pointer; }
+    .rc__icon:hover { background: var(--sv2-surface-2); color: var(--sv2-text); }
+    .rc__icon svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .rc__icon circle { fill: currentColor; stroke: none; }
+    .rc__cta { display: inline-flex; align-items: center; gap: 2px; min-height: 32px; margin-left: auto; padding: 0 12px; border: 0; border-radius: 999px; background: var(--section-accent); color: var(--section-accent-ink); font-size: var(--sv2-fs-xs); font-weight: 800; cursor: pointer; white-space: nowrap; }
+    .rc__icon:focus-visible, .rc__cta:focus-visible, .rc__title button:focus-visible { outline: 2px solid var(--section-accent); outline-offset: 2px; }
+    .rc__offer { grid-column: 1 / -1; display: grid; gap: 4px; padding-top: 8px; border-top: 1px solid var(--sv2-border); min-width: 0; }
+
+    .rc__menu { position: absolute; top: 40px; right: 8px; z-index: var(--z-dropdown, 30); display: grid; min-width: 200px; padding: 4px; border: 1px solid var(--sv2-border-strong); border-radius: 12px; background: var(--sv2-surface-1); box-shadow: var(--sv2-shadow); }
+    .rc__menu button { padding: 9px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--sv2-text); font: inherit; font-size: var(--sv2-fs-sm); text-align: left; cursor: pointer; }
+    .rc__menu button:hover { background: var(--sv2-surface-2); }
   `],
   template: `
-    <div
-      class="recommendation-card group relative overflow-hidden rounded-2xl border transition-colors duration-200"
-      [ngClass]="isLiveNow
-        ? 'border-[color-mix(in_oklch,var(--accent-live)_50%,transparent)] hover:border-[var(--accent-live)]'
-        : 'border-[var(--assistant-card-border)] hover:border-[var(--portal-border-strong)]'"
-    >
-      <!-- Live accent stripe -->
-      <div
-        *ngIf="isLiveNow"
-        class="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-[var(--accent-live)] to-[color-mix(in_oklch,var(--accent-live)_70%,black)] rounded-l-2xl"
-      ></div>
+    <article class="rc" [class.rc--live]="isLiveNow">
+      <button type="button" class="rc__poster" (click)="openDetail.emit(recommendation)" [attr.aria-label]="'Ver ficha de ' + recommendation.title">
+        @if (recommendation.image) {<img [src]="recommendation.image" alt="" width="64" height="96" loading="lazy" />} @else { {{ recommendation.type === 'program' ? 'TV' : 'VOD' }} }
+        @if (recommendation.rating && !isLiveNow) {<span class="rc__rating">★ {{ recommendation.rating | number: '1.1-1' }}</span>}
+        @if (isLiveNow) {<span class="rc__livetag">EN VIVO</span>}
+        @if (isLiveNow && liveProgress > 0) {<span class="rc__progress"><span [style.width.%]="liveProgress"></span></span>}
+      </button>
 
-      <div class="flex gap-3 p-3" [class.pl-4]="isLiveNow">
-        <!-- Poster thumbnail -->
-        <div
-          class="relative flex h-[120px] w-[80px] flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[var(--portal-surface-strong)] text-[10px] font-bold text-[var(--portal-text-muted)] ring-1 ring-white/5"
-        >
-          <img
-            *ngIf="recommendation.image; else fallback"
-            [src]="recommendation.image"
-            [alt]="recommendation.title"
-            width="80"
-            height="120"
-            class="h-full w-full object-cover"
-            loading="lazy"
-          />
-          <ng-template #fallback>
-            <div class="flex flex-col items-center gap-1">
-              <svg class="h-6 w-6 text-[var(--portal-text-faint)]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 01-1.125-1.125M3.375 19.5h1.5C5.496 19.5 6 18.996 6 18.375m-3.75.125V6a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 6v12.375M6 18.375a1.125 1.125 0 001.125 1.125h9.75a1.125 1.125 0 001.125-1.125M6 18.375V12m9 6.375V12m0 0H9m6 0a3 3 0 00-6 0" />
-              </svg>
-              <span class="text-center text-[9px] leading-tight text-[var(--portal-text-muted)]">
-                {{ recommendation.type === 'program' ? 'TV' : 'VOD' }}
-              </span>
-            </div>
-          </ng-template>
-
-          <!-- Rating overlay (top-right). Deliberately fixed (not token) colors:
-               this sits directly on unpredictable poster artwork, not a themed
-               app surface, so it needs a fixed dark scrim + fixed bright amber
-               for legibility regardless of data-theme — same reasoning as the
-               user message bubble's fixed white-on-red text. -->
-          <div
-            *ngIf="recommendation.rating"
-            class="absolute right-1 top-1 flex items-center gap-0.5 rounded-md bg-black/75 px-1 py-0.5 backdrop-blur-sm"
-          >
-            <svg class="h-2.5 w-2.5 text-[var(--spotify-warning)]" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-            </svg>
-            <span class="text-[9px] font-bold text-[var(--spotify-warning)]">{{ recommendation.rating | number:'1.1-1' }}</span>
-          </div>
-
-          <!-- Live badge (top-left) -->
-          <div
-            *ngIf="isLiveNow"
-            class="absolute left-1 top-1 rounded-md bg-[color-mix(in_oklch,var(--accent-live)_90%,transparent)] px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-wider text-white"
-          >
-            LIVE
-          </div>
-
-          <!-- Live progress bar (track stays a fixed dark scrim, same reasoning as the rating overlay above) -->
-          <div
-            *ngIf="isLiveNow && liveProgress > 0"
-            class="absolute bottom-0 left-0 right-0 h-1 bg-black/50"
-          >
-            <div
-              class="h-full rounded-full bg-[var(--accent-live)] transition-[width]"
-              [style.width.%]="liveProgress"
-            ></div>
-          </div>
+      <div class="rc__body">
+        <div class="rc__top">
+          <h4 class="rc__title"><button type="button" (click)="openDetail.emit(recommendation)">{{ recommendation.title }}</button></h4>
+          <button type="button" class="rc__icon" (click)="menuOpen = !menuOpen" aria-label="Más opciones" aria-haspopup="menu" [attr.aria-expanded]="menuOpen">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="1.3" /><circle cx="12" cy="12" r="1.3" /><circle cx="12" cy="19" r="1.3" /></svg>
+          </button>
         </div>
 
-        <!-- Info column -->
-        <div class="min-w-0 flex-1 py-0.5">
-          <!-- Title row + overflow menu trigger -->
-          <div class="flex items-start gap-1">
-            <p class="flex-1 text-[13px] font-semibold leading-snug text-[var(--portal-text)] line-clamp-2">
-              {{ recommendation.title }}
-            </p>
-            <button
-              type="button"
-              (click)="menuOpen = !menuOpen"
-              class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-[var(--portal-text-muted)] transition-colors hover:bg-[var(--portal-surface-strong)] hover:text-[var(--portal-text)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--guide-accent)]"
-              aria-label="Más opciones"
-              aria-haspopup="menu"
-              [attr.aria-expanded]="menuOpen"
-            >
-              <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                <circle cx="10" cy="4" r="1.5" />
-                <circle cx="10" cy="10" r="1.5" />
-                <circle cx="10" cy="16" r="1.5" />
-              </svg>
-            </button>
-          </div>
-
-          <!-- Platform -->
-          <div class="mt-1.5 flex items-center gap-1.5 rec-platform-badge">
-            <app-platform-badge
-              *ngIf="platformName"
-              [label]="platformName"
-              [logoUrl]="recommendation.platformLogo || ''"
-            />
-          </div>
-
-          <!-- Time + duration row -->
-          <div class="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
-            <span
-              *ngIf="timeLabel"
-              class="font-medium"
-              [class]="isLiveNow ? 'text-[var(--accent-live)]' : 'text-[var(--portal-text)]'"
-            >
-              {{ timeLabel }}
-            </span>
-            <span *ngIf="recommendation.durationMinutes" class="text-[var(--portal-text-muted)]">
-              {{ recommendation.durationMinutes }}min
-            </span>
-          </div>
-          <!-- Live elapsed info -->
-          <div *ngIf="isLiveNow && liveElapsedLabel" class="mt-0.5 flex items-center gap-1 text-[10px] text-[var(--portal-text-muted)]">
-            <svg class="h-2.5 w-2.5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 6v6l4 2"/>
-            </svg>
-            {{ liveElapsedLabel }}
-          </div>
-
-          <!-- Badges (max 3) -->
-          <div *ngIf="displayBadges.length" class="mt-1.5 flex flex-wrap gap-1">
-            <span
-              *ngFor="let badge of displayBadges; trackBy: trackByText"
-              class="max-w-full truncate rounded-full border border-[var(--assistant-badge-border)] bg-[var(--assistant-badge-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--assistant-badge-text)]"
-              [title]="badge"
-            >
-              {{ badge }}
-            </span>
-          </div>
-
-          <!-- Synopsis inline preview -->
-          <p
-            *ngIf="recommendation.synopsis && !synopsisOpen"
-            class="mt-1.5 line-clamp-2 text-[10px] leading-relaxed text-[var(--portal-text-muted)]"
-          >
-            {{ recommendation.synopsis }}
-          </p>
-        </div>
-      </div>
-
-      <!-- Expanded synopsis -->
-      <div
-        *ngIf="synopsisOpen && recommendation.synopsis"
-        class="border-t border-[var(--portal-border)]/50 px-3 py-2"
-      >
-        <p class="text-xs leading-relaxed text-[var(--portal-text)]">{{ recommendation.synopsis }}</p>
-      </div>
-
-      <!-- Expanded reason -->
-      <div
-        *ngIf="reasonOpen && recommendation.reason"
-        class="border-t border-[var(--portal-border)]/50 px-3 py-2"
-      >
-        <p class="text-[11px] leading-relaxed text-[var(--portal-text-muted)]">
-          <span class="mr-1 text-[var(--accent-editorial)]">✦</span>{{ recommendation.reason }}
+        <p class="rc__meta">
+          @if (isLiveNow) {<span class="live">● {{ liveElapsedLabel || 'En emisión' }}</span>} @else if (timeLabel) {<span>{{ timeLabel }}</span>}
+          @if (platformName) {<span class="sep" aria-hidden="true">·</span><span class="plat">@if (logo(); as src) {<img [src]="src" alt="" />}{{ platformName }}</span>}
+          @if (recommendation.durationMinutes) {<span class="sep" aria-hidden="true">·</span><span>{{ recommendation.durationMinutes }} min</span>}
+          @for (badge of displayBadges.slice(0, 1); track badge) {<span class="sep" aria-hidden="true">·</span><span>{{ badge }}</span>}
         </p>
-      </div>
 
-      <!-- Action bar -->
-      <div class="flex flex-wrap items-center justify-between gap-1 border-t border-[var(--portal-border)] px-2 py-2">
-        <!-- Left: thumbs -->
-        <div class="flex items-center gap-0.5">
-          <button
-            type="button"
-            (click)="ratePositive.emit(recommendation)"
-            class="flex h-11 w-11 items-center justify-center rounded-xl text-[var(--portal-text-muted)] transition-colors hover:bg-[var(--accent-streaming-soft)] hover:text-[var(--accent-streaming)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--guide-accent)]"
-            [attr.aria-label]="'Me gusta ' + recommendation.title"
-          >
-            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            (click)="rateNegative.emit(recommendation)"
-            class="flex h-11 w-11 items-center justify-center rounded-xl text-[var(--portal-text-muted)] transition-colors hover:bg-[var(--accent-live-soft)] hover:text-[var(--accent-live)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--guide-accent)]"
-            [attr.aria-label]="'No me gusta ' + recommendation.title"
-          >
-            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M10 15V19a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3H10z" />
-            </svg>
-          </button>
-        </div>
+        @if (recommendation.reason) {<p class="rc__reason">{{ recommendation.reason }}</p>}
+        @if (synopsisOpen && recommendation.synopsis) {<p class="rc__synopsis">{{ recommendation.synopsis }}</p>}
 
-        <!-- Right: secondary actions + CTA -->
-        <div class="flex items-center gap-1">
-          <!-- Reason toggle -->
-          <button
-            *ngIf="recommendation.reason"
-            type="button"
-            (click)="reasonOpen = !reasonOpen; synopsisOpen = false"
-            class="flex min-h-11 items-center gap-1 rounded-xl px-2 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--guide-accent)]"
-            [class]="reasonOpen ? 'bg-[var(--accent-editorial-soft)] text-[var(--accent-editorial)]' : 'text-[var(--portal-text-muted)] hover:bg-[var(--portal-border)]/50 hover:text-[var(--portal-text)]'"
-          >
-            <svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-            </svg>
-            ¿Por qué?
+        <div class="rc__actions">
+          <button type="button" class="rc__icon" (click)="ratePositive.emit(recommendation)" [attr.aria-label]="'Me gusta ' + recommendation.title" title="Me gusta">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11v9H4v-9h3Zm0 0 4-8a2 2 0 0 1 2 2v4h5.5a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 17.3 20H7" /></svg>
           </button>
-
-          <!-- Affiliate CTA — resolved server-side, never invented by the LLM -->
-          <div
-            *ngIf="primaryAffiliateAction as offer"
-            [appAffiliateImpression]="impressionOffer"
-            [appAffiliateImpressionContext]="impressionContext"
-            appAffiliateImpressionPage="chatbot"
-          >
-            <app-affiliate-cta
-              [cta]="{ label: offer.label, sponsored: offer.sponsored }"
-              [href]="offer.outboundPath"
-              variant="secondary"
-            ></app-affiliate-cta>
-          </div>
-
-          <!-- Ver ficha CTA -->
-          <button
-            type="button"
-            (click)="openDetail.emit(recommendation)"
-            class="flex min-h-11 min-w-[88px] items-center justify-center gap-1 rounded-xl border border-[var(--assistant-chip-selected-border)] bg-[var(--assistant-chip-selected-bg)] px-3 text-xs font-bold text-[var(--assistant-chip-selected-text)] transition-colors hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--guide-accent)]"
-          >
-            Ver ficha
-            <svg class="h-3 w-3 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
+          <button type="button" class="rc__icon" (click)="rateNegative.emit(recommendation)" [attr.aria-label]="'No me gusta ' + recommendation.title" title="No me gusta">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 13V4h3v9h-3Zm0 0-4 8a2 2 0 0 1-2-2v-4H5.5a2 2 0 0 1-2-2.3l1.2-7A2 2 0 0 1 6.7 4H17" /></svg>
           </button>
+          <button type="button" class="rc__icon" (click)="save.emit(recommendation)" [attr.aria-label]="'Guardar ' + recommendation.title + ' en mi lista'" title="Guardar en mi lista">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.75 4.5h10.5a1.5 1.5 0 0 1 1.5 1.5v13.19a.75.75 0 0 1-1.2.6L12 15.75l-5.55 4.04a.75.75 0 0 1-1.2-.6V6a1.5 1.5 0 0 1 1.5-1.5Z" /></svg>
+          </button>
+          @if (recommendation.startTime && !recommendation.liveNow) {
+          <button type="button" class="rc__icon" (click)="remind.emit(recommendation)" [attr.aria-label]="'Recordarme ' + recommendation.title" title="Recordármelo">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.86 17.08a24 24 0 0 0 5.4-1.3A9 9 0 0 1 18 9.82V9A6 6 0 1 0 6 9v.82a9 9 0 0 1-2.26 5.96c1.73.64 3.54 1.08 5.4 1.3m5.72 0a3 3 0 1 1-5.72 0" /></svg>
+          </button>
+          }
+          <button type="button" class="rc__cta" (click)="openDetail.emit(recommendation)">Ver ficha ›</button>
         </div>
       </div>
 
-      <!-- Affiliate disclosure — one line per card, only when the CTA is sponsored -->
-      <div
-        *ngIf="primaryAffiliateAction as offer"
-        class="border-t border-[var(--portal-border)]/50 px-3 py-1.5"
-      >
+      <!-- Affiliate offer: resolved server-side, never invented by the model; its own row so it never widens the card. -->
+      @if (primaryAffiliateAction; as offer) {
+      <div class="rc__offer" [appAffiliateImpression]="impressionOffer" [appAffiliateImpressionContext]="impressionContext" appAffiliateImpressionPage="chatbot">
+        <app-affiliate-cta [cta]="{ label: offer.label, sponsored: offer.sponsored }" [href]="offer.outboundPath" variant="secondary"></app-affiliate-cta>
         <app-affiliate-disclosure [text]="offer.disclosure" [sponsored]="offer.sponsored" [compact]="true"></app-affiliate-disclosure>
       </div>
+      }
 
-      <!-- Overflow menu -->
-      <div
-        *ngIf="menuOpen"
-        class="absolute right-2 top-14 z-[var(--z-dropdown)] min-w-[210px] rounded-xl border border-[var(--portal-border)] bg-[var(--portal-bg-elevated)] py-1 shadow-xl"
-        role="menu"
-        aria-label="Acciones de la recomendación"
-      >
-        <button
-          type="button"
-          role="menuitem"
-          (click)="menuOpen = false; save.emit(recommendation)"
-          class="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--portal-text)] transition-colors hover:bg-[var(--portal-surface-strong)]"
-        >
-          <svg class="h-3.5 w-3.5 text-[var(--accent-live)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
-          Guardar en mi lista
-        </button>
-        <button
-          type="button"
-          role="menuitem"
-          (click)="menuOpen = false; followUp.emit(recommendation)"
-          class="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--portal-text)] transition-colors hover:bg-[var(--portal-surface-strong)]"
-        >
-          <svg class="h-3.5 w-3.5 text-[var(--accent-discover)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
-          Seguir con este título
-        </button>
-        <button
-          type="button"
-          role="menuitem"
-          (click)="menuOpen = false; ignore.emit(recommendation)"
-          class="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--portal-text)] transition-colors hover:bg-[var(--portal-surface-strong)]"
-        >
-          <svg class="h-3.5 w-3.5 text-[var(--portal-text-muted)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-          </svg>
-          No me interesa
-        </button>
-        <button
-          *ngIf="recommendation.synopsis"
-          type="button"
-          role="menuitem"
-          (click)="menuOpen = false; synopsisOpen = !synopsisOpen"
-          class="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--portal-text)] transition-colors hover:bg-[var(--portal-surface-strong)]"
-        >
-          <svg class="h-3.5 w-3.5 text-[var(--portal-text-muted)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          {{ synopsisOpen ? 'Ocultar sinopsis' : 'Ver sinopsis' }}
-        </button>
-        <button
-          *ngIf="recommendation.startTime && !recommendation.liveNow"
-          type="button"
-          role="menuitem"
-          (click)="menuOpen = false; remind.emit(recommendation)"
-          class="flex min-h-11 w-full items-center gap-2 px-3 py-2 text-left text-sm text-[var(--portal-text)] transition-colors hover:bg-[var(--portal-surface-strong)]"
-        >
-          <svg class="h-3.5 w-3.5 text-[var(--status-warning)]" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-          </svg>
-          Recordar
-        </button>
+      @if (menuOpen) {
+      <div class="rc__menu" role="menu" aria-label="Acciones de la recomendación">
+        <button type="button" role="menuitem" (click)="menuOpen = false; save.emit(recommendation)">Guardar en mi lista</button>
+        <button type="button" role="menuitem" (click)="menuOpen = false; followUp.emit(recommendation)">Seguir hablando de este título</button>
+        @if (recommendation.synopsis) {<button type="button" role="menuitem" (click)="menuOpen = false; synopsisOpen = !synopsisOpen">{{ synopsisOpen ? 'Ocultar sinopsis' : 'Ver sinopsis' }}</button>}
+        @if (recommendation.startTime && !recommendation.liveNow) {<button type="button" role="menuitem" (click)="menuOpen = false; remind.emit(recommendation)">Recordármelo</button>}
+        <button type="button" role="menuitem" (click)="menuOpen = false; ignore.emit(recommendation)">No me interesa</button>
       </div>
-    </div>
+      }
+    </article>
   `,
 })
 export class ChatRecommendationCardComponent {
@@ -371,7 +146,11 @@ export class ChatRecommendationCardComponent {
 
   menuOpen = false;
   synopsisOpen = false;
-  reasonOpen = false;
+
+  /** Brand mark of the platform (channels have none: the name is enough). */
+  logo(): string {
+    return this.recommendation.platformLogo || (this.recommendation.platform ? resolvePlatformLogoUrl(this.recommendation.platform) : '');
+  }
 
   private readonly elementRef = inject(ElementRef<HTMLElement>);
 
