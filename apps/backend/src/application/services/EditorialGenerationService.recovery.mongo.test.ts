@@ -7,6 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import mongoose from 'mongoose';
 import { CLAIM_LEASE_MS, EditorialGenerationService } from './EditorialGenerationService';
+import { chooseRoutes, DEFAULT_ROUTES } from './EditorialAgentPipeline';
 
 const topic = {
   title: 'Cómo ver la TDT en España paso a paso', slug: 'como-ver-tdt-espana', topic: 'Sintonizar la TDT en España con fuentes oficiales',
@@ -41,6 +42,29 @@ test('M15 abandoned manual claims: one automatic retry, then failed; live claims
     assert.match(failed.reason, /interrumpida dos veces/);
     // The existing retry action brings it back for the person who decided to.
     assert.equal((await service.retryRequest(dead.id)).status, 'queued');
+  } finally {
+    await mongoose.connection.dropDatabase();
+    await mongoose.disconnect();
+  }
+});
+
+test('M15 a route table stored without the planner role still runs, and an Admin save keeps the role', { skip: !process.env.TEST_MONGO_URI }, async () => {
+  await mongoose.connect(process.env.TEST_MONGO_URI!, { dbName: `guiatv_test_m15_routes_${process.pid}` });
+  const service = new EditorialGenerationService();
+  // Exactly the production document of 2026-11-10: five roles, no `planner` (saved before M14-R added it).
+  const deepseek = (model: string, effort: string) => [{ provider: 'deepseek', model, effort }];
+  const five = { research: deepseek('deepseek-v4-pro', 'high'), evidence: deepseek('deepseek-v4-pro', 'high'), editorial: deepseek('deepseek-v4-pro', 'medium'), seo: deepseek('deepseek-flash', 'low'), critic: deepseek('deepseek-v4-pro', 'high') };
+  const live = [{ provider: 'deepseek', webSearch: true, call: async () => { throw new Error('not called'); } }] as never;
+  try {
+    assert.throws(() => chooseRoutes(five as never, live), /planner: la tabla de rutas no tiene este rol/, 'the old failure is now named');
+    await mongoose.connection.collection('editorial_settings').insertOne({ _id: 'generation' as never, settings: { enabled: false, routes: five } });
+    const settings = await service.getSettings();
+    assert.deepEqual(settings.routes.planner, DEFAULT_ROUTES.planner, 'the missing role is completed from the defaults');
+    assert.equal(chooseRoutes(settings.routes, live).planner.route.model, 'deepseek-flash', 'every role resolves to the live provider');
+    // The Admin form sends the five roles it knows: saving must not drop the planner again.
+    const saved = await service.updateSettings({ routes: five }, 'Revisora Prueba');
+    assert.deepEqual(saved.routes.planner, DEFAULT_ROUTES.planner);
+    assert.ok((await mongoose.connection.collection('editorial_settings').findOne({ _id: 'generation' as never }))?.settings.routes.planner, 'persisted with the role');
   } finally {
     await mongoose.connection.dropDatabase();
     await mongoose.disconnect();

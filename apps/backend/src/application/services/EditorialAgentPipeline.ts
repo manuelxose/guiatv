@@ -104,6 +104,7 @@ type Chosen = Record<EditorialRole, { route: ModelRoute; model: EditorialModel }
 export function chooseRoutes(table: RouteTable, models: readonly EditorialModel[]): Chosen {
   const chosen = {} as Chosen;
   for (const role of ROLES) {
+    if (!Array.isArray(table[role])) throw new Error(`${role}: la tabla de rutas no tiene este rol; revisa los ajustes de generación`);
     const pick = table[role]
       .map((route) => ({ route, model: models.find((m) => m.provider === route.provider) }))
       .find(({ route, model }) => model && MODEL_PRICES[route.model] && (role !== 'research' || model.webSearch));

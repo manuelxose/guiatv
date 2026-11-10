@@ -101,7 +101,9 @@ const manual = (slug, title) => ({
 try {
   await db.collection('editorial_settings').insertMany([
     { _id: 'policy', paused: false, dailyLimit: 10, activatedAt: new Date(), activatedBy: 'E2E' },
-    { _id: 'generation', settings: { enabled: false, scheduleHours: 3, topicsPerCycle: 1, categories: ['Televisión'], contentTypes: ['guide'], defaultLength: 'medium', sourceDomains: ['boe.es', 'cnmc.es'] } },
+    // Routes stored with the shape production had on 2026-11-10: five roles, no `planner` (an Admin save before M14-R).
+    { _id: 'generation', settings: { enabled: false, scheduleHours: 3, topicsPerCycle: 1, categories: ['Televisión'], contentTypes: ['guide'], defaultLength: 'medium', sourceDomains: ['boe.es', 'cnmc.es'],
+      routes: Object.fromEntries(['research', 'evidence', 'editorial', 'seo', 'critic'].map((role) => [role, [{ provider: 'anthropic', model: 'claude-opus-5-5', effort: 'high' }]])) } },
   ]);
   startApi();
   await waitFor(async () => (await fetch(`${API}/v2/health`)).status === 200, 'API health');
@@ -142,6 +144,7 @@ try {
   check('second cycle ends normally (generation paused: manual requests only)', code === 0, run2.output().split('\n').filter(Boolean).slice(-3).join(' | '));
   const [r1, r2] = [await request(first.id), await request(second.id)];
   check('recovered request finished as failed with its reason (not stranded)', r1?.status === 'failed' && r1.reason.length > 0, r1?.reason?.slice(0, 160));
+  check('generation reached the model (stored routes are complete)', /research: 500/.test(r1?.reason ?? ''), 'not a route-table error before any source');
   check('pending draft resumed: request completed by retrying its approval', r2?.status === 'completed' && /reintentar la aprobación/.test(r2.reason), r2?.reason);
   const post = await db.collection('blog_posts').findOne({ slug });
   check('published by policy (server re-ran every gate)', post?.status === 'publish' && post?.reviewedBy === 'policy:m11b-evidence-gate', `${post?.status} ${post?.reviewedBy}`);
