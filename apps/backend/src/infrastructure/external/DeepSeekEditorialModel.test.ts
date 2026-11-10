@@ -37,6 +37,19 @@ test('deepseek model: server-owned provider, search without the unsupported web_
   assert.deepEqual(f.sent[0].thinking, { type: 'enabled', budget_tokens: 16000 });
 });
 
+test('M15 deepseek model: a research turn that ends in prose gets one repair turn instead of failing the job', async () => {
+  // Production 2026-11-10: "research: no JSON block in the answer" lost a billed search turn and blocked the article.
+  const answers = [{ ...reply, content: [{ type: 'text', text: 'He consultado el BOE y la CNMC; el horario es de 1 a 5.' }] }, reply];
+  const sent: any[] = [];
+  const client = { messages: { stream: (body: any) => { sent.push(structuredClone(body)); return { finalMessage: async () => answers.shift() }; } } };
+  const result = await new DeepSeekEditorialModel({ apiKey: 'test-key', client: client as never }).call(call());
+  assert.deepEqual(result.json, { claims: [] });
+  assert.equal(sent.length, 2, 'exactly one repair turn');
+  assert.equal(sent[1].messages.at(-2).role, 'assistant', 'the repair continues the same conversation');
+  assert.match(sent[1].messages.at(-1).content, /solo ese bloque/);
+  assert.equal(result.usage.output_tokens, 100, 'both turns are billed');
+});
+
 test('deepseek model: non-research roles get the schema in the prompt and no thinking budget', async () => {
   const f = fake({ ...reply, content: [{ type: 'text', text: '{"verdict":"pass","issues":[]}' }], usage: { input_tokens: 10, output_tokens: 5 } });
   const model = new DeepSeekEditorialModel({ apiKey: 'test-key', client: f.client });

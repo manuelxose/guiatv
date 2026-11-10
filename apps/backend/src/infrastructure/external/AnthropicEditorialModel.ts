@@ -89,6 +89,7 @@ export class AnthropicEditorialModel implements EditorialModel {
     const fail = (message: string, unresolved = false) => new ModelCallFailed(`${request.role}: ${message}`, usage, searches, undefined, unresolved);
     // One absolute deadline per call, not per paused turn: four resumed turns must not each get the full budget.
     const callDeadline = Date.now() + this.timeoutMs;
+    let repaired = false;
 
     // Server tools can pause a long turn; resume it a bounded number of times.
     for (let turn = 0; turn < 4; turn++) {
@@ -164,6 +165,14 @@ export class AnthropicEditorialModel implements EditorialModel {
       try {
         return { json: parseJson(text, promptSchema), usage, searches };
       } catch (error) {
+        // M15: a prompt-mode provider (DeepSeek in production) can end a long search turn in prose. Ask once, in the same
+        // conversation, for the block alone instead of losing the whole billed job; the repair turn is billed too.
+        if (promptSchema && !repaired) {
+          repaired = true;
+          messages.push({ role: 'assistant', content: message.content },
+            { role: 'user', content: 'Tu respuesta no terminó con el bloque ```json pedido. Devuelve ahora solo ese bloque, con el esquema indicado y sin texto fuera de él.' });
+          continue;
+        }
         throw fail(error instanceof Error ? error.message : String(error));
       }
     }
