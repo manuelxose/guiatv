@@ -17,7 +17,7 @@ describe('EntityDetailComponent', () => {
   beforeEach(() => {
     response = {};
     TestBed.configureTestingModule({ providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
-      { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ slug: 'test-film' })), snapshot: { data: { contentType: 'movie' } } } },
+      { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ slug: 'test-film' })), fragment: of(null), snapshot: { data: { contentType: 'movie' } } } },
       { provide: PLATFORM_ID, useValue: 'server' },
       { provide: RESPONSE_INIT, useValue: response },
     ] });

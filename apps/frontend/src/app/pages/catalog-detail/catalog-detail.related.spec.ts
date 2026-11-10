@@ -24,7 +24,7 @@ describe('CatalogDetailComponent: M10-B related works', () => {
       providers: [
         provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
         { provide: PLATFORM_ID, useValue: 'browser' },
-        { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ slug: item.slug })), data: of({ contentType: item.contentType }), snapshot: { data: {} } } },
+        { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ slug: item.slug })), data: of({ contentType: item.contentType }), fragment: of(null), snapshot: { data: {} } } },
         {
           provide: CatalogService,
           useValue: {
@@ -41,7 +41,7 @@ describe('CatalogDetailComponent: M10-B related works', () => {
     fixture.detectChanges();
     return { fixture, query };
   }
-  const hrefs = (el: HTMLElement) => Array.from(el.querySelectorAll('app-catalog-rail a[href]')).map((a) => a.getAttribute('href'));
+  const hrefs = (el: HTMLElement) => Array.from(el.querySelectorAll('#similares a[href]')).map((a) => a.getAttribute('href'));
 
   it('renders the API related works as plain anchors to their canonical paths, never a popular-titles query', () => {
     const { fixture, query } = render(work(), [related(2, 'malcolm'), related(3, 'friends')]);
@@ -55,7 +55,7 @@ describe('CatalogDetailComponent: M10-B related works', () => {
   it('a work page with no verified related works shows no rail', () => {
     const { fixture, query } = render(work(), []);
     expect(query).not.toHaveBeenCalled();
-    expect(fixture.nativeElement.querySelector('app-catalog-rail')).toBeNull();
+    expect(fixture.nativeElement.querySelector('#similares')).toBeNull();
     fixture.destroy();
   });
 
@@ -86,7 +86,7 @@ describe('CatalogDetailComponent: M10-C programme rail', () => {
       providers: [
         provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
         { provide: PLATFORM_ID, useValue: 'browser' },
-        { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ catalogId: film.catalogId })), data: of({}), snapshot: { data: {} } } },
+        { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ catalogId: film.catalogId })), data: of({}), fragment: of(null), snapshot: { data: {} } } },
         { provide: CatalogService, useValue: {
           getBySlugState: () => of({ data: film, unavailable: false, stale: false }),
           getDetailState: () => of({ data: film, unavailable: false, stale: false }),
@@ -101,7 +101,7 @@ describe('CatalogDetailComponent: M10-C programme rail', () => {
     fixture.detectChanges();
     return { fixture, query };
   }
-  const hrefs = (el: HTMLElement) => Array.from(el.querySelectorAll('app-catalog-rail a[href]')).map((a) => a.getAttribute('href'));
+  const hrefs = (el: HTMLElement) => Array.from(el.querySelectorAll('#similares a[href]')).map((a) => a.getAttribute('href'));
 
   it('verified airing links its work page; ambiguous and rejected ones link their own airing page; TMDB popular is dropped', () => {
     const { fixture } = render([[unverifiedPopular, verified, ambiguous, rejected]]);
@@ -124,7 +124,7 @@ describe('CatalogDetailComponent: M10-C programme rail', () => {
 
   it('only unverified catalogue titles: no rail at all, never an empty or broken card', () => {
     const { fixture } = render([[unverifiedPopular], [unverifiedPopular]]);
-    expect(fixture.nativeElement.querySelector('app-catalog-rail')).toBeNull();
+    expect(fixture.nativeElement.querySelector('#similares')).toBeNull();
     fixture.destroy();
   });
 });
@@ -135,7 +135,7 @@ describe('CatalogDetailComponent: M10-B airing to programme page', () => {
       providers: [
         provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
         { provide: PLATFORM_ID, useValue: 'browser' },
-        { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ catalogId: item.catalogId })), data: of({}), snapshot: { data: {} } } },
+        { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ catalogId: item.catalogId })), data: of({}), fragment: of(null), snapshot: { data: {} } } },
         {
           provide: CatalogService,
           useValue: {

@@ -53,11 +53,10 @@ describe('CanalCompletoComponent — channel-page affiliate CTA', () => {
         provideHttpClientTesting(),
         {
           provide: ActivatedRoute,
-          useValue: { paramMap: of(convertToParamMap({ id: surface.channel?.id || 'missing-channel' })) },
+          useValue: { paramMap: of(convertToParamMap({ id: surface.channel?.id || 'missing-channel' })), queryParamMap: of(convertToParamMap({})), fragment: of(null) },
         },
         { provide: TvDataService, useValue: { loadChannelSurface: () => of(surface) } },
         { provide: MetaService, useValue: { setMetaTags: setMetaTagsSpy } },
-        { provide: ApiConfigService, useValue: { getAssetBaseUrl: () => '' } },
         { provide: AffiliateService, useValue: { resolveMany: resolveManySpy, buildOutboundUrl: (o: AffiliateResolvedOffer) => o.outbound.path } },
       ],
     });
@@ -185,7 +184,7 @@ describe('CanalCompletoComponent — channel-page affiliate CTA', () => {
     const fixture = TestBed.createComponent(CanalCompletoComponent);
     fixture.detectChanges();
 
-    const rows = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('li.schedule-row'));
+    const rows = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('ol.tl li'));
     const hrefs = rows.map((row) => Array.from(row.querySelectorAll('a[href]')).map((a) => a.getAttribute('href')));
     expect(hrefs.length).toBe(2);
     expect(hrefs[0].length).toBeGreaterThan(0);

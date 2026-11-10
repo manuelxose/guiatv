@@ -338,6 +338,12 @@ export class CatalogDetailComponent implements OnInit, OnDestroy {
     return broadcastTiming({ start: item.start, end: item.end }, this.now);
   }
 
+  /** The live pill follows the verified slot when there is one, so a stale `liveNow` flag never claims a finished airing is live. */
+  heroLive(item: CatalogItem): boolean {
+    const timing = this.programmeTiming(item);
+    return timing ? timing.state === 'live' : Boolean(item.liveNow);
+  }
+
   originalTitle(item: CatalogItem): string {
     const original = item.enrichment?.metadata?.originalTitle || item.originalTitle || '';
     return original.trim().toLocaleLowerCase() === item.title.trim().toLocaleLowerCase() ? '' : original;

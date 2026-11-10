@@ -1,5 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { of } from 'rxjs';
 import { ChannelCatalogComponent, filterChannelDirectory } from './channel-catalog.component';
 import { TvReadChannelSummaryDTO } from '../../api/models';
@@ -69,6 +71,8 @@ describe('channel catalogue filtering', () => {
       imports: [ChannelCatalogComponent],
       providers: [
         provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
         {
           provide: TvApiService,
           useValue: { getTvReadChannels: () => of({ data: { date: '2026-11-03', channels: [...channels, ...feeds] } }) },

@@ -29,7 +29,7 @@ describe('CatalogDetailComponent: Phase 3E legacy enrichment', () => {
       providers: [
         provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
         { provide: PLATFORM_ID, useValue: 'browser' },
-        { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ slug: 'la-cura-del-bienestar' })), data: of({ contentType: 'movie' }), snapshot: { data: {} } } },
+        { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ slug: 'la-cura-del-bienestar' })), data: of({ contentType: 'movie' }), fragment: of(null), snapshot: { data: {} } } },
         {
           provide: CatalogService,
           useValue: {
@@ -214,8 +214,8 @@ describe('CatalogDetailComponent: Phase 3E legacy enrichment', () => {
       channelAirings: [{ ...legacyAiring('dmax', 32, 'Otra obra'), detailPath: '/contenido/program:2', workPath: '/peliculas/otra-obra' }],
     }));
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector('[aria-labelledby="channel-programmes-heading"] a')?.getAttribute('href')).toBe('/peliculas/otra-obra');
-    expect(el.querySelector('a[href="/canales/discovery"]')?.textContent).toContain('Ver programación de DMAX');
+    expect(el.querySelector('#en-el-canal a[href="/peliculas/otra-obra"]')).not.toBeNull();
+    expect(el.querySelector('.fd__actions a[href="/canales/discovery"]')?.textContent).toContain('Ver programación de DMAX');
     expect(el.querySelector('a[href="/canales/dmax"]')).toBeNull();
     fixture.destroy();
   });
@@ -225,8 +225,8 @@ describe('CatalogDetailComponent: Phase 3E legacy enrichment', () => {
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('Finalizada');
     expect(text).toContain('Horario peninsular (Madrid)');
-    expect(text).not.toContain('En directo');
-    expect(fixture.nativeElement.querySelector('a[href="/canales/la1"]')?.textContent).toContain('Ver programación de La 1');
+    expect(fixture.nativeElement.querySelector('.fd__pills')?.textContent).not.toContain('En directo');
+    expect(fixture.nativeElement.querySelector('.fd__actions a[href="/canales/la1"]')?.textContent).toContain('Ver programación de La 1');
     const component = fixture.componentInstance;
     component.now = new Date(NOW);
     expect(component.programmeTiming(legacy({ start: iso(-1), end: iso(1) }))?.state).toBe('live');

@@ -4,11 +4,12 @@ import { routes } from './app.routes';
 describe('layoutForUrl (shell chosen before the router resolves)', () => {
   it('matches the layout the router would give, from the real route config', () => {
     expect(layoutForUrl('/', routes)).toBe('portal-page');
-    expect(layoutForUrl('/deportes/futbol', routes)).toBe('minimal-shell');
-    expect(layoutForUrl('/deportes/futbol/resultados?x=1', routes)).toBe('minimal-shell');
+    // Football moved into the shared three-panel frame, so it is no longer the minimal shell.
+    expect(layoutForUrl('/deportes/futbol', routes)).toBe('portal-page');
+    expect(layoutForUrl('/deportes/futbol/resultados?x=1', routes)).toBe('portal-page');
     expect(layoutForUrl('/perfil', routes)).toBe('portal-page');
     expect(layoutForUrl('/perfil/abc123', routes)).toBe('portal-page');
-    expect(layoutForUrl('/canales/la-1', routes)).toBe('public-shell');
+    expect(layoutForUrl('/canales/la-1', routes)).toBe('portal-page');
     expect(layoutForUrl('/admin', routes)).toBe('admin-shell');
     expect(layoutForUrl('/programacion-tv/en-directo', routes)).toBe('portal-page');
     expect(layoutForUrl('/privacidad', routes)).toBe('minimal-shell');

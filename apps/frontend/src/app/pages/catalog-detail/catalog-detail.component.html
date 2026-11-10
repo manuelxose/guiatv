@@ -71,7 +71,7 @@
         <div class="fd__head">
           <div class="fd__pills">
             <span class="pill">{{ contentTypeLabel(content.contentType) }}</span>
-            @if (content.liveNow) {<span class="pill pill--live">En directo</span>}
+            @if (heroLive(content)) {<span class="pill pill--live">En directo</span>}
           </div>
           <h1>{{ content.title }}</h1>
           @if (originalTitle(content); as original) {<p class="fd__orig"><span class="sr-only">Título original: </span><i>{{ original }}</i></p>}

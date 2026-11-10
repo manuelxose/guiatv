@@ -1,5 +1,7 @@
 import { ChatService } from '../../services/chat.service';
 import { MetaService } from '../../services/meta.service';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
@@ -53,6 +55,8 @@ describe('StreamingComparisonComponent', () => {
       imports: [StreamingComparisonComponent],
       providers: [
         provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
         { provide: MonetizationService, useValue: service },
         { provide: AnalyticsService, useValue: analytics },
         { provide: MetaService, useValue: { setMetaTags: () => undefined } },

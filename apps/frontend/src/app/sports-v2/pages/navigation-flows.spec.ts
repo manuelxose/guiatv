@@ -18,7 +18,7 @@ const SCHEDULED_SLUG = `ciudad-alta-club-ribera-${TEST_TODAY}`;
 describe('sports-v2 navigation flows', () => {
   let h: RouterTestingHarness;
   const root = () => h.fixture.nativeElement as HTMLElement;
-  const main = () => root().querySelector('main#sv2-main') as HTMLElement;
+  const main = () => root().querySelector('main#panel-main') as HTMLElement;
   const all = (sel: string, scope: ParentNode = main()) => Array.from(scope.querySelectorAll<HTMLElement>(sel));
   const one = (sel: string, scope: ParentNode = main()) => scope.querySelector<HTMLElement>(sel);
   const store = () => h.routeDebugElement!.injector.get(SportsStore);
@@ -129,7 +129,7 @@ describe('sports-v2 navigation flows', () => {
       viewport(true);
       await click(all('app-sv2-match-row .body')[0]);
       expect(url()).toBe(`${BASE}/partido/${LIVE_SLUG}`);
-      expect(one('.shell', root())?.classList).toContain('expanded');
+      expect(one('.shell', root())?.classList).toContain('no-ctx');
     });
   });
 
@@ -524,12 +524,12 @@ describe('sports-v2 navigation flows', () => {
     expect(url()).toBe(BASE);
   });
 
-  it('keeps a skip link, one main landmark and an accessible tab bar on every page', async () => {
+  it('keeps a skip link and one main landmark on every page', async () => {
+    // The mobile tab bar moved to the app shell (app.component), so it is no longer part of the section tree.
     for (const path of ['', '/en-directo', '/partidos', '/competiciones', '/noticias', '/siguiendo']) {
       await go(path);
       expect(root().querySelectorAll('main').length).withContext(path).toBe(1);
       expect(one('a.skip', root())).withContext(path).toBeTruthy();
-      expect(one('nav.tabbar[aria-label]', root())).withContext(path).toBeTruthy();
       expect(main().querySelectorAll('h1').length).withContext(path).toBe(1);
     }
   });

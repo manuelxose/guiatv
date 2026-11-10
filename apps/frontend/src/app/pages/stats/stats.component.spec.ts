@@ -1,5 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { of, throwError } from 'rxjs';
 import { CatalogService } from '../../services/catalog.service';
 import { ChatService } from '../../services/chat.service';
@@ -18,6 +20,8 @@ describe('StatsComponent (/tendencias)', () => {
       imports: [StatsComponent],
       providers: [
         provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
         { provide: MetaService, useValue: { setMetaTags } },
         { provide: CatalogService, useValue: { queryState: () => result } },
         { provide: TvDataFacade, useValue: { discoverContent: () => of({ items: [] }), getTonightPrograms: () => of([]) } },

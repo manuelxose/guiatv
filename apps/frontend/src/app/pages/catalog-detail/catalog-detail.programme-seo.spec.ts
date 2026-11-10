@@ -20,7 +20,7 @@ describe('CatalogDetailComponent: M09-B programme SEO signals', () => {
       providers: [
         provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
         { provide: PLATFORM_ID, useValue: 'browser' },
-        { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ slug: path.split('/').pop() })), data: of({ contentType: 'program' }), snapshot: { data: {} } } },
+        { provide: ActivatedRoute, useValue: { paramMap: of(convertToParamMap({ slug: path.split('/').pop() })), data: of({ contentType: 'program' }), fragment: of(null), snapshot: { data: {} } } },
         { provide: CatalogService, useValue: { getBySlugState: () => of({ data: item, unavailable: false, stale: false }), getDetailEnrichment: () => of({ related: [] }), query: () => of({ items: [] }) } },
       ],
     });

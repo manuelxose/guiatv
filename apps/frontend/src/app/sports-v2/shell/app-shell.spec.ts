@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { SportsStore } from '../state/sports-store';
 import { sv2TestProviders, TEST_TODAY } from '../testing/providers';
+import { NAV_ITEMS } from './nav-items';
 import { ODBL_DATABASE_URL, ODBL_LICENSE_URL, ODBL_NOTICE_TEXT, SOURCES_NOTICE_TEXT } from '../ui/odbl-attribution';
 import { Sv2AppShellComponent } from './app-shell';
 import { Sv2OdblAttributionComponent } from '../ui/odbl-attribution';
@@ -18,10 +19,9 @@ describe('sports-v2 Sv2AppShellComponent', () => {
   it('renders the required landmarks and navigation', async () => {
     const el = (await render()).nativeElement as HTMLElement;
     expect(el.querySelector('header')).toBeTruthy();
-    expect(el.querySelector('main#sv2-main')).toBeTruthy();
+    expect(el.querySelector('main#panel-main')).toBeTruthy();
     expect(el.querySelector('a.skip')).toBeTruthy();
-    expect(el.querySelectorAll('nav[aria-label="Mi fútbol"] ul:first-of-type a').length).toBe(8);
-    expect(el.querySelectorAll('nav.tabbar a').length).toBe(5);
+    expect(el.querySelectorAll('nav.subnav[aria-label="Mi fútbol"] a').length).toBe(NAV_ITEMS.length);
   });
 
   it('labels demo data visibly', async () => {
@@ -42,12 +42,12 @@ describe('sports-v2 Sv2AppShellComponent', () => {
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('app-sv2-context-panel')).toBeNull();
-    expect(el.querySelector('.shell')?.classList.contains('expanded')).toBeTrue();
+    expect(el.querySelector('.shell')?.classList.contains('no-ctx')).toBeTrue();
   });
 
   it('toggles the collapsed sidebar class', async () => {
     const fixture = await render();
-    TestBed.inject(SportsStore).toggleSidebar();
+    (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button.side-toggle')!.click();
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('.shell')?.classList.contains('collapsed')).toBeTrue();
   });
