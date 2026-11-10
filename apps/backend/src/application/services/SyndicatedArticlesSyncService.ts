@@ -7,6 +7,7 @@ import {
   SyndicatedArticlesClient,
 } from '../../infrastructure/external/SyndicatedArticlesClient';
 import { canonicalizeInternalLinks } from './EditorialReviewPolicy';
+import { isRetiredEditorialSlug } from './RetiredEditorialSlugs';
 import { logger } from '../../shared/utils/logger';
 
 /**
@@ -255,6 +256,12 @@ export async function syncArticleFeed(options: ArticleFeedSyncOptions): Promise<
         if (!mapped.ok) {
           stats.skipped++;
           report(stats, `${summary.id}: ${mapped.reason}`);
+          continue;
+        }
+        // The site 301s retired slugs to a canonical guide: the article is already there under its real URL.
+        if (isRetiredEditorialSlug(mapped.slug)) {
+          stats.skipped++;
+          report(stats, `${mapped.slug}: el slug está retirado en el sitio (redirige a una guía canónica)`);
           continue;
         }
         await upsertArticle(mapped, options.provider, stats);

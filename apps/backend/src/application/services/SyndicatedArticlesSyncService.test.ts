@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import test from 'node:test';
 import { mapSyndicatedArticle, syncDecisionFor } from './SyndicatedArticlesSyncService';
+import { RETIRED_EDITORIAL_SLUGS, isRetiredEditorialSlug } from './RetiredEditorialSlugs';
 import { configuredArticleFeeds } from '../../jobs/syncArticleFeeds';
 
 const NOW = new Date('2026-11-10T10:00:00.000Z');
@@ -130,8 +133,7 @@ test('a re-sync overwrites only what it wrote itself and nobody has withdrawn', 
   assert.equal(syncDecisionFor({ reviewState: 'rejected', external: own }, mapped(), 'babylovegrowth'), 'keep-rejected');
 });
 
-test('each configured producer feeds the same job, and a missing key only disables its own feed', () => {
-  const both = configuredArticleFeeds({
+test('each configured producer feeds the same job, and a missing key only disables its own feed', () => {  const both = configuredArticleFeeds({
     BABYLOVEGROWTH_API_KEY: 'blg-key',
     AUCTORIO_FEED_API_KEY: 'auctorio-key',
     AUCTORIO_FEED_SITE: 'guiatv-editorial',
@@ -149,4 +151,19 @@ test('each configured producer feeds the same job, and a missing key only disabl
   assert.equal(auctorioOnly[0].defaults, undefined);
 
   assert.deepEqual(configuredArticleFeeds({} as NodeJS.ProcessEnv), []);
+});
+
+test('a retired slug never becomes a public article', () => {
+  assert.equal(isRetiredEditorialSlug('donde-ver-la-champions-league-2026-27-en-tv-y-streaming-en-espana'), true);
+  assert.equal(isRetiredEditorialSlug('Mejores-Series-Netflix'), true);
+  assert.equal(isRetiredEditorialSlug(' mejores-series-2026 '), false);
+});
+
+test('the retired list mirrors the redirects the site actually serves', () => {
+  const ssr = join(__dirname, '../../../..', 'frontend/scripts/ssr-server.mjs');
+  if (!existsSync(ssr)) return;
+  const source = readFileSync(ssr, 'utf8');
+  for (const slug of RETIRED_EDITORIAL_SLUGS) {
+    assert.ok(source.includes(`'${slug}':`), `${slug} is no longer in EDITORIAL_REDIRECTS (ssr-server.mjs)`);
+  }
 });
