@@ -92,8 +92,19 @@ const EVENT_STATUS: Record<string, string> = {
   postponed: 'https://schema.org/EventPostponed',
 };
 
-/** SportsEvent for a fixture. Score, venue and broadcasters are left out: none is a verified, stable schema fact here. */
-export function sportsEvent(site: string, m: { name: string; kickoff: string; status: string; home: string; away: string; competition: string; path: string }): object {
+/**
+ * SportsEvent for a fixture. Score and broadcasters are left out (not verified schema facts here), and so is the node
+ * itself when the venue is unknown: Google requires `location`, so an address-less event is invalid and earns nothing.
+ * `competition` is an `organizer`, not a `superEvent`: a nested Event would be a second node without `startDate`.
+ */
+export function sportsEvent(
+  site: string,
+  m: { name: string; kickoff: string; status: string; home: string; away: string; competition: string; path: string; venue?: string; country?: string }
+): object | null {
+  if (!m.venue) return null;
+  const location: Record<string, unknown> = { '@type': 'Place', name: m.venue };
+  // Only a domestic competition pins the match to a country; a cup or international venue is elsewhere.
+  if (m.country) location.address = { '@type': 'PostalAddress', addressCountry: m.country };
   return {
     '@context': 'https://schema.org',
     '@type': 'SportsEvent',
@@ -102,9 +113,10 @@ export function sportsEvent(site: string, m: { name: string; kickoff: string; st
     eventStatus: EVENT_STATUS[m.status] ?? 'https://schema.org/EventScheduled',
     sport: 'Fútbol',
     url: site + m.path,
+    location,
+    organizer: { '@type': 'SportsOrganization', name: m.competition },
     homeTeam: { '@type': 'SportsTeam', name: m.home },
     awayTeam: { '@type': 'SportsTeam', name: m.away },
-    superEvent: { '@type': 'SportsEvent', name: m.competition },
   };
 }
 

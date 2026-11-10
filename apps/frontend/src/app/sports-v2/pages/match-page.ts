@@ -92,7 +92,8 @@ export class Sv2MatchPageComponent {
     if (!m) return { title: 'Partido' };
     const home = this.store.team(m.homeSlug)?.name ?? '';
     const away = this.store.team(m.awaySlug)?.name ?? '';
-    const comp = this.store.competition(m.competitionSlug)?.name ?? '';
+    const competition = this.store.competition(m.competitionSlug);
+    const comp = competition?.name ?? '';
     const where = m.broadcasts.length ? `Dónde verlo: ${m.broadcasts.map((b) => b.channel).join(', ')}.` : 'Emisión aún no confirmada.';
     const segments = ['partido', m.slug];
     const path = sv2Path(segments);
@@ -101,9 +102,9 @@ export class Sv2MatchPageComponent {
       description: `${home} contra ${away} (${comp}), ${longDay(dayKey(m.kickoff))} a las ${kickoffTime(m.kickoff)}. ${where}`,
       segments,
       jsonLd: [
-        sportsEvent(this.site, { name: `${home} - ${away}`, kickoff: m.kickoff, status: m.status, home, away, competition: comp, path }),
+        sportsEvent(this.site, { name: `${home} - ${away}`, kickoff: m.kickoff, status: m.status, home, away, competition: comp, path, venue: m.venue, country: competition?.kind === 'league' ? competition.country : undefined }),
         breadcrumbs(this.site, [['Fútbol', sv2Path()], [comp, sv2Path(['competiciones', m.competitionSlug])], [`${home} - ${away}`, path]]),
-      ],
+      ].filter((block): block is object => block !== null),
     };
   });
 
