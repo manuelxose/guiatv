@@ -1,120 +1,84 @@
-<div class="min-h-screen bg-[var(--portal-bg)] text-[var(--portal-text)]">
-  <div class="mx-auto max-w-7xl px-4 pb-20 pt-6 sm:px-6 lg:px-8">
-    <app-breadcrumb [items]="breadcrumbItems"></app-breadcrumb>
-    <div *ngIf="safeLdHtml" [innerHTML]="safeLdHtml"></div>
+@if (structuredData(); as ld) {<div [innerHTML]="ld"></div>}
 
-    <section
-      class="overflow-hidden rounded-[2rem] border border-[var(--portal-border)] bg-[linear-gradient(135deg,color-mix(in_oklch,var(--accent-discover)_28%,transparent),var(--portal-bg-deep)_45%,var(--portal-bg-elevated))] p-6 shadow-[var(--shadow-lg)] md:p-8"
-    >
-      <p class="text-[11px] uppercase tracking-[0.34em] text-[var(--portal-text-muted)]">
-        {{ contentType === 'series' ? 'Series' : 'Películas' }}
-      </p>
-      <h1 class="mt-2 text-4xl font-black tracking-tight text-[var(--portal-text)] md:text-5xl">{{ pageTitle }}</h1>
-      <p class="mt-3 max-w-3xl text-base leading-7 text-[var(--portal-text-soft)]">
-        {{ pageSubtitle }}
-      </p>
-    </section>
+<app-panel-shell sideLabel="Programación TV" contextLabel="En emisión ahora" [(contextOpen)]="contextOpen">
+  <app-panel-nav panelSide title="Programación TV" [links]="sideLinks" [groups]="sideGroups()"></app-panel-nav>
 
-    <section class="mt-8" *ngIf="liveItems.length">
-      <app-catalog-rail
-        eyebrow="Ahora mismo"
-        [title]="contentType === 'series' ? 'Series emitiéndose en directo' : 'Películas emitiéndose en directo'"
-        subtitle="Si además están en plataformas, también aparecerán sus badges en cada ficha."
-        [items]="liveItems"
-      ></app-catalog-rail>
-    </section>
-
-    <section class="mt-8">
-      <app-catalog-filters
-        [title]="contentType === 'series' ? 'Filtra series por género y plataforma' : 'Filtra películas por género y plataforma'"
-        variant="content-type"
-        [filters]="filters"
-        [genres]="genres"
-        [platforms]="platforms"
-        [degraded]="degradedFilters"
-        [degradedMessage]="degradedMessage || ''"
-        (filtersChange)="onFiltersChange($event)"
-        (reset)="resetFilters()"
-      ></app-catalog-filters>
-    </section>
-
-    <div *ngIf="loading" class="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-      <div *ngFor="let index of [1, 2, 3, 4, 5, 6]" class="h-80 animate-pulse rounded-[1.75rem] bg-[var(--portal-surface-soft)]"></div>
+  <!-- Right panel: what of this type is on air right now, plus the assistant. -->
+  <section panelContext class="kx" aria-labelledby="kx-title">
+    <div class="kx__head">
+      <h2 id="kx-title">{{ Noun() }} en emisión ahora</h2>
+      <a [routerLink]="appPaths.guide" [queryParams]="{ category: category() }">Parrilla ›</a>
     </div>
-
-    <div
-      *ngIf="error"
-      class="mt-8 rounded-[1.75rem] border border-[var(--spotify-negative)]/30 bg-[var(--spotify-negative)]/10 p-6 text-sm text-[var(--spotify-negative)]"
-    >
-      {{ error }}
-    </div>
-
-    <ng-container *ngIf="!loading && !error">
-      <section class="mt-8 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p class="text-[11px] uppercase tracking-[0.32em] text-[var(--portal-text-muted)]">Resultados</p>
-          <p class="text-2xl font-semibold text-[var(--portal-text)]">{{ total | number }} resultados</p>
-        </div>
-        <a
-          [routerLink]="appPaths.explore"
-          class="min-h-[40px] rounded-full border border-[var(--portal-border)] px-4 py-2 text-sm font-semibold text-[var(--portal-text-soft)] transition-colors hover:border-[var(--portal-border-strong)] hover:text-[var(--portal-text)]"
-        >
-          Volver a explorar todo
+    <ul class="kx__list">
+      @for (c of liveCards(); track c.detailPath + c.channelName) {
+      <li>
+        <a [routerLink]="c.detailPath">
+          <time>{{ hhmm(c.startTime) }}</time>
+          <span><strong>{{ c.title }}</strong><small>{{ c.channelName }}</small></span>
         </a>
-      </section>
-
-      <section *ngIf="items.length" class="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        <app-catalog-card
-          *ngFor="let item of items"
-          [item]="item"
-        ></app-catalog-card>
-      </section>
-
-      <section
-        *ngIf="catalogUnavailable"
-        class="mt-8 rounded-[1.75rem] border border-[var(--spotify-warning)]/30 bg-[var(--spotify-warning)]/10 p-10 text-center"
-      >
-        <p class="text-xl font-semibold text-[var(--portal-text)]">No se pudo refrescar esta colección ahora mismo.</p>
-        <p class="mt-2 text-sm text-[var(--spotify-warning)]">
-          Mantuvimos los filtros para que puedas reintentar sin perder la vista actual.
-        </p>
-        <button
-          type="button"
-          (click)="retryCurrentView()"
-          class="mt-5 min-h-[44px] rounded-full border border-[var(--spotify-warning)]/30 px-5 text-sm font-semibold text-[var(--spotify-warning)]"
-        >
-          Reintentar
-        </button>
-      </section>
-
-      <section
-        *ngIf="!catalogUnavailable && !items.length"
-        class="mt-8 rounded-[1.75rem] border border-[var(--portal-border)] bg-[var(--portal-bg-deep)] p-10 text-center"
-      >
-        <p class="text-xl font-semibold text-[var(--portal-text)]">No hay coincidencias con estos filtros.</p>
-        <p class="mt-2 text-sm text-[var(--portal-text-muted)]">
-          Cambia disponibilidad, género o plataforma para ampliar el catálogo.
-        </p>
-        <button
-          type="button"
-          (click)="resetFilters()"
-          class="mt-5 min-h-[44px] rounded-full border border-[var(--portal-border)] px-5 text-sm font-semibold text-[var(--portal-text-soft)]"
-        >
-          Limpiar filtros
-        </button>
-      </section>
-
-      <div class="mt-8 flex justify-center" *ngIf="items.length && hasMore">
-        <button
-          type="button"
-          (click)="loadMore()"
-          class="min-h-[48px] rounded-full border border-[var(--portal-border)] bg-[var(--portal-bg-deep)] px-6 text-sm font-semibold text-[var(--portal-text)] transition-colors hover:border-[var(--portal-border-strong)] hover:text-[var(--portal-text)]"
-        >
-          Cargar más
-        </button>
+      </li>
+      } @empty {
+      <li class="kx__empty">Ahora mismo no hay {{ noun() }} en directo.</li>
+      }
+    </ul>
+    <div class="kx__assistant">
+      <strong>¿No sabes qué ver?</strong>
+      <div class="kx__asks">
+        @for (ask of assistantAsks(); track ask) {<button type="button" (click)="openAssistant()">{{ ask }}</button>}
       </div>
-    </ng-container>
-  </div>
+    </div>
+  </section>
 
-  <app-faq-section [items]="faqItems"></app-faq-section>
-</div>
+  <div class="ct">
+    <nav class="ct__subnav ct__chips" aria-label="Programación TV">
+      @for (l of sideLinks; track l.path) {<a [routerLink]="l.path" routerLinkActive="on" ariaCurrentWhenActive="page">{{ l.label }}</a>}
+    </nav>
+
+    <header class="ct__intro">
+      <nav class="ct__bc" aria-label="Migas de pan">
+        <a [routerLink]="appPaths.home">Inicio</a><span aria-hidden="true">›</span><a [routerLink]="appPaths.guide">Programación TV</a><span aria-hidden="true">›</span><span aria-current="page">{{ crumb() }}</span>
+      </nav>
+      <h1>{{ h1() }}</h1>
+      <p>{{ intro() }}</p>
+    </header>
+
+    <nav class="ct__filters" aria-label="Filtros">
+      <div class="ct__row">
+        <div class="ct__chips ct__chips--seg">
+          @for (v of views; track v.id) {<a [routerLink]="[]" [queryParams]="linkFor({ vista: v.id })" [class.on]="view() === v.id" [attr.aria-current]="view() === v.id ? 'true' : null">{{ v.label }}</a>}
+        </div>
+        <div class="ct__chips ct__chips--seg">
+          @for (g of groups; track g.id) {<a [routerLink]="[]" [queryParams]="linkFor({ grupo: g.id })" [class.on]="group() === g.id" [attr.aria-current]="group() === g.id ? 'true' : null">{{ g.label }}</a>}
+        </div>
+      </div>
+    </nav>
+
+    @switch (status()) {
+      @case ('loading') {
+      <div class="ct__grid" aria-busy="true">
+        @for (i of [1, 2, 3, 4, 5, 6, 7, 8]; track i) {<div class="ct__skeleton"></div>}
+      </div>
+      }
+      @case ('error') {
+      <div class="ct__notice ct__notice--error">No pudimos cargar la programación. <button type="button" (click)="retry()">Reintentar</button></div>
+      }
+      @default {
+      <section class="ct__sec" aria-labelledby="ct-results">
+        <div class="ct__sec-h"><h2 id="ct-results">{{ items().length | number }} {{ noun() }}</h2><a [routerLink]="appPaths.guide" [queryParams]="{ category: category() }">Ver en la parrilla ›</a></div>
+        @if (items().length) {
+        <div class="ct__grid">
+          @for (item of visibleItems(); track item.id) {<app-panel-tile [item]="item"></app-panel-tile>}
+        </div>
+        @if (items().length > shown()) {
+        <button type="button" class="ct__more" (click)="shown.set(shown() + 48)">Ver más {{ noun() }} ({{ items().length - shown() }})</button>
+        }
+        } @else {
+        <div class="ct__notice">No hay {{ noun() }} con estos filtros. <a [routerLink]="[]" [queryParams]="{}">Ver todas las de hoy</a></div>
+        }
+      </section>
+      }
+    }
+
+    <app-faq-section [items]="faq()" [heading]="'Preguntas frecuentes sobre ' + noun() + ' en TV'"></app-faq-section>
+  </div>
+</app-panel-shell>

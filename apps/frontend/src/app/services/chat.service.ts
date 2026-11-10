@@ -173,6 +173,15 @@ export class ChatService {
     this.requestOpenSocialChatSubject.next({ userId, nonce: Date.now() });
   }
 
+  private readonly requestToggleAssistantSubject = new Subject<void>();
+  /** The header/bottom-bar assistant buttons: open the assistant, or close it if it is open. */
+  public readonly requestToggleAssistant$ = this.requestToggleAssistantSubject.asObservable();
+
+  requestToggleAssistant(): void {
+    this.activateChat();
+    this.requestToggleAssistantSubject.next();
+  }
+
   requestOpenChat(userId: string): void {
     this.activateChat();
     this.requestOpenChatSubject.next(userId);

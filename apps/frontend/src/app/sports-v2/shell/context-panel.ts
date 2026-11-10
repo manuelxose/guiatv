@@ -20,7 +20,6 @@ import { Sv2EmptyStateComponent, Sv2LoadingSkeletonComponent } from '../ui/state
       @if (match(); as m) {
         <a class="ib" [routerLink]="pageLink(m)" aria-label="Abrir el partido en pantalla completa" title="Pantalla completa" (click)="store.contextOpen.set(false)"><app-sv2-icon name="expand" /></a>
       }
-      <button type="button" class="ib close" (click)="store.contextOpen.set(false)" aria-label="Cerrar Match Center"><app-sv2-icon name="close" /></button>
     </header>
 
     @if (store.loadState() === 'loading' || store.loadState() === 'idle') {
@@ -40,7 +39,6 @@ import { Sv2EmptyStateComponent, Sv2LoadingSkeletonComponent } from '../ui/state
     .ib { display: inline-grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--sv2-surface-2); color: var(--sv2-text); cursor: pointer; text-decoration: none; }
     .ib:hover { background: var(--sv2-surface-3); }
     .ib:focus-visible { outline: 2px solid var(--sv2-focus); outline-offset: 2px; }
-    @media (min-width: 1200px) { .close { display: none; } }
   `,
 })
 export class Sv2ContextPanelComponent {

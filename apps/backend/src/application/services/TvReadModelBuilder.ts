@@ -72,6 +72,34 @@ export interface TvReadModelBuildResult {
   generatedAt: string;
 }
 
+/**
+ * Adds the verified work's TMDB backdrop (`program.workBackdropUrl`, set only on a proven work link) as a `backdrop`
+ * asset: the EPG image is a 2:3 poster, while the read cards are 16:9 and need rectangular art. The poster stays
+ * primary, so nothing that used to render from it changes; airings without the field are left untouched.
+ */
+export function attachVerifiedWorkBackdrops(airings: any[]): void {
+  for (const airing of airings) {
+    const url = String(airing?.program?.workBackdropUrl || '').trim();
+    if (!url || !airing.assets) continue;
+    const chain: CatalogAssetCandidate[] = Array.isArray(airing.assets.fallbackChain)
+      ? airing.assets.fallbackChain
+      : [];
+    if (airing.assets.backdrop?.url === url || chain.some((asset) => asset?.url === url)) continue;
+    const candidate: CatalogAssetCandidate = {
+      kind: 'backdrop',
+      role: 'fallback',
+      source: 'tmdb_backdrop',
+      url,
+    };
+    const fallbackChain = [...chain, candidate];
+    airing.assets = { ...airing.assets, backdrop: candidate, candidates: fallbackChain, fallbackChain };
+    const provenance = airing.sourceProvenance;
+    if (provenance && Array.isArray(provenance.assets) && !provenance.assets.includes('tmdb_backdrop')) {
+      provenance.assets = [...provenance.assets, 'tmdb_backdrop'];
+    }
+  }
+}
+
 export class TvReadModelBuilder {
   private readonly log = logger.child('TvReadModelBuilder');
   private static readonly dayLocks = new Map<string, Promise<void>>();
@@ -413,6 +441,8 @@ export class TvReadModelBuilder {
     await guardExistingMediaIds(airings.map((airing) => airing.program));
     // M10: link the work page only on full identity proof; otherwise cards keep the airing route.
     await assignVerifiedWorkPaths(airings.map((airing) => airing.program));
+    // The linked work's TMDB backdrop, when it has one, is the rectangular art the 16:9 cards use.
+    this.attachWorkBackdrops(airings);
     // M03-L1: no-op unless EPG_CATALOGUE_LINK_MODE=shadow; reads the built programme fields (resolved category), never mutates.
     await runCatalogueLinkShadow(airings.map((airing) => airing.program));
 
@@ -615,6 +645,14 @@ export class TvReadModelBuilder {
       candidates,
       fallbackChain: candidates,
     };
+  }
+
+  /**
+   * Adds the verified work's TMDB backdrop as a `backdrop` asset: the EPG image is a 2:3 poster, while the read cards
+   * are 16:9 and need rectangular art. The poster stays primary, so nothing that used it changes.
+   */
+  private attachWorkBackdrops(airings: any[]): void {
+    attachVerifiedWorkBackdrops(airings);
   }
 
   private buildAiringAssets(program: any, channelLogo?: string): any {

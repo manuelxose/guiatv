@@ -1,6 +1,8 @@
 import {
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
+  inject,
   EventEmitter,
   Input,
   OnChanges,
@@ -31,271 +33,160 @@ import { AffiliateDisclosureComponent } from '../../affiliate-disclosure/affilia
     AffiliateDisclosureComponent,
   ],
   template: `
-    <div
-      class="flex"
-      [class.justify-end]="message.role === 'user'"
-      [class.justify-start]="message.role !== 'user'"
-    >
-      <div [class]="outerWidthClass">
-        <div
-          class="rounded-[1.4rem]"
-          [ngClass]="bubbleClasses"
-        >
-          <!-- Loading / Thinking state -->
-          <ng-container *ngIf="(message.isLoading && !message.isStreaming) || message.isThinking; else contentBlock">
-            <div class="flex items-center gap-2 py-1">
-              <span class="h-2 w-2 rounded-full bg-[var(--portal-text-muted)] animate-[pulse_1.2s_ease-in-out_infinite]"></span>
-              <span class="h-2 w-2 rounded-full bg-[var(--portal-text-muted)] animate-[pulse_1.2s_ease-in-out_infinite_0.15s]"></span>
-              <span class="h-2 w-2 rounded-full bg-[var(--portal-text-muted)] animate-[pulse_1.2s_ease-in-out_infinite_0.3s]"></span>
-              <span *ngIf="message.isThinking" class="ml-1 text-xs text-[var(--portal-text-muted)]">Analizando la parrilla…</span>
-            </div>
-          </ng-container>
-
-          <!-- Message content -->
-          <ng-template #contentBlock>
-            <!-- User message: plain text -->
-            <p
-              *ngIf="message.role === 'user'"
-              class="whitespace-pre-line text-sm leading-relaxed break-words"
-            >{{ message.content }}</p>
-
-            <!-- Assistant message: rendered immediately; only genuine SSE tokens stream. -->
-            <div
-              *ngIf="message.role === 'assistant'"
-              #contentEl
-              class="chat-prose text-sm leading-relaxed break-words"
-              [innerHTML]="displayContent | markdown"
-            ></div>
-
-            <!-- Blinking cursor only while genuine server streaming is active. -->
-            <span
-              *ngIf="message.isStreaming"
-              class="inline-block h-4 w-[2px] translate-y-[2px] animate-[blink_0.8s_step-end_infinite] bg-[var(--portal-text-muted)]"
-            ></span>
-
-            <!-- Recommendations -->
-            <app-chat-recommendation-list
-              *ngIf="!message.isStreaming && message.recommendations?.length"
-              [recommendations]="message.recommendations!"
-              [moreRecommendations]="message.moreRecommendations || []"
-              [queryContext]="message.queryContext"
-              [resultSummary]="resultSummary"
-              (openDetail)="openDetail.emit($event)"
-              (save)="save.emit($event)"
-              (followUp)="followUp.emit($event)"
-              (ignore)="ignore.emit($event)"
-              (ratePositive)="ratePositive.emit($event)"
-              (rateNegative)="rateNegative.emit($event)"
-              (remind)="remind.emit($event)"
-            />
-
-            <div *ngIf="!message.isStreaming && message.matches?.length" class="mt-3 grid gap-2" aria-label="Partidos de fútbol">
-              <div
-                *ngFor="let match of message.matches"
-                class="overflow-hidden rounded-xl border border-[var(--portal-border)] bg-[var(--portal-surface-strong)] transition-colors hover:border-[var(--accent-live)]"
-              >
-                <a
-                  [href]="match.detailPath"
-                  class="block p-3 text-inherit no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-live)]"
-                >
-                  <div class="flex items-center justify-between gap-3 text-[11px] text-[var(--portal-text-muted)]">
-                    <span>{{ match.competition }}</span>
-                    <time [attr.datetime]="match.kickoffAt">{{ match.kickoffAt | date:'HH:mm' }}</time>
-                  </div>
-                  <div class="mt-2 grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 text-sm font-semibold">
-                    <span>{{ match.homeTeam }}</span><span>{{ match.homeScore ?? '–' }}</span>
-                    <span>{{ match.awayTeam }}</span><span>{{ match.awayScore ?? '–' }}</span>
-                  </div>
-                  <p class="mt-2 text-xs text-[var(--portal-text-muted)]">
-                    {{ match.broadcasters.length ? 'Dónde ver: ' + match.broadcasters[0].name : 'Emisión por confirmar' }}
-                  </p>
-                </a>
-                <!-- Affiliate CTA — resolved server-side, outside the detail link (no nested anchors) -->
-                <div
-                  *ngIf="match.broadcasters[0]?.affiliateActions?.[0] as offer"
-                  class="flex items-center justify-end border-t border-[var(--portal-border)]/50 px-3 py-2"
-                >
-                  <app-affiliate-cta
-                    [cta]="{ label: offer.label, sponsored: offer.sponsored }"
-                    [href]="offer.outboundPath"
-                    variant="secondary"
-                  ></app-affiliate-cta>
-                </div>
-              </div>
-              <app-affiliate-disclosure
-                *ngIf="hasFootballAffiliateOffer"
-                [compact]="true"
-              ></app-affiliate-disclosure>
-            </div>
-
-            <!-- Autonomic community chooser -->
-            <app-chat-community-chooser
-              *ngIf="!message.isStreaming && showAutonomicPrompt"
-              [savedCommunity]="savedCommunity"
-              [promptText]="autonomicPromptText"
-              [communities]="autonomousCommunities"
-              (useSaved)="useSavedCommunity.emit()"
-              (communitySelected)="communitySelected.emit($event)"
-              (declined)="autonomicsDeclined.emit()"
-            />
-
-            <!-- Follow-up suggestions -->
-            <app-chat-suggestion-chips
-              *ngIf="!message.isStreaming && message.id !== 'welcome'"
-              [suggestions]="filteredSuggestions"
-              (selected)="suggestionSelected.emit($event)"
-            />
-
-            <!-- Feedback thumbs (assistant only, after typing complete) -->
-            <div
-              *ngIf="!message.isStreaming && message.role === 'assistant' && message.id !== 'welcome' && !message.isLoading"
-              class="flex items-center gap-1 mt-2 pt-1.5 border-t border-[var(--portal-border)]/40"
-            >
-              <span class="text-[10px] text-[var(--portal-text-muted)] mr-1">¿Útil?</span>
-              <button
-                type="button"
-                (click)="feedbackPositive.emit(message)"
-                class="flex h-11 w-11 items-center justify-center rounded-xl transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--guide-accent)]"
-                [ngClass]="message.feedback?.rating === 'positive'
-                  ? 'text-[var(--accent-streaming)] bg-[var(--accent-streaming-soft)]'
-                  : 'text-[var(--portal-text-muted)] hover:text-[var(--accent-streaming)] hover:bg-[var(--accent-streaming-soft)]'"
-                [disabled]="!!message.feedback"
-                aria-label="Útil"
-              >
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/>
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/>
-                </svg>
-              </button>
-              <button
-                type="button"
-                (click)="feedbackNegative.emit(message)"
-                class="flex h-11 w-11 items-center justify-center rounded-xl transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--guide-accent)]"
-                [ngClass]="message.feedback?.rating === 'negative'
-                  ? 'text-[var(--status-live)] bg-[var(--status-live-soft)]'
-                  : 'text-[var(--portal-text-muted)] hover:text-[var(--status-live)] hover:bg-[var(--status-live-soft)]'"
-                [disabled]="!!message.feedback"
-                aria-label="No útil"
-              >
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M10 15V19a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3H10z"/>
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M17 2h2.67A2.31 2.31 0 0122 4v7a2.31 2.31 0 01-2.33 2H17"/>
-                </svg>
-              </button>
-            </div>
-          </ng-template>
+    <div class="msg" [class.msg--user]="message.role === 'user'" [class.msg--wide]="!!message.recommendations?.length || !!message.matches?.length">
+      @if (message.role !== 'user') {<span class="msg__mark" aria-hidden="true">✦</span>}
+      <div class="msg__body">
+        @if ((message.isLoading && !message.isStreaming) || message.isThinking) {
+        <div class="msg__thinking" role="status">
+          <span class="msg__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          {{ message.isThinking ? 'Buscando en la parrilla y en tus plataformas…' : 'Pensando…' }}
         </div>
+        } @else {
+          @if (message.role === 'user') {
+          <p class="msg__bubble">{{ message.content }}</p>
+          } @else {
+          <div class="chat-prose" [innerHTML]="displayContent | markdown"></div>
+          @if (message.isStreaming) {<span class="msg__cursor" aria-hidden="true"></span>}
+          }
 
-        <!-- Relative timestamp -->
-        <p
-          *ngIf="!message.isLoading && message.timestamp"
-          class="mt-1 text-[10px] text-[var(--portal-text-faint)] opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-          [class.text-right]="message.role === 'user'"
-        >
-          {{ relativeTime }}
-        </p>
+          <!-- Recommendations -->
+          <app-chat-recommendation-list
+            *ngIf="!message.isStreaming && message.recommendations?.length"
+            [recommendations]="message.recommendations!"
+            [moreRecommendations]="message.moreRecommendations || []"
+            [queryContext]="message.queryContext"
+            [resultSummary]="resultSummary"
+            (openDetail)="openDetail.emit($event)"
+            (save)="save.emit($event)"
+            (followUp)="followUp.emit($event)"
+            (ignore)="ignore.emit($event)"
+            (ratePositive)="ratePositive.emit($event)"
+            (rateNegative)="rateNegative.emit($event)"
+            (remind)="remind.emit($event)"
+          />
+
+          <!-- Football matches -->
+          @if (!message.isStreaming && message.matches?.length) {
+          <div class="msg__matches" aria-label="Partidos de fútbol">
+            @for (match of message.matches; track match.detailPath) {
+            <div class="match">
+              <a [href]="match.detailPath" class="match__link">
+                <span class="match__meta"><span>{{ match.competition }}</span><time [attr.datetime]="match.kickoffAt">{{ match.kickoffAt | date: 'EEE d · HH:mm' }}</time></span>
+                <span class="match__team"><span>{{ match.homeTeam }}</span><b>{{ match.homeScore ?? '' }}</b></span>
+                <span class="match__team"><span>{{ match.awayTeam }}</span><b>{{ match.awayScore ?? '' }}</b></span>
+                <span class="match__tv">{{ match.broadcasters.length ? match.broadcasters[0].name : 'Emisión por confirmar' }}</span>
+              </a>
+              @if (match.broadcasters[0]?.affiliateActions?.[0]; as offer) {
+              <div class="match__offer">
+                <app-affiliate-cta [cta]="{ label: offer.label, sponsored: offer.sponsored }" [href]="offer.outboundPath" variant="secondary"></app-affiliate-cta>
+              </div>
+              }
+            </div>
+            }
+            <app-affiliate-disclosure *ngIf="hasFootballAffiliateOffer" [compact]="true"></app-affiliate-disclosure>
+          </div>
+          }
+
+          <!-- Autonomic community chooser -->
+          <app-chat-community-chooser
+            *ngIf="!message.isStreaming && showAutonomicPrompt"
+            [savedCommunity]="savedCommunity"
+            [promptText]="autonomicPromptText"
+            [communities]="autonomousCommunities"
+            (useSaved)="useSavedCommunity.emit()"
+            (communitySelected)="communitySelected.emit($event)"
+            (declined)="autonomicsDeclined.emit()"
+          />
+
+          <!-- Follow-up suggestions -->
+          <app-chat-suggestion-chips
+            *ngIf="!message.isStreaming && message.id !== 'welcome'"
+            [suggestions]="filteredSuggestions"
+            (selected)="suggestionSelected.emit($event)"
+          />
+
+          <!-- Actions: copy and feedback (assistant answers only) -->
+          @if (!message.isStreaming && message.role === 'assistant' && message.id !== 'welcome' && !message.isLoading) {
+          <div class="msg__actions">
+            <button type="button" (click)="copy()" [attr.aria-label]="copied ? 'Copiado' : 'Copiar respuesta'" [title]="copied ? 'Copiado' : 'Copiar'">
+              @if (copied) {<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5L20 7" /></svg>} @else {<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V6a2 2 0 0 1 2-2h9" /></svg>}
+            </button>
+            <button type="button" (click)="feedbackPositive.emit(message)" [class.on]="message.feedback?.rating === 'positive'" [disabled]="!!message.feedback" aria-label="Buena respuesta" title="Buena respuesta">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11v9H4v-9h3Zm0 0 4-8a2 2 0 0 1 2 2v4h5.5a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 17.3 20H7" /></svg>
+            </button>
+            <button type="button" (click)="feedbackNegative.emit(message)" [class.on-neg]="message.feedback?.rating === 'negative'" [disabled]="!!message.feedback" aria-label="Mala respuesta" title="Mala respuesta">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 13V4h3v9h-3Zm0 0-4 8a2 2 0 0 1-2-2v-4H5.5a2 2 0 0 1-2-2.3l1.2-7A2 2 0 0 1 6.7 4H17" /></svg>
+            </button>
+            @if (message.feedback) {<span class="msg__thanks">Gracias, lo tendré en cuenta</span>}
+            @if (relativeTime) {<span class="msg__time">{{ relativeTime }}</span>}
+          </div>
+          }
+        }
       </div>
     </div>
   `,
   styles: [`
-    :host {
-      display: block;
-      min-width: 0;
-    }
+    :host { display: block; min-width: 0; }
+    .msg { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+    .msg--user { justify-content: flex-end; }
+    .msg__mark { display: grid; flex: none; place-items: center; width: 28px; height: 28px; margin-top: 2px; border-radius: 9px; background: var(--section-accent); color: var(--section-accent-ink); font-size: .85rem; font-weight: 800; }
+    .msg__body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-width: 0; max-width: 100%; flex: 1; }
+    .msg__body > * { min-width: 0; }
+    /* Cards and matches use the full panel width, under the assistant mark too (38px = mark + gap). */
+    .msg--wide app-chat-recommendation-list, .msg--wide .msg__matches, .msg--wide app-chat-community-chooser, .msg--wide app-chat-suggestion-chips { margin-left: -38px; }
+    .msg--user .msg__body { flex: 0 1 auto; max-width: 85%; justify-items: end; }
+    .msg__bubble { margin: 0; padding: 10px 14px; border-radius: 18px 18px 6px 18px; background: var(--section-accent); color: var(--section-accent-ink); font-size: var(--sv2-fs-sm); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
 
-    .assistant-bubble {
-      border-color: var(--assistant-card-border);
-      background: var(--assistant-bubble-bg);
-      color: var(--portal-text);
-    }
+    .msg__thinking { display: inline-flex; align-items: center; gap: 10px; color: var(--sv2-text-muted); font-size: var(--sv2-fs-sm); }
+    .msg__dots { display: inline-flex; gap: 4px; }
+    .msg__dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--section-accent); animation: msg-dot 1.2s ease-in-out infinite; }
+    .msg__dots i:nth-child(2) { animation-delay: .15s; }
+    .msg__dots i:nth-child(3) { animation-delay: .3s; }
+    @keyframes msg-dot { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+    .msg__cursor { display: inline-block; width: 2px; height: 1em; margin-left: 2px; vertical-align: text-bottom; background: var(--section-accent); animation: msg-blink .8s step-end infinite; }
+    @keyframes msg-blink { 50% { opacity: 0; } }
 
-    /* Typewriter cursor blink */
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0; }
-    }
+    .msg__actions { display: flex; align-items: center; gap: 2px; }
+    .msg__actions button { display: inline-grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; color: var(--sv2-text-faint); cursor: pointer; }
+    .msg__actions button:hover:not(:disabled) { background: var(--sv2-surface-2); color: var(--sv2-text); }
+    .msg__actions button:disabled { cursor: default; }
+    .msg__actions button.on { color: var(--section-accent-text); }
+    .msg__actions button.on-neg { color: var(--sv2-live); }
+    .msg__actions button:focus-visible { outline: 2px solid var(--section-accent); outline-offset: 1px; }
+    .msg__actions svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .msg__thanks, .msg__time { margin-left: 6px; color: var(--sv2-text-faint); font-size: var(--sv2-fs-xs); }
+    .msg__time { margin-left: auto; }
 
-    @media (prefers-reduced-motion: reduce) {
-      :host ::ng-deep [class*="animate-[blink"],
-      :host ::ng-deep [class*="animate-[pulse_1.2s"] {
-        animation: none;
-        opacity: 0.6;
-      }
-    }
+    .msg__matches { display: grid; gap: 8px; }
+    .match { overflow: hidden; border: 1px solid var(--sv2-border); border-radius: 12px; background: var(--sv2-bg); }
+    .match:hover { border-color: var(--section-accent); }
+    .match__link { display: grid; gap: 4px; padding: 10px 12px; color: inherit; text-decoration: none; }
+    .match__meta { display: flex; justify-content: space-between; color: var(--sv2-text-muted); font-size: var(--sv2-fs-xs); text-transform: capitalize; }
+    .match__team { display: flex; justify-content: space-between; font-size: var(--sv2-fs-sm); font-weight: 700; }
+    .match__tv { justify-self: start; margin-top: 2px; padding: 2px 8px; border-radius: 999px; background: #12151a; color: #f1f3f6; font-size: .6875rem; font-weight: 700; }
+    .match__offer { display: flex; justify-content: flex-end; padding: 8px 12px; border-top: 1px solid var(--sv2-border); }
 
-    /* Markdown prose styles for assistant messages */
+    @media (prefers-reduced-motion: reduce) { .msg__dots i, .msg__cursor { animation: none; opacity: .7; } }
+
+    /* Markdown of assistant answers */
     :host ::ng-deep .chat-prose {
-      overflow-wrap: break-word;
-      word-break: break-word;
-
-      p { margin-bottom: 0.5rem; }
+      color: var(--sv2-text); font-size: var(--sv2-fs-md); line-height: 1.6; overflow-wrap: break-word;
+      p { margin: 0 0 .6em; }
       p:last-child { margin-bottom: 0; }
-
-      strong, b { font-weight: 700; color: var(--portal-text); }
-      em, i { font-style: italic; }
-
-      h1, h2, h3, h4 {
-        font-weight: 700;
-        color: var(--portal-text);
-        margin-top: 0.75rem;
-        margin-bottom: 0.25rem;
-      }
-      h1 { font-size: 1.125rem; }
-      h2 { font-size: 1rem; }
-      h3 { font-size: 0.9375rem; }
-
-      ul, ol {
-        padding-left: 1.25rem;
-        margin-top: 0.25rem;
-        margin-bottom: 0.5rem;
-      }
-      ul { list-style-type: disc; }
-      ol { list-style-type: decimal; }
-      li { margin-bottom: 0.125rem; }
-
-      a {
-        color: var(--accent-live);
-        text-decoration: underline;
-        text-underline-offset: 2px;
-        overflow-wrap: anywhere;
-        &:hover { opacity: 0.85; }
-      }
-
-      code {
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 0.8125rem;
-        background: var(--portal-surface-strong);
-        border: 1px solid var(--portal-border);
-        border-radius: 0.375rem;
-        padding: 0.125rem 0.375rem;
-        color: var(--portal-text);
-        overflow-wrap: anywhere;
-      }
-
-      pre {
-        background: var(--portal-bg-deep);
-        border: 1px solid var(--portal-border);
-        border-radius: 0.75rem;
-        padding: 0.75rem 1rem;
-        overflow-x: auto;
-        margin: 0.5rem 0;
-        code {
-          background: transparent;
-          border: none;
-          padding: 0;
-        }
-      }
-
-      blockquote {
-        border-radius: 0.75rem;
-        background: var(--portal-surface-strong);
-        padding: 0.65rem 0.75rem;
-        margin: 0.5rem 0;
-        color: var(--portal-text-muted);
-        font-style: italic;
-      }
+      strong, b { font-weight: 700; }
+      h1, h2, h3, h4 { margin: .8em 0 .3em; font-size: 1em; font-weight: 800; }
+      ul, ol { margin: .3em 0 .6em; padding-left: 1.2em; }
+      ul { list-style: disc; }
+      ol { list-style: decimal; }
+      li { margin-bottom: .2em; }
+      li::marker { color: var(--section-accent-text); }
+      a { color: var(--section-accent-text); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+      code { padding: .1em .35em; border-radius: 6px; background: var(--sv2-surface-2); font-size: .85em; }
+      pre { overflow-x: auto; padding: .75em 1em; border-radius: 10px; background: var(--sv2-bg); code { padding: 0; background: none; } }
+      blockquote { margin: .5em 0; padding: .5em .75em; border-left: 3px solid var(--section-accent); color: var(--sv2-text-muted); }
     }
   `],
+
 })
 export class ChatMessageBubbleComponent implements OnChanges, OnDestroy {
   @Input({ required: true }) message!: ChatMessage;
@@ -322,32 +213,29 @@ export class ChatMessageBubbleComponent implements OnChanges, OnDestroy {
   @Output() remind = new EventEmitter<ChatbotRecommendation>();
 
   displayContent = '';
+  copied = false;
+
+  /** Copies the answer as plain text (markdown markers stripped). */
+  copy(): void {
+    const text = String(this.message.content || '').replace(/[*_`#>]/g, '');
+    void navigator.clipboard?.writeText(text).then(() => {
+      this.copied = true;
+      this.cdr.markForCheck();
+      setTimeout(() => {
+        this.copied = false;
+        this.cdr.markForCheck();
+      }, 2000);
+    });
+  }
   relativeTime = '';
 
   get hasFootballAffiliateOffer(): boolean {
     return (this.message.matches || []).some((match) => match.broadcasters[0]?.affiliateActions?.[0]?.sponsored);
   }
 
-  // Recommendation-bearing messages get the full available panel width (cards
-  // need the room, see chat-recommendation-list); plain-text messages keep
-  // the narrower cap so reading line length doesn't regress on a wide panel.
-  get outerWidthClass(): string {
-    return this.message.recommendations?.length
-      ? 'group w-full md:max-w-[96%] min-w-0'
-      : 'group max-w-[94%] md:max-w-[88%] min-w-0';
-  }
-
-  get bubbleClasses(): string {
-    const role = this.message.role === 'user'
-      ? 'bg-[var(--accent-live-strong)] text-white shadow-md'
-      : 'assistant-bubble border shadow-sm';
-    // Recommendation cards/list already re-pad their own content internally,
-    // so the bubble's own padding can shrink to avoid stacking two paddings.
-    const padding = this.message.recommendations?.length ? 'px-3 py-3' : 'px-4 py-3';
-    return `${role} ${padding}`;
-  }
 
   private timerInterval: ReturnType<typeof setInterval> | null = null;
+  private readonly cdr = inject(ChangeDetectorRef);
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['message']) {

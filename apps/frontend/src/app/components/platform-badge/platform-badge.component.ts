@@ -15,6 +15,10 @@ export class PlatformBadgeComponent {
   @Input() color = '#334155';
   @Input() logoUrl = '';
 
+  /** Set when the logo URL 404s: the badge then falls back to initials
+   * instead of rendering a broken image. */
+  logoFailed = false;
+
   get toneClass(): string {
     return `platform-badge--${resolveBadgeTone(this.color, this.label)}`;
   }
@@ -24,7 +28,11 @@ export class PlatformBadgeComponent {
   }
 
   get hasLogo(): boolean {
-    return Boolean(this.resolvedLogoUrl);
+    return !this.logoFailed && Boolean(this.resolvedLogoUrl);
+  }
+
+  onLogoError(): void {
+    this.logoFailed = true;
   }
 
   get initials(): string {

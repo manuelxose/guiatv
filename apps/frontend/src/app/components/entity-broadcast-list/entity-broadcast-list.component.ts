@@ -22,8 +22,7 @@ import {
   styles: [':host { display: block; min-width: 0; }'],
   template: `
     <section [attr.aria-labelledby]="headingId">
-      <p class="eyebrow text-[var(--portal-text-muted)]">TV lineal</p>
-      <h2 [id]="headingId" class="mt-1 text-xl font-bold tracking-tight text-[var(--portal-text)]">Próximas emisiones</h2>
+      <h2 [id]="headingId" class="text-lg font-bold tracking-tight text-[var(--portal-text)]">Próximas emisiones</h2>
 
       @switch (view()) {
         @case ('list') {
@@ -32,13 +31,14 @@ import {
             @for (row of rows(); track row.item.airingId) {
               <li>
                 <article
-                  class="tnum flex gap-3 rounded-[var(--radius-md)] border p-3"
+                  class="tnum flex items-center gap-3 rounded-[var(--radius-md)] border p-3"
                   [class.border-[var(--accent-live)]]="row.timing.state === 'live'"
                   [class.bg-[var(--accent-live-soft)]]="row.timing.state === 'live'"
                   [class.border-[var(--portal-border)]]="row.timing.state !== 'live'"
                   [class.bg-[var(--portal-surface)]]="row.timing.state !== 'live'"
                 >
-                  <span class="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-sm)] bg-[var(--portal-surface-strong)]">
+                  <!-- Channel logos are drawn for dark backgrounds (many are white), in both themes. -->
+                  <span class="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-[#12151a]">
                     @if (row.item.channel.icon) {
                       <img [src]="row.item.channel.icon" alt="" width="48" height="48" loading="lazy" decoding="async" class="h-full w-full object-contain p-1.5" />
                     }

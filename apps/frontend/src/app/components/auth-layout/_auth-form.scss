@@ -1,0 +1,144 @@
+// Form styles shared by login and registration (used inside app-auth-layout, whose host
+// provides the --sv2-* tokens and the section colour).
+@mixin auth-form {
+  .af {
+    display: grid;
+    gap: 12px;
+  }
+
+  .af__field {
+    display: grid;
+    gap: 6px;
+
+    label {
+      color: var(--sv2-text-muted);
+      font-size: var(--sv2-fs-xs);
+      font-weight: 700;
+    }
+
+    input {
+      min-height: 46px;
+      padding: 0 14px;
+      border: 1px solid var(--sv2-border-strong);
+      border-radius: 12px;
+      background: var(--sv2-surface-2);
+      color: var(--sv2-text);
+      font: inherit;
+      font-size: var(--sv2-fs-md);
+
+      &::placeholder {
+        color: var(--sv2-text-faint);
+      }
+
+      &:focus {
+        outline: 2px solid var(--section-accent);
+        outline-offset: 1px;
+        border-color: transparent;
+      }
+    }
+  }
+
+  .af__submit,
+  .af__google {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 46px;
+    border-radius: 999px;
+    font: inherit;
+    font-size: var(--sv2-fs-sm);
+    font-weight: 800;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--sv2-focus);
+      outline-offset: 2px;
+    }
+  }
+
+  .af__submit {
+    margin-top: 4px;
+    border: 0;
+    background: var(--section-accent);
+    color: var(--section-accent-ink);
+  }
+
+  .af__google {
+    border: 1px solid var(--sv2-border-strong);
+    background: var(--sv2-surface-1);
+    color: var(--sv2-text);
+
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  .af__divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--sv2-text-faint);
+    font-size: var(--sv2-fs-xs);
+
+    &::before,
+    &::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--sv2-border);
+    }
+  }
+
+  .af__switch {
+    margin: 0;
+    color: var(--sv2-text-muted);
+    font-size: var(--sv2-fs-sm);
+    text-align: center;
+
+    a {
+      color: var(--section-accent-text);
+      font-weight: 800;
+    }
+  }
+
+  .af__legal {
+    margin: 0;
+    color: var(--sv2-text-faint);
+    font-size: var(--sv2-fs-xs);
+    text-align: center;
+  }
+
+  .af__status {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: var(--sv2-fs-sm);
+    background: var(--sv2-surface-2);
+  }
+
+  .af__status--success {
+    color: var(--section-accent-text);
+  }
+
+  .af__status--error {
+    color: var(--sv2-live);
+  }
+
+  .af__active {
+    justify-self: start;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--section-accent) 18%, transparent);
+    color: var(--section-accent-text);
+    font-size: var(--sv2-fs-xs);
+    font-weight: 700;
+  }
+}

@@ -1,83 +1,36 @@
-<footer class="portal-footer" role="contentinfo" aria-label="Pie de página">
-  <div class="portal-footer__frame">
-    <section class="portal-footer__hero">
-      <div class="portal-footer__brand">
-        <span class="portal-footer__brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 32 32" fill="none">
-            <rect width="32" height="32" rx="10" fill="url(#footerBrandGradient)"></rect>
-            <rect x="5" y="8" width="22" height="13" rx="3" fill="#090d16"></rect>
-            <path d="M14 12v6.5c0 .5.55.8.96.53l5.4-3.25a.62.62 0 0 0 0-1.06l-5.4-3.25A.62.62 0 0 0 14 12Z" fill="white"></path>
-            <defs>
-              <linearGradient id="footerBrandGradient" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#ef4444"></stop>
-                <stop offset="0.55" stop-color="#f97316"></stop>
-                <stop offset="1" stop-color="#f59e0b"></stop>
-              </linearGradient>
-            </defs>
-          </svg>
-        </span>
-
-        <div class="portal-footer__brand-copy">
-          <p>Guía de TV y streaming</p>
-          <p class="portal-footer__brand-name">Guía Programación TV</p>
-          <span>TV en directo, streaming, deportes y recomendaciones en un único lugar.</span>
-        </div>
-      </div>
-
-      <div class="portal-footer__highlights">
-        <a
-          *ngFor="let item of highlightLinks"
-          [routerLink]="item.path"
-          class="portal-footer__highlight"
-        >
-          <strong>{{ item.label }}</strong>
-          <span>{{ item.description }}</span>
-        </a>
-      </div>
-    </section>
-
-    <div class="portal-footer__grid">
-      <section
-        *ngFor="let group of groups"
-        class="portal-footer__column"
-      >
-        <button
-          type="button"
-          class="portal-footer__column-head"
-          [attr.aria-expanded]="isOpen(group.id)"
-          (click)="toggleSection(group.id)"
-        >
-          <span>{{ group.title }}</span>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-            <path
-              d="m6 9 6 6 6-6"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="1.8"
-            ></path>
-          </svg>
-        </button>
-
-        <nav
-          class="portal-footer__links"
-          [class.portal-footer__links--open]="isOpen(group.id)"
-          [attr.aria-label]="group.title"
-        >
-          <a *ngFor="let link of group.links" [routerLink]="link.path">{{ link.label }}</a>
-        </nav>
-      </section>
+<footer class="ft" aria-label="Pie de página">
+  <div class="ft__cols">
+    <div class="ft__brand">
+      <a [routerLink]="homePath" class="ft__logo" aria-label="Guía TV, inicio">
+        <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <rect class="logo-bg" width="32" height="32" rx="10"></rect>
+          <rect class="logo-screen" x="5" y="8" width="22" height="13" rx="3"></rect>
+          <path d="M14 12v6.5c0 .5.55.8.96.53l5.4-3.25a.62.62 0 0 0 0-1.06l-5.4-3.25A.62.62 0 0 0 14 12Z" class="logo-play"></path>
+        </svg>
+        <span>GuíaTV</span>
+      </a>
+      <p>Programación de TV, streaming y deportes en España. TV en directo, plataformas y recomendaciones en un único lugar.</p>
     </div>
 
-    <div class="portal-footer__meta">
-      <p>© {{ currentYear }} Guía Programación TV. Programación de TV, streaming y deportes en España.</p>
-      <div class="portal-footer__meta-links">
-        <a routerLink="/avisolegal">Aviso legal</a>
-        <a routerLink="/politica-editorial">Política editorial</a>
-        <a routerLink="/privacidad">Privacidad</a>
-        <a routerLink="/cookies">Cookies</a>
-        <button type="button" class="portal-footer__consent" (click)="consent.openPreferences()">Configurar cookies</button>
-        <a routerLink="/sitemap">Mapa del sitio</a>
-      </div>
-    </div>
+    @for (col of columns; track col.title) {
+    <details class="ft__col" [attr.open]="viewport.isMobile() ? null : ''">
+      <summary>{{ col.title }}</summary>
+      <ul>
+        @for (link of col.links; track link.path) {
+        <li><a [routerLink]="link.path">{{ link.label }}</a></li>
+        }
+      </ul>
+    </details>
+    }
+  </div>
+
+  <div class="ft__legal">
+    <p>© {{ currentYear }} Guía Programación TV. Programación de TV, streaming y deportes en España. <span class="ft__credit">Diseñado por <a href="https://tecnoriasl.com/" target="_blank" rel="noopener">Tecnoria</a></span></p>
+    <nav aria-label="Legal">
+      @for (link of legal; track link.path) {
+      <a [routerLink]="link.path">{{ link.label }}</a>
+      }
+      <button type="button" (click)="consent.openPreferences()">Configurar cookies</button>
+    </nav>
   </div>
 </footer>

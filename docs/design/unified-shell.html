@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>Guía TV · Plantilla unificada</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+/* Tokens reales de apps/frontend/src/styles/design-tokens.scss (claro / oscuro) */
+html[data-theme=light]{--bg:#fdfdfd;--panel:#fff;--raised:#f6f6f6;--active:#ececec;--line:#e3e3e3;--text:#121212;--soft:#3a3a3a;--muted:#6a6a6a;--faint:#8f8f8f;--th1:#ececec;--th2:#dedede;--shadow:0 10px 30px rgba(0,0,0,.12);color-scheme:light}
+html[data-theme=dark]{--bg:#0a0a0a;--panel:#121212;--raised:#181818;--active:#252525;--line:rgba(255,255,255,.1);--text:#fff;--soft:#cbcbcb;--muted:#b3b3b3;--faint:#727272;--th1:#2a2a2a;--th2:#1b1b1b;--shadow:0 10px 30px rgba(0,0,0,.6);color-scheme:dark}
+:root{--live:#e5484d;--r:16px;--rc:12px;--ri:8px;--top:56px;--bn:0px}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.45 Inter,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:var(--bn)}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--acc-t);outline-offset:2px}
+.skip{position:absolute;left:-999px}.skip:focus{left:12px;top:8px;z-index:99;background:var(--panel);padding:8px 12px;border-radius:8px}
+
+/* ── Barra superior ── */
+.top{position:sticky;top:0;z-index:30;height:var(--top);display:flex;align-items:center;gap:16px;padding:0 16px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px)}
+.brand{display:flex;align-items:center;gap:8px;font-weight:800;white-space:nowrap}
+.brand i{width:30px;height:30px;border-radius:8px;background:var(--acc);color:var(--on-acc);display:grid;place-items:center;font-style:normal}
+.brand b{color:var(--acc-t)}
+.tabs{display:flex;gap:2px}
+.tabs a{padding:7px 12px;border-radius:var(--ri);color:var(--muted);font-weight:600}
+.tabs a.on{background:var(--active);color:var(--text)}
+.search{flex:1;max-width:520px;margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:0 14px;height:38px;color:var(--faint)}
+.search input{flex:1;border:0;background:none;color:var(--text);font:inherit;outline:none}
+.ib{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;color:var(--muted);flex:none}
+.ib.s-only{display:none}
+
+/* ── Shell: 1 nav | 2 feed | 3 contexto ── */
+.shell{display:grid;grid-template-columns:240px minmax(0,1fr) 360px;gap:12px;padding:0 12px 12px;align-items:start;max-width:1760px;margin:0 auto}
+.pane{background:var(--panel);border:1px solid var(--line);border-radius:var(--r)}
+.nav,.ctx{position:sticky;top:calc(var(--top) + 8px);max-height:calc(100vh - var(--top) - 20px);overflow:auto}
+.nav{padding:14px 10px}
+.nav h4{font-size:13px;padding:0 8px 8px}
+.navlinks a,.ll a{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:var(--ri);color:var(--muted);font-weight:600}
+.navlinks a:hover,.ll a:hover{background:var(--raised);color:var(--text)}
+.navlinks a.on,.ll a.on{background:var(--active);color:var(--text);box-shadow:inset 3px 0 var(--acc)}
+.ni{width:18px;text-align:center}
+.ll a{font-weight:500;padding:6px 10px;font-size:13px}
+.ll a:before{content:"";width:12px;height:12px;border-radius:50%;border:1.5px solid var(--faint);flex:none}
+.ll a.on:before{border:4px solid var(--acc-t)}
+.ll.plain a:before{display:none}
+.grp{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:800;padding:16px 10px 6px}
+.note{font-size:12px;color:var(--faint);padding:0 10px}
+.sheet-h,.sheet-f{display:none}
+.subnav,.mbtn{display:none}
+.feed{padding:16px 20px 24px;min-width:0}
+.ctx{padding:16px}
+.peek{display:none}
+
+/* ── Contenido ── */
+.bc{font-size:12px;color:var(--muted);display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.bc a:hover{color:var(--text);text-decoration:underline}
+.h1{font-size:24px;line-height:1.2;letter-spacing:-.01em}
+.intro{color:var(--muted);margin:6px 0 16px;max-width:70ch}
+.notice{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:var(--ri);padding:8px 12px;margin-bottom:16px}
+.sec{margin:22px 0}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;gap:12px}
+.sec-h h2{font-size:17px}
+.more{font-size:12px;color:var(--acc-t);font-weight:700;white-space:nowrap}
+.grid{display:grid;gap:10px}
+.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+.card{background:var(--raised);border:1px solid var(--line);border-radius:var(--rc);padding:10px;display:flex;flex-direction:column;gap:5px;min-width:0;transition:border-color .15s}
+a.card:hover{border-color:var(--acc-t)}
+.card.sel{outline:2px solid var(--acc-t);outline-offset:-1px}
+.thumb{aspect-ratio:16/9;border-radius:8px;background:linear-gradient(135deg,var(--th1),var(--th2));position:relative}
+.thumb.poster{aspect-ratio:2/3}
+.thumb .pill{position:absolute;left:8px;top:8px}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;background:var(--active);color:var(--soft);width:max-content;letter-spacing:.02em}
+.pill.live{background:color-mix(in srgb,var(--live) 16%,var(--panel));color:var(--live)}
+.pill.live:before{content:"";width:6px;height:6px;border-radius:50%;background:var(--live)}
+.t{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s{font-size:12px;color:var(--muted)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.bar{height:4px;border-radius:2px;background:var(--active);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--acc)}
+.btn{display:inline-flex;justify-content:center;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-weight:700;font-size:13px;white-space:nowrap}
+.btn.pri{background:var(--acc);color:var(--on-acc);border-color:transparent}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-bottom:10px;padding-bottom:2px}
+.chips a{padding:6px 12px;border-radius:999px;background:var(--raised);border:1px solid var(--line);font-size:12.5px;color:var(--soft);font-weight:600;white-space:nowrap}
+.chips a.on{background:var(--text);color:var(--bg);border-color:var(--text)}
+.chips.seg{background:var(--raised);border:1px solid var(--line);border-radius:999px;padding:3px;width:max-content;max-width:100%}
+.chips.seg a{border:0;background:none}
+.chips.seg a.on{background:var(--acc);color:var(--on-acc)}
+.empty{text-align:center;padding:22px}
+.prose{color:var(--soft);font-size:13.5px;max-width:75ch}
+.prose a{color:var(--acc-t);font-weight:600}
+.prose p+p{margin-top:8px}
+.seobar{font:12px/1.5 ui-monospace,Consolas,monospace;border:1px dashed var(--line);border-radius:var(--ri);padding:8px 12px;margin:4px 0 12px;color:var(--muted);display:grid;grid-template-columns:auto 1fr;gap:2px 12px}
+.seobar b{color:var(--soft);font-weight:600}
+.seobar .ok{color:var(--acc-t)}
+.tl{border-top:1px solid var(--line)}
+.tl a{display:grid;grid-template-columns:60px 1fr auto;gap:12px;align-items:center;padding:10px 4px;border-bottom:1px solid var(--line)}
+.tl a:hover{background:var(--raised)}
+.tl a.now{background:color-mix(in srgb,var(--acc) 10%,transparent)}
+.tl a.dim{opacity:.35}
+.tl time{font-weight:800;font-variant-numeric:tabular-nums}
+
+/* ── Parrilla EPG ── */
+.epg{--chw:132px;--ppm:4px;position:relative;overflow:auto;border:1px solid var(--line);border-radius:var(--rc);max-height:640px;background:var(--panel);overscroll-behavior-x:contain}
+.ehead,.erow{display:grid;grid-template-columns:var(--chw) calc(300 * var(--ppm));width:calc(var(--chw) + 300 * var(--ppm))}
+.ehead{position:sticky;top:0;z-index:4;background:var(--panel);border-bottom:1px solid var(--line);height:34px}
+.ech-h,.ech{position:sticky;left:0;z-index:3;background:var(--panel);border-right:1px solid var(--line)}
+.ech-h{font-size:11px;color:var(--faint);font-weight:800;text-transform:uppercase;padding:10px}
+.etimes,.etrack{position:relative}
+.etimes span{position:absolute;top:9px;font-size:11px;color:var(--muted);padding-left:6px;border-left:1px solid var(--line);height:25px}
+.erow{height:66px;border-bottom:1px solid var(--line)}
+.ech{display:flex;align-items:center;gap:8px;padding:0 10px;font-weight:700;font-size:13px}
+.ech:hover span{text-decoration:underline}
+.prog{position:absolute;top:6px;bottom:6px;border-radius:8px;background:var(--raised);border:1px solid var(--line);padding:6px 9px;overflow:hidden;display:flex;flex-direction:column;justify-content:center}
+.prog:hover{border-color:var(--acc-t)}
+.prog b{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prog small{font-size:11px;color:var(--muted);white-space:nowrap}
+.prog.now{background:color-mix(in srgb,var(--acc) 18%,var(--raised));border-color:color-mix(in srgb,var(--acc) 55%,transparent)}
+.prog.next{box-shadow:inset 3px 0 var(--acc-t)}
+.prog.dim{opacity:.3}
+.prog.sel{outline:2px solid var(--acc-t);outline-offset:-2px}
+.nowline{position:absolute;top:0;width:2px;background:var(--live);z-index:2;pointer-events:none}
+.nowline span{position:absolute;top:8px;left:-18px;background:var(--live);color:#fff;font-size:10px;font-weight:800;padding:1px 5px;border-radius:4px}
+
+/* ── Panel de contexto ── */
+.ctx-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-weight:800}
+.hero{background:var(--raised);border:1px solid var(--line);border-radius:var(--rc);padding:14px;display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.kv{border-top:1px solid var(--line)}
+.kv>div,.kv>a{display:flex;justify-content:space-between;gap:12px;padding:9px 2px;border-bottom:1px solid var(--line);font-size:13px}
+.kv>*>span:first-child{color:var(--muted)}
+.kv>a:hover{background:var(--raised)}
+.ctx h5{font-size:12.5px;margin:16px 0 6px}
+.logo{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-weight:800;font-size:11px;flex:none}
+.score{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;justify-items:center;text-align:center;gap:8px}
+.score b{font-size:30px}
+
+/* ── Asistente (chatbot) ── */
+.fab{position:fixed;right:20px;bottom:20px;z-index:45;display:flex;align-items:center;gap:8px;background:var(--text);color:var(--bg);padding:11px 16px;border-radius:999px;font-weight:800;box-shadow:var(--shadow)}
+.chat{position:fixed;z-index:60;right:12px;top:calc(var(--top) + 8px);bottom:12px;width:380px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);display:none;flex-direction:column}
+body.chat-open .chat{display:flex}
+body.chat-open .fab{display:none}
+.chat-h{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}
+.chat-b{flex:1;overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:88%;padding:9px 12px;border-radius:14px;background:var(--raised);font-size:13.5px}
+.msg.me{align-self:flex-end;background:var(--acc);color:var(--on-acc)}
+.chat-f{padding:12px;border-top:1px solid var(--line)}
+.chat-f .search{max-width:none;margin:0}
+
+/* ── Footer (enlaces SEO) ── */
+.foot{border-top:1px solid var(--line);margin-top:12px;padding:28px 24px 24px;max-width:1760px;margin-inline:auto}
+.fcols{display:grid;grid-template-columns:1.4fr repeat(6,1fr);gap:24px}
+.fbrand p{color:var(--muted);font-size:13px;margin-top:8px;max-width:30ch}
+.foot summary{font-size:11px;letter-spacing:.06em;text-transform:uppercase;font-weight:800;color:var(--faint);list-style:none;margin-bottom:8px}
+.foot summary::-webkit-details-marker{display:none}
+.foot ul{list-style:none;padding:0;display:grid;gap:6px}
+.foot li a{font-size:13px;color:var(--soft)}
+.foot li a:hover{color:var(--text);text-decoration:underline}
+.flegal{display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:space-between;border-top:1px solid var(--line);margin-top:24px;padding-top:16px;font-size:12px;color:var(--muted)}
+.flegal nav{display:flex;flex-wrap:wrap;gap:6px 14px}
+.flegal a:hover{color:var(--text)}
+.bnav{display:none}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 14px;border-radius:999px;font-size:12.5px;font-weight:600;z-index:90;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+
+@media (min-width:900px){ .foot summary{pointer-events:none} }
+
+/* ── Tablet: el panel de contexto pasa a hoja flotante ── */
+@media (max-width:1279px){
+  .shell{grid-template-columns:220px minmax(0,1fr)}
+  .ctx{position:fixed;top:auto;right:12px;bottom:12px;width:380px;max-height:none;height:54px;overflow:hidden;z-index:40;box-shadow:var(--shadow);padding:0 16px 16px;transition:height .25s}
+  .ctx.open{height:min(78vh,720px);overflow:auto}
+  .peek{display:flex;align-items:center;gap:10px;width:calc(100% + 32px);margin:0 -16px 12px;height:54px;padding:0 16px;font-weight:700;position:sticky;top:0;background:var(--panel);z-index:1}
+  .peek span{flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .peek:before{content:"";position:absolute;top:6px;left:50%;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:var(--line)}
+  .fab{bottom:78px}
+  .tabs a{padding:7px 9px}
+}
+/* ── Móvil ── */
+@media (max-width:899px){
+  :root{--top:52px;--bn:64px}
+  .top{gap:8px;padding:0 10px}
+  .tabs,.search.d-only{display:none}
+  .ib.s-only{display:grid;margin-left:auto}
+  .shell{grid-template-columns:minmax(0,1fr);padding:0;gap:0}
+  .feed{border:0;border-radius:0;background:none;padding:4px 12px 24px}
+  .subnav{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:6px 12px 10px;margin:0 -12px 6px;position:sticky;top:var(--top);z-index:20;background:var(--bg)}
+  .subnav a{display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:999px;background:var(--raised);border:1px solid var(--line);white-space:nowrap;font-weight:600;font-size:13px;color:var(--soft)}
+  .subnav a.on{background:var(--text);color:var(--bg)}
+  .subnav .mbtn{display:flex}
+  .nav{display:none;position:fixed;inset:auto 0 0 0;top:15vh;z-index:70;max-height:none;border-radius:20px 20px 0 0;padding:0 12px calc(16px + env(safe-area-inset-bottom))}
+  body.nav-open .nav{display:block}
+  body.nav-open:after,body.chat-open:after{content:"";position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:55}
+  .sheet-h{display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--panel);padding:14px 4px;margin-bottom:4px;z-index:1}
+  .sheet-f{display:block;position:sticky;bottom:0;background:var(--panel);padding:10px 4px 4px}
+  .ctx{left:8px;right:8px;width:auto;bottom:calc(var(--bn) + 8px)}
+  .fab{bottom:calc(var(--bn) + 72px);right:14px;padding:12px}
+  .fab span{display:none}
+  .chat{inset:auto 0 0 0;top:10vh;width:auto;border-radius:20px 20px 0 0}
+  .h1{font-size:21px}
+  .g4,.g3{grid-template-columns:repeat(2,1fr)}
+  .g2{grid-template-columns:1fr}
+  .epg{--chw:96px;--ppm:3.4px;margin:0 -12px;border-radius:0;border-inline:0;max-height:none}
+  .ech{font-size:12px;padding:0 6px}.ech .logo{display:none}
+  .seobar{grid-template-columns:1fr}
+  .fcols{grid-template-columns:1fr;gap:0}
+  .foot{padding:20px 16px calc(24px + var(--bn))}
+  .foot details{border-bottom:1px solid var(--line)}
+  .foot summary{padding:14px 0;margin:0;display:flex;justify-content:space-between;font-size:12px}
+  .foot summary:after{content:"+"}
+  .foot details[open] summary:after{content:"–"}
+  .foot ul{padding-bottom:12px}
+  .fbrand{padding-bottom:12px}
+  .bnav{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;height:calc(var(--bn) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:var(--panel);border-top:1px solid var(--line);z-index:50}
+  .bnav a,.bnav summary{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:10.5px;font-weight:700;color:var(--muted);height:100%;list-style:none;cursor:pointer}
+  .bnav a b,.bnav summary b{font-size:18px;font-weight:400}
+  .bnav a.on{color:var(--acc-t)}
+  .bnav details{position:relative}
+  .bnav details div{position:absolute;bottom:calc(100% + 8px);right:8px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:6px;display:grid;min-width:180px}
+  .bnav details div a{flex-direction:row;justify-content:flex-start;font-size:13px;padding:10px;color:var(--text)}
+}
+
+/* Etiquetas de slot (?slots) */
+body.slots .pane{position:relative}
+body.slots .nav:after,body.slots .feed:after,body.slots .ctx:after{content:attr(data-slot);position:absolute;right:8px;top:8px;font:800 10px/1 monospace;color:var(--on-acc);background:var(--acc);padding:3px 6px;border-radius:4px;z-index:5}
+</style>
+</head>
+<body>
+<a class="skip" href="#feed">Saltar al contenido</a>
+<header class="top">
+  <a class="brand" href="/"><i>▶</i><span>GuíaTV <b id="brandSub"></b></span></a>
+  <nav class="tabs" id="tabs" aria-label="Secciones"></nav>
+  <label class="search d-only"><span>⌕</span><input id="q" placeholder="Buscar" aria-label="Buscar"></label>
+  <button class="ib s-only" aria-label="Buscar">⌕</button>
+  <button class="ib" data-theme-toggle aria-label="Cambiar tema" id="themeBtn">☾</button>
+  <a class="ib" href="/perfil" aria-label="Mi cuenta">◯</a>
+</header>
+
+<div class="shell">
+  <aside class="pane nav" id="nav" data-slot="1 · NAV + FACETAS" aria-label="Navegación de sección"></aside>
+  <main class="pane feed" id="feed" data-slot="2 · FEED (H1 + contenido indexable)">
+    <div class="subnav" id="subnav"></div>
+    <div id="feedBody"></div>
+  </main>
+  <aside class="pane ctx" id="ctx" data-slot="3 · CONTEXTO" aria-label="Detalle">
+    <button class="peek" id="peek" aria-expanded="false"><span id="peekLabel"></span>▴</button>
+    <div id="ctxBody"></div>
+  </aside>
+</div>
+
+<footer class="foot" id="foot"></footer>
+
+<button class="fab" id="fab" aria-label="Abrir asistente de recomendaciones">✦ <span>Recomendaciones</span></button>
+<section class="chat" id="chat" aria-label="Asistente de recomendaciones"></section>
+
+<nav class="bnav" id="bnav" aria-label="Navegación principal"></nav>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const val=x=>typeof x==='function'?x():(x||'');
+const A=(h,inner,cls='',at='')=>`<a href="${h}" class="${cls}" ${at}>${inner}</a>`;
+
+/* ── Acentos por sección: [relleno, texto sobre relleno, texto sobre fondo] (tokens --accent-*) ── */
+const ACC={
+  green:{light:['#1ed760','#121212','#0f7a33'],dark:['#1ed760','#121212','#4ade80']},
+  live:{light:['#f3727f','#121212','#a8323d'],dark:['#f3727f','#121212','#ff9aa4']},
+  blue:{light:['#539df5','#121212','#1a5fa8'],dark:['#539df5','#121212','#7cc0ff']},
+  lime:{light:['#c6f25a','#121212','#4d7c0f'],dark:['#c6f25a','#121212','#c6f25a']},
+  edit:{light:['#a685ff','#121212','#6b3fd4'],dark:['#a685ff','#121212','#c4adff']},
+};
+
+/* ── Datos de parrilla 19:00–24:00 (0 = 19:00) ── */
+const NOW=52, SPAN=300;
+const toMin=t=>{const[h,m]=t.split(':').map(Number);return h*60+m-1140};
+const fmt=m=>{const t=m+1140;return String(Math.floor(t/60)%24).padStart(2,'0')+':'+String(t%60).padStart(2,'0')};
+const slug=t=>t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+const GENRES=[['todo','Todo'],['cine','Cine'],['series','Series'],['deportes','Deportes'],['entretenimiento','Entretenimiento'],['noticias','Noticias'],['documental','Documental'],['infantil','Infantil']];
+const VIEWS=[['en-directo','En emisión'],['a-continuacion','A continuación'],['esta-noche','Esta noche'],['parrilla','Parrilla']];
+const DAYS=[['hoy','Hoy'],['manana','Mañana'],['miercoles','Mié 11'],['jueves','Jue 12'],['viernes','Vie 13'],['sabado','Sáb 14'],['domingo','Dom 15']];
+const GROUPS=[['todos','Todos'],['tdt','TDT'],['autonomicos','Autonómicos'],['cable','Cable'],['movistar','Movistar+'],['online','Online'],['deportes','Deportes']];
+const REGIONS=[['todas','Todas'],['andalucia','Andalucía'],['cataluna','Cataluña'],['galicia','Galicia'],['madrid','Madrid'],['pais-vasco','País Vasco'],['valencia','C. Valenciana']];
+const TIPOS=[['todos','Todos'],['tdt','TDT'],['cable','Cable']];
+const DISPS=[['todas','Todas'],['directo','Directo'],['catch-up','Catch-up'],['streaming','Streaming']];
+const lbl=(arr,v)=>(arr.find(x=>x[0]===v)||[,''])[1];
+// [slug, nombre, grupos, región, tipo, disponibilidad, color, programas[inicio, min, título, género, href?]]
+const CH=[
+ ['la-1','LA 1',['tdt'],'nacional','tdt',['directo','catch-up','streaming'],'#1d4ed8',[['19:00',35,'Aquí la Tierra','documental'],['19:35',50,'La Promesa','series','/series/la-promesa'],['20:25',35,'Cifras y letras','entretenimiento'],['21:00',60,'Telediario 2','noticias'],['22:00',40,'La revuelta','entretenimiento'],['22:40',140,'Cine: Dune','cine','/peliculas/dune']]],
+ ['la-2','La 2',['tdt'],'nacional','tdt',['directo','catch-up','streaming'],'#0ea5e9',[['19:00',90,'Grandes documentales','documental'],['20:30',90,'Malas lenguas','entretenimiento'],['22:00',120,'Versión española','cine']]],
+ ['antena-3','Antena 3',['tdt'],'nacional','tdt',['directo','catch-up'],'#f97316',[['19:00',60,'Pasapalabra','entretenimiento'],['20:00',45,'Antena 3 Noticias 2','noticias'],['20:45',75,'El Hormiguero','entretenimiento'],['22:00',120,'Cine: Ocho apellidos vascos','cine']]],
+ ['cuatro','Cuatro',['tdt'],'nacional','tdt',['directo','catch-up'],'#dc2626',[['19:00',60,'Todo es mentira','entretenimiento'],['20:00',60,'Noticias Cuatro','noticias'],['21:00',60,'First Dates','entretenimiento'],['22:00',120,'Cuarto Milenio','documental']]],
+ ['telecinco','Telecinco',['tdt'],'nacional','tdt',['directo','catch-up'],'#2563eb',[['19:00',60,'Rueda la letra','entretenimiento'],['20:00',50,'Informativos Telecinco','noticias'],['20:50',70,'GH: Última hora','entretenimiento'],['22:00',120,'Gran Hermano','entretenimiento']]],
+ ['lasexta','laSexta',['tdt'],'nacional','tdt',['directo','catch-up'],'#16a34a',[['19:00',80,'laSexta Clave','noticias'],['20:20',40,'laSexta Noticias','noticias'],['21:00',60,'El Intermedio','entretenimiento'],['22:00',120,'Cine: John Wick 4','cine']]],
+ ['neox','Neox',['tdt'],'nacional','tdt',['directo'],'#84cc16',[['19:00',120,'Los Simpson','series'],['21:00',60,'The Big Bang Theory','series'],['22:00',120,'Cine: Jumanji','cine']]],
+ ['clan','Clan',['tdt'],'nacional','tdt',['directo','streaming'],'#a855f7',[['19:00',60,'Peppa Pig','infantil'],['20:00',60,'Bluey','infantil'],['21:00',180,'Cine infantil: Coco','infantil']]],
+ ['teledeporte','Teledeporte',['tdt','deportes'],'nacional','tdt',['directo','streaming'],'#0891b2',[['19:00',120,'Baloncesto: Liga Endesa','deportes'],['21:00',60,'Estudio Estadio','deportes'],['22:00',120,'Tenis: ATP Finals','deportes']]],
+ ['tv3','TV3',['tdt','autonomicos'],'cataluna','tdt',['directo','catch-up'],'#111827',[['19:00',120,'Atrapa’m si pots','entretenimiento'],['21:00',50,'Telenotícies vespre','noticias'],['21:50',130,'Polònia','entretenimiento']]],
+ ['tvg','TVG',['tdt','autonomicos'],'galicia','tdt',['directo','catch-up'],'#0284c7',[['19:00',120,'Land Rober','entretenimiento'],['21:00',60,'Telexornal','noticias'],['22:00',120,'Luar','entretenimiento']]],
+ ['telemadrid','Telemadrid',['tdt','autonomicos'],'madrid','tdt',['directo'],'#be123c',[['19:00',120,'Madrid directo','entretenimiento'],['21:00',60,'Telenoticias','noticias'],['22:00',120,'Cine: Origen','cine']]],
+ ['movistar-plus','Movistar Plus+',['movistar','cable'],'nacional','cable',['directo','catch-up','streaming'],'#00a9e0',[['19:00',120,'Cine: Oppenheimer','cine','/peliculas/oppenheimer'],['21:00',60,'La Resistencia','entretenimiento'],['22:00',120,'La Mesías','series','/series/la-mesias']]],
+ ['dazn','DAZN LaLiga',['online','deportes','cable'],'nacional','cable',['directo','streaming'],'#111111',[['19:00',120,'Previa LaLiga','deportes'],['21:00',120,'Real Madrid – Betis','deportes','/deportes/futbol/partido/real-madrid-betis-2026-11-09'],['23:00',60,'Postpartido','deportes']]],
+];
+const progHref=p=>p[4]||('/programas/'+slug(p[2]));
+const progAt=(c,m)=>c[7].findIndex(p=>{const s=toMin(p[0]);return m>=s&&m<s+p[1]});
+const F={view:'parrilla',day:'hoy',genre:'todo',group:'todos',region:'todas',tipo:'todos',disp:'todas'};
+let SEL=[0,1], CHSEL=0, THEME=localStorage.getItem('gtv-theme')||'light', KEY='inicio';
+
+/* ── SEO de facetas: ruta limpia para facetas principales, query para secundarias ── */
+function seoFor(f){
+  const base=f.view==='parrilla'?'/programacion-tv/parrilla':'/programacion-tv/'+f.view;
+  const segs=[f.group!=='todos'&&f.group,f.region!=='todas'&&f.region,f.genre!=='todo'&&f.genre,f.view!=='esta-noche'&&f.day!=='hoy'&&f.day].filter(Boolean);
+  const path=base+(segs.length?'/'+segs.join('/'):'');
+  const q=[f.tipo!=='todos'&&'tipo='+f.tipo,f.disp!=='todas'&&'disponibilidad='+f.disp].filter(Boolean);
+  const url=path+(q.length?'?'+q.join('&'):'');
+  const indexable=segs.length<=1&&!q.length;
+  // canónica: la faceta individual más valiosa (género > región > grupo > día)
+  const pick=[f.genre!=='todo'&&f.genre,f.region!=='todas'&&f.region,f.group!=='todos'&&f.group,f.view!=='esta-noche'&&f.day!=='hoy'&&f.day].find(Boolean);
+  const canonical=indexable?path:base+(pick?'/'+pick:'');
+  const g=f.genre!=='todo'?' de '+lbl(GENRES,f.genre).toLowerCase():'';
+  const d=f.day==='hoy'?' hoy':f.day==='manana'?' mañana':' el '+lbl(DAYS,f.day).toLowerCase();
+  const where=(f.group!=='todos'?' en '+lbl(GROUPS,f.group):'')+(f.region!=='todas'?' en '+lbl(REGIONS,f.region):'');
+  const h1={parrilla:`Programación TV${g}${d}${where}`,'esta-noche':`Programación${g} de esta noche${where}`,'en-directo':`Qué echan ahora en la tele${g?' · '+lbl(GENRES,f.genre):''}${where}`,'a-continuacion':`Qué echan a continuación${g?' · '+lbl(GENRES,f.genre):''}${where}`}[f.view];
+  return {url,path,canonical,robots:indexable?'index, follow':'noindex, follow',h1,title:h1+' | Guía TV',crumb:lbl(VIEWS,f.view)};
+}
+const visible=c=>(F.group==='todos'||c[2].includes(F.group))&&(F.region==='todas'||c[3]==='nacional'||c[3]===F.region)&&(F.tipo==='todos'||c[4]===F.tipo)&&(F.disp==='todas'||c[5].includes(F.disp));
+
+/* ── Piezas ── */
+const navList=(items,on)=>`<div class="navlinks">${items.map(([ic,l,h],i)=>A(h,`<span class="ni">${ic}</span>${l}`,i===on?'on':'',i===on?'aria-current="page"':'')).join('')}</div>`;
+const ll=(items,on,plain)=>`<div class="ll ${plain?'plain':''}">${items.map(([l,h,at],i)=>A(h,l,i===on?'on':'',at||'')).join('')}</div>`;
+const grp=(t,b)=>`<div class="grp">${t}</div>${b}`;
+const note=t=>`<div class="note">${t}</div>`;
+const sheetH=t=>`<div class="sheet-h"><b>${t}</b><button class="ib" data-close aria-label="Cerrar">✕</button></div>`;
+const sec=(h,link,href,body,id='')=>`<section class="sec" ${id?`id="${id}"`:''}><div class="sec-h"><h2>${h}</h2>${link?A(href,link+' ›','more'):''}</div>${body}</section>`;
+const kv=o=>`<div class="kv">${Object.entries(o).map(([k,v])=>`<div><span>${k}</span><span>${v}</span></div>`).join('')}</div>`;
+const kvLinks=rows=>`<div class="kv">${rows.map(([k,v,h])=>A(h,`<span>${k}</span><span>${v}</span>`)).join('')}</div>`;
+const tabsSeg=(a,on=0)=>`<div class="chips seg">${a.map((x,i)=>A(x[1],x[0],i===on?'on':'')).join('')}</div>`;
+const chips=(a)=>`<div class="chips">${a.map(([l,h,on,at])=>A(h,l,on?'on':'',(at||'')+(on?' aria-current="true"':''))).join('')}</div>`;
+const tile=(t,s,h,o={})=>A(h,`<div class="thumb ${o.poster?'poster':''}">${o.live?'<span class="pill live">EN DIRECTO</span>':o.pill?`<span class="pill">${o.pill}</span>`:''}</div><div class="t">${t}</div><div class="s">${s}</div>${o.prog!=null?`<div class="bar"><i style="width:${o.prog}%"></i></div>`:''}`,'card'+(o.sel?' sel':''));
+const logo=(txt,bg,fg='#fff')=>`<span class="logo" style="background:${bg};color:${fg}">${txt}</span>`;
+const chLogo=c=>logo(c[1].replace(/[^A-Za-z0-9+]/g,'').slice(0,3).toUpperCase(),c[6]);
+const plat=(n,bg,s,h,sel,fg='#fff')=>A(h,`<div class="row" style="justify-content:flex-start;gap:10px">${logo(n.replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase(),bg,fg)}<div style="min-width:0"><div class="t">${n}</div><div class="s">${s}</div></div></div>`,'card'+(sel?' sel':''));
+const bc=items=>`<nav class="bc" aria-label="Migas de pan">${items.map(([l,h])=>h?A(h,l):`<span aria-current="page">${l}</span>`).join('<span aria-hidden="true">›</span>')}</nav>`;
+const h1=(t,intro)=>`<h1 class="h1">${t}</h1>${intro?`<p class="intro">${intro}</p>`:''}`;
+const mbtn=(label)=>`<button class="mbtn" data-open-nav style="border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-weight:700;font-size:13px;white-space:nowrap;background:var(--panel)">☰ ${label}</button>`;
+const secondaryCount=()=>['group','region','tipo','disp'].filter(k=>F[k]!==({group:'todos',region:'todas',tipo:'todos',disp:'todas'})[k]).length;
+
+/* ── Ficha de programa en el panel de contexto (TV, Inicio) ── */
+function progCtx(title){
+  const c=CH[SEL[0]],p=c[7][SEL[1]],s=toMin(p[0]),e=s+p[1],live=NOW>=s&&NOW<e,pct=live?Math.round((NOW-s)/p[1]*100):null;
+  const nexts=c[7].slice(SEL[1]+1,SEL[1]+4).map(n=>[n[0],n[2],progHref(n)]);
+  const where={directo:['En directo · TDT','#1e293b'],'catch-up':['A la carta 7 días','#475569'],streaming:['Streaming en la app','#0f766e']};
+  return `<div class="ctx-h">${title}<a class="s" href="${progHref(p)}" aria-label="Abrir ficha">⤢</a></div>
+  <div class="hero"><div class="row">${live?'<span class="pill live">EN DIRECTO</span>':`<span class="pill">${p[0]}</span>`}${A('/canales/'+c[0],c[1],'s')}</div>
+   <div class="thumb"></div><div class="t" style="font-size:18px;white-space:normal">${p[2]}</div>
+   <div class="s">${p[0]} – ${fmt(e)} · ${lbl(GENRES,p[3])}${live?` · quedan ${e-NOW} min`:''}</div>${live?`<div class="bar"><i style="width:${pct}%"></i></div>`:''}
+   <div class="row">${A(progHref(p),'Ver ficha','btn pri','style="flex:1"')}<button class="btn">☆ Guardar</button></div></div>
+  ${tabsSeg([['Resumen',progHref(p)],['Reparto',progHref(p)+'#reparto'],['Dónde verlo',progHref(p)+'#donde']])}
+  <p class="s">Sinopsis breve del programa. El texto completo vive en la ficha indexable.</p>
+  ${nexts.length?`<h5>A continuación en ${c[1]}</h5>${kvLinks(nexts)}`:''}
+  <h5>Dónde verlo</h5><div class="grid" style="gap:8px">${c[5].map(d=>plat(c[1],c[6],where[d][0],'/canales/'+c[0])).join('')}</div>`;
+}
+const progPeek=()=>{const c=CH[SEL[0]],p=c[7][SEL[1]],s=toMin(p[0]);return `${NOW>=s&&NOW<s+p[1]?'● Ahora':p[0]} · ${p[2]} · ${c[1]}`};
+
+/* ── Parrilla ── */
+function epg(){
+  const rows=CH.map((c,ci)=>{
+    if(!visible(c))return'';
+    const nowI=progAt(c,NOW);
+    const blocks=c[7].map((p,pi)=>{
+      const s=toMin(p[0]),w=Math.min(p[1],SPAN-s);
+      const cls=[pi===nowI&&'now',pi===nowI+1&&F.view==='a-continuacion'&&'next',F.genre!=='todo'&&p[3]!==F.genre&&'dim',SEL[0]===ci&&SEL[1]===pi&&'sel'].filter(Boolean).join(' ');
+      return `<a class="prog ${cls}" style="left:calc(${s} * var(--ppm));width:calc(${w} * var(--ppm) - 4px)" href="${progHref(p)}" data-p="${ci},${pi}"><b>${p[2]}</b><small>${p[0]} · ${lbl(GENRES,p[3])}</small></a>`;
+    }).join('');
+    return `<div class="erow">${A('/canales/'+c[0],`${chLogo(c)}<span>${c[1]}</span>`,'ech')}<div class="etrack">${blocks}</div></div>`;
+  }).filter(Boolean);
+  const times=[0,30,60,90,120,150,180,210,240,270].map(m=>`<span style="left:calc(${m} * var(--ppm))">${fmt(m)}</span>`).join('');
+  return `<div class="epg" id="epg" role="region" aria-label="Parrilla de televisión" tabindex="0">
+    <div class="ehead"><div class="ech-h">Canal</div><div class="etimes">${times}</div></div>
+    ${rows.join('')||'<div class="empty">Ningún canal coincide con estos filtros.</div>'}
+    ${rows.length?`<div class="nowline" style="left:calc(var(--chw) + ${NOW} * var(--ppm));height:${34+rows.length*66}px"><span>${fmt(NOW)}</span></div>`:''}</div>`;
+}
+const facet=(k,opts)=>ll(opts.map(([v,l])=>[l,seoFor({...F,[k]:v}).url,`data-k="${k}" data-v="${v}"`]),opts.findIndex(o=>o[0]===F[k]));
+const fchips=(k,opts,seg)=>`<div class="chips ${seg?'seg':''}">${opts.map(([v,l])=>A(seoFor({...F,[k]:v}).url,l,F[k]===v?'on':'',`data-k="${k}" data-v="${v}"${F[k]===v?' aria-current="true"':''}`)).join('')}</div>`;
+
+/* ── Secciones ── */
+const S={
+ inicio:{tab:'Inicio',acc:'green',search:'Buscar programas, canales, películas, series y fútbol',
+  nav:()=>sheetH('Inicio')+`<h4>Inicio</h4>`+navList([['⌂','Para ti','/'],['◉','En directo','/programacion-tv/en-directo'],['☾','Esta noche','/programacion-tv/esta-noche'],['▦','Películas en TV','/programacion-tv/peliculas'],['▤','Series en TV','/programacion-tv/series'],['⚽','Partidos de hoy','/deportes/futbol'],['☆','Mi lista','/perfil']],0)
+   +grp('Canales favoritos',ll(CH.slice(0,4).map(c=>[c[1],'/canales/'+c[0]]),-1,1))+grp('Tus plataformas',ll([['Netflix','/plataformas/netflix'],['Prime Video','/plataformas/prime-video'],['Movistar Plus+','/plataformas/movistar-plus']],-1,1)),
+  feed:()=>{
+    const nowT=CH.slice(0,4).map((c,ci)=>{const i=progAt(c,NOW),p=c[7][i],s=toMin(p[0]);return tile(p[2],`${c[1]} · ${p[0]}–${fmt(s+p[1])}`,progHref(p),{live:1,prog:Math.round((NOW-s)/p[1]*100),sel:SEL[0]===ci&&SEL[1]===i})}).join('');
+    const night=[0,2,5,12].map(ci=>{const c=CH[ci],p=c[7][progAt(c,200)];return tile(p[2],`${c[1]} · ${p[0]}`,progHref(p),{pill:lbl(GENRES,p[3]).toUpperCase()})}).join('');
+    return h1('Programación de TV hoy en España','Qué hay ahora y qué ponen esta noche en La 1, Antena 3, Telecinco, laSexta y el resto de canales, con películas, series, fútbol y dónde verlos en televisión o streaming.')
+     +sec('En emisión ahora','TV en directo','/programacion-tv/en-directo',`<div class="grid g4">${nowT}</div>`)
+     +sec('Esta noche · prime time','Parrilla de esta noche','/programacion-tv/esta-noche',`<div class="grid g4">${night}</div>`)
+     +sec('Partidos de hoy y dónde verlos','Fútbol','/deportes/futbol',`<div class="grid g2">${tile('Real Madrid – Betis','LaLiga · 21:00 · DAZN','/deportes/futbol/partido/real-madrid-betis-2026-11-09',{pill:'HOY'})+tile('Arsenal – Chelsea','Premier League · 17:30 · Movistar+','/deportes/futbol/partido/arsenal-chelsea-2026-11-09',{pill:'HOY'})}</div>`)
+     +sec('En tus plataformas','Plataformas','/plataformas',`<div class="grid g4">${tile('Wednesday T2','Netflix','/series/wednesday',{poster:1})+tile('The Boys','Prime Video','/series/the-boys',{poster:1})+tile('La Mesías','Movistar Plus+','/series/la-mesias',{poster:1})+tile('The Last of Us','HBO Max','/series/the-last-of-us',{poster:1})}</div>`)
+     +sec('Guías y contexto','Todas las guías','/guias',`<div class="grid g3">${tile('¿Es legal grabar la tele?','TV y legislación · 6 min','/editorial/es-legal-grabar-la-tele',{pill:'GUÍA'})+tile('Lo mejor de Movistar Plus+ (octubre)','Streaming · 8 min','/editorial/mejores-movistar-plus-octubre-2026',{pill:'LISTA'})+tile('Cómo ver LaLiga esta temporada','Fútbol · 5 min','/editorial/como-ver-laliga',{pill:'GUÍA'})}</div>`);
+  },
+  ctx:()=>progCtx('Ahora en emisión'),peek:progPeek,
+  chat:['¿Qué echan ahora?','Algo para ver esta noche','Partidos de hoy'],demo:1},
+
+ tv:{tab:'TV',acc:'live',search:'Buscar canal o programa',
+  nav:()=>sheetH('Filtros'+(secondaryCount()?` (${secondaryCount()})`:''))+`<h4>Programación TV</h4>`
+   +navList([['▦','Parrilla','/programacion-tv/parrilla'],['☰','Guía de canales','/programacion-tv/guia-canales'],['▤','Series en TV','/programacion-tv/series'],['🎬','Películas en TV','/programacion-tv/peliculas']],0)
+   +grp('Grupo de canal',facet('group',GROUPS))+grp('Región',facet('region',REGIONS))+grp('Tipo de canal',facet('tipo',TIPOS))+grp('Disponibilidad',facet('disp',DISPS))
+   +`<div style="padding:12px 10px">${A('/programacion-tv/parrilla','Limpiar filtros','btn','data-k="reset" data-v="1" style="width:100%"')}</div><div class="sheet-f"><button class="btn pri" data-close style="width:100%">Ver parrilla (${CH.filter(visible).length} canales)</button></div>`,
+  feed:()=>{const s=seoFor(F);
+    return bc([['Inicio','/'],['Programación TV','/programacion-tv/parrilla'],[s.crumb]])
+     +h1(s.h1,'Parrilla completa de los canales de TDT, autonómicos y de pago. Toca un programa para ver el detalle o abre su ficha.')
+     +fchips('view',VIEWS,1)+fchips('day',DAYS)+fchips('genre',GENRES)
+     +`<div class="seobar"><b>URL</b><span>${s.url}</span><b>robots</b><span class="${s.robots.startsWith('index')?'ok':''}">${s.robots}</span><b>canonical</b><span>${s.canonical}</span><b>title</b><span>${s.title}</span></div>`
+     +epg()
+     +sec('Canales','Guía de canales','/programacion-tv/guia-canales',chips(CH.filter(visible).map(c=>[c[1],'/canales/'+c[0]])))
+     +`<section class="sec prose"><h2 style="font-size:15px;margin-bottom:6px;color:var(--text)">Sobre esta parrilla</h2><p>Horarios actualizados de <a href="/canales/la-1">LA 1</a>, <a href="/canales/antena-3">Antena 3</a>, <a href="/canales/telecinco">Telecinco</a> y más canales. Consulta la programación de <a href="/programacion-tv/parrilla/manana">mañana</a>, las <a href="/programacion-tv/parrilla/cine">películas de hoy</a> o los <a href="/programacion-tv/parrilla/deportes">deportes en TV</a>.</p></section>`;},
+  ctx:()=>progCtx('Programa seleccionado'),peek:progPeek,
+  title:()=>seoFor(F).title,
+  after:keep=>{const e=$('#epg');if(!e)return;if(keep){e.scrollLeft=keep.l;e.scrollTop=keep.t}else{const ppm=parseFloat(getComputedStyle(e).getPropertyValue('--ppm'));e.scrollLeft=(F.view==='esta-noche'?120:Math.max(0,NOW-25))*ppm}},
+  chat:['¿Qué hay de cine esta noche?','Avísame cuando empiece La Promesa','Solo canales de TDT'],demo:1},
+
+ canal:{parent:'tv',acc:'live',search:'Buscar canal o programa',
+  nav:()=>sheetH('Canales')+`<h4>Canales</h4>`+navList([['▦','Parrilla','/programacion-tv/parrilla'],['◉','En directo','/programacion-tv/en-directo'],['☰','Todos los canales','/programacion-tv/guia-canales']],-1)
+   +grp('TDT nacionales',ll(CH.filter(c=>c[3]==='nacional'&&c[4]==='tdt').map(c=>[c[1],'/canales/'+c[0]]),CH.filter(c=>c[3]==='nacional'&&c[4]==='tdt').indexOf(CH[CHSEL]),1))
+   +grp('Autonómicos',ll(CH.filter(c=>c[3]!=='nacional').map(c=>[c[1],'/canales/'+c[0]]),CH.filter(c=>c[3]!=='nacional').indexOf(CH[CHSEL]),1))
+   +grp('Pago y online',ll(CH.filter(c=>c[4]==='cable').map(c=>[c[1],'/canales/'+c[0]]),CH.filter(c=>c[4]==='cable').indexOf(CH[CHSEL]),1)),
+  feed:()=>{const c=CH[CHSEL],nowI=progAt(c,NOW),base='/canales/'+c[0];
+    const dayHref=d=>base+(d!=='hoy'?'/'+d:'');
+    return bc([['Inicio','/'],['Canales','/programacion-tv/guia-canales'],[c[1]]])
+     +h1(`Programación de ${c[1]} ${F.day==='hoy'?'hoy':lbl(DAYS,F.day).toLowerCase()}`,`Horarios de ${c[1]}: qué echan ahora, a continuación y esta noche, con enlace a cada programa.`)
+     +`<div class="chips">${DAYS.map(([v,l])=>A(dayHref(v),l,F.day===v?'on':'',`data-k="day" data-v="${v}"`)).join('')}</div>`
+     +`<div class="chips">${GENRES.map(([v,l])=>A(dayHref(F.day)+(v!=='todo'?'?genero='+v:''),l,F.genre===v?'on':'',`data-k="genre" data-v="${v}"`)).join('')}</div>`
+     +`<div class="tl">${c[7].map((p,i)=>A(progHref(p),`<time>${p[0]}</time><span><span class="t" style="display:block">${p[2]}</span><span class="s">${lbl(GENRES,p[3])} · ${p[1]} min</span></span>${i===nowI?'<span class="pill live">AHORA</span>':`<span class="pill">${lbl(GENRES,p[3])}</span>`}`,(i===nowI?'now ':'')+(F.genre!=='todo'&&p[3]!==F.genre?'dim':''))).join('')}</div>`
+     +sec('Otros canales','Guía de canales','/programacion-tv/guia-canales',chips(CH.filter(x=>x!==c).slice(0,10).map(x=>[x[1],'/canales/'+x[0]])));},
+  ctx:()=>{const c=CH[CHSEL],i=progAt(c,NOW),p=c[7][i],s=toMin(p[0]);
+    return `<div class="ctx-h">${c[1]}<span class="s">Canal</span></div>
+    <div class="hero"><div class="row" style="justify-content:flex-start;gap:12px">${chLogo(c)}<div><div class="t" style="font-size:18px">${c[1]}</div><div class="s">${c[4]==='tdt'?'TDT · '+(c[3]==='nacional'?'Nacional':lbl(REGIONS,c[3])):'Pago / online'}</div></div></div>
+     <div class="s">Ahora: <b style="color:var(--text)">${p[2]}</b> · ${p[0]}–${fmt(s+p[1])}</div><div class="bar"><i style="width:${Math.round((NOW-s)/p[1]*100)}%"></i></div>
+     <div class="row">${A(progHref(p),'Ver ahora','btn pri','style="flex:1"')}<button class="btn">☆ Favorito</button></div></div>
+    ${tabsSeg([['Dónde verlo','/canales/'+c[0]],['Info','/canales/'+c[0]+'#info']])}
+    ${kv({'TDT':c[4]==='tdt'?'Dial '+(CHSEL+1):'—','Movistar Plus+':'Dial '+(CHSEL+1),'Online':c[5].includes('streaming')?'App oficial (gratis)':'—','A la carta':c[5].includes('catch-up')?'7 días':'—'})}`;},
+  peek:()=>{const c=CH[CHSEL];return `${c[1]} · ahora: ${c[7][progAt(c,NOW)][2]}`},
+  title:()=>`Programación de ${CH[CHSEL][1]} hoy | Guía TV`,
+  chat:['¿Qué echa este canal esta noche?','¿Dónde lo veo online?']},
+
+ programa:{parent:'tv',acc:'live',search:'Buscar programas, películas, series',
+  nav:()=>sheetH('La Promesa')+`<h4>La Promesa</h4>`+navList([['ⓘ','Ficha','/series/la-promesa'],['◷','Próximas emisiones','/series/la-promesa#emisiones'],['▤','Episodios','/series/la-promesa#episodios'],['☺','Reparto','/series/la-promesa#reparto'],['✦','Similares','/series/la-promesa#similares']],0)
+   +grp('Se emite en',ll([['LA 1','/canales/la-1']],-1,1))+grp('Género',ll([['Series de drama','/programacion-tv/parrilla/series'],['Series españolas','/programacion-tv/series']],-1,1)),
+  feed:()=>bc([['Inicio','/'],['Series','/programacion-tv/series'],['La Promesa']])
+   +`<div class="row" style="justify-content:flex-start;gap:16px;align-items:flex-start;margin-bottom:8px"><div class="thumb poster" style="width:120px;flex:none"></div><div>${h1('La Promesa','Serie diaria de época · 2023 · LA 1 · 7 temporadas')}<div class="chips">${A('/programacion-tv/parrilla/series','Drama')}${A('/programacion-tv/series','Serie española')}${A('/canales/la-1','LA 1')}</div><div class="row" style="justify-content:flex-start"><a class="btn pri" href="/canales/la-1">Ver hoy 19:35 en LA 1</a><button class="btn">☆ Mi lista</button><button class="btn">🔔 Avisarme</button></div></div></div>`
+   +`<p class="prose">En la España de 1913, una joven entra a servir en el palacio de La Promesa para descubrir la verdad sobre la muerte de su madre.</p>`
+   +sec('Próximas emisiones','Parrilla','/programacion-tv/parrilla/series',kvLinks([['Hoy · 19:35','LA 1 · Episodio 712','/canales/la-1'],['Mañana · 19:35','LA 1 · Episodio 713','/canales/la-1/manana'],['Mié 11 · 19:35','LA 1 · Episodio 714','/canales/la-1/miercoles']]),'emisiones')
+   +sec('Episodios','Todos','/series/la-promesa/episodios',kvLinks([['T7 · E712','La carta escondida','/series/la-promesa/episodio-712'],['T7 · E711','El regreso','/series/la-promesa/episodio-711']]),'episodios')
+   +sec('Reparto','','',chips([['Ana Garcés','/personas/ana-garces'],['Arturo García Sancho','/personas/arturo-garcia-sancho'],['Manuel Regueiro','/personas/manuel-regueiro']]),'reparto')
+   +sec('Similares','','',`<div class="grid g4">${tile('Amar es para siempre','Antena 3',  '/series/amar-es-para-siempre',{poster:1})+tile('Sueños de libertad','Antena 3','/series/suenos-de-libertad',{poster:1})+tile('La Moderna','LA 1','/series/la-moderna',{poster:1})+tile('Acacias 38','RTVE Play','/series/acacias-38',{poster:1})}</div>`,'similares'),
+  ctx:()=>`<div class="ctx-h">Dónde ver La Promesa</div>
+   <div class="grid" style="gap:8px;margin-bottom:12px">${plat('LA 1','#1d4ed8','En abierto · hoy 19:35','/canales/la-1',1)+plat('RTVE Play','#e11d48','Gratis · a la carta','/plataformas/rtve-play')+plat('Netflix','#e50914','Temporadas 1–2','/plataformas/netflix')}</div>
+   ${kv({'Género':'Drama de época','Estreno':'2023','Temporadas':'7','Episodios':'712','Calificación':'+7','Valoración':'★ 7,4'})}
+   <h5>Mencionado en</h5>${kvLinks([['Guía','Series diarias de la tarde','/editorial/series-diarias-tarde']])}`,
+  peek:()=>'Dónde ver La Promesa · LA 1 hoy 19:35',title:'La Promesa: dónde ver, horarios y episodios | Guía TV',
+  chat:['¿Cuándo es el próximo episodio?','Series parecidas a La Promesa']},
+
+ queVer:{tab:'Qué ver',acc:'green',search:'Buscar películas, series, géneros…',
+  nav:()=>sheetH('Qué ver')+`<h4>Qué ver</h4>`+navList([['☀','Hoy','/programacion-tv/que-ver-hoy'],['☾','Esta noche','/programacion-tv/que-ver-hoy/esta-noche'],['▦','Películas','/programacion-tv/que-ver-hoy/peliculas'],['▤','Series','/programacion-tv/que-ver-hoy/series'],['⚽','Deporte','/programacion-tv/que-ver-hoy/deportes'],['◎','Documentales','/programacion-tv/que-ver-hoy/documentales'],['♥','Infantil','/programacion-tv/que-ver-hoy/infantil']],0)
+   +grp('Género',ll([['Drama','/programacion-tv/que-ver-hoy/drama'],['Comedia','/programacion-tv/que-ver-hoy/comedia'],['Thriller','/programacion-tv/que-ver-hoy/thriller'],['Terror','/programacion-tv/que-ver-hoy/terror']],-1,1))
+   +grp('Dónde',ll([['Gratis en TV','/programacion-tv/que-ver-hoy?donde=tv'],['Mis plataformas','/programacion-tv/que-ver-hoy?donde=mis-plataformas']],-1)),
+  feed:()=>bc([['Inicio','/'],['Qué ver hoy']])+h1('Qué ver hoy: películas, series y deporte','Recomendaciones de hoy entre la TV en abierto y tus plataformas, con dónde verlas.')
+   +chips([['Recomendado','/programacion-tv/que-ver-hoy',1],['Mejor valorado','/programacion-tv/que-ver-hoy?orden=valoracion'],['Novedades','/programacion-tv/que-ver-hoy?orden=novedades'],['Gratis en TV','/programacion-tv/que-ver-hoy?donde=tv']])
+   +sec('Selección de hoy','Ver todas','/programacion-tv/que-ver-hoy',`<div class="grid g4">${tile('Oppenheimer','Película · Movistar Plus+ 19:00','/peliculas/oppenheimer',{poster:1,sel:1})+tile('Shōgun','Serie · Disney+','/series/shogun',{poster:1})+tile('El 47','Película · Netflix','/peliculas/el-47',{poster:1})+tile('Severance T2','Serie · Apple TV+','/series/severance',{poster:1})}</div>`)
+   +sec('Gratis esta noche en TV','Parrilla de esta noche','/programacion-tv/esta-noche',`<div class="grid g3">${tile('Cine: Dune','LA 1 · 22:40','/peliculas/dune',{pill:'CINE'})+tile('Cine: John Wick 4','laSexta · 22:00','/peliculas/john-wick-4',{pill:'CINE'})+tile('Ocho apellidos vascos','Antena 3 · 22:00','/peliculas/ocho-apellidos-vascos',{pill:'CINE'})}</div>`),
+  ctx:`<div class="ctx-h">Ficha<a class="s" href="/peliculas/oppenheimer">⤢</a></div>
+   <div class="hero"><div class="row" style="justify-content:flex-start;gap:12px"><div class="thumb poster" style="width:84px;flex:none"></div><div><div class="t" style="font-size:18px">Oppenheimer</div><div class="s">2023 · 3 h · Drama histórico</div><div class="s" style="margin-top:6px">★ 8,3</div></div></div>
+   <div class="row"><a class="btn pri" style="flex:1" href="/peliculas/oppenheimer">Ver ficha</a><button class="btn">☆ Guardar</button></div></div>
+   <h5>Dónde verlo</h5><div class="grid" style="gap:8px">${plat('Movistar Plus+','#00a9e0','Hoy 19:00 · incluido','/canales/movistar-plus',1)+plat('Prime Video','#1a98ff','Alquiler 3,99 €','/plataformas/prime-video')}</div>`,
+  peek:'Oppenheimer · dónde verla',title:'Qué ver hoy | Guía TV',
+  chat:['Thriller de menos de 2 horas','Algo gratis en TV hoy']},
+
+ plataformas:{tab:'Plataformas',acc:'blue',search:'Buscar en plataformas…',
+  nav:()=>sheetH('Plataformas')+`<h4>Plataformas</h4>`+navList([['▦','Todas','/plataformas'],['⇄','Comparador','/comparador-streaming'],['€','Precios','/plataformas/precios'],['✦','Novedades','/plataformas/novedades']],0)
+   +grp('Servicios',ll([['Netflix','/plataformas/netflix'],['Prime Video','/plataformas/prime-video'],['Disney+','/plataformas/disney-plus'],['HBO Max','/plataformas/hbo-max'],['Movistar Plus+','/plataformas/movistar-plus'],['Apple TV+','/plataformas/apple-tv-plus']],0,1)),
+  feed:()=>bc([['Inicio','/'],['Plataformas']])+h1('Plataformas de streaming en España','Elige una plataforma y descubre sus títulos populares, novedades y precios.')
+   +`<div class="grid g3" style="margin-bottom:14px">${plat('Netflix','#e50914','Desde 6,99 €/mes','/plataformas/netflix',1)+plat('Prime Video','#1a98ff','Desde 4,99 €/mes','/plataformas/prime-video')+plat('Disney+','#113ccf','Desde 5,99 €/mes','/plataformas/disney-plus')}</div>`
+   +chips([['Popular ahora','/plataformas/netflix',1],['Novedades','/plataformas/netflix/novedades'],['Mejor valorado','/plataformas/netflix/mejor-valorado']])
+   +sec('Lo más visible en Netflix','Ver catálogo','/plataformas/netflix',`<div class="grid g4">${tile('Wednesday T2','Serie','/series/wednesday',{poster:1})+tile('El 47','Película','/peliculas/el-47',{poster:1})+tile('Berlín','Serie','/series/berlin',{poster:1})+tile('Pedro Páramo','Película','/peliculas/pedro-paramo',{poster:1})}</div>`),
+  ctx:`<div class="ctx-h">Netflix<a class="s" href="/plataformas/netflix">⤢</a></div>
+   <div class="hero"><div class="row" style="justify-content:flex-start;gap:12px">${logo('N','#e50914')}<div><div class="t" style="font-size:18px">Netflix</div><div class="s">Streaming · España</div></div></div>
+   <div class="row"><a class="btn pri" style="flex:1" href="/comparador-streaming">Comparar</a><button class="btn">☆ La tengo</button></div></div>
+   ${kv({'Con anuncios':'6,99 €/mes','Estándar':'13,99 €/mes','Premium · 4K':'19,99 €/mes','Títulos':'6.412'})}
+   <h5>Alternativas</h5><div class="grid" style="gap:8px">${plat('HBO Max','#5b2bd9','Desde 6,99 €/mes','/plataformas/hbo-max')+plat('Prime Video','#1a98ff','Desde 4,99 €/mes','/plataformas/prime-video')}</div>`,
+  peek:'Netflix · planes y precios',title:'Plataformas de streaming | Guía TV',
+  chat:['¿Netflix o HBO Max?','¿Qué plataforma tiene más cine?']},
+
+ futbol:{tab:'Fútbol',acc:'lime',sub:'Sports',search:'Buscar fútbol, equipos, competiciones',
+  nav:()=>sheetH('Mi fútbol')+`<h4>Mi fútbol</h4>`+navList([['⌂','Inicio','/deportes/futbol'],['◉','En directo','/deportes/futbol/en-directo'],['▦','Partidos','/deportes/futbol/partidos'],['✓','Resultados','/deportes/futbol/resultados'],['🏆','Competiciones','/deportes/futbol/competiciones'],['▤','Clasificaciones','/deportes/futbol/clasificaciones'],['✎','Noticias','/deportes/futbol/noticias'],['☆','Mi fútbol','/deportes/futbol/siguiendo']],0)
+   +grp('Siguiendo',note('Aún no sigues equipos.'))+grp('Competiciones',ll([['LaLiga','/deportes/futbol/competiciones/laliga'],['Premier League','/deportes/futbol/competiciones/premier-league'],['Champions League','/deportes/futbol/competiciones/champions-league']],-1,1)),
+  feed:()=>bc([['Inicio','/'],['Fútbol']])+h1('Partidos de hoy, resultados y dónde verlos','')
+   +`<div class="notice">Última actualización: 19:08. Los marcadores se refrescan solos durante los partidos.</div>`
+   +sec('En vivo ahora','Ver todos','/deportes/futbol/en-directo',`<div class="card empty"><div class="t">Ahora mismo no hay partidos en juego</div><div class="s">Mira los partidos de hoy y los próximos encuentros más abajo.</div></div>`)
+   +sec('Partidos de hoy','Calendario','/deportes/futbol/partidos',`<div class="grid g2">${tile('Real Madrid – Betis','LaLiga · 21:00 · DAZN','/deportes/futbol/partido/real-madrid-betis-2026-11-09',{pill:'HOY'})+tile('Arsenal – Chelsea','Premier · 17:30 · Movistar+','/deportes/futbol/partido/arsenal-chelsea-2026-11-09',{pill:'HOY'})}</div>`)
+   +sec('Mis equipos','Mi fútbol','/deportes/futbol/siguiendo',`<div class="grid g2">${['Sevilla FC','Crystal Palace','Real Betis','Everton'].map(t=>`<div class="card"><div class="row">${A('/deportes/futbol/equipos/'+slug(t),t,'t')}<button class="btn">＋ Seguir</button></div></div>`).join('')}</div>`)
+   +`<p class="s" style="margin-top:16px">Contiene información de OpenLigaDB (ODbL). Datos también de footballdata.io y Football-Data.org.</p>`,
+  ctx:`<div class="ctx-h">Match Center<a class="s" href="/deportes/futbol/partido/sao-paulo-corinthians-2026-11-05">⤢</a></div>
+   <div class="hero"><div class="s" style="text-align:center">Brasileirão · Jornada 34</div>
+   <div class="score"><div>${logo('SP','#fff','#c00')}<div class="s">São Paulo</div></div><div><b>0 – 0</b><div class="s">FIN</div></div><div>${logo('CO','#111')}<div class="s">Corinthians</div></div></div>
+   <div class="s">jueves, 5 de noviembre · 01:30 · hora de Madrid</div><button class="btn">☆ Guardar</button></div>
+   ${tabsSeg([['Resumen','#'],['Estadísticas','#'],['Alineaciones','#'],['Dónde verlo','#']].map(x=>[x[0],'/deportes/futbol/partido/sao-paulo-corinthians-2026-11-05']))}
+   <div class="card"><div class="t">No hay eventos disponibles</div><div class="s">El proveedor no ofrece eventos para este partido.</div></div>`,
+  peek:'Match Center · São Paulo 0–0 Corinthians',title:'Partidos de hoy y dónde verlos · Fútbol | Guía TV',
+  chat:['¿Dónde veo al Madrid hoy?','Champions esta semana']},
+
+ guias:{tab:'Guías',acc:'edit',search:'Buscar guías y análisis…',
+  nav:()=>sheetH('Guías')+`<h4>Guías</h4>`+navList([['✦','Destacadas','/guias'],['▶','Streaming','/editorial/categoria/streaming'],['⚽','Fútbol','/editorial/categoria/futbol'],['📺','TV y legislación','/editorial/categoria/tv-legislacion'],['⇄','Comparativas','/editorial/categoria/comparativas'],['★','Lo mejor del mes','/blog/top10']],0)
+   +grp('Por plataforma',ll([['Netflix','/editorial/categoria/netflix'],['HBO Max','/editorial/categoria/hbo-max'],['Disney+','/editorial/categoria/disney-plus']],-1,1)),
+  feed:()=>bc([['Inicio','/'],['Guías']])+h1('Guías de streaming, fútbol y TV','Análisis, comparativas y respuestas con datos reales de programación y catálogo.')
+   +sec('Destacada','Todas','/guias',A('/editorial/es-legal-grabar-la-tele',`<div class="thumb" style="aspect-ratio:21/9"><span class="pill">TV Y LEGISLACIÓN</span></div><div class="t" style="font-size:18px;white-space:normal">¿Es legal grabar la tele o guardar descargas de Netflix?</div><div class="s">Copia privada, descargas y grabaciones · 6 min</div>`,'card sel'))
+   +sec('Sigue leyendo','Más guías','/editorial',`<div class="grid g3">${tile('Subtítulos y audiodescripción: mínimos por ley','TV y legislación · 4 min','/editorial/subtitulos-audiodescripcion-ley',{pill:'GUÍA'})+tile('Lo mejor de Movistar Plus+ (octubre)','Streaming · 8 min','/editorial/mejores-movistar-plus-octubre-2026',{pill:'LISTA'})+tile('Publicidad en TV: topes y cortes','TV y legislación · 5 min','/editorial/publicidad-tv-topes',{pill:'GUÍA'})}</div>`),
+  ctx:`<div class="ctx-h">En esta guía</div>
+   <div class="hero"><span class="pill">TV Y LEGISLACIÓN</span><div class="t" style="font-size:16px;white-space:normal">¿Es legal grabar la tele o guardar descargas de Netflix?</div><div class="s">Actualizada 2 nov 2026 · 6 min</div>
+   <div class="row"><a class="btn pri" style="flex:1" href="/editorial/es-legal-grabar-la-tele">Leer guía</a><button class="btn">☆ Guardar</button></div></div>
+   ${kvLinks([['1','Qué es la copia privada','/editorial/es-legal-grabar-la-tele#copia-privada'],['2','Grabar la TV en casa','/editorial/es-legal-grabar-la-tele#grabar'],['3','Descargas de Netflix','/editorial/es-legal-grabar-la-tele#descargas']])}
+   <h5>Mencionado en la guía</h5><div class="grid" style="gap:8px">${plat('Netflix','#e50914','Descargas en la app','/plataformas/netflix')+plat('Movistar Plus+','#00a9e0','Grabaciones en la nube','/plataformas/movistar-plus')}</div>`,
+  peek:'Índice de la guía',title:'Guías de streaming, fútbol y TV | Guía TV',
+  chat:['Resume esta guía','¿Puedo grabar la TV?']},
+};
+
+/* ── Footer: enlaces SEO, siempre en el DOM (en móvil, acordeón) ── */
+const fcol=(t,links)=>`<details open><summary>${t}</summary><ul>${links.map(([l,h])=>`<li>${A(h,l)}</li>`).join('')}</ul></details>`;
+$('#foot').innerHTML=`<div class="fcols">
+ <div class="fbrand">${A('/','<span class="brand"><i>▶</i>GuíaTV</span>')}<p>Programación de TV, streaming y deportes en España. TV en directo, plataformas y recomendaciones en un único lugar.</p></div>
+ ${fcol('Programación TV',[['TV en directo','/programacion-tv/en-directo'],['Esta noche','/programacion-tv/esta-noche'],['Parrilla completa','/programacion-tv/parrilla'],['Programación mañana','/programacion-tv/parrilla/manana'],['Películas en TV','/programacion-tv/peliculas'],['Series en TV','/programacion-tv/series'],['Guía de canales','/programacion-tv/guia-canales']])}
+ ${fcol('Canales',[...CH.slice(0,9).map(c=>[c[1],'/canales/'+c[0]]),['Autonómicos','/programacion-tv/parrilla/autonomicos'],['Todos los canales','/canales']])}
+ ${fcol('Fútbol',[['Partidos de hoy','/deportes/futbol'],['En directo','/deportes/futbol/en-directo'],['Resultados','/deportes/futbol/resultados'],['LaLiga','/deportes/futbol/competiciones/laliga'],['Premier League','/deportes/futbol/competiciones/premier-league'],['Champions League','/deportes/futbol/competiciones/champions-league'],['Clasificaciones','/deportes/futbol/clasificaciones']])}
+ ${fcol('Plataformas',[['Netflix','/plataformas/netflix'],['Prime Video','/plataformas/prime-video'],['Disney+','/plataformas/disney-plus'],['HBO Max','/plataformas/hbo-max'],['Movistar Plus+','/plataformas/movistar-plus'],['Comparador','/comparador-streaming']])}
+ ${fcol('Explorar',[['Qué ver hoy','/programacion-tv/que-ver-hoy'],['Guías','/guias'],['Tendencias','/tendencias'],['Para ti','/para-ti'],['Comunidad','/comunidad']])}
+ ${fcol('Cuenta y marca',[['Mi perfil','/perfil'],['Acceder','/iniciar-sesion'],['Crear cuenta','/registro'],['Sobre nosotros','/sobre-nosotros'],['Prensa','/prensa'],['Widget','/embed'],['Desarrolladores','/developers']])}
+</div>
+<div class="flegal"><span>© 2026 Guía Programación TV. Programación de TV, streaming y deportes en España.</span>
+<nav aria-label="Legal">${[['Aviso legal','/avisolegal'],['Política editorial','/politica-editorial'],['Privacidad','/privacidad'],['Cookies','/cookies'],['Términos','/terminos'],['Accesibilidad','/accesibilidad'],['Mapa del sitio','/sitemap']].map(([l,h])=>A(h,l)).join('')}<button style="font-size:12px;color:var(--muted)">Configurar cookies</button></nav></div>`;
+const mqMobile=matchMedia('(max-width:899px)'), mqSheet=matchMedia('(max-width:1279px)');
+const syncFooter=()=>document.querySelectorAll('#foot details').forEach(d=>d.open=!mqMobile.matches);
+mqMobile.addEventListener('change',syncFooter);syncFooter();
+
+/* ── Router del prototipo: los enlaces usan las URLs reales y se mapean a la plantilla ── */
+function route(p){
+  if(p==='/')return'inicio';
+  if(p.startsWith('/programacion-tv/que-ver-hoy'))return'queVer';
+  if(p.startsWith('/programacion-tv'))return'tv';
+  if(p.startsWith('/canales'))return'canal';
+  if(/^\/(series|programas|peliculas)\//.test(p))return'programa';
+  if(p.startsWith('/plataformas')||p.startsWith('/comparador'))return'plataformas';
+  if(p.startsWith('/deportes'))return'futbol';
+  if(p.startsWith('/guias')||p.startsWith('/editorial')||p.startsWith('/blog'))return'guias';
+  return null;
+}
+function applyTheme(t){THEME=t;document.documentElement.dataset.theme=t;localStorage.setItem('gtv-theme',t);$('#themeBtn').textContent=t==='dark'?'☀':'☾';$('#themeBtn').setAttribute('aria-label',t==='dark'?'Cambiar a tema claro':'Cambiar a tema oscuro')}
+function render(o={}){
+  const [k,q='']=location.hash.slice(1).split('?');
+  KEY=S[k]?k:'inicio'; const s=S[KEY], flags=q.split('&');
+  applyTheme(THEME);
+  const [fill,on,txt]=ACC[s.acc][THEME], r=document.documentElement.style;
+  r.setProperty('--acc',fill);r.setProperty('--on-acc',on);r.setProperty('--acc-t',txt);
+  const active=s.parent||KEY;
+  const firstHref={inicio:'/',tv:'/programacion-tv/parrilla',queVer:'/programacion-tv/que-ver-hoy',plataformas:'/plataformas',futbol:'/deportes/futbol',guias:'/guias'};
+  $('#tabs').innerHTML=Object.entries(S).filter(([,v])=>v.tab).map(([k,v])=>A(firstHref[k],v.tab,k===active?'on':'',k===active?'aria-current="page"':'')).join('');
+  $('#bnav').innerHTML=[['inicio','⌂','Inicio'],['tv','▦','TV'],['queVer','☀','Qué ver'],['futbol','⚽','Fútbol']].map(([k,i,l])=>A(firstHref[k],`<b>${i}</b>${l}`,k===active?'on':'')).join('')
+    +`<details><summary><b>☰</b>Más</summary><div>${A('/plataformas','Plataformas')}${A('/guias','Guías')}${A('/programacion-tv/guia-canales','Canales')}${A('/perfil','Mi cuenta')}</div></details>`;
+  $('#brandSub').textContent=s.sub||'';
+  $('#q').placeholder=s.search;
+  const keep=o.keepEpg&&$('#epg')?{l:$('#epg').scrollLeft,t:$('#epg').scrollTop}:null;
+  $('#nav').innerHTML=val(s.nav);
+  $('#feedBody').innerHTML=val(s.feed);
+  $('#ctxBody').innerHTML=val(s.ctx);
+  $('#peekLabel').textContent=val(s.peek);
+  const sub=[...document.querySelectorAll('#nav .navlinks a')].map(a=>a.outerHTML).join('');
+  $('#subnav').innerHTML=mbtn(KEY==='tv'?'Filtros'+(secondaryCount()?` (${secondaryCount()})`:''):'Secciones')+sub;
+  const ask=s.chat||[];
+  $('#chat').innerHTML=`<div class="chat-h"><b>✦ Asistente GuíaTV</b><button class="ib" data-close aria-label="Cerrar asistente">✕</button></div>
+   <div class="chat-b"><div class="msg">Hola. Estás en <b>${s.tab||(KEY==='canal'?CH[CHSEL][1]:'La Promesa')}</b>. Puedo buscar en la parrilla, en las plataformas y en los partidos.</div>
+   ${s.demo?`<div class="msg me">${ask[0]}</div><div class="msg">Esta noche tienes:<div class="grid" style="gap:6px;margin-top:8px">${plat('Cine: Dune','#1d4ed8','LA 1 · 22:40','/peliculas/dune')}${plat('Cine: John Wick 4','#16a34a','laSexta · 22:00','/peliculas/john-wick-4')}</div></div>`:''}
+   <div class="chips" style="flex-wrap:wrap">${ask.map(t=>`<a href="/para-ti" data-chat>${t}</a>`).join('')}</div></div>
+   <div class="chat-f"><label class="search"><input placeholder="Pregunta sobre ${(s.tab||'esta página').toLowerCase()}…" aria-label="Mensaje"><span>➤</span></label></div>`;
+  document.title=val(s.title)||(s.tab+' | Guía TV');
+  document.body.classList.toggle('slots',flags.includes('slots'));
+  document.body.classList.remove('nav-open');
+  $('#ctx').classList.remove('open');
+  s.after&&s.after(keep);
+  if(o.scroll!==false)scrollTo(0,0);
+}
+let tT;const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tT);tT=setTimeout(()=>t.classList.remove('on'),2200)};
+
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-theme-toggle],[data-open-nav],[data-close],#peek,#fab,a');
+  if(!t)return;
+  if(t.matches('[data-theme-toggle]')){applyTheme(THEME==='dark'?'light':'dark');render({scroll:false,keepEpg:true});return}
+  if(t.matches('[data-open-nav]')){document.body.classList.toggle('nav-open');return}
+  if(t.matches('[data-close]')){document.body.classList.remove('nav-open','chat-open');return}
+  if(t.id==='peek'){const o=$('#ctx').classList.toggle('open');t.setAttribute('aria-expanded',o);return}
+  if(t.id==='fab'){document.body.classList.add('chat-open');return}
+  const href=t.getAttribute('href');
+  if(!href||!href.startsWith('/'))return;
+  e.preventDefault();
+  t.closest('details:not(#foot details)')?.removeAttribute('open');
+  if(t.dataset.chat!==undefined){toast('El asistente respondería aquí');return}
+  if(t.dataset.k){
+    if(t.dataset.k==='reset')Object.assign(F,{group:'todos',region:'todas',tipo:'todos',disp:'todas'});
+    else F[t.dataset.k]=t.dataset.v;
+    const navOpen=document.body.classList.contains('nav-open');
+    render({scroll:false,keepEpg:t.dataset.k!=='view'});
+    if(navOpen)document.body.classList.add('nav-open');
+    return;
+  }
+  if(t.dataset.p){
+    SEL=t.dataset.p.split(',').map(Number);
+    document.querySelectorAll('.prog.sel').forEach(x=>x.classList.remove('sel'));t.classList.add('sel');
+    $('#ctxBody').innerHTML=val(S[KEY].ctx);$('#peekLabel').textContent=val(S[KEY].peek);
+    if(mqSheet.matches)$('#ctx').classList.add('open');
+    return;
+  }
+  const [p,anchor]=href.split('#'), r=route(p.split('?')[0]);
+  if(r==='canal'){const i=CH.findIndex(c=>p.startsWith('/canales/'+c[0]));if(i>=0)CHSEL=i}
+  if(r){
+    const cur=location.hash.slice(1).split('?');
+    if(cur[0]===r)render();else location.hash=r+(cur[1]?'?'+cur[1]:'');
+    if(anchor)setTimeout(()=>document.getElementById(anchor)?.scrollIntoView({behavior:'smooth'}),60);
+    return;
+  }
+  toast('Enlace real: '+href);
+});
+addEventListener('hashchange',()=>render());
+{const f=(location.hash.split('?')[1]||'').split('&');if(f.includes('dark'))THEME='dark';if(f.includes('light'))THEME='light'}
+render();
+</script>
+</body>
+</html>

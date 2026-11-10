@@ -86,7 +86,7 @@ export class PortalHomeFacade {
         .getPlatforms()
         .pipe(catchError(() => of([] as CatalogPlatform[]))),
       featuredChannels: combineLatest([
-        this.tvDataFacade.getChannelDirectory('tdt', 'today', 4),
+        this.tvDataFacade.getChannelDirectory('tdt', 'today', 8),
         this.tvDataFacade.getChannelDirectory('cable', 'today', 4),
       ]).pipe(
         map(([freeChannels, payChannels]) => [...freeChannels, ...payChannels]),

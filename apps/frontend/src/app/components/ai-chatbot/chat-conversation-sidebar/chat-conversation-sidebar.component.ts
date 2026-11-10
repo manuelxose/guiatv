@@ -198,7 +198,7 @@ import { ConversationSummary } from '../../../interfaces/chatbot.interface';
               />
               <div class="mt-2 grid grid-cols-2 gap-2">
                 <button type="button" (click)="cancelActions()" class="min-h-11 rounded-xl border border-[var(--portal-border)] text-sm font-semibold text-[var(--portal-text)]">Cancelar</button>
-                <button type="button" (click)="onRenameFromButton(conv)" class="min-h-11 rounded-xl bg-[var(--guide-accent)] text-sm font-semibold text-white">Guardar</button>
+                <button type="button" (click)="onRenameFromButton(conv)" class="min-h-11 rounded-xl bg-[var(--section-accent)] text-sm font-semibold text-[var(--section-accent-ink)]">Guardar</button>
               </div>
             } @else if (deleteConfirmId() === conv.conversationId) {
               <p class="px-1 text-sm font-semibold text-[var(--portal-text)]">¿Eliminar esta conversación?</p>

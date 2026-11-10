@@ -792,7 +792,7 @@ export class Container {
     const adminUsersController = new AdminUsersController();
     this.dependencies.set('adminUsersController', adminUsersController);
 
-    const userController = new UserController();
+    const userController = new UserController(this.get('storageRepository'));
     this.dependencies.set('userController', userController);
 
     const interactionController = new InteractionController(

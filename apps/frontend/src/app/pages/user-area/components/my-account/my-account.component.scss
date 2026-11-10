@@ -1,0 +1,68 @@
+:host { gap: 16px; }
+
+.ac-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--sv2-border);
+  border-radius: 16px;
+  background: var(--sv2-surface-1);
+
+  h3 { margin: 6px 0 0; font-size: var(--sv2-fs-sm); }
+}
+
+.ac-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+
+  h2 { margin: 0; font-size: 1.125rem; }
+  a { color: var(--section-accent-text); font-size: var(--sv2-fs-sm); font-weight: 700; text-decoration: none; &:hover { text-decoration: underline; } }
+}
+
+// Photo on the left, data on the right; stacked on narrow screens.
+.ac-profile {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 28px;
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    .ac-form { width: 100%; }
+  }
+}
+
+.ac-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; @media (max-width: 640px) { grid-template-columns: 1fr; } }
+.ac-form__wide { grid-column: 1 / -1; }
+.ac-form__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+.ac-readonly { display: flex; align-items: center; min-height: 42px; padding: 0 14px; border: 1px dashed var(--sv2-border); border-radius: 10px; color: var(--sv2-text-muted); font-weight: 400; overflow: hidden; text-overflow: ellipsis; }
+
+// Status lines keep their height, so a message never pushes the page around.
+.ac-status { flex: 1 1 12rem; min-height: 1.25rem; margin: 0; color: var(--section-accent-text); font-size: var(--sv2-fs-xs); font-weight: 700; line-height: 1.25rem; &.err { color: var(--sv2-live); } }
+
+.ac-badge { margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--section-accent) 18%, transparent); color: var(--section-accent-text); font-size: 0.6875rem; font-weight: 800; }
+
+.ac-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--sv2-border);
+
+  span { display: grid; gap: 2px; font-size: var(--sv2-fs-sm); }
+  small { color: var(--sv2-text-muted); }
+}
+
+.ac-danger {
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--sv2-border);
+
+  summary { width: fit-content; color: var(--sv2-live); font-size: var(--sv2-fs-sm); font-weight: 700; cursor: pointer; }
+}

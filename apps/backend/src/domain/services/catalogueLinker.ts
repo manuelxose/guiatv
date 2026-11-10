@@ -41,6 +41,8 @@ export interface LinkRow {
   title?: string | null;
   originalTitle?: string | null;
   normalizedTitle?: string | null;
+  /** TMDB backdrop path of the work: the rectangular art 16:9 cards need. */
+  backdropPath?: string | null;
 }
 
 export interface LinkContext {

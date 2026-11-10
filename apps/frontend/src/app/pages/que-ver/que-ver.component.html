@@ -1,0 +1,301 @@
+<div [innerHTML]="structuredData()"></div>
+
+<app-panel-shell sideLabel="Qué ver" contextLabel="Selección" [(contextOpen)]="contextOpen">
+  <app-panel-nav panelSide title="Qué ver" [links]="sideLinks" [groups]="sideGroups()"></app-panel-nav>
+
+  <!-- Right panel: the pick for the current filter with where to watch it, tonight on TV and the assistant. -->
+  <section panelContext class="cx" aria-labelledby="qx-title">
+    @if (pick(); as p) {
+    <div class="cx__card">
+      <h2 id="qx-title" class="cx__label">{{ isHome() ? 'Selección de hoy' : 'Destacado' }}</h2>
+      <a class="cx__media" [routerLink]="p.card.detailPath" tabindex="-1" aria-hidden="true">
+        @if (p.image) {<img [src]="p.image" alt="" loading="lazy" decoding="async" />}
+        <span class="pill pill--live">{{ p.card.liveNow ? 'En directo' : p.card.contentType === 'series' ? 'Serie' : p.card.contentType === 'movie' ? 'Película' : 'Programa' }}</span>
+      </a>
+      <p class="cx__now"><strong>{{ p.card.title }}</strong></p>
+      <small class="cx__muted">{{ p.meta }}</small>
+      @if (p.description) {<p class="cx__desc">{{ p.description }}</p>}
+      <a class="btn btn--pri btn--block" [routerLink]="p.card.detailPath">Ver ficha</a>
+      @if (p.where.length) {
+      <h3>Dónde verlo</h3>
+      <dl class="cx__kv">
+        @for (row of p.where; track row[0]) {<div><dt>{{ row[0] }}</dt><dd>{{ row[1] }}</dd></div>}
+      </dl>
+      }
+    </div>
+    } @else {
+    <h2 id="qx-title" class="cx__label">Selección de hoy</h2>
+    }
+
+    @if (tonightList().length) {
+    <div class="cx__block">
+      <h3>Esta noche en abierto</h3>
+      <ul class="cx__list">
+        @for (c of tonightList(); track c.detailPath + c.startTime) {
+        <li><a [routerLink]="c.detailPath"><time>{{ hhmm(c.startTime) }}</time><span><strong>{{ c.title }}</strong><small>{{ c.channelName }}</small></span></a></li>
+        }
+      </ul>
+      <a class="cx__more" [routerLink]="path" [queryParams]="link({ cuando: 'noche', donde: 'abierto', tipo: '' })">Todo lo de esta noche ›</a>
+    </div>
+    }
+
+    <div class="cx__assistant">
+      <strong>¿No sabes qué ver? Pregunta al asistente</strong>
+      <div class="cx__asks">
+        @for (ask of assistantAsks; track ask) {<button type="button" (click)="openAssistant()">{{ ask }}</button>}
+      </div>
+    </div>
+  </section>
+
+  <div class="qv">
+    <!-- Phones have no left panel: the section menu becomes a row of links. -->
+    <nav class="qv__subnav chips" aria-label="Qué ver">
+      @for (l of sideLinks; track l.label) {<a [routerLink]="l.path" [queryParams]="l.queryParams">{{ l.label }}</a>}
+    </nav>
+
+    <header class="qv__intro">
+      <nav class="qv__bc" aria-label="Migas de pan">
+        <a [routerLink]="appPaths.home">Inicio</a><span aria-hidden="true">›</span>
+        @if (isHome()) {<span aria-current="page">Qué ver hoy</span>} @else {<a [routerLink]="path">Qué ver hoy</a><span aria-hidden="true">›</span><span aria-current="page">{{ h1() }}</span>}
+      </nav>
+      <h1>{{ h1() }}</h1>
+      <p>{{ intro() }}</p>
+      @if (pick(); as p) {
+      <button type="button" class="qv__ctx-btn" (click)="contextOpen.set(true)">{{ isHome() ? 'Selección de hoy' : 'Destacado' }}: <strong>{{ p.card.title }}</strong> · Dónde verlo ›</button>
+      }
+    </header>
+
+    <!-- Filters: each option is a link on this page; the four groups combine. -->
+    <nav class="flt" aria-label="Filtros">
+      <div class="flt__row">
+        <span class="flt__label" id="flt-tipo">Tipo</span>
+        <div class="chips" role="group" aria-labelledby="flt-tipo">
+          @for (o of facets().tipos; track o.label) {<a [routerLink]="[]" [queryParams]="o.params" [class.on]="o.on" [attr.aria-current]="o.on ? 'true' : null">{{ o.label }}</a>}
+        </div>
+      </div>
+      <div class="flt__row">
+        <span class="flt__label" id="flt-cuando">Cuándo</span>
+        <div class="chips" role="group" aria-labelledby="flt-cuando">
+          @for (o of facets().cuandos; track o.label) {<a [routerLink]="[]" [queryParams]="o.params" [class.on]="o.on" [attr.aria-current]="o.on ? 'true' : null">{{ o.label }}</a>}
+        </div>
+      </div>
+      <div class="flt__row">
+        <span class="flt__label" id="flt-donde">Dónde</span>
+        <div class="chips" role="group" aria-labelledby="flt-donde">
+          @for (o of facets().dondes; track o.label) {<a [routerLink]="[]" [queryParams]="o.params" [class.on]="o.on" [attr.aria-current]="o.on ? 'true' : null">{{ o.label }}</a>}
+        </div>
+      </div>
+      <div class="flt__row">
+        <span class="flt__label" id="flt-plat">Plataforma</span>
+        <div class="chips chips--sm" role="group" aria-labelledby="flt-plat">
+          @for (o of facets().platforms; track o.label) {<a [routerLink]="[]" [queryParams]="o.params" [class.on]="o.on" [attr.aria-current]="o.on ? 'true' : null">@if (platformLogo(o.label); as logo) {<img [src]="logo" [alt]="''" width="15" height="15" loading="lazy" aria-hidden="true" (error)="onLogoError(o.label)" />}{{ o.label }}</a>}
+        </div>
+      </div>
+      @if (activeFilters().length) {
+      <div class="flt__active">
+        <span class="flt__label">Filtros activos</span>
+        @for (a of activeFilters(); track a.label) {<a class="flt__tag" [routerLink]="[]" [queryParams]="a.params" [attr.aria-label]="'Quitar filtro ' + a.label">{{ a.label }} <span aria-hidden="true">×</span></a>}
+        <a class="flt__clear" [routerLink]="path">Quitar todos</a>
+        @if (resultsReady()) {<span class="flt__count">{{ resultCount() }} títulos</span>}
+      </div>
+      }
+    </nav>
+
+    @if (!isHome()) {
+    @if (showTv()) {
+    <section aria-labelledby="qv-tv">
+      <div class="qv__sec-head"><h2 id="qv-tv" class="qv__h2">{{ tvHeading() }}@if (tvStatus() === 'ready') { <small>· {{ tvItems().length }}</small>}</h2></div>
+      @switch (tvStatus()) {
+        @case ('loading') {
+        <div class="qv__grid" aria-busy="true">@for (i of [1, 2, 3, 4, 5, 6, 7, 8]; track i) {<div class="qv__skeleton qv__skeleton--tv"></div>}</div>
+        }
+        @case ('error') {
+        <div class="qv__empty">No pudimos cargar la programación. <a [routerLink]="[]" [queryParams]="link({})">Reintentar</a></div>
+        }
+        @default {
+        @if (tvItems().length) {
+        <div class="qv__grid">
+          @for (item of tvVisible(); track trackItem(item)) {<app-panel-tile [item]="item"></app-panel-tile>}
+        </div>
+        @if (tvItems().length > tvShown()) {
+        <button type="button" class="qv__more" (click)="tvShown.set(tvShown() + 24)">Ver más ({{ tvItems().length - tvShown() }})</button>
+        }
+        } @else {
+        <div class="qv__empty">
+          <strong>No hay emisiones con estos filtros</strong>
+          <span><a [routerLink]="[]" [queryParams]="link({ cuando: 'hoy' })">Ver las de hoy</a> · <a [routerLink]="[]" [queryParams]="link({ donde: 'tv' })">Toda la TV</a></span>
+        </div>
+        }
+        }
+      }
+    </section>
+    }
+
+    @if (showStreaming()) {
+    <section aria-labelledby="qv-stream">
+      <div class="qv__sec-head"><h2 id="qv-stream" class="qv__h2">{{ streamHeading() }}@if (streamStatus() === 'ready') { <small>· {{ streamItems().length }}{{ filters().page > 1 ? ' · página ' + filters().page : '' }}</small>}</h2></div>
+      @switch (streamStatus()) {
+        @case ('loading') {
+        <div class="qv__grid qv__grid--poster" aria-busy="true">@for (i of [1, 2, 3, 4, 5, 6]; track i) {<div class="qv__skeleton"></div>}</div>
+        }
+        @case ('error') {
+        <div class="qv__empty">No pudimos cargar el catálogo. <a [routerLink]="[]" [queryParams]="link({})">Reintentar</a></div>
+        }
+        @default {
+        @if (streamItems().length) {
+        <div class="qv__grid qv__grid--poster">
+          @for (item of streamItems(); track trackItem(item); let i = $index) {
+          <app-panel-tile [item]="item" variant="poster" [affiliate]="i < 8" placement="search-result"></app-panel-tile>
+          }
+        </div>
+        @if (filters().page > 1 || streamHasMore()) {
+        <nav class="qv__pager" aria-label="Páginas">
+          @if (filters().page > 1) {<a [routerLink]="[]" [queryParams]="link({ page: filters().page - 1 })" rel="prev">‹ Anterior</a>}
+          @if (streamHasMore()) {<a [routerLink]="[]" [queryParams]="link({ page: filters().page + 1 })" rel="next">Siguiente ›</a>}
+        </nav>
+        }
+        } @else {
+        <div class="qv__empty">
+          <strong>No hay títulos con estos filtros</strong>
+          <span>@if (filters().page > 1) {<a [routerLink]="[]" [queryParams]="link({ page: 1 })">Volver a la primera página</a> · }<a [routerLink]="path">Ver todo lo de hoy</a></span>
+        </div>
+        }
+        }
+      }
+    </section>
+    }
+    }
+
+    @if (forYou().length) {
+    <section aria-labelledby="qv-foryou">
+      <div class="qv__sec-head"><h2 id="qv-foryou" class="qv__h2">Para ti</h2><a [routerLink]="appPaths.forYou">Más recomendaciones ›</a></div>
+      <div class="qv__grid qv__grid--poster">
+        @for (item of forYou(); track item.catalogId) {<app-panel-tile [item]="item" variant="poster"></app-panel-tile>}
+      </div>
+    </section>
+    }
+
+    @if (isHome()) {
+    @if (tonightFilms().length) {
+    <section aria-labelledby="qv-films-tonight">
+      <div class="qv__sec-head"><h2 id="qv-films-tonight" class="qv__h2">Películas gratis esta noche en TV</h2><a [routerLink]="[]" [queryParams]="link({ tipo: 'movie', cuando: 'noche', donde: 'abierto' })">Todas las de esta noche ›</a></div>
+      <div class="qv__grid">
+        @for (item of tonightFilms(); track trackItem(item)) {<app-panel-tile [item]="item"></app-panel-tile>}
+      </div>
+    </section>
+    }
+
+    @if (movieItems().length) {
+    <section aria-labelledby="qv-movies">
+      <div class="qv__sec-head"><h2 id="qv-movies" class="qv__h2">Películas más vistas en streaming</h2><a [routerLink]="[]" [queryParams]="link({ tipo: 'movie', donde: 'streaming' })">Ver películas ›</a></div>
+      <div class="qv__grid qv__grid--poster">
+        @for (item of movieItems(); track trackItem(item); let i = $index) {<app-panel-tile [item]="item" variant="poster" [affiliate]="i < 4" placement="search-result"></app-panel-tile>}
+      </div>
+    </section>
+    }
+
+    @if (tonightMix().length) {
+    <section aria-labelledby="qv-tonight">
+      <div class="qv__sec-head"><h2 id="qv-tonight" class="qv__h2">Series y programas de esta noche</h2><a [routerLink]="[]" [queryParams]="link({ cuando: 'noche', donde: 'tv' })">Toda la noche en TV ›</a></div>
+      <div class="qv__grid">
+        @for (item of tonightMix(); track trackItem(item)) {<app-panel-tile [item]="item"></app-panel-tile>}
+      </div>
+    </section>
+    }
+
+    @if (seriesItems().length) {
+    <section aria-labelledby="qv-series">
+      <div class="qv__sec-head"><h2 id="qv-series" class="qv__h2">Series más vistas en streaming</h2><a [routerLink]="[]" [queryParams]="link({ tipo: 'series', donde: 'streaming' })">Ver series ›</a></div>
+      <div class="qv__grid qv__grid--poster">
+        @for (item of seriesItems(); track trackItem(item); let i = $index) {<app-panel-tile [item]="item" variant="poster" [affiliate]="i < 4" placement="search-result"></app-panel-tile>}
+      </div>
+    </section>
+    }
+
+    @if (liveItems().length) {
+    <section aria-labelledby="qv-live">
+      <div class="qv__sec-head"><h2 id="qv-live" class="qv__h2">Qué echan ahora en la TDT</h2><a [routerLink]="[]" [queryParams]="link({ cuando: 'ahora', donde: 'abierto' })">Todo lo que echan ahora ›</a></div>
+      <div class="qv__grid">
+        @for (item of liveItems(); track trackItem(item)) {<app-panel-tile [item]="item"></app-panel-tile>}
+      </div>
+    </section>
+    }
+
+    @if (freeItems().length) {
+    <section aria-labelledby="qv-free">
+      <div class="qv__sec-head"><h2 id="qv-free" class="qv__h2">Gratis sin suscripción</h2><a [routerLink]="[]" [queryParams]="link({ donde: 'gratis' })">Ver todo lo gratis ›</a></div>
+      <div class="qv__grid qv__grid--poster">
+        @for (item of freeItems(); track trackItem(item)) {<app-panel-tile [item]="item" variant="poster"></app-panel-tile>}
+      </div>
+    </section>
+    }
+    }
+
+    <section aria-labelledby="qv-platforms">
+      <div class="qv__sec-head"><h2 id="qv-platforms" class="qv__h2">Qué ver en cada plataforma</h2><a [routerLink]="appPaths.platforms">Todas las plataformas ›</a></div>
+      <div class="qv__plats">
+        @for (p of platforms; track p.name) {
+        <div class="plat" [class.plat--on]="filters().platform === p.name">
+          <a class="plat__main" [routerLink]="[]" [queryParams]="link({ platform: p.name })">
+            <span class="plat__logo" [style.background]="platformLogo(p.name) ? null : p.color" aria-hidden="true">
+              @if (platformLogo(p.name); as logo) {<img [src]="logo" [alt]="''" width="36" height="36" loading="lazy" (error)="onLogoError(p.name)" />} @else {{{ p.name.charAt(0) }}}
+            </span>
+            <span><strong>{{ p.name }}</strong><small>Lo más visto hoy</small></span>
+          </a>
+          @if (p.guide) {<a class="plat__guide" [routerLink]="p.guide">Mejores títulos ›</a>}
+        </div>
+        }
+      </div>
+      <p class="qv__note">¿Dudas entre varias? Mira el <a [routerLink]="appPaths.streamingComparison">comparador de plataformas</a> y los <a routerLink="/guias/precios-plataformas-streaming-espana">precios de cada servicio</a>.</p>
+    </section>
+
+    @if (guides().length) {
+    <section aria-labelledby="qv-guides">
+      <div class="qv__sec-head"><h2 id="qv-guides" class="qv__h2">Guías para decidir</h2><a [routerLink]="appPaths.blog">Todas las guías ›</a></div>
+      <div class="qv__posts">
+        @for (post of guides(); track post.id) {
+        <a class="post" [routerLink]="post.canonicalPath">
+          <span class="post__img">@if (post.coverImage) {<img [src]="post.coverImage" alt="" loading="lazy" decoding="async" />}</span>
+          <strong>{{ post.title }}</strong>
+          @if (post.excerptText) {<small>{{ post.excerptText }}</small>}
+        </a>
+        }
+      </div>
+    </section>
+    }
+
+    @if (rankings().length) {
+    <section aria-labelledby="qv-rankings">
+      <div class="qv__sec-head"><h2 id="qv-rankings" class="qv__h2">Rankings: lo mejor de cada plataforma</h2><a [routerLink]="appPaths.top10">Ver rankings ›</a></div>
+      <div class="qv__posts qv__posts--4">
+        @for (post of rankings(); track post.id) {
+        <a class="post" [routerLink]="post.canonicalPath">
+          <span class="post__img">@if (post.coverImage) {<img [src]="post.coverImage" alt="" loading="lazy" decoding="async" />}</span>
+          <strong>{{ post.title }}</strong>
+        </a>
+        }
+      </div>
+    </section>
+    }
+
+    <section class="qv__about" aria-labelledby="qv-about">
+      <h2 id="qv-about" class="qv__h2">Cómo elegimos qué ver hoy</h2>
+      <p>
+        Cada día cruzamos la programación de los canales de televisión con lo más visto en las plataformas de streaming en España.
+        Filtra por tipo (películas, series o programas), por cuándo (ahora, esta noche, hoy o mañana), por dónde (toda la TV, la TV en
+        abierto, streaming o gratis) y por plataforma; cada título enlaza a su ficha con dónde verlo.
+      </p>
+      <p>
+        Si prefieres la tele, consulta la <a [routerLink]="appPaths.guide">parrilla en directo</a>, la
+        <a [routerLink]="appPaths.channels">guía de canales</a> o las <a [routerLink]="appPaths.movies">películas</a> y
+        <a [routerLink]="appPaths.series">series que echan hoy en TV</a>. Para el deporte, los
+        <a [routerLink]="appPaths.football">partidos de fútbol de hoy y dónde verlos</a>.
+      </p>
+      <div class="chips chips--wrap">
+        <a routerLink="/canales/la-1">La 1</a><a routerLink="/canales/la-2">La 2</a><a routerLink="/canales/antena-3">Antena 3</a><a routerLink="/canales/cuatro">Cuatro</a><a routerLink="/canales/telecinco">Telecinco</a><a routerLink="/canales/la-sexta">laSexta</a><a routerLink="/canales/neox">Neox</a><a routerLink="/canales/clan">Clan</a><a routerLink="/canales/24-horas">24 Horas</a>
+      </div>
+    </section>
+
+    <app-faq-section heading="Preguntas frecuentes sobre qué ver hoy" [items]="faq()"></app-faq-section>
+  </div>
+</app-panel-shell>

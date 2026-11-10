@@ -1,0 +1,57 @@
+<div class="shell" [class.collapsed]="collapsed()" [class.no-ctx]="contextHidden()">
+  <a class="skip" [routerLink]="[]" fragment="panel-main" queryParamsHandling="preserve">Saltar al contenido</a>
+
+  <ng-template #lead>
+    <button type="button" class="ib side-toggle" (click)="collapsed.set(!collapsed())" [attr.aria-pressed]="collapsed()" [attr.aria-label]="'Contraer o expandir ' + sideLabel()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5" stroke-width="1.8"></rect><path d="M9 4.5v15" stroke-width="1.8"></path></svg>
+    </button>
+  </ng-template>
+  <ng-template #actions>
+    @if (!contextHidden()) {
+    <button type="button" class="ib ctx-toggle" (click)="contextOpen.set(!contextOpen())" [attr.aria-expanded]="contextOpen()" [attr.aria-label]="'Abrir ' + contextLabel()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5" stroke-width="1.8"></rect><path d="M15 4.5v15" stroke-width="1.8"></path></svg>
+    </button>
+    }
+  </ng-template>
+
+  <!-- Two variants because the header's search slot falls back to the global search only when nothing is projected. -->
+  <div class="top">
+    @if (searchTemplate(); as search) {
+    <app-unified-top-nav [fixed]="false">
+      <ng-container ngProjectAs="[utnLead]"><ng-container [ngTemplateOutlet]="lead"></ng-container></ng-container>
+      <ng-container ngProjectAs="[utnSearch]"><ng-container [ngTemplateOutlet]="search"></ng-container></ng-container>
+      <span utnActions class="extra"><ng-container [ngTemplateOutlet]="actions"></ng-container></span>
+    </app-unified-top-nav>
+    } @else {
+    <app-unified-top-nav [fixed]="false">
+      <ng-container ngProjectAs="[utnLead]"><ng-container [ngTemplateOutlet]="lead"></ng-container></ng-container>
+      <span utnActions class="extra"><ng-container [ngTemplateOutlet]="actions"></ng-container></span>
+    </app-unified-top-nav>
+    }
+  </div>
+
+  <aside class="side panel" [attr.aria-label]="sideLabel()">
+    <ng-content select="[panelSide]"></ng-content>
+  </aside>
+
+  <main id="panel-main" class="main panel" tabindex="-1">
+    <ng-content></ng-content>
+    <app-footer />
+    <ng-content select="[panelAfterFooter]"></ng-content>
+  </main>
+
+  @if (!contextHidden()) {
+  @if (contextOpen()) {
+  <button type="button" class="backdrop" (click)="contextOpen.set(false)" [attr.aria-label]="'Cerrar ' + contextLabel()"></button>
+  }
+  <aside class="ctx panel" [class.open]="contextOpen()" [attr.aria-label]="contextLabel()">
+    <div class="ctx-bar">
+      <span>{{ contextLabel() }}</span>
+      <button type="button" class="ib" (click)="contextOpen.set(false)" [attr.aria-label]="'Cerrar ' + contextLabel()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke-width="1.8" stroke-linecap="round"></path></svg>
+      </button>
+    </div>
+    <ng-content select="[panelContext]"></ng-content>
+  </aside>
+  }
+</div>

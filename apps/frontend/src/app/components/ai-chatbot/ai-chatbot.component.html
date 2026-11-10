@@ -3,6 +3,8 @@
   <app-chat-header
     [isAuthenticated]="sessionState === 'authenticated'"
     [profileIncomplete]="needsOnboarding"
+    [knowledge]="knowledge"
+    (openAiProfile)="openAiProfile()"
     (newConversation)="startNewConversation()"
     (closePanel)="close.emit()"
     (openProfile)="openProfilePanel()"
@@ -43,6 +45,9 @@
       class="chatbot-shell__messages"
       (scroll)="onMessagesScroll()"
     >
+      <app-chat-home *ngIf="showHome" (ask)="useSuggestion($event)" />
+
+      <ng-container *ngIf="!showHome">
       <app-chat-message-bubble
         *ngFor="let message of messages; trackBy: trackByMessage"
         [message]="message"
@@ -66,6 +71,7 @@
         (communitySelected)="selectCommunity($event)"
         (autonomicsDeclined)="declineAutonomics()"
       />
+      </ng-container>
 
       <!-- Scroll-to-bottom FAB -->
       <button
@@ -88,6 +94,7 @@
         [sessionState]="sessionState"
         [chatState]="chatState"
         [canRetry]="canRetryLastPrompt()"
+        [showQuickActions]="!showHome"
         (messageSent)="onMessageSent($event)"
         (stopGeneration)="stopGeneration()"
         (retryRequested)="retryLastPrompt()"

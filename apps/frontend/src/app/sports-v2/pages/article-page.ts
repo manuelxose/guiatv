@@ -1,3 +1,4 @@
+import { FOOTBALL_NEWS_PATH } from '../shell/nav-items';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -65,7 +66,7 @@ import { breadcrumbs, SPORTS_SITE_URL, sv2Path, useNotFound, useSeo } from './se
     .crumbs a { color: var(--sv2-text-muted); font-size: var(--sv2-fs-sm); font-weight: 600; text-decoration: none; }
     .crumbs a:hover { color: var(--sv2-text); }
     article { display: grid; gap: 16px; }
-    .kick { margin: 0; font-size: var(--sv2-fs-xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--sv2-accent); }
+    .kick { margin: 0; font-size: var(--sv2-fs-xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--sv2-accent-text); }
     h1 { margin: 4px 0 8px; font-size: 2rem; line-height: 1.15; letter-spacing: -.02em; }
     .by { margin: 0; font-size: var(--sv2-fs-sm); color: var(--sv2-text-muted); }
     .art { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--sv2-r-lg); border: 1px solid var(--sv2-border); background: radial-gradient(120% 140% at 0% 0%, hsl(var(--hue) 55% 34%), hsl(calc(var(--hue) + 40) 40% 14%) 70%); }
@@ -87,7 +88,7 @@ export class Sv2ArticlePageComponent {
   protected readonly store = inject(SportsStore);
   private readonly route = inject(ActivatedRoute);
   private readonly site = inject(SPORTS_SITE_URL);
-  protected readonly newsLink = sv2Link('noticias');
+  protected readonly newsLink = [FOOTBALL_NEWS_PATH];
   protected readonly longStamp = longStamp;
   private readonly slug = toSignal(this.route.paramMap.pipe(map((p) => p.get('slug') ?? '')), { initialValue: this.route.snapshot.paramMap.get('slug') ?? '' });
 

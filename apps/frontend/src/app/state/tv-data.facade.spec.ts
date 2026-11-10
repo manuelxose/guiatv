@@ -114,12 +114,15 @@ describe('TvDataFacade', () => {
       date: 'today',
       group: 'movistar',
       channelType: 'TDT',
+      country: 'GB',
     }));
 
     expect(tvApiSpy.getTvReadSchedule).toHaveBeenCalledWith(jasmine.objectContaining({
       date: 'today',
       group: 'movistar',
       itemsPerChannel: 32,
+      fields: 'grid',
+      country: 'GB',
     }));
     expect(result).toEqual([tvItem]);
   });

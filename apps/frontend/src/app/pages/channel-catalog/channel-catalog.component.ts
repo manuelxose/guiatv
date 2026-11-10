@@ -1,17 +1,33 @@
-import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, Params, RouterModule } from '@angular/router';
 import { catchError, map, of, startWith, switchMap } from 'rxjs';
 import {
   TvReadChannelSummaryDTO,
   TvReadChannelsResponseDTO,
 } from '../../api/models';
 import { TvApiService } from '../../api/tv-api.service';
-import { ChannelCardComponent } from '../../components/channel-card/channel-card.component';
+import { PanelNavComponent, PanelNavGroup } from '../../components/panel-nav/panel-nav.component';
+import { PanelShellComponent } from '../../components/panel-shell/panel-shell.component';
 import { UnifiedAsyncStateComponent } from '../../components/unified-async-state/unified-async-state.component';
+import { APP_PATHS, channelCanonicalPath } from '../../config/route-map';
+import { TV_SECTION_LINKS } from '../../config/tv-section-nav';
+import { ChatService } from '../../services/chat.service';
 import { MetaService } from '../../services/meta.service';
+import { normalizeToCard, UnifiedCardData } from '../../utils/tv-normalizers';
+
+/** One channel card: the channel and what it airs now and next. */
+interface ChannelTile {
+  id: string;
+  name: string;
+  path: string;
+  icon: string;
+  meta: string;
+  now: UnifiedCardData | null;
+  next: UnifiedCardData | null;
+}
+
+const timeFmt = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' });
 
 type DirectoryState =
   | { status: 'loading'; data: null }
@@ -23,7 +39,7 @@ export type ChannelAccessFilter = 'all' | 'free' | 'pay';
 @Component({
   selector: 'app-channel-catalog',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, ChannelCardComponent, UnifiedAsyncStateComponent],
+  imports: [RouterModule, PanelShellComponent, PanelNavComponent, UnifiedAsyncStateComponent],
   templateUrl: './channel-catalog.component.html',
   styleUrl: './channel-catalog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -31,18 +47,36 @@ export type ChannelAccessFilter = 'all' | 'free' | 'pay';
 export class ChannelCatalogComponent {
   private readonly api = inject(TvApiService);
   private readonly metaService = inject(MetaService);
+  private readonly chat = inject(ChatService);
+  private readonly route = inject(ActivatedRoute);
+  readonly appPaths = APP_PATHS;
+  readonly sideLinks = TV_SECTION_LINKS;
   readonly groups = [
     { id: 'all', label: 'Todos' },
     { id: 'tdt', label: 'TDT' },
+    { id: 'autonomico', label: 'Autonómicos' },
     { id: 'cable', label: 'Cable' },
     { id: 'movistar', label: 'Movistar+' },
-    { id: 'online', label: 'Online' },
     { id: 'deporte', label: 'Deportes' },
-    { id: 'autonomico', label: 'Autonómicos' },
+    { id: 'online', label: 'Online' },
   ] as const;
-  readonly query = signal('');
-  readonly selectedGroup = signal('all');
-  readonly selectedAccess = signal<ChannelAccessFilter>('all');
+  readonly accessOptions: ReadonlyArray<{ id: ChannelAccessFilter; label: string }> = [
+    { id: 'all', label: 'Cualquier acceso' },
+    { id: 'free', label: 'En abierto' },
+    { id: 'pay', label: 'De pago' },
+  ];
+
+  // Filters live in the URL (?grupo=, ?acceso=) so every option is a crawlable link. Search is the header's.
+  private readonly params = toSignal(this.route.queryParamMap, { initialValue: this.route.snapshot.queryParamMap });
+  readonly selectedGroup = computed(() => {
+    const g = this.params().get('grupo') || 'all';
+    return this.groups.some((x) => x.id === g) ? g : 'all';
+  });
+  readonly selectedAccess = computed<ChannelAccessFilter>(() => {
+    const a = this.params().get('acceso');
+    return a === 'free' || a === 'pay' ? a : 'all';
+  });
+  readonly contextOpen = signal(false);
   private readonly refreshVersion = signal(0);
   private readonly request = computed(() => ({
     group: this.selectedGroup(),
@@ -71,43 +105,74 @@ export class ChannelCatalogComponent {
       this.metaService.markUnavailable('Canales de televisión | Guía TV');
       return;
     }
+    const group = this.groups.find((g) => g.id === this.selectedGroup());
+    const named = group && group.id !== 'all' ? group : null;
     this.metaService.setMetaTags({
-      title: 'Canales de televisión en España: TDT, cable y online | Guía TV',
+      title: `Guía de canales de TV${named ? ` ${named.label}` : ''}: qué echan hoy | Guía TV`,
       description:
-        'Directorio de canales de TV en España con su emisión actual: TDT, cable, Movistar+, deportes, autonómicos y online. Abre la programación completa de cada canal.',
-      canonicalUrl: '/canales',
+        'Directorio de canales de TV en España con lo que emiten ahora y a continuación: TDT, autonómicos, cable, Movistar+, deportes y online. Abre la programación completa de cada canal.',
+      // Each group is indexable on its own URL; access and the search box only refine it.
+      canonicalUrl: named ? `/canales?grupo=${named.id}` : '/canales',
     });
   });
   readonly channels = computed(() => filterChannelDirectory(
     this.state().data?.channels || [],
-    this.query(),
+    '',
     this.selectedAccess()
   ));
+  readonly tiles = computed<ChannelTile[]>(() =>
+    this.channels().map(({ channel, current, next }) => ({
+      id: channel.id,
+      name: channel.name,
+      path: channelCanonicalPath(channel, channel.id),
+      icon: channel.icon || '',
+      meta: [channel.access === 'free' ? 'En abierto' : channel.access === 'pay' ? 'De pago' : '', channel.operator === 'unknown' ? '' : channel.operator]
+        .filter(Boolean)
+        .join(' · '),
+      now: current ? normalizeToCard(current) : null,
+      next: next ? normalizeToCard(next) : null,
+    }))
+  );
+  /** Right panel: what starts next across the directory, soonest first. */
+  readonly upNext = computed(() =>
+    this.tiles()
+      .filter((t) => t.next?.startTime)
+      .sort((a, b) => a.next!.startTime.localeCompare(b.next!.startTime))
+      .slice(0, 14)
+  );
   readonly resultLabel = computed(() => {
     const count = this.channels().length;
     return `${count} ${count === 1 ? 'canal' : 'canales'}`;
   });
+  readonly sideGroups = computed<PanelNavGroup[]>(() => [
+    {
+      title: 'Grupo de canal',
+      links: this.groups.map((g) => ({ label: g.label, path: APP_PATHS.channels, queryParams: this.paramsFor({ grupo: g.id }), active: this.selectedGroup() === g.id })),
+    },
+    {
+      title: 'Acceso',
+      links: this.accessOptions.map((a) => ({ label: a.label, path: APP_PATHS.channels, queryParams: this.paramsFor({ acceso: a.id }), active: this.selectedAccess() === a.id })),
+    },
+  ]);
+  readonly assistantAsks = ['¿Qué echan ahora en abierto?', '¿Dónde veo un canal online?', 'Canales con fútbol hoy'];
 
-  selectGroup(group: string): void {
-    this.selectedGroup.set(group);
+  /** Query params for a filter link: keeps the other filter and drops defaults so URLs stay clean. */
+  paramsFor(change: { grupo?: string; acceso?: string }): Params {
+    const grupo = change.grupo ?? this.selectedGroup();
+    const acceso = change.acceso ?? this.selectedAccess();
+    return { grupo: grupo === 'all' ? null : grupo, acceso: acceso === 'all' ? null : acceso };
   }
 
-  selectAccess(access: ChannelAccessFilter): void {
-    this.selectedAccess.set(access);
+  hhmm(iso?: string): string {
+    return iso ? timeFmt.format(new Date(iso)) : '';
+  }
+
+  openAssistant(): void {
+    this.chat.requestToggleAssistant();
   }
 
   retry(): void {
     this.refreshVersion.update((value) => value + 1);
-  }
-
-  clearFilters(): void {
-    this.query.set('');
-    this.selectedGroup.set('all');
-    this.selectedAccess.set('all');
-  }
-
-  trackByChannel(_index: number, entry: TvReadChannelSummaryDTO): string {
-    return entry.channel.id;
   }
 }
 

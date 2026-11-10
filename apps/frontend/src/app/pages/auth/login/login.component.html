@@ -1,165 +1,36 @@
-<div class="login-page">
-  <div class="login-page__frame">
-    <header class="login-page__header">
-      <p class="login-page__eyebrow">Comunidad Guía TV</p>
-      <h1>Inicia sesión y entra a la comunidad</h1>
-      <p class="login-page__description">
-        Accede a tu perfil con email o Google. Si no tienes cuenta, puedes
-        crearla en segundos con email y contraseña.
-      </p>
-    </header>
+<app-auth-layout heading="Inicia sesión" lead="Entra para que el asistente te recomiende según tus plataformas, tus gustos y la programación de hoy.">
+  @if (isAuthenticated$ | async) {
+  <span class="af__active">Ya tienes la sesión iniciada</span>
+  }
 
-    <div class="login-page__grid">
-      <section class="login-page__card">
-        <div class="login-page__card-head">
-          <div>
-            <p class="login-page__card-eyebrow">Acceso seguro</p>
-            <h2>Inicio de sesión</h2>
-          </div>
-          <span class="login-page__badge-active" *ngIf="isAuthenticated$ | async">
-            Sesión activa
-          </span>
-        </div>
-
-        <form class="login-page__form" (ngSubmit)="onPasswordLogin()">
-          <div class="login-page__field">
-            <label for="login-email">Email</label>
-            <input
-              id="login-email"
-              name="email"
-              type="email"
-              required
-              autocomplete="email"
-              [(ngModel)]="credentials.email"
-              placeholder="tu@email.com"
-            />
-          </div>
-          <div class="login-page__field">
-            <label for="login-password">Contraseña</label>
-            <input
-              id="login-password"
-              name="password"
-              type="password"
-              required
-              autocomplete="current-password"
-              [(ngModel)]="credentials.password"
-              placeholder="********"
-            />
-          </div>
-          <button type="submit" class="login-page__submit" [disabled]="loading">
-            {{ loading ? 'Entrando...' : 'Entrar con email' }}
-          </button>
-        </form>
-
-        <div class="login-page__divider">
-          <span></span>
-          <span>o</span>
-          <span></span>
-        </div>
-
-        <button
-          type="button"
-          class="login-page__google-button"
-          (click)="onGoogleLogin()"
-          [disabled]="loading"
-        >
-          <svg
-            class="login-page__google-icon"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 48 48"
-          >
-            <path
-              fill="#EA4335"
-              d="M24 9.5c3.54 0 6 1.54 7.38 2.83l5.4-5.4C33.64 3.91 29.14 2 24 2 14.82 2 6.91 7.66 3.44 15.26l6.58 5.11C12.23 13.2 17.59 9.5 24 9.5z"
-            />
-            <path
-              fill="#4285F4"
-              d="M46.5 24.5c0-1.6-.14-3.11-.4-4.5H24v9h12.7c-.5 2.6-2 4.8-4.3 6.3l6.6 5.1C43.9 37.5 46.5 31.5 46.5 24.5z"
-            />
-            <path
-              fill="#FBBC05"
-              d="M9.02 28.65a14.9 14.9 0 0 1 0-9.3L2.44 14.2a22.46 22.46 0 0 0 0 19.6l6.58-5.15z"
-            />
-            <path
-              fill="#34A853"
-              d="M24 46c6.14 0 11.3-2.02 15.07-5.4l-6.6-5.1C30.39 36.5 27.39 37.5 24 37.5c-6.41 0-11.77-3.7-13.98-9.1l-6.58 5.1C6.91 40.34 14.82 46 24 46z"
-            />
-            <path fill="none" d="M2 2h44v44H2z" />
-          </svg>
-          <span>{{ loading ? 'Conectando...' : 'Continuar con Google' }}</span>
-        </button>
-
-        <div class="login-page__footer-text">
-          ¿No tienes cuenta?
-          <a routerLink="/registro">Crear cuenta</a>
-        </div>
-
-        <p class="login-page__legal">
-          Al continuar aceptas conectar tu cuenta con GPTV. La API validará tu
-          identidad y guardará tu sesión.
-        </p>
-
-        <p
-          *ngIf="statusMessage"
-          class="login-page__status"
-          [class.login-page__status--success]="statusTone === 'success'"
-          [class.login-page__status--error]="statusTone === 'error'"
-          [class.login-page__status--info]="statusTone === 'info'"
-        >
-          {{ statusMessage }}
-        </p>
-      </section>
-
-      <section class="login-page__card">
-        <div>
-          <p class="login-page__card-eyebrow">Cómo funciona</p>
-          <h2>Opciones de acceso</h2>
-        </div>
-
-        <div class="login-page__steps">
-          <div class="login-page__step">
-            <span class="login-page__step-number">1</span>
-            <p>Entra con tu email y contraseña para acceder a tu cuenta.</p>
-          </div>
-          <div class="login-page__step">
-            <span class="login-page__step-number">2</span>
-            <p>Usa Google si prefieres un acceso rápido y seguro.</p>
-          </div>
-          <div class="login-page__step">
-            <span class="login-page__step-number">3</span>
-            <p>Entra a Mi cuenta para completar tu perfil y acceder a la comunidad.</p>
-          </div>
-        </div>
-
-        <div class="login-page__info-box">
-          Si no tienes cuenta, puedes crearla en &quot;Registro&quot; con email o Google.
-        </div>
-      </section>
+  <form class="af" (ngSubmit)="onPasswordLogin()">
+    <div class="af__field">
+      <label for="login-email">Email</label>
+      <input id="login-email" name="email" type="email" required autocomplete="email" [(ngModel)]="credentials.email" placeholder="tu@email.com" />
     </div>
+    <div class="af__field">
+      <label for="login-password">Contraseña</label>
+      <input id="login-password" name="password" type="password" required autocomplete="current-password" [(ngModel)]="credentials.password" placeholder="Tu contraseña" />
+    </div>
+    <button type="submit" class="af__submit" [disabled]="loading">{{ loading ? 'Entrando…' : 'Entrar' }}</button>
+  </form>
 
-    <section class="login-page__card">
-      <h3>Qué desbloqueas al entrar</h3>
-      <div class="login-page__features">
-        <div class="login-page__feature">
-          <p class="login-page__feature-title">Feed social</p>
-          <p>
-            Publica reseñas, comenta con amigos y ve en directo qué están viendo.
-          </p>
-        </div>
-        <div class="login-page__feature">
-          <p class="login-page__feature-title">Listas colaborativas</p>
-          <p>
-            Crea listas de pelis y series compartidas para maratones en grupo.
-          </p>
-        </div>
-        <div class="login-page__feature">
-          <p class="login-page__feature-title">Alertas y avisos</p>
-          <p>
-            Recibe alertas cuando un amigo recomienda algo nuevo o empieza una
-            serie.
-          </p>
-        </div>
-      </div>
-    </section>
-  </div>
-</div>
+  <div class="af__divider">o</div>
+
+  <button type="button" class="af__google" (click)="onGoogleLogin()" [disabled]="loading">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6 1.54 7.38 2.83l5.4-5.4C33.64 3.91 29.14 2 24 2 14.82 2 6.91 7.66 3.44 15.26l6.58 5.11C12.23 13.2 17.59 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.5 24.5c0-1.6-.14-3.11-.4-4.5H24v9h12.7c-.5 2.6-2 4.8-4.3 6.3l6.6 5.1C43.9 37.5 46.5 31.5 46.5 24.5z" />
+      <path fill="#FBBC05" d="M9.02 28.65a14.9 14.9 0 0 1 0-9.3L2.44 14.2a22.46 22.46 0 0 0 0 19.6l6.58-5.15z" />
+      <path fill="#34A853" d="M24 46c6.14 0 11.3-2.02 15.07-5.4l-6.6-5.1C30.39 36.5 27.39 37.5 24 37.5c-6.41 0-11.77-3.7-13.98-9.1l-6.58 5.1C6.91 40.34 14.82 46 24 46z" />
+    </svg>
+    <span>{{ loading ? 'Conectando…' : 'Continuar con Google' }}</span>
+  </button>
+
+  @if (statusMessage) {
+  <p class="af__status" [class.af__status--success]="statusTone === 'success'" [class.af__status--error]="statusTone === 'error'" role="status">{{ statusMessage }}</p>
+  }
+
+  <p class="af__switch">¿No tienes cuenta? <a routerLink="/registro">Crear cuenta gratis</a></p>
+  <p class="af__legal">Al continuar aceptas los <a routerLink="/terminos">términos</a> y la <a routerLink="/privacidad">política de privacidad</a>.</p>
+</app-auth-layout>

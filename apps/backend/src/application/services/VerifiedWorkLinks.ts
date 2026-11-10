@@ -23,7 +23,7 @@ import { CatalogueRowReader, readCatalogueRows, readCatalogueRowsFor } from './C
 const log = logger.child('VerifiedWorkLinks');
 const SLUG_BATCH = 500;
 
-export type WorkLinkProgram = LinkProgram & { workPath?: string };
+export type WorkLinkProgram = LinkProgram & { workPath?: string; workBackdropUrl?: string };
 export type WorkLinkReason =
   | 'linked'
   | 'not_cine_or_series'
@@ -53,7 +53,17 @@ export const slugLookupKey = (slug: string) => normalizeTvToken(slug.replace(/-/
 
 const KIND: Record<string, 'movie' | 'tv'> = { Cine: 'movie', Series: 'tv' };
 
-type Pending = { workSlug: string; tmdbId: number; tmdbType: 'movie' | 'tv' };
+type Pending = { workSlug: string; tmdbId: number; tmdbType: 'movie' | 'tv'; backdropPath?: string | null };
+
+const TMDB_WIDE_BASE = 'https://image.tmdb.org/t/p/w1280';
+
+/** Full URL for a TMDB backdrop path (the rectangular art); absolute URLs pass through. */
+export function workBackdropUrl(path?: string | null): string | undefined {
+  const value = String(path || '').trim();
+  if (!value) return undefined;
+  if (/^https?:\/\//i.test(value)) return value;
+  return `${TMDB_WIDE_BASE}${value.startsWith('/') ? '' : '/'}${value}`;
+}
 
 /** Identity half of the decision (no slug check yet). */
 export function workLinkIdentity(program: WorkLinkProgram, ctx: LinkContext): { reason: WorkLinkReason; pending?: Pending } {
@@ -69,7 +79,7 @@ export function workLinkIdentity(program: WorkLinkProgram, ctx: LinkContext): { 
   if ((ctx.titleKeysByTmdbId.get(tmdbId)?.size ?? 0) > 1) return { reason: 'tmdb_id_shared_by_other_titles' };
   const workSlug = slugifyTitle(row.title ?? '');
   if (workSlug === 'sin-titulo') return { reason: 'slug_unresolved' };
-  return { reason: 'linked', pending: { workSlug, tmdbId, tmdbType: want } };
+  return { reason: 'linked', pending: { workSlug, tmdbId, tmdbType: want, backdropPath: row.backdropPath ?? null } };
 }
 
 /** Slug half: every local row the detail page could pick for this slug must be this TMDB work. */
@@ -90,7 +100,10 @@ export async function assignVerifiedWorkPaths(
   const counts = Object.fromEntries(
     ['linked', 'not_cine_or_series', 'no_media_id', 'media_id_rejected', 'title_key_mismatch', 'tmdb_id_shared_by_other_titles', 'slug_unresolved', 'slug_ambiguous', 'errors'].map((k) => [k, 0])
   ) as WorkLinkCounts;
-  for (const p of programs) delete p.workPath;
+  for (const p of programs) {
+    delete p.workPath;
+    delete p.workBackdropUrl;
+  }
   const typed = programs.filter((p) => KIND[p.editorialCategory ?? ''] && p.mediaId);
   counts.not_cine_or_series = programs.filter((p) => !KIND[p.editorialCategory ?? '']).length;
   counts.no_media_id = programs.filter((p) => KIND[p.editorialCategory ?? ''] && !p.mediaId).length;
@@ -116,11 +129,18 @@ export async function assignVerifiedWorkPaths(
     for (const [p, x] of pending) {
       const reason = workSlugResolves(x, byKey.get(slugLookupKey(x.workSlug)) ?? []);
       counts[reason] += 1;
-      if (reason === 'linked') p.workPath = buildDetailPath(x.tmdbType === 'movie' ? 'movie' : 'series', x.workSlug);
+      if (reason === 'linked') {
+        p.workPath = buildDetailPath(x.tmdbType === 'movie' ? 'movie' : 'series', x.workSlug);
+        // The verified work's backdrop is the rectangular art the 16:9 cards need.
+        p.workBackdropUrl = workBackdropUrl(x.backdropPath);
+      }
     }
   } catch (error) {
     counts.errors += 1;
-    for (const p of programs) delete p.workPath;
+    for (const p of programs) {
+      delete p.workPath;
+      delete p.workBackdropUrl;
+    }
     log.warn('Verified work links could not read the catalogue; no work links assigned', { error: (error as Error).message });
   }
   log.info('Verified work links', counts);

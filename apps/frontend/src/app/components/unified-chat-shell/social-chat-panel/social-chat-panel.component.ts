@@ -111,7 +111,7 @@ interface ChatWindowState {
               type="button"
               (click)="sendMessage()"
               [disabled]="!activeWindow.draft?.trim()"
-              class="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--accent-live-strong)] text-white transition-colors hover:opacity-90 disabled:opacity-40"
+              class="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--section-accent)] text-[var(--section-accent-ink)] transition-colors hover:opacity-90 disabled:opacity-40"
             >
               <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/>
@@ -169,7 +169,7 @@ interface ChatWindowState {
               <p class="truncate text-xs font-medium text-[var(--portal-text)]">{{ getConversationTitle(conv) }}</p>
               <span
                 *ngIf="conv.unreadCount"
-                class="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--accent-live-strong)] px-1 text-[10px] text-white"
+                class="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--section-accent)] px-1 text-[10px] text-[var(--section-accent-ink)]"
               >{{ conv.unreadCount }}</span>
             </div>
             <p class="mt-0.5 truncate text-[11px] text-[var(--portal-text-muted)]">

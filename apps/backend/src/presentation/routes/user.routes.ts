@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { UserController } from '../controllers/UserController';
 import { asyncHandler } from '../../shared/utils/asyncHandler';
 import { createAuthGuard } from '../middlewares/authGuard';
@@ -22,6 +22,11 @@ export const createUserRoutes = (controller: UserController, authService: AuthSe
 
   router.get('/profile', asyncHandler(controller.getProfile.bind(controller)));
   router.patch('/profile', asyncHandler(controller.updateProfile.bind(controller)));
+  router.post(
+    '/avatar',
+    express.raw({ type: ['image/png', 'image/jpeg', 'image/webp'], limit: '5mb' }),
+    asyncHandler(controller.uploadAvatar.bind(controller))
+  );
   router.patch('/privacy', asyncHandler(controller.updatePrivacy.bind(controller)));
   router.patch('/notifications', asyncHandler(controller.updateNotifications.bind(controller)));
   router.patch('/preferences', asyncHandler(controller.updateTvPreferences.bind(controller)));

@@ -289,6 +289,9 @@ interface RankingContext {
   likedGenres?: string[];
   negativeSignals?: string[];
   recentTitles?: string[];
+  /** For personal follow-up questions. */
+  platforms?: string[];
+  references?: string[];
 }
 
 interface CommunityPreferenceReply {
@@ -508,6 +511,8 @@ export class ChatbotRecommend {
           likedGenres: this.mergeUnique(profile?.favoriteGenres || [], history.memory?.likedGenres || []),
           negativeSignals: this.mergeUnique(history.memory?.negativeSignals || [], history.memory?.dislikedGenres || []),
           recentTitles: recentInteractions.map((i: any) => i.title || '').filter(Boolean),
+          platforms: this.mergeUnique(profile?.preferredPlatforms || [], history.memory?.preferredPlatforms || []),
+          references: history.memory?.favoriteFranchisesOrTitles || [],
         },
       }
     );
@@ -724,6 +729,8 @@ export class ChatbotRecommend {
       likedGenres: this.mergeUnique(profile?.favoriteGenres || [], history.memory?.likedGenres || []),
       negativeSignals: this.mergeUnique(history.memory?.negativeSignals || [], history.memory?.dislikedGenres || []),
       recentTitles: recentInteractions.map((i: any) => i.title || '').filter(Boolean),
+      platforms: this.mergeUnique(profile?.preferredPlatforms || [], history.memory?.preferredPlatforms || []),
+      references: history.memory?.favoriteFranchisesOrTitles || [],
     } });
     if (directResponse && latestUserMessage) {
       const normalizedDirectResponse = await this.attachAffiliateActions(
@@ -1034,20 +1041,20 @@ export class ChatbotRecommend {
       : this.rankScheduleItems(tonightItems, 'tv_tonight', context.rankingCtx);
     const uniqueStreamingMatches = this.dedupeCatalogItems(streamingMatches);
 
-    const rankedPrimaryLiveNowItems = rankedLiveNowItems.filter(
-      (item) => item.groupRank !== 2  // exclude regional (shown separately via autonomic)
-    );
-    const rankedPrimaryTonightItems = rankedTonightItems.filter(
-      (item) => item.groupRank !== 2
-    );
-    const rankedAutonomicLiveNowItems = this.filterAutonomicMatches(
-      rankedLiveNowItems,
-      context.effectiveCommunity
-    );
-    const rankedAutonomicTonightItems = this.filterAutonomicMatches(
-      rankedTonightItems,
-      context.effectiveCommunity
-    );
+    // A saved community the user has not turned down is simply used: its regional channels join the results
+    // instead of asking "¿sigo usando X?" on every answer. After a "no", regional channels are never offered again.
+    const regionalChoice = this.resolveRegionalChoice(context.effectiveCommunity, context.history.memory?.autonomicOptIn);
+    const keepInPrimary = (item: RankedScheduleItem, regional: RankedScheduleItem[]) =>
+      item.groupRank !== 2 || (regionalChoice === 'include' && regional.includes(item));
+    const rankedAutonomicLiveNowItems = regionalChoice === 'never'
+      ? []
+      : this.filterAutonomicMatches(rankedLiveNowItems, context.effectiveCommunity);
+    const rankedAutonomicTonightItems = regionalChoice === 'never'
+      ? []
+      : this.filterAutonomicMatches(rankedTonightItems, context.effectiveCommunity);
+    const rankedPrimaryLiveNowItems = rankedLiveNowItems.filter((item) => keepInPrimary(item, rankedAutonomicLiveNowItems));
+    const rankedPrimaryTonightItems = rankedTonightItems.filter((item) => keepInPrimary(item, rankedAutonomicTonightItems));
+    const askRegional = (regional: RankedScheduleItem[]) => regionalChoice === 'ask' && regional.length > 0;
 
     const rankedPrimaryItems =
       intent.mode === 'tv_now'
@@ -1064,6 +1071,10 @@ export class ChatbotRecommend {
       const hasNationalMatches = rankedPrimaryItems.some(
         (item) => item.groupRank === 1
       );
+      const regionalNote =
+        regionalChoice === 'include' && picks.some((item) => item.groupRank === 2)
+          ? ` Incluyo también la tele autonómica de ${context.effectiveCommunity}.`
+          : '';
       const textLead =
         intent.mode === 'tv_now'
           ? hasNationalMatches
@@ -1075,8 +1086,8 @@ export class ChatbotRecommend {
 
       return {
         text: this.appendAutonomicPrompt(
-          textLead,
-          rankedAutonomicItems.length > 0,
+          `${textLead}${regionalNote}`,
+          askRegional(rankedAutonomicItems),
           context.effectiveCommunity
         ),
         recommendations: picks.map((item) =>
@@ -1099,7 +1110,7 @@ export class ChatbotRecommend {
                 } en ${item.item.channel?.name || 'TV'}.`
           )
         ),
-        followUpSuggestions: this.buildFollowUpSuggestions(intent, latestUserMessage),
+        followUpSuggestions: this.buildFollowUpSuggestions(intent, latestUserMessage, context.rankingCtx),
         queryContext: this.buildQueryContext(
           intent.mode === 'tv_channel_schedule' ? 'tv_tonight' : intent.mode,
           intent.requestedTypes,
@@ -1110,14 +1121,14 @@ export class ChatbotRecommend {
           {
             primaryMatches: rankedPrimaryItems.length,
             hasAutonomicMatches: rankedAutonomicItems.length > 0,
-            autonomicPromptRequired: rankedAutonomicItems.length > 0,
+            autonomicPromptRequired: askRegional(rankedAutonomicItems),
             savedAutonomousCommunity: context.effectiveCommunity,
           }
         ),
       };
     }
 
-    if (rankedAutonomicItems.length) {
+    if (askRegional(rankedAutonomicItems)) {
       return {
         text: this.appendAutonomicPrompt(
           `No veo ${requestedLabel} en TDT o canales de pago para ${
@@ -1130,7 +1141,8 @@ export class ChatbotRecommend {
         moreRecommendations: [],
         followUpSuggestions: this.buildFallbackFollowUpSuggestions(
           intent,
-          latestUserMessage
+          latestUserMessage,
+          context.rankingCtx
         ),
         queryContext: this.buildQueryContext(
           intent.mode === 'tv_channel_schedule' ? 'tv_tonight' : intent.mode,
@@ -1176,7 +1188,8 @@ export class ChatbotRecommend {
         ),
         followUpSuggestions: this.buildFallbackFollowUpSuggestions(
           intent,
-          latestUserMessage
+          latestUserMessage,
+          context.rankingCtx
         ),
         queryContext: this.buildQueryContext(
           'tv_now',
@@ -1188,7 +1201,7 @@ export class ChatbotRecommend {
           {
             primaryMatches: rankedPrimaryTonightItems.length,
             hasAutonomicMatches: rankedAutonomicTonightItems.length > 0,
-            autonomicPromptRequired: rankedAutonomicTonightItems.length > 0,
+            autonomicPromptRequired: askRegional(rankedAutonomicTonightItems),
             savedAutonomousCommunity: context.effectiveCommunity,
           }
         ),
@@ -1236,7 +1249,8 @@ export class ChatbotRecommend {
       moreRecommendations: [],
       followUpSuggestions: this.buildFallbackFollowUpSuggestions(
         intent,
-        latestUserMessage
+        latestUserMessage,
+        context.rankingCtx
       ),
       queryContext: this.buildQueryContext(
         intent.mode === 'tv_channel_schedule' ? 'tv_tonight' : intent.mode,
@@ -2312,6 +2326,12 @@ export class ChatbotRecommend {
     return lastAssistant?.queryContext || null;
   }
 
+  /** include: saved community, use it. never: the user said no. ask: no choice yet. */
+  private resolveRegionalChoice(community: string | undefined, optIn: boolean | 'unknown' | undefined): 'include' | 'never' | 'ask' {
+    if (optIn === false) return 'never';
+    return community ? 'include' : 'ask';
+  }
+
   private filterAutonomicMatches(
     items: RankedScheduleItem[],
     community?: string
@@ -2334,20 +2354,9 @@ export class ChatbotRecommend {
     });
   }
 
-  private appendAutonomicPrompt(
-    baseText: string,
-    hasAutonomicMatches: boolean,
-    savedCommunity?: string
-  ): string {
-    if (!hasAutonomicMatches) {
-      return baseText;
-    }
-
-    if (savedCommunity) {
-      return `${baseText} Si quieres, también puedo incluir autonómicas. Tengo guardada ${savedCommunity}. ¿Sigo usando esa comunidad?`;
-    }
-
-    return `${baseText} Si quieres, también puedo incluir autonómicas. ¿Cuál es tu comunidad?`;
+  /** The chat draws its own community chooser under the answer, so the text never repeats the question. */
+  private appendAutonomicPrompt(baseText: string, _hasAutonomicMatches: boolean, _savedCommunity?: string): string {
+    return baseText;
   }
 
   private extractCommunityReply(
@@ -2423,7 +2432,8 @@ export class ChatbotRecommend {
 
   private buildFollowUpSuggestions(
     intent: ChatQueryIntent,
-    latestUserMessage: string
+    latestUserMessage: string,
+    profile?: RankingContext
   ): string[] {
     const genreLabel = intent.explicitGenres[0] ? ` de ${intent.explicitGenres[0].toLowerCase()}` : '';
     const platform = intent.explicitPlatforms[0];
@@ -2475,12 +2485,30 @@ export class ChatbotRecommend {
       ];
     }
 
-    return this.sanitizeFollowUpSuggestions(candidates, latestUserMessage);
+    return this.sanitizeFollowUpSuggestions([...this.personalFollowUps(intent, profile), ...candidates], latestUserMessage);
+  }
+
+  /**
+   * Follow-ups built from the user's own profile ("Algo como Fleabag", "¿Y en Netflix?"), at most two,
+   * skipping what the current question already asked for.
+   */
+  private personalFollowUps(intent: ChatQueryIntent, profile?: RankingContext): string[] {
+    if (!profile) return [];
+    const out: string[] = [];
+    const reference = (profile.references || []).find((title) => title.length <= 30);
+    if (reference) out.push(`Algo parecido a ${reference}`);
+    const platform = (profile.platforms || []).find((p) => !intent.explicitPlatforms.includes(p));
+    if (platform && intent.mode !== 'streaming') out.push(`¿Y qué hay en ${platform}?`);
+    else if (platform) out.push(`¿Y en ${platform}?`);
+    const genre = (profile.likedGenres || []).find((g) => !intent.explicitGenres.map((e) => e.toLowerCase()).includes(g.toLowerCase()));
+    if (genre && out.length < 2) out.push(intent.mode === 'tv_now' ? `Algo de ${genre.toLowerCase()} ahora` : `Más ${genre.toLowerCase()} para esta noche`);
+    return out.slice(0, 2);
   }
 
   private buildFallbackFollowUpSuggestions(
     intent: ChatQueryIntent,
-    latestUserMessage: string
+    latestUserMessage: string,
+    profile?: RankingContext
   ): string[] {
     const typeQuestion = intent.requestedTypes[0] === 'movie'
       ? '¿Qué películas hay esta noche en TV?'
@@ -2488,6 +2516,7 @@ export class ChatbotRecommend {
     const platform = intent.explicitPlatforms[0];
     return this.sanitizeFollowUpSuggestions(
       [
+        ...this.personalFollowUps(intent, profile),
         typeQuestion,
         intent.mode === 'tv_tonight'
           ? '¿Qué hay ahora mismo en TV?'

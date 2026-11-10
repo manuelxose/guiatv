@@ -24,7 +24,7 @@ import { environment } from '../environments/environment';
 import { APP_PATHS, normalizePath as normalizeRoutePath } from './config/route-map';
 import {
   PORTAL_ACCOUNT_DESTINATIONS,
-  PORTAL_MOBILE_MORE_DESTINATIONS,
+  PORTAL_MOBILE_MENU,
   PORTAL_MOBILE_PRIMARY_DESTINATIONS,
   PortalMobileDestination,
 } from './config/portal-navigation.config';
@@ -84,7 +84,7 @@ export class AppComponent implements OnInit, OnDestroy {
   public isChatMinimized = false;
   public chatPanelWidth = 440;
   public readonly mobileTabs = PORTAL_MOBILE_PRIMARY_DESTINATIONS;
-  public readonly moreDestinations = PORTAL_MOBILE_MORE_DESTINATIONS;
+  public readonly menuGroups = PORTAL_MOBILE_MENU;
   public readonly accountDestinations = PORTAL_ACCOUNT_DESTINATIONS;
   public mobileMoreOpen = false;
   public chatSocialTargetUser: { userId: string; nonce: number } | null = null;
@@ -93,7 +93,6 @@ export class AppComponent implements OnInit, OnDestroy {
   public readonly consent = inject(ConsentService);
   @ViewChild('mobileMoreTrigger') private readonly mobileMoreTrigger?: ElementRef<HTMLButtonElement>;
   @ViewChild('mobileMoreSheet') private readonly mobileMoreSheet?: ElementRef<HTMLElement>;
-  @ViewChild('chatMinibar') private readonly chatMinibar?: ElementRef<HTMLButtonElement>;
 
   public readonly aiChatbotEnabled = environment.ai.chatbotEnabled;
 
@@ -137,6 +136,10 @@ export class AppComponent implements OnInit, OnDestroy {
           this.focusChatDialog();
         }
       });
+
+    this.chatService.requestToggleAssistant$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => this.onAssistantTab());
 
     this.chatService.requestOpenSocialChat$
       .pipe(takeUntil(this.destroy$))
@@ -204,7 +207,8 @@ export class AppComponent implements OnInit, OnDestroy {
   public minimizeChatbot(): void {
     this.resetChatDrag();
     this.isChatMinimized = true;
-    setTimeout(() => this.chatMinibar?.nativeElement.focus());
+    // The bottom bar's assistant button restores it (it keeps the conversation).
+    setTimeout(() => this.document.querySelector<HTMLElement>('.app-shell__mobile-tab--assistant')?.focus());
   }
 
   public restoreChatbot(): void {
@@ -230,24 +234,6 @@ export class AppComponent implements OnInit, OnDestroy {
     this.document.addEventListener('mouseup', this.resizeUpHandler);
   }
 
-  // Deliberately not gated on viewport.isMobile(): that signal starts at a
-  // guessed default and only settles after client-side hydration, which
-  // raced with SSR/first paint and could leave desktop visitors with no
-  // visible chat entry point (FAB hidden by CSS, launcher not yet rendered)
-  // until the guess corrected itself. The FAB/launcher pair's CSS already
-  // fully owns the 768px breakpoint (see .app-shell__chat-fab /
-  // .app-shell__chat-launcher in app.component.scss), so both can render
-  // unconditionally here and let CSS be the single source of truth for
-  // which one is visible at a given width — matching how the mobile/desktop
-  // chat panels already resolve their own visibility.
-  public shouldShowMobileChatbotFab(): boolean {
-    return this.canRenderChatbot() && !this.isChatbotOpen && !this.isChatMinimized;
-  }
-
-  public shouldShowDesktopChatbotLauncher(): boolean {
-    return this.canRenderChatbot();
-  }
-
   public shouldShowMobileNavigation(): boolean {
     // Admin owns its own mobile navigation (drawer sidebar) — the consumer
     // bottom tab bar must never render underneath/alongside it.
@@ -259,6 +245,7 @@ export class AppComponent implements OnInit, OnDestroy {
     if (tab.id === 'more') {
       return this.mobileMoreOpen || path.startsWith(APP_PATHS.platforms) || path.startsWith(APP_PATHS.streamingComparison) || path.startsWith(APP_PATHS.blog) || path.startsWith(APP_PATHS.stats);
     }
+    if (tab.kind === 'assistant') return this.isChatbotOpen && !this.isChatMinimized;
     if (tab.id === 'home') return path === '/';
     if (tab.id === 'live') {
       return path.startsWith('/programacion-tv/en-directo') || path === '/canales' || path.startsWith('/canales/');
@@ -267,6 +254,13 @@ export class AppComponent implements OnInit, OnDestroy {
       return path.startsWith('/programacion-tv/que-ver-hoy') || path.startsWith('/programas/') || path.startsWith('/peliculas/') || path.startsWith('/series/');
     }
     return Boolean(tab.path && path.startsWith(normalizeRoutePath(tab.path)));
+  }
+
+  /** Middle slot of the bottom bar: opens, restores or closes the assistant. */
+  public onAssistantTab(): void {
+    this.closeMobileMore();
+    if (this.isChatMinimized) this.restoreChatbot();
+    else this.toggleChatbot();
   }
 
   public toggleMobileMore(): void {
@@ -408,7 +402,7 @@ export class AppComponent implements OnInit, OnDestroy {
         return;
       }
       const launcher = Array.from(this.document.querySelectorAll<HTMLElement>(
-        '.app-shell__chat-fab, .app-shell__chat-launcher'
+        '.utn__assistant, .app-shell__mobile-tab--assistant'
       )).find((element) => element.getClientRects().length > 0);
       launcher?.focus();
     });

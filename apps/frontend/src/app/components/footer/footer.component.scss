@@ -1,216 +1,203 @@
+// Theme-aware: football (sports-v2) tokens win inside its shell, portal tokens elsewhere.
+// Column layout follows the space the footer gets (container query), not the viewport,
+// so it also fits inside the football centre panel.
 :host {
   display: block;
+  container-type: inline-size;
+  --ft-text: var(--sv2-text, var(--portal-text));
+  --ft-soft: var(--sv2-text-muted, var(--portal-text-soft));
+  --ft-muted: var(--sv2-text-muted, var(--portal-text-muted));
+  --ft-faint: var(--sv2-text-faint, var(--portal-text-faint));
+  --ft-line: var(--sv2-border, var(--portal-border));
+  --ft-focus: var(--sv2-focus, var(--portal-text));
 }
 
-.portal-footer {
-  border-top: 1px solid var(--portal-border);
-  background: var(--portal-surface-strong);
-}
-
-.portal-footer__frame {
-  width: min(100% - 1rem, 120rem);
+.ft {
+  max-width: var(--portal-content-max, 110rem);
   margin: 0 auto;
+  padding: 28px 24px 24px;
+  border-top: 1px solid var(--ft-line);
+  color: var(--ft-text);
+}
+
+.ft__cols {
   display: grid;
-  gap: 1.25rem;
-  padding: 1.5rem 0 calc(env(safe-area-inset-bottom, 0px) + 1.5rem);
+  grid-template-columns: 1fr;
 }
 
-.portal-footer__hero,
-.portal-footer__brand,
-.portal-footer__meta,
-.portal-footer__meta-links {
-  display: grid;
-  gap: 1rem;
-}
-
-.portal-footer__hero,
-.portal-footer__grid,
-.portal-footer__highlight,
-.portal-footer__column,
-.portal-footer__meta {
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--portal-border);
-  background: var(--portal-bg);
-  box-shadow: none;
-}
-
-.portal-footer__hero,
-.portal-footer__grid,
-.portal-footer__meta {
-  padding: 1.1rem;
-}
-
-.portal-footer__brand {
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-}
-
-.portal-footer__brand-mark {
+.ft__logo {
   display: inline-flex;
-  width: 3rem;
-  height: 3rem;
-}
-
-.portal-footer__brand-mark svg {
-  width: 100%;
-  height: 100%;
-}
-
-.portal-footer__brand-copy {
-  display: grid;
-  gap: 0.2rem;
-}
-
-.portal-footer__brand-copy p,
-.portal-footer__brand-copy .portal-footer__brand-name,
-.portal-footer__brand-copy span,
-.portal-footer__meta p {
-  margin: 0;
-}
-
-.portal-footer__brand-copy p {
-  color: var(--portal-text-muted);
-  font-size: 0.72rem;
+  align-items: center;
+  gap: 8px;
+  color: var(--ft-text);
   font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.portal-footer__brand-copy .portal-footer__brand-name {
-  color: var(--portal-text);
-  font-size: clamp(1.2rem, 3vw, 1.8rem);
-  line-height: 1.1;
-}
-
-.portal-footer__brand-copy span,
-.portal-footer__meta p,
-.portal-footer__links a {
-  color: var(--portal-text-soft);
-  line-height: 1.6;
-}
-
-.portal-footer__highlights {
-  display: grid;
-  gap: 0.75rem;
-}
-
-.portal-footer__highlight {
-  display: grid;
-  gap: 0.2rem;
-  padding: 0.95rem 1rem;
-  color: var(--portal-text);
   text-decoration: none;
 }
 
-.portal-footer__highlight strong {
-  font-size: 0.88rem;
+.ft__logo svg {
+  width: 30px;
+  height: 30px;
 }
 
-.portal-footer__highlight span,
-.portal-footer__column-head span,
-.portal-footer__meta-links a,
-.portal-footer__consent {
-  font-size: 0.78rem;
+.ft__brand {
+  padding-bottom: 12px;
 }
 
-.portal-footer__consent {
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font-family: inherit;
-  text-align: left;
-  text-decoration: underline;
+.ft__brand p {
+  margin: 8px 0 0;
+  max-width: 32ch;
+  color: var(--ft-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.ft__col {
+  border-bottom: 1px solid var(--ft-line);
+}
+
+summary {
+  display: flex;
+  justify-content: space-between;
+  padding: 14px 0;
+  color: var(--ft-faint);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  list-style: none;
   cursor: pointer;
 }
 
-.portal-footer__highlight span,
-.portal-footer__meta-links a {
-  color: var(--portal-text-muted);
-}
-
-.portal-footer__grid {
-  display: grid;
-  gap: 0.85rem;
-}
-
-.portal-footer__column {
-  overflow: hidden;
-}
-
-.portal-footer__column-head {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  border: 0;
-  background: transparent;
-  color: var(--portal-text);
-  padding: 1rem;
-  font-size: 0.82rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.portal-footer__column-head svg {
-  width: 1rem;
-  height: 1rem;
-}
-
-.portal-footer__links {
+summary::-webkit-details-marker {
   display: none;
-  padding: 0 1rem 1rem;
 }
 
-.portal-footer__links--open {
+summary::after {
+  content: '+';
+}
+
+details[open] summary::after {
+  content: '–';
+}
+
+ul {
   display: grid;
-  gap: 0.55rem;
+  gap: 6px;
+  margin: 0;
+  padding: 0 0 14px;
+  list-style: none;
 }
 
-.portal-footer__links a,
-.portal-footer__meta-links a {
+li a,
+.ft__legal a,
+.ft__legal button {
+  color: var(--ft-soft);
+  font-size: 0.8125rem;
   text-decoration: none;
 }
 
-.portal-footer__meta-links {
+li a:hover,
+.ft__legal a:hover,
+.ft__legal button:hover {
+  color: var(--ft-text);
+  text-decoration: underline;
+}
+
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--ft-focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.ft__legal {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.85rem;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--ft-line);
+  color: var(--ft-muted);
+  font-size: 0.75rem;
 }
 
+.ft__legal p {
+  margin: 0;
+}
+
+.ft__credit {
+  white-space: nowrap;
+
+  a {
+    font-weight: 700;
+  }
+}
+
+.ft__legal nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.ft__legal button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+// Enough room (e.g. the football centre panel): columns side by side.
+@container (min-width: 560px) {
+  .ft__cols {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+  }
+
+  .ft__brand {
+    grid-column: 1 / -1;
+  }
+
+  .ft__col {
+    border: 0;
+  }
+
+  summary {
+    padding: 0 0 10px;
+  }
+}
+
+// From tablet up the columns are always open (FooterComponent), so headings are plain labels.
 @media (min-width: 768px) {
-  .portal-footer__frame {
-    width: min(100% - 1.5rem, 120rem);
+  summary {
+    pointer-events: none;
   }
 
-  .portal-footer__hero {
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-    align-items: start;
-  }
-
-  .portal-footer__highlights {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .portal-footer__grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .portal-footer__column-head svg {
-    display: none;
-  }
-
-  .portal-footer__links {
-    display: grid;
-    gap: 0.55rem;
-    padding: 0 1rem 1rem;
+  summary::after,
+  details[open] summary::after {
+    content: none;
   }
 }
 
-@media (min-width: 1200px) {
-  .portal-footer__grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+@container (min-width: 1100px) {
+  .ft__cols {
+    grid-template-columns: 1.4fr repeat(6, minmax(0, 1fr));
   }
+
+  .ft__brand {
+    grid-column: auto;
+  }
+}
+
+// Same section-coloured logo as the header.
+.logo-bg,
+.logo-play {
+  fill: var(--section-accent);
+}
+
+.logo-screen {
+  fill: var(--section-accent-ink);
 }

@@ -1,60 +1,143 @@
-import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { RouterModule } from '@angular/router';
-import { Subject, catchError, of, takeUntil } from 'rxjs';
-import { PortalContextNavComponent } from '../../components/portal-context-nav/portal-context-nav.component';
+import { catchError, map, of } from 'rxjs';
+import { TvReadItemDTO } from '../../api/models';
+import { FaqItem, FaqSectionComponent } from '../../components/faq-section/faq-section.component';
+import { PanelNavComponent } from '../../components/panel-nav/panel-nav.component';
+import { PanelShellComponent } from '../../components/panel-shell/panel-shell.component';
+import { PanelTileComponent } from '../../components/panel-tile/panel-tile.component';
+import { QUE_VER_LINKS, QUE_VER_PATH } from '../../config/que-ver-nav';
 import { APP_PATHS } from '../../config/route-map';
-import { CatalogService } from '../../services/catalog.service';
+import { CatalogItem, CatalogService } from '../../services/catalog.service';
+import { ChatService } from '../../services/chat.service';
 import { MetaService } from '../../services/meta.service';
+import { TvDataFacade } from '../../state/tv-data.facade';
+import { normalizeToCard } from '../../utils/tv-normalizers';
+import { generateBreadcrumbSchema, generateItemListSchema, serializeJsonLd } from '../../utils/utils';
 
-interface PopularItem { title: string; path: string; platform?: string; category?: string; }
+const BASE_URL = 'https://guiaprogramaciontv.com';
+const TITLE = 'Tendencias: lo más popular hoy en TV y streaming | Guía TV';
+const DESCRIPTION = 'Las películas y series más populares hoy en España: ranking del momento, tendencias en streaming y lo más visto esta noche en la TV en abierto.';
+type State = { status: 'loading' | 'ready' | 'error'; items: CatalogItem[] };
 
+/**
+ * /tendencias: the popularity ranking of the catalogue, plus trending films and series in streaming
+ * and tonight's free TV, inside the Qué ver section. Indexable only once the ranking has enough titles.
+ */
 @Component({
-  selector: 'app-stats', standalone: true,
-  imports: [CommonModule, RouterModule, PortalContextNavComponent],
-  template: `
-    <div class="popular-page">
-      <app-portal-context-nav kind="discover"></app-portal-context-nav>
-      <header class="popular-page__header"><p>Qué ver</p><h1>Tendencias</h1><span>Contenidos populares del catálogo de Guía TV.</span></header>
-      @if (loading) { <p class="popular-page__status" role="status">Cargando contenidos populares…</p> }
-      @else if (error) { <p class="popular-page__status" role="alert">No hemos podido cargar las tendencias ahora mismo.</p> }
-      @else if (!items.length) { <p class="popular-page__status">Todavía no hay contenidos populares disponibles.</p> }
-      @else {
-        <section aria-labelledby="popular-heading">
-          <div class="popular-page__section-heading"><h2 id="popular-heading">Popular ahora</h2><a [routerLink]="appPaths.explore">Explorar catálogo</a></div>
-          <ol class="popular-page__list">
-            @for (item of items; track item.path; let index = $index) {
-              <li><span class="popular-page__rank" aria-hidden="true">{{ index + 1 }}</span><a [routerLink]="item.path">{{ item.title }}</a>
-                @if (item.platform || item.category) { <small>{{ item.platform }}{{ item.platform && item.category ? ' · ' : '' }}{{ item.category }}</small> }
-              </li>
-            }
-          </ol>
-        </section>
-      }
-    </div>
-  `,
-  styles: [`
-    :host{display:block}.popular-page{max-width:var(--portal-content-max);width:100%;margin-inline:auto;padding:0 1rem 5rem;color:var(--portal-text)}
-    .popular-page__header{padding:clamp(2rem,6vw,4.5rem) 0 2.5rem;border-bottom:1px solid var(--portal-divider)}
-    .popular-page__header p{margin:0 0 .55rem;color:var(--guide-accent);font-size:var(--text-xs);font-weight:800}.popular-page__header h1{margin:0;font-size:clamp(2.25rem,6vw,4.25rem);line-height:1;letter-spacing:-.04em}.popular-page__header span{display:block;margin-top:1rem;color:var(--portal-text-soft);font-size:var(--text-lg)}
-    .popular-page__status{padding:3rem 0;color:var(--portal-text-soft)}.popular-page section{padding-top:2.5rem}.popular-page__section-heading{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;margin-bottom:1rem}.popular-page__section-heading h2{margin:0;font-size:var(--text-2xl)}.popular-page__section-heading a{color:var(--guide-accent);font-weight:700}
-    .popular-page__list{list-style:none;margin:0;padding:0;border-top:1px solid var(--portal-divider)}.popular-page__list li{display:grid;grid-template-columns:2.5rem minmax(0,1fr) auto;gap:.75rem;align-items:center;min-height:4.5rem;border-bottom:1px solid var(--portal-divider)}.popular-page__rank{color:var(--portal-text-muted);font-size:var(--text-xl);font-weight:900;font-variant-numeric:tabular-nums}.popular-page__list a{color:var(--portal-text);font-weight:750;text-decoration:none}.popular-page__list a:hover,.popular-page__list a:focus-visible{color:var(--guide-accent)}.popular-page__list small{color:var(--portal-text-muted);text-align:right}
-    @media(max-width:639px){.popular-page__list li{grid-template-columns:2rem minmax(0,1fr);padding:.75rem 0}.popular-page__list small{grid-column:2;text-align:left}}
-  `], changeDetection: ChangeDetectionStrategy.OnPush,
+  selector: 'app-stats',
+  standalone: true,
+  imports: [RouterModule, PanelShellComponent, PanelNavComponent, PanelTileComponent, FaqSectionComponent],
+  templateUrl: './stats.component.html',
+  styleUrls: ['../que-ver/que-ver.component.scss', './stats.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class StatsComponent implements OnInit, OnDestroy {
-  readonly appPaths=APP_PATHS; loading=true; error=false; items:PopularItem[]=[]; private readonly destroy$=new Subject<void>();
-  constructor(private readonly metaService:MetaService,private readonly catalogService:CatalogService,private readonly cdr:ChangeDetectorRef){}
-  ngOnInit():void{
-    this.metaService.setMetaTags({title:'Tendencias de TV y streaming | Guía TV',description:'Consulta los contenidos populares del catálogo de Guía TV.',canonicalUrl:APP_PATHS.stats,robots:'noindex, follow'});
-    this.catalogService.queryState({sort:'popular',limit:10}).pipe(takeUntil(this.destroy$),catchError(()=>{this.error=true;return of({data:{items:[]}} as any);})).subscribe(result=>{
-      const source=(result.data?.items||[]) as any[];this.items=source.map(item=>({title:item.title,path:item.detailPath||APP_PATHS.explore,platform:item.primaryPlatforms?.[0]||item.channel?.name,category:item.genres?.[0]}));this.loading=false;
-      // OnPush: without this the server rendered "Cargando…" while the meta below had already turned indexable.
-      this.cdr.markForCheck();
-      if (!this.error && this.items.length >= 5) {
-        this.metaService.setMetaTags({title:'Tendencias de TV y streaming | Guía TV',description:'Consulta los contenidos populares del catálogo de Guía TV.',canonicalUrl:APP_PATHS.stats,robots:'index, follow'});
-      }
+export class StatsComponent {
+  private readonly catalog = inject(CatalogService);
+  private readonly facade = inject(TvDataFacade);
+  private readonly meta = inject(MetaService);
+  private readonly sanitizer = inject(DomSanitizer);
+  private readonly chat = inject(ChatService);
+
+  readonly appPaths = APP_PATHS;
+  readonly sideLinks = QUE_VER_LINKS;
+  readonly queVer = QUE_VER_PATH;
+  readonly contextOpen = signal(false);
+  readonly assistantAsks = ['¿Qué serie está de moda?', 'La película más vista esta semana', '¿Qué estreno merece la pena?'];
+
+  private readonly state = toSignal(
+    this.catalog.queryState({ sort: 'popular', limit: 10 }).pipe(
+      map((result): State => {
+        const items = (result.data?.items || []) as CatalogItem[];
+        // The service answers a failed request with empty fallback data flagged `unavailable`.
+        return { status: result.unavailable && !items.length ? 'error' : 'ready', items };
+      }),
+      catchError(() => of<State>({ status: 'error', items: [] }))
+    ),
+    { initialValue: { status: 'loading', items: [] } as State }
+  );
+  readonly status = computed(() => this.state().status);
+  readonly ranking = computed(() =>
+    this.state().items.map((item) => {
+      const card = normalizeToCard(item);
+      return { item, card, path: card.detailPath || QUE_VER_PATH, where: item.primaryPlatforms?.[0] || item.channel?.name || '', genre: item.genres?.[0] || '' };
+    })
+  );
+  readonly top = computed(() => this.ranking()[0] || null);
+
+  readonly movies = toSignal(
+    this.facade.discoverContent({ types: ['movie'], sort: 'popular', limit: 24 }).pipe(map((r) => r.items.slice(0, 12)), catchError(() => of([]))),
+    { initialValue: [] }
+  );
+  readonly series = toSignal(
+    this.facade.discoverContent({ types: ['series'], sort: 'popular', limit: 24 }).pipe(map((r) => r.items.slice(0, 12)), catchError(() => of([]))),
+    { initialValue: [] }
+  );
+  private readonly tonightRaw = toSignal(this.facade.getTonightPrograms({ group: 'tdt', limit: 48 }).pipe(catchError(() => of([]))), {
+    initialValue: [] as TvReadItemDTO[],
+  });
+  /** Tonight on free TV, one per broadcast (the provider repeats feeds). */
+  readonly tonight = computed(() => {
+    const seen = new Set<string>();
+    return this.tonightRaw()
+      .filter((i) => {
+        const key = `${i.program.title.trim().toLowerCase()}|${i.airing.start}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 8);
+  });
+
+  readonly faq = computed<FaqItem[]>(() => {
+    const top3 = this.ranking().slice(0, 3).map((r) => `«${r.card.title}»${r.where ? ` (${r.where})` : ''}`);
+    const series = this.series()[0] ? normalizeToCard(this.series()[0]) : null;
+    return [
+      {
+        question: '¿Qué es lo más popular hoy en TV y streaming?',
+        answer: top3.length ? `Ahora mismo encabezan el ranking ${top3.join(', ')}.` : 'El ranking de esta página se actualiza a diario con lo más popular del catálogo.',
+      },
+      {
+        question: '¿Qué serie está de moda?',
+        answer: series ? `«${series.title}»${series.platforms[0] ? `, en ${series.platforms[0]}` : ''}, es la serie más popular en streaming esta semana.` : 'En «Series en tendencia» tienes las más populares de la semana.',
+      },
+      {
+        question: '¿Cómo se calcula el ranking?',
+        answer: 'Combinamos la popularidad de cada título en las plataformas de streaming en España con su valoración y la actividad en Guía TV.',
+      },
+      {
+        question: '¿Dónde veo estos títulos?',
+        answer: 'Cada título enlaza a su ficha con las plataformas y canales donde verlo. En «Qué ver hoy» puedes filtrar por tu plataforma.',
+      },
+    ];
+  });
+
+  readonly structuredData = computed<SafeHtml>(() => {
+    const schemas: object[] = [
+      generateBreadcrumbSchema(
+        [
+          { name: 'Inicio', url: '/' },
+          { name: 'Qué ver hoy', url: QUE_VER_PATH },
+          { name: 'Tendencias', url: APP_PATHS.stats },
+        ],
+        BASE_URL
+      ),
+    ];
+    if (this.ranking().length) schemas.push(generateItemListSchema(this.ranking().map((r) => r.card), 'Tendencias de TV y streaming', BASE_URL));
+    return this.sanitizer.bypassSecurityTrustHtml(schemas.map((s) => `<script type="application/ld+json">${serializeJsonLd(s)}</script>`).join(''));
+  });
+
+  constructor() {
+    effect(() => {
+      // Indexable only with a real list: never while loading, on error or with a handful of titles.
+      const indexable = this.status() === 'ready' && this.ranking().length >= 5;
+      this.meta.setMetaTags({ title: TITLE, description: DESCRIPTION, canonicalUrl: APP_PATHS.stats, robots: indexable ? 'index, follow' : 'noindex, follow' });
     });
   }
-  ngOnDestroy():void{this.destroy$.next();this.destroy$.complete();}
+
+  openAssistant(): void {
+    this.chat.requestToggleAssistant();
+  }
 }

@@ -25,8 +25,6 @@
     *ngIf="shouldShowMobileNavigation()"
     class="app-shell__mobile-nav"
     aria-label="Navegación principal móvil"
-    [attr.inert]="isChatbotOpen && !isChatMinimized ? '' : null"
-    [attr.aria-hidden]="isChatbotOpen && !isChatMinimized ? 'true' : null"
   >
     <ng-container *ngFor="let tab of mobileTabs">
       @if (tab.kind === 'route') {
@@ -39,6 +37,18 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path [attr.d]="tab.iconPath" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path></svg>
         <span>{{ tab.label }}</span>
       </a>
+      } @else if (tab.kind === 'assistant') {
+      <button
+        type="button"
+        class="app-shell__mobile-tab app-shell__mobile-tab--assistant"
+        [class.app-shell__mobile-tab--active]="isMobileTabActive(tab)"
+        (click)="onAssistantTab()"
+        [attr.aria-expanded]="isChatbotOpen && !isChatMinimized"
+        aria-label="Abrir el asistente de recomendaciones"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path [attr.d]="tab.iconPath" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path></svg>
+        <span>{{ tab.label }}</span>
+      </button>
       } @else {
       <button
         #mobileMoreTrigger
@@ -61,48 +71,22 @@
     <button type="button" class="app-shell__more-backdrop" (click)="closeMobileMore()" aria-label="Cerrar más opciones"></button>
     <section #mobileMoreSheet id="mobile-more-sheet" class="app-shell__more-sheet" role="dialog" aria-modal="true" aria-label="Más opciones" tabindex="-1">
       <div class="app-shell__more-handle" aria-hidden="true"></div>
-      <header><div><p>Explorar</p><h2>Más en Guía TV</h2></div><button type="button" (click)="closeMobileMore()" aria-label="Cerrar más opciones">×</button></header>
-      <nav aria-label="Explorar más contenidos">
-        @for (destination of moreDestinations; track destination.id) {
-        <a [routerLink]="destination.path" (click)="closeMobileMore()"><span class="app-shell__more-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path [attr.d]="destination.iconPath" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path></svg></span><span><strong>{{ destination.label }}</strong><small>{{ destination.hint }}</small></span></a>
-        }
-      </nav>
-      <section class="app-shell__more-account" aria-label="Tu cuenta"><p>Tu cuenta</p><div>@for (destination of accountDestinations; track destination.id) {<a [routerLink]="destination.path" (click)="closeMobileMore()">{{ destination.label }}</a>}</div></section>
+      <header><div><p>Guía TV</p><h2>Menú</h2></div><button type="button" (click)="closeMobileMore()" aria-label="Cerrar el menú">×</button></header>
+      <button type="button" class="app-shell__menu-assistant" (click)="onAssistantTab()">✦ Pregúntale al asistente qué ver</button>
+      @for (group of menuGroups; track group.title) {
+      <section class="app-shell__menu-group" [attr.aria-label]="group.title">
+        <p><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path [attr.d]="group.iconPath" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path></svg>{{ group.title }}</p>
+        <div>@for (link of group.links; track link.label) {<a [routerLink]="link.path" [queryParams]="link.queryParams" (click)="closeMobileMore()">{{ link.label }}</a>}</div>
+      </section>
+      }
       <section class="app-shell__more-theme" aria-label="Preferencia de tema"><p>Tema</p><div>@for (mode of ['system', 'light', 'dark']; track mode) {<button type="button" (click)="setTheme(mode)" [class.is-selected]="theme.mode() === mode" [attr.aria-pressed]="theme.mode() === mode">{{ mode === 'system' ? 'Sistema' : mode === 'light' ? 'Claro' : 'Oscuro' }}</button>}</div></section>
       <section class="app-shell__more-theme" aria-label="Privacidad"><p>Privacidad</p><div><button type="button" (click)="closeMobileMore(); consent.openPreferences()">Configurar cookies</button></div></section>
     </section>
   </div>
   }
 
-  <button
-    *ngIf="shouldShowMobileChatbotFab()"
-    type="button"
-    (click)="toggleChatbot()"
-    class="app-shell__chat-fab"
-    aria-label="Abrir asistente de recomendaciones"
-  >
-    <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M12 3 13.8 8.2 19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"></path>
-      <path stroke-linecap="round" stroke-linejoin="round" d="M18.5 3.5 19 5l1.5.5L19 6l-.5 1.5L18 6l-1.5-.5L18 5l.5-1.5Z"></path>
-    </svg>
-  </button>
 
   <ng-container *ngIf="isChatbotOpen || isChatMinimized">
-    <button
-      #chatMinibar
-      *ngIf="isChatMinimized"
-      type="button"
-      (click)="restoreChatbot()"
-      class="app-shell__chat-minibar"
-    >
-      <svg class="h-5 w-5 text-[var(--guide-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3 13.8 8.2 19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"></path>
-      </svg>
-      <span class="flex-1 text-sm font-medium">Recomendaciones</span>
-      <svg class="h-4 w-4 text-[var(--portal-text-muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"></path>
-      </svg>
-    </button>
 
     <div
       *ngIf="isChatbotOpen"
@@ -162,19 +146,6 @@
     </div>
   </ng-container>
 
-  <button
-    *ngIf="shouldShowDesktopChatbotLauncher() && !isChatbotOpen"
-    type="button"
-    (click)="toggleChatbot()"
-    class="app-shell__chat-launcher"
-    aria-label="Abrir asistente de recomendaciones"
-  >
-    <svg class="h-5 w-5 text-[var(--guide-accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M12 3 13.8 8.2 19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z"></path>
-      <path stroke-linecap="round" stroke-linejoin="round" d="M18.5 3.5 19 5l1.5.5L19 6l-.5 1.5L18 6l-1.5-.5L18 5l.5-1.5Z"></path>
-    </svg>
-    Recomendaciones
-  </button>
 
   <app-modal></app-modal>
   <app-auth-login-modal></app-auth-login-modal>

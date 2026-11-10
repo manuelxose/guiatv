@@ -1,3 +1,7 @@
+@use '../../../components/auth-layout/auth-form' as af;
+
 :host {
   display: block;
 }
+
+@include af.auth-form;

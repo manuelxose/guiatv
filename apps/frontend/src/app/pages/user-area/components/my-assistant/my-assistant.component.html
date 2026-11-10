@@ -1,0 +1,211 @@
+<!-- ── 1. Your viewer profile: how well it knows you and what it knows ── -->
+<section class="as-hero" aria-labelledby="as-know">
+  <div class="as-ring" role="img" [attr.aria-label]="'El asistente te conoce al ' + percent() + ' %'">
+    <svg viewBox="0 0 120 120" aria-hidden="true">
+      <circle cx="60" cy="60" r="52" class="as-ring__track" />
+      <circle cx="60" cy="60" r="52" class="as-ring__fill" [attr.stroke-dasharray]="326.7" [attr.stroke-dashoffset]="326.7 * (1 - percent() / 100)" />
+    </svg>
+    <strong>{{ percent() }}%</strong>
+    <span>te conoce</span>
+  </div>
+
+  <div class="as-hero__body">
+    <h2 id="as-know">Tu perfil de espectador</h2>
+    @if (portrait().length) {
+    <ul class="as-portrait">@for (line of portrait(); track line) {<li>{{ line }}</li>}</ul>
+    } @else {
+    <p class="pf-muted">El asistente todavía no sabe nada de ti. Completa los puntos de abajo o simplemente háblale: aprende de cada conversación.</p>
+    }
+    <div class="as-check">
+      @for (item of completion().items; track item.key) {
+      <a class="as-check__item" [class.done]="item.done" [routerLink]="'/perfil'" [queryParams]="{ tab: target(item.key).tab }" [fragment]="target(item.key).fragment">
+        <span aria-hidden="true">{{ item.done ? '✓' : '+' }}</span>{{ item.label }}
+      </a>
+      }
+    </div>
+    @if (memory()?.updatedAt) {<span class="pf-small">Actualizado {{ memory()!.updatedAt | date: "d 'de' MMMM, HH:mm" }}</span>}
+  </div>
+</section>
+
+<!-- ── 2. Ask: personal one-tap questions built from your profile, or your own ── -->
+<section class="pf-sec" aria-labelledby="as-ask">
+  <div class="pf-head"><h2 id="as-ask">Pregúntale algo</h2><p>Preguntas hechas con lo que sabe de ti. Se abren en una conversación nueva.</p></div>
+  <form class="as-askbox" (submit)="$event.preventDefault(); ask(question())">
+    <span aria-hidden="true">✦</span>
+    <input class="pf-input" [value]="question()" (input)="question.set($any($event.target).value)" maxlength="300" placeholder="Pregunta lo que quieras: qué ver, cuándo echan algo, dónde ver un partido…" aria-label="Pregunta al asistente" />
+    <button type="submit" class="pf-btn pf-btn--pri" [disabled]="!question().trim()">Preguntar</button>
+  </form>
+  <div class="pf-chips">@for (p of prompts(); track p) {<button type="button" class="pf-chip" (click)="ask(p)">{{ p }}</button>}</div>
+</section>
+
+<!-- ── 3. What it means: genre affinity and activity ── -->
+<section class="pf-sec" aria-labelledby="as-dna">
+  <div class="pf-head"><h2 id="as-dna">Tu ADN de espectador</h2><p>Calculado con los géneros que elegiste y con lo que has visto y valorado.</p></div>
+  <div class="as-dna">
+    <div class="pf-card">
+      <h3>Afinidad por género</h3>
+      @if (affinity().length) {
+      <ul class="as-bars">
+        @for (a of affinity(); track a.genre) {
+        <li>
+          <span class="as-bars__label">{{ a.genre }}<small>{{ a.sources.join(' · ') }}</small></span>
+          <span class="as-bars__track"><span [style.width.%]="a.pct"></span></span>
+        </li>
+        }
+      </ul>
+      } @else {
+      <p class="pf-muted">Elige géneros en <a routerLink="/perfil" [queryParams]="{ tab: 'gustos' }">Gustos</a> o valora lo que veas para ver tu afinidad.</p>
+      }
+    </div>
+    <div class="as-tiles">
+      <div class="as-tile"><strong>{{ stats().seen }}</strong><span>vistos</span></div>
+      <div class="as-tile"><strong>{{ stats().rated }}</strong><span>valorados</span></div>
+      <div class="as-tile"><strong>{{ stats().avg ? (stats().avg | number: '1.1-1') + '★' : '—' }}</strong><span>nota media</span></div>
+      <div class="as-tile"><strong>{{ conversations().length }}</strong><span>conversaciones</span></div>
+      <div class="as-tile as-tile--wide">
+        <span>Tus plataformas</span>
+        <div class="as-logos">
+          @for (p of profile().preferredPlatforms; track p) {<span class="as-logo" [title]="p">@if (logo(p); as src) {<img [src]="src" [alt]="p" />} @else { {{ p.charAt(0) }} }</span>}
+          @empty {<a routerLink="/perfil" [queryParams]="{ tab: 'gustos' }" class="pf-small">Añadir plataformas</a>}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── 4. What it would suggest now, from today's guide and the catalogue ── -->
+<section class="pf-sec" aria-labelledby="as-tonight">
+  <div class="pf-head"><h2 id="as-tonight">Esta noche en la tele, para ti</h2><a routerLink="/programacion-tv/en-directo">Parrilla ›</a><p>La programación de hoy filtrada con tus gustos, tus canales y lo que evitas.</p></div>
+  @if (tonight().length) {
+  <div class="pf-grid as-picks">
+    @for (pick of tonight(); track pick.item.id) {
+    <div class="as-pick"><app-panel-tile [item]="pick.item" variant="tv"></app-panel-tile><span class="as-why">{{ pick.reason }}</span></div>
+    }
+  </div>
+  } @else {
+  <div class="pf-empty"><strong>Nada encaja todavía</strong><span>Cuando sepa qué géneros te gustan o cuáles son tus canales, aquí verás lo mejor de esta noche para ti.</span></div>
+  }
+</section>
+
+@if (forYou().length) {
+<section class="pf-sec" aria-labelledby="as-stream">
+  <div class="pf-head"><h2 id="as-stream">En tus plataformas</h2><a routerLink="/para-ti">Para ti ›</a></div>
+  <div class="pf-grid pf-grid--poster">
+    @for (rec of forYou(); track rec.item.catalogId) {
+    <div class="as-pick"><app-panel-tile [item]="rec.item" variant="poster"></app-panel-tile>@if (rec.reason) {<span class="as-why">{{ rec.reason }}</span>}</div>
+    }
+  </div>
+</section>
+}
+
+<!-- ── 5. Teach it: every memory field, saved on tap ── -->
+<div class="as-teach">
+  <div class="pf-head"><h2>Enséñale cómo eres</h2>@if (saving()) {<span class="pf-small">Guardando…</span>} @else if (saved()) {<span class="pf-note">Guardado ✓</span>}</div>
+
+  <section id="as-plan" class="pf-card" aria-labelledby="as-plan-h">
+    <h3 id="as-plan-h">Cómo ves la tele</h3>
+    <p class="pf-muted">Adapta el tono y lo que te propone a tu plan habitual.</p>
+    <span class="pf-small">Con quién</span>
+    <div class="pf-chips">@for (o of contexts; track o.value) {<button type="button" class="pf-chip" [attr.aria-pressed]="has('preferredViewingContexts', o.value)" [disabled]="saving()" (click)="toggle('preferredViewingContexts', o.value)">{{ o.label }}</button>}</div>
+    <span class="pf-small">Duración</span>
+    <div class="pf-chips">@for (o of durations; track o.value) {<button type="button" class="pf-chip" [attr.aria-pressed]="has('preferredDurations', o.value)" [disabled]="saving()" (click)="toggle('preferredDurations', o.value)">{{ o.label }}</button>}</div>
+  </section>
+
+  <section id="as-refs" class="pf-card" aria-labelledby="as-refs-h">
+    <h3 id="as-refs-h">Títulos que te representan</h3>
+    <p class="pf-muted">Películas, series o sagas que te encantan. Las usa como referencia: «algo como…».</p>
+    <form class="pf-inline" (submit)="$event.preventDefault(); addTitle(titleInput.value); titleInput.value = ''">
+      <input #titleInput class="pf-input" maxlength="80" placeholder="Ej.: La casa de papel, Star Wars, Fleabag" aria-label="Añadir título de referencia" />
+      <button type="submit" class="pf-btn pf-btn--pri" [disabled]="saving() || list('favoriteFranchisesOrTitles').length >= max">Añadir</button>
+    </form>
+    <div class="pf-chips">
+      @for (t of list('favoriteFranchisesOrTitles'); track t) {<button type="button" class="pf-chip on" [disabled]="saving()" (click)="removeValue('favoriteFranchisesOrTitles', t)" [attr.aria-label]="'Quitar ' + t">{{ t }} <span class="x" aria-hidden="true">×</span></button>}
+      @empty {<span class="pf-muted">Aún no has añadido ninguno.</span>}
+    </div>
+  </section>
+
+  <section id="as-avoid" class="pf-card" aria-labelledby="as-avoid-h">
+    <h3 id="as-avoid-h">Lo que no quieres que te recomiende</h3>
+    <p class="pf-muted">Filtros que respeta siempre, aunque algo sea popular.</p>
+    <span class="pf-small">Contenido</span>
+    <div class="pf-chips">
+      @for (o of avoidContent; track o.value) {<button type="button" class="pf-chip pf-chip--neg" [attr.aria-pressed]="has('negativeSignals', o.value)" [disabled]="saving()" (click)="toggle('negativeSignals', o.value)">{{ o.label }}</button>}
+      @for (v of learnt('negativeSignals', avoidContent.concat(genres, platforms)); track v) {<button type="button" class="pf-chip pf-chip--neg on" title="Aprendido en tus conversaciones" (click)="removeValue('negativeSignals', v)">{{ v }} <span class="x" aria-hidden="true">×</span></button>}
+    </div>
+    <span class="pf-small">Géneros</span>
+    <div class="pf-chips">
+      @for (o of genres; track o.value) {<button type="button" class="pf-chip pf-chip--neg" [attr.aria-pressed]="has('dislikedGenres', o.value)" [disabled]="saving()" (click)="toggle('dislikedGenres', o.value)">{{ o.label }}</button>}
+      @for (v of learnt('dislikedGenres', genres); track v) {<button type="button" class="pf-chip pf-chip--neg on" title="Aprendido en tus conversaciones" (click)="removeValue('dislikedGenres', v)">{{ v }} <span class="x" aria-hidden="true">×</span></button>}
+    </div>
+    <span class="pf-small">Plataformas</span>
+    <div class="pf-chips">
+      @for (o of platforms; track o.value) {<button type="button" class="pf-chip pf-chip--neg" [attr.aria-pressed]="has('avoidedPlatforms', o.value)" [disabled]="saving()" (click)="toggle('avoidedPlatforms', o.value)">@if (logo(o.value); as src) {<img [src]="src" alt="" width="22" height="22" />}{{ o.label }}</button>}
+    </div>
+    <span class="pf-small">Los marcados con × los aprendió en tus conversaciones.</span>
+  </section>
+
+  <section id="as-region" class="pf-card" aria-labelledby="as-region-h">
+    <h3 id="as-region-h">TV autonómica</h3>
+    <p class="pf-muted">Con tu comunidad, incluirá sus canales cuando tenga sentido.</p>
+    <select class="pf-input pf-select" [value]="memory()?.preferredAutonomousCommunity || ''" [disabled]="saving()" (change)="setCommunity($any($event.target).value)" aria-label="Tu comunidad autónoma">
+      <option value="">No incluir canales autonómicos</option>
+      @for (c of communities; track c.value) {<option [value]="c.value">{{ c.label }}</option>}
+    </select>
+  </section>
+
+  @if (memory()?.recentTopics?.length) {
+  <section class="pf-card" aria-labelledby="as-topics">
+    <h3 id="as-topics">De qué habéis hablado últimamente</h3>
+    <div class="pf-chips">@for (t of memory()!.recentTopics; track t) {<button type="button" class="pf-chip" (click)="ask('Sigamos con ' + t)">{{ t }}</button>}</div>
+  </section>
+  }
+  @if (error()) {<p class="pf-note pf-note--err" role="alert">{{ error() }}</p>}
+</div>
+
+<!-- ── 6. Conversations ── -->
+<section class="pf-sec" aria-labelledby="as-convs">
+  <div class="pf-head"><h2 id="as-convs">Tus conversaciones</h2><button type="button" class="pf-link" (click)="newConversation()">Nueva conversación ›</button></div>
+  <form class="pf-inline" (submit)="$event.preventDefault(); search(q.value)">
+    <input #q type="search" class="pf-input" placeholder="Buscar en tus conversaciones" aria-label="Buscar en tus conversaciones" (search)="search(q.value)" />
+    <button type="submit" class="pf-btn">Buscar</button>
+  </form>
+  @if (conversations().length) {
+  <ul class="pf-rows">
+    @for (c of conversations(); track c.conversationId) {
+    <li class="pf-row">
+      <span class="pf-row__main">
+        <strong>@if (c.pinned) {<span aria-label="Fijada">📌 </span>}{{ c.sessionTitle || 'Conversación' }}</strong>
+        <span class="pf-small">{{ c.lastUsedAt | date: 'd MMM, HH:mm' }} · {{ c.messageCount }} mensajes@if (c.lastMessage) { · {{ c.lastMessage }}}</span>
+      </span>
+      <span class="pf-actions">
+        <button type="button" class="pf-btn pf-btn--sm pf-btn--pri" (click)="open(c)">Abrir</button>
+        <button type="button" class="pf-btn pf-btn--sm" (click)="pin(c)">{{ c.pinned ? 'Desfijar' : 'Fijar' }}</button>
+        <button type="button" class="pf-btn pf-btn--sm pf-btn--danger" (click)="remove(c)" [attr.aria-label]="'Borrar ' + (c.sessionTitle || 'conversación')">Borrar</button>
+      </span>
+    </li>
+    }
+  </ul>
+  } @else {
+  <div class="pf-empty"><strong>{{ searching() ? 'Nada coincide con la búsqueda' : 'Todavía no has hablado con el asistente' }}</strong><span>Prueba una de las preguntas de arriba.</span></div>
+  }
+</section>
+
+<!-- ── 7. Privacy and control ── -->
+<section class="pf-sec" aria-labelledby="as-priv">
+  <div class="pf-head"><h2 id="as-priv">Privacidad y control</h2></div>
+  <div class="pf-card">
+    <h3>Qué usa para responderte</h3>
+    <ul class="as-uses">
+      <li>Tus plataformas y géneros de <a routerLink="/perfil" [queryParams]="{ tab: 'gustos' }">Gustos</a>.</li>
+      <li>Lo que le has enseñado en esta página o en el chat.</li>
+      <li>Tus canales, tu lista y lo que has valorado.</li>
+      <li>La programación y el catálogo de Guía TV de hoy.</li>
+    </ul>
+    <p class="pf-muted">Puedes descargar todos tus datos desde <a routerLink="/perfil" [queryParams]="{ tab: 'cuenta' }">Cuenta y privacidad</a>.</p>
+    <div class="pf-actions">
+      <button type="button" class="pf-btn" (click)="clearChats()">Borrar historial del chat</button>
+      <button type="button" class="pf-btn pf-btn--danger" [disabled]="saving()" (click)="reset()">Borrar lo que ha aprendido</button>
+    </div>
+    <span class="pf-small">Borrar lo aprendido no toca tus plataformas ni tus géneros.</span>
+  </div>
+</section>

@@ -1,52 +1,42 @@
-import { CommonModule, isPlatformBrowser } from '@angular/common';
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, OnDestroy, OnInit, PLATFORM_ID } from '@angular/core';
+import { DatePipe, isPlatformBrowser } from '@angular/common';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, Inject, OnDestroy, OnInit, PLATFORM_ID, inject, signal } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Subject, combineLatest, forkJoin, map, of, startWith, switchMap, takeUntil } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { CatalogRailComponent } from '../../../components/catalog-rail/catalog-rail.component';
+import { TvReadItemDTO } from '../../../api/models';
+import { PanelNavComponent, PanelNavGroup } from '../../../components/panel-nav/panel-nav.component';
+import { PanelShellComponent } from '../../../components/panel-shell/panel-shell.component';
+import { PanelTileComponent } from '../../../components/panel-tile/panel-tile.component';
+import { GUIAS_LINKS, guiasCategoryGroups } from '../../../config/guias-nav';
+import { STREAMING_PLATFORMS } from '../../../config/plataformas-nav';
+import { ChatService } from '../../../services/chat.service';
+import { TvDataFacade } from '../../../state/tv-data.facade';
+import { EditorialCategory } from '../../models/editorial.models';
 import { FaqSectionComponent } from '../../../components/faq-section/faq-section.component';
 import { ShareButtonsComponent } from '../../../components/share-buttons/share-buttons.component';
 import { APP_PATHS } from '../../../config/route-map';
-import { UnifiedPortalShellComponent } from '../../../components/unified-portal-shell/unified-portal-shell.component';
-import { getCatalogPlatformByKey } from '../../../data/catalog-platforms.data';
 import { CatalogItem, CatalogService } from '../../../services/catalog.service';
 import { MetaService } from '../../../services/meta.service';
 import { generateEditorialArticleSchema, serializeJsonLd } from '../../../utils/utils';
-import { EditorialPostPageState } from '../../models/editorial.models';
+import { EditorialPost, EditorialPostPageState, EditorialTocItem } from '../../models/editorial.models';
 import { EditorialService } from '../../services/editorial.service';
-import { EditorialPostCardComponent } from '../../components/editorial-post-card/editorial-post-card.component';
 import { BlogAffiliateBlockComponent } from '../../components/blog-affiliate-block/blog-affiliate-block.component';
-import { PortalContextNavComponent } from '../../../components/portal-context-nav/portal-context-nav.component';
 import { UnifiedAsyncStateComponent } from '../../../components/unified-async-state/unified-async-state.component';
-import { UnifiedSkeletonBlockComponent } from '../../../components/unified-skeleton-block/unified-skeleton-block.component';
 
 interface TrendingItem {
   title: string;
   path: string;
   platform?: string;
   category?: string;
-  score: number;
 }
 
 @Component({
   selector: 'app-post-detail',
   standalone: true,
-  imports: [
-    CommonModule,
-    RouterModule,
-    UnifiedPortalShellComponent,
-    ShareButtonsComponent,
-    EditorialPostCardComponent,
-    BlogAffiliateBlockComponent,
-    CatalogRailComponent,
-    FaqSectionComponent,
-    PortalContextNavComponent,
-    UnifiedAsyncStateComponent,
-    UnifiedSkeletonBlockComponent,
-  ],
+  imports: [DatePipe, RouterModule, PanelShellComponent, PanelNavComponent, PanelTileComponent, ShareButtonsComponent, BlogAffiliateBlockComponent, FaqSectionComponent, UnifiedAsyncStateComponent],
   templateUrl: './post-detail.component.html',
-  styleUrls: ['./post-detail.component.scss'],
+  styleUrls: ['../../../pages/que-ver/que-ver.component.scss', '../blog-home/blog-home.component.scss', './post-detail.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PostDetailComponent implements OnInit, OnDestroy {
@@ -60,8 +50,30 @@ export class PostDetailComponent implements OnInit, OnDestroy {
   public safeLdHtml: SafeHtml | null = null;
   public platformRailItems: CatalogItem[] = [];
   public exploreRailItems: CatalogItem[] = [];
-  public guideRailItems: CatalogItem[] = [];
+  public guideRailItems: TvReadItemDTO[] = [];
+  public readonly sideLinks = GUIAS_LINKS;
+  public sideGroups: PanelNavGroup[] = [];
+  public contextOpen = false;
+  private readonly chat = inject(ChatService);
+  private readonly facade = inject(TvDataFacade);
   public trendingItems: TrendingItem[] = [];
+  /** Article body with an id on every H2/H3, and the table of contents built from them. */
+  public bodyHtml = '';
+  public toc: EditorialTocItem[] = [];
+  /** How far the reader has scrolled through the page (0-100), for the progress bar. */
+  public readonly progress = signal(0);
+  /** "Sigue leyendo": the related guides, or the latest ones when a guide has none (the page never ends bare). */
+  public morePosts: EditorialPost[] = [];
+  private readonly host = inject(ElementRef<HTMLElement>);
+  /** Scroll events do not bubble, but a capture listener on the document sees the shell's <main> scrolling. */
+  private readonly onScroll = (event: Event) => {
+    const el = event.target as HTMLElement | null;
+    if (el?.id !== 'panel-main') return;
+    const max = el.scrollHeight - el.clientHeight;
+    const next = max > 0 ? Math.min(100, Math.round((el.scrollTop / max) * 100)) : 0;
+    // A signal: the listener runs outside a change-detection turn, and markForCheck alone did not repaint.
+    this.progress.set(next);
+  };
 
   private readonly destroy$ = new Subject<void>();
   private readonly retryTrigger$ = new Subject<void>();
@@ -77,9 +89,17 @@ export class PostDetailComponent implements OnInit, OnDestroy {
     @Inject(PLATFORM_ID) platformId: object
   ) {
     this.isBrowser = isPlatformBrowser(platformId);
+    if (this.isBrowser) document.addEventListener('scroll', this.onScroll, { capture: true, passive: true });
   }
 
   ngOnInit(): void {
+    this.editorialService
+      .getCategories()
+      .pipe(catchError(() => of([] as EditorialCategory[])), takeUntil(this.destroy$))
+      .subscribe((categories) => {
+        this.sideGroups = guiasCategoryGroups(categories);
+        this.changeDetector.markForCheck();
+      });
     combineLatest([
       this.route.paramMap,
       this.retryTrigger$.pipe(startWith(undefined)),
@@ -126,6 +146,9 @@ export class PostDetailComponent implements OnInit, OnDestroy {
           this.state = state;
           this.loading = false;
           this.error = null;
+          const body = withHeadingIds(state.post.contentHtml || '');
+          this.bodyHtml = body.html;
+          this.toc = state.post.tocItems.length ? state.post.tocItems : body.toc;
           this.currentUrl = this.isBrowser
             ? window.location.href
             : `https://guiaprogramaciontv.com${state.post.canonicalPath}`;
@@ -147,13 +170,16 @@ export class PostDetailComponent implements OnInit, OnDestroy {
           this.changeDetector.markForCheck();
 
           if (this.isBrowser) {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            // Angular's sanitizer strips `id` from injected HTML: give the headings their anchors once rendered.
+            this.applyHeadingIds();
+            this.progress.set(0);
           }
         },
       });
   }
 
   ngOnDestroy(): void {
+    if (this.isBrowser) document.removeEventListener('scroll', this.onScroll, true);
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -162,22 +188,45 @@ export class PostDetailComponent implements OnInit, OnDestroy {
     this.retryTrigger$.next();
   }
 
-  public hasRouteRelation(key: string): boolean {
-    return this.state?.post.relatedRouteKeys.includes(key as any) ?? false;
+  /**
+   * Sets the contents-list ids on the rendered H2/H3 (same order and filter as withHeadingIds), then honours a
+   * #fragment. Retries briefly: the body renders after the state arrives (and hydration may swap the DOM).
+   */
+  private applyHeadingIds(tries = 0): void {
+    const root: HTMLElement = this.host.nativeElement;
+    const headings = Array.from(root.querySelectorAll<HTMLElement>('.post-content h2, .post-content h3')).filter((h) => h.textContent?.trim());
+    if (!headings.length || !root.isConnected) {
+      if (this.toc.length && tries < 25) setTimeout(() => this.applyHeadingIds(tries + 1), 120);
+      return;
+    }
+    headings.forEach((h, i) => {
+      if (!h.id && this.toc[i]) h.id = this.toc[i].id;
+    });
+    const fragment = window.location.hash.slice(1);
+    if (fragment) document.getElementById(decodeURIComponent(fragment))?.scrollIntoView({ block: 'start' });
   }
 
-  public get platformCatalogQueryParams(): Record<string, string> | null {
-    const relatedNames = (this.state?.post.relatedPlatformKeys || [])
-      .map((key) => getCatalogPlatformByKey(key)?.name)
-      .filter((name): name is string => Boolean(name));
-    if (!relatedNames.length) {
-      return null;
-    }
-    return {
-      platforms: relatedNames.join(','),
-      availability: 'streaming',
-      types: 'movie,series',
-    };
+  /** Author initials for the byline avatar ("Redacción IA de Guía TV" → "RG"). */
+  public get authorInitials(): string {
+    const name = this.state?.post.author?.name || 'Guía TV';
+    const words = name.split(/\s+/).filter((w) => /^[A-ZÁÉÍÓÚÑ]/.test(w));
+    return ((words[0]?.[0] || 'G') + (words.length > 1 ? words[words.length - 1][0] : '')).toUpperCase();
+  }
+
+  public openAssistant(): void {
+    this.chat.requestToggleAssistant();
+  }
+
+  /** Streaming services the article talks about, linked to their catalogue page. */
+  public get relatedPlatforms(): Array<{ name: string; color: string }> {
+    return (this.state?.post.relatedPlatformKeys || [])
+      .map((key) => STREAMING_PLATFORMS.find((p) => p.key === key))
+      .filter((p): p is (typeof STREAMING_PLATFORMS)[number] => Boolean(p))
+      .map((p) => ({ name: p.name, color: p.color }));
+  }
+
+  public hasRouteRelation(key: string): boolean {
+    return this.state?.post.relatedRouteKeys.includes(key as any) ?? false;
   }
 
   public get breadcrumbItems(): Array<{ name: string; url: string }> {
@@ -202,6 +251,16 @@ export class PostDetailComponent implements OnInit, OnDestroy {
     this.exploreRailItems = [];
     this.guideRailItems = [];
     this.trendingItems = [];
+    this.morePosts = this.state?.relatedPosts ?? [];
+    if (!this.morePosts.length) {
+      this.editorialService
+        .getPosts()
+        .pipe(catchError(() => of([] as EditorialPost[])), takeUntil(this.destroy$))
+        .subscribe((posts) => {
+          this.morePosts = posts.filter((p) => p.slug !== post.slug).slice(0, 4);
+          this.changeDetector.markForCheck();
+        });
+    }
 
     const platformItems$ =
       post.relatedRouteKeys.includes('platforms') && post.relatedPlatformKeys.length
@@ -235,19 +294,21 @@ export class PostDetailComponent implements OnInit, OnDestroy {
           )
       : of([] as CatalogItem[]);
 
+    // Tonight on free TV (the old "live, by airtime" query surfaced minor channels mid-morning), one per broadcast.
     const guideItems$ = post.relatedRouteKeys.includes('guide')
-      ? this.catalogService
-          .queryState({
-            types: ['program'],
-            availability: ['live'],
-            sort: 'airtime',
-            limit: 8,
-          })
-          .pipe(
-            map((result) => result.data?.items || []),
-            catchError(() => of([]))
-          )
-      : of([] as CatalogItem[]);
+      ? this.facade.getTonightPrograms({ group: 'tdt', limit: 48 }).pipe(
+          map((items) => {
+            const seen = new Set<string>();
+            return items.filter((i) => {
+              const key = `${i.program.title.trim().toLowerCase()}|${i.airing.start}`;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            }).slice(0, 8);
+          }),
+          catchError(() => of([] as TvReadItemDTO[]))
+        )
+      : of([] as TvReadItemDTO[]);
 
     const trendingItems$ = post.relatedRouteKeys.includes('stats')
       ? this.catalogService
@@ -258,12 +319,11 @@ export class PostDetailComponent implements OnInit, OnDestroy {
           })
           .pipe(
             map((result) =>
-              (result.data?.items || []).map((item, index) => ({
+              (result.data?.items || []).map((item) => ({
                 title: item.title,
                 path: item.detailPath || APP_PATHS.explore,
                 platform: item.primaryPlatforms?.[0] || item.channel?.name,
                 category: item.genres?.[0],
-                score: Math.max(60, 100 - index * 8),
               }))
             ),
             catchError(() => of([] as TrendingItem[]))
@@ -310,4 +370,29 @@ export class PostDetailComponent implements OnInit, OnDestroy {
         .join('')
     );
   }
+}
+
+const ENTITIES: Record<string, string> = { '&amp;': '&', '&quot;': '"', '&#39;': "'", '&#039;': "'", '&lt;': '<', '&gt;': '>', '&nbsp;': ' ' };
+
+/**
+ * Gives every H2/H3 of the article an id (kept when it already has one) and returns the contents list
+ * built from them: the posts arrive without one, and the index is what makes a long guide skimmable.
+ */
+export function withHeadingIds(html: string): { html: string; toc: EditorialTocItem[] } {
+  const toc: EditorialTocItem[] = [];
+  const used = new Set<string>();
+  const out = html.replace(/<h([23])([^>]*)>([\s\S]*?)<\/h\1>/gi, (match, level: string, attrs: string, inner: string) => {
+    const label = inner.replace(/<[^>]+>/g, '').replace(/&[#a-z0-9]+;/gi, (e) => ENTITIES[e.toLowerCase()] ?? e).replace(/\s+/g, ' ').trim();
+    if (!label) return match;
+    const existing = /\sid=["']([^"']+)["']/i.exec(attrs)?.[1];
+    let id = existing || label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'seccion';
+    if (!existing) {
+      const base = id;
+      for (let n = 2; used.has(id); n++) id = `${base}-${n}`;
+    }
+    used.add(id);
+    toc.push({ id, label, level: Number(level) as 2 | 3 });
+    return existing ? match : `<h${level}${attrs} id="${id}">${inner}</h${level}>`;
+  });
+  return { html: out, toc };
 }

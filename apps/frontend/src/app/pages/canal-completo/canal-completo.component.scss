@@ -1,113 +1,745 @@
-/**
- * Canal completo — Spotify-inspired TV destination page.
- * Layout is Tailwind-utility-driven in the template; this file only holds
- * the handful of behaviors utilities can't express (scroll rails, the live
- * pulse dot, and the schedule timeline's now/past row treatment).
- */
+// Channel page inside app-panel-shell: --sv2-* tokens from the shell (light/dark),
+// --section-accent* from the TV section. Same chips/breadcrumb/right-panel look as the channel guide.
 
-// Custom elements default to `display: inline` (fixed above), AND the shell
-// lays routed pages out as a CSS grid item, whose default `min-width: auto`
-// sizes the track to the widest unbreakable content run inside this page
-// (not the viewport) — ballooning the whole page to desktop width and
-// silently clipping it under the hero's `overflow-hidden` on narrow screens.
-// `min-width: 0` lets the grid item shrink to its track so children wrap.
-:host {
-  display: block;
+.cp {
+  display: grid;
+  gap: 22px;
+  container-type: inline-size;
+
+  section {
+    display: grid;
+    gap: 10px;
+  }
+}
+
+.cp__subnav.chips {
+  display: none;
+}
+
+.cp__intro {
+  display: grid;
+  gap: 8px;
+
+  h1 {
+    margin: 0;
+    font-size: clamp(1.4rem, 1.1rem + 1.2vw, 1.9rem);
+    line-height: 1.15;
+  }
+
+  p {
+    margin: 0;
+    max-width: 70ch;
+    color: var(--sv2-text-muted);
+    font-size: var(--sv2-fs-md);
+  }
+}
+
+.cp__title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cp__bc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--sv2-text-muted);
+  font-size: var(--sv2-fs-xs);
+
+  a {
+    color: inherit;
+    text-decoration: none;
+
+    &:hover {
+      color: var(--sv2-text);
+      text-decoration: underline;
+    }
+  }
+}
+
+// Below 1200px the right panel is a drawer: this opens it.
+.cp__ctx-btn {
+  justify-self: start;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 8px 14px;
+  border: 1px solid var(--sv2-border);
+  border-radius: 999px;
+  background: var(--sv2-surface-2);
+  color: var(--sv2-text);
+  font: inherit;
+  font-size: var(--sv2-fs-sm);
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--section-accent-text);
+  }
+}
+
+@media (min-width: 1200px) {
+  .cp__ctx-btn {
+    display: none;
+  }
+}
+
+.cp__filters {
+  display: grid;
+  gap: 8px;
+}
+
+.chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  a {
+    flex: none;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: var(--sv2-surface-2);
+    border: 1px solid var(--sv2-border);
+    color: var(--sv2-text);
+    font-size: var(--sv2-fs-sm);
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+
+    &:hover {
+      background: var(--sv2-surface-3);
+    }
+
+    &.on {
+      background: var(--sv2-text);
+      border-color: var(--sv2-text);
+      color: var(--sv2-surface-1);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--sv2-focus);
+      outline-offset: 2px;
+    }
+  }
+}
+
+.chips--sm a {
+  padding: 5px 10px;
+  font-size: var(--sv2-fs-xs);
+
+  &.on {
+    background: var(--section-accent);
+    border-color: var(--section-accent);
+    color: var(--section-accent-ink);
+  }
+}
+
+.chips--wrap {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+
+.cp__h2 {
+  margin: 0;
+  font-size: var(--sv2-fs-lg, 1.125rem);
+}
+
+.cp__note {
+  margin: -4px 0 0;
+  color: var(--sv2-text-muted);
+  font-size: var(--sv2-fs-xs);
+}
+
+.cp__sec-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+
+  a {
+    flex: none;
+    color: var(--section-accent-text);
+    font-size: var(--sv2-fs-xs);
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+}
+
+// ── Timeline ──
+.tl {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tl__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--sv2-r-md);
+  color: var(--sv2-text);
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--sv2-surface-2);
+  }
+
+  time {
+    flex: none;
+    width: 46px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &.past {
+    color: var(--sv2-text-muted);
+
+    time {
+      font-weight: 600;
+    }
+  }
+
+  &.now {
+    background: color-mix(in srgb, var(--section-accent) 12%, var(--sv2-surface-2));
+    border-color: color-mix(in srgb, var(--section-accent) 45%, transparent);
+  }
+}
+
+.tl__row--skeleton {
+  background: linear-gradient(110deg, var(--sv2-surface-2) 30%, var(--sv2-surface-3) 50%, var(--sv2-surface-2) 70%);
+  background-size: 200% 100%;
+}
+
+.tl__body {
+  display: grid;
+  flex: 1;
+  gap: 2px;
   min-width: 0;
+
+  strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--sv2-fs-sm);
+  }
+
+  small {
+    color: var(--sv2-text-muted);
+    font-size: var(--sv2-fs-xs);
+  }
 }
 
-a:focus-visible,
-button:focus-visible {
-  outline: 2px solid var(--accent-discover);
-  outline-offset: 3px;
-}
-
-// ===============================================
-// LIVE PULSE DOT (hero + schedule "en directo" badges)
-// ===============================================
-
-.live-dot {
-  display: inline-block;
-  height: 6px;
-  width: 6px;
+.pill {
   flex: none;
-  border-radius: 50%;
-  background-color: currentColor;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .live-dot {
-    animation: canal-live-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
+.pill--live {
+  background: var(--section-accent);
+  color: var(--section-accent-ink);
 }
 
-@keyframes canal-live-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.45;
-  }
-}
+.bar {
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--sv2-surface-3);
+  overflow: hidden;
 
-// ===============================================
-// HORIZONTAL RAILS ("A continuación" / "Canales relacionados")
-// ===============================================
-
-.rail-scroll {
-  // Containing block for the cards' absolutely positioned `.sr-only` text, which
-  // otherwise escapes the scroller and widens the document (+545 px at 390 px).
-  position: relative;
-  scroll-snap-type: x proximity;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: var(--portal-border-strong) transparent;
-
-  > * {
-    scroll-snap-align: start;
-  }
-
-  &::-webkit-scrollbar {
-    height: 6px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: var(--portal-border-strong);
-    border-radius: var(--radius-pill);
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
+  i {
+    display: block;
+    height: 100%;
+    background: var(--section-accent);
   }
 }
 
-// ===============================================
-// SCHEDULE TIMELINE ROWS
-// ===============================================
-// The shared `app-unified-program-card[variant="epg-row"]` renders the
-// time/title/category eyebrow but intentionally hides its own actions and
-// live badge in that mode — this row supplies the "now" marker, live
-// progress, and the open-detail action around it.
+// ── Tonight ──
+.cp__night {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
 
-.schedule-row {
-  position: relative;
+  a {
+    display: grid;
+    gap: 2px;
+    padding: 12px;
+    border: 1px solid var(--sv2-border);
+    border-radius: var(--sv2-r-md);
+    background: var(--sv2-surface-2);
+    color: var(--sv2-text);
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+      border-color: var(--section-accent-text);
+    }
+  }
+
+  time {
+    color: var(--section-accent-text);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+
+  strong {
+    font-size: var(--sv2-fs-sm);
+  }
+
+  small {
+    color: var(--sv2-text-muted);
+    font-size: var(--sv2-fs-xs);
+  }
 }
 
-.schedule-row__now-marker {
+.cp__empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 32px 16px;
+  border-radius: var(--sv2-r-md);
+  background: var(--sv2-surface-2);
+  text-align: center;
+
+  a {
+    color: var(--section-accent-text);
+    font-weight: 700;
+  }
+}
+
+.cp__more {
+  color: var(--section-accent-text);
+  font-weight: 700;
+}
+
+// Channel logos are drawn for dark backgrounds (many are white), in both themes.
+.ch-logo {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
   flex: none;
-  align-self: stretch;
-  width: 3px;
-  border-radius: var(--radius-pill);
-  background: transparent;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #12151a;
+  color: #f1f3f6;
+  font-weight: 800;
+
+  img {
+    width: 100%;
+    height: 100%;
+    padding: 4px;
+    object-fit: contain;
+  }
 }
 
-.schedule-row--live .schedule-row__now-marker {
-  background: var(--accent-live);
+.ch-logo--lg {
+  width: 56px;
+  height: 56px;
 }
 
-app-breadcrumb {
-  --hero-text: var(--portal-text);
-  --hero-text-muted: var(--portal-text-muted);
-  --hero-bg-soft: var(--portal-surface);
+@media (max-width: 767px) {
+  .cp__subnav.chips {
+    display: flex;
+  }
+}
+
+// ── Right panel ──
+.cx {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  color: var(--sv2-text);
+
+  h3 {
+    margin: 0 0 6px;
+    font-size: var(--sv2-fs-sm);
+  }
+}
+
+.cx__card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: var(--sv2-r-md);
+  background: var(--sv2-surface-2);
+  border: 1px solid var(--sv2-border);
+}
+
+.cx__id {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  > span:last-child {
+    display: grid;
+    min-width: 0;
+  }
+
+  strong {
+    font-size: var(--sv2-fs-md);
+  }
+
+  small {
+    color: var(--sv2-text-muted);
+    font-size: var(--sv2-fs-xs);
+  }
+}
+
+.cx__now {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 0;
+  min-width: 0;
+
+  strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.cx__media {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--sv2-r-sm);
+  background: var(--sv2-surface-3);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .pill {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+  }
+}
+
+.cx__desc {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  color: var(--sv2-text-muted);
+  font-size: var(--sv2-fs-xs);
+  line-height: 1.5;
+}
+
+.btn--block {
+  width: 100%;
+}
+
+.cx__muted {
+  color: var(--sv2-text-muted);
+  font-size: var(--sv2-fs-xs);
+}
+
+.cx__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: var(--sv2-fs-sm);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.btn--pri {
+  background: var(--section-accent);
+  color: var(--section-accent-ink);
+}
+
+.cx__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  a {
+    display: flex;
+    gap: 10px;
+    padding: 9px 2px;
+    border-bottom: 1px solid var(--sv2-border);
+    color: inherit;
+    text-decoration: none;
+
+    &:hover strong {
+      text-decoration: underline;
+    }
+  }
+
+  time {
+    flex: none;
+    width: 44px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+
+  span {
+    display: grid;
+    min-width: 0;
+  }
+
+  strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--sv2-fs-sm);
+  }
+
+  small {
+    color: var(--sv2-text-muted);
+    font-size: var(--sv2-fs-xs);
+  }
+}
+
+.cx__kv {
+  display: grid;
+  margin: 0;
+
+  div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 2px;
+    border-bottom: 1px solid var(--sv2-border);
+    font-size: var(--sv2-fs-sm);
+  }
+
+  dt {
+    color: var(--sv2-text-muted);
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 600;
+    text-align: right;
+  }
+}
+
+.cx__offers {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.cx__assistant {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--sv2-r-md);
+  background: color-mix(in srgb, var(--section-accent) 12%, var(--sv2-surface-2));
+
+  strong {
+    font-size: var(--sv2-fs-sm);
+  }
+}
+
+.cx__asks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  button {
+    min-height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--sv2-border-strong);
+    border-radius: 999px;
+    background: var(--sv2-surface-1);
+    color: var(--sv2-text);
+    font: inherit;
+    font-size: var(--sv2-fs-xs);
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--section-accent-text);
+    }
+  }
+}
+
+// ── Rich blocks (tiles, facts, about, channel cards) ──
+.cp__grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@container (min-width: 560px) {
+  .cp__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 720px) {
+  .cp__grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.cp__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--sv2-surface-2);
+    color: var(--sv2-text-muted);
+    font-size: var(--sv2-fs-xs);
+    font-weight: 600;
+  }
+}
+
+.tl__thumb {
+  display: block;
+  width: 96px;
+  aspect-ratio: 16 / 9;
+  flex: none;
+  overflow: hidden;
+  border-radius: var(--sv2-r-sm);
+  background: var(--sv2-surface-3);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.tl__desc {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  color: var(--sv2-text-muted);
+  font-size: var(--sv2-fs-xs);
+  line-height: 1.45;
+}
+
+@container (max-width: 479px) {
+  .tl__thumb {
+    display: none;
+  }
+}
+
+.cp__about {
+  padding: 16px;
+  border-radius: var(--sv2-r-md);
+  background: var(--sv2-surface-2);
+  color: var(--sv2-text-muted);
+  font-size: var(--sv2-fs-sm);
+  line-height: 1.6;
+
+  p {
+    margin: 0;
+    max-width: 75ch;
+  }
+
+  a {
+    color: var(--section-accent-text);
+    font-weight: 600;
+  }
+}
+
+.pill--soft {
+  background: color-mix(in srgb, var(--section-accent) 22%, transparent);
+  color: var(--section-accent-text);
+}
+
+.ch-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--sv2-border);
+  border-radius: var(--sv2-r-md);
+  background: var(--sv2-surface-2);
+  color: var(--sv2-text);
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--section-accent-text);
+  }
+
+  small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--sv2-text-muted);
+    font-size: var(--sv2-fs-xs);
+  }
+}
+
+.ch-card__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--sv2-fs-sm);
+  }
+}
+
+.ch-card__now {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--sv2-fs-sm);
+  font-weight: 700;
+}
+
+.ch-card__t {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ch-logo--sm {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
 }

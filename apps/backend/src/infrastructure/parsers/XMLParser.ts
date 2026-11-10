@@ -155,23 +155,46 @@ export class XMLParser {
       candidates.push(parenMatch[1].trim());
     }
 
-    const normalized = (val: string) => val.toLowerCase();
+    // Strip diacritics before matching: candidates come straight off the feed ("México", "Perú") and
+    // the map below is written without them — a plain toLowerCase() missed every accented entry.
+    const normalized = (val: string) => val.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
     const map: Record<string, { code: string; name: string }> = {
       españa: { code: 'ES', name: 'España' },
       spain: { code: 'ES', name: 'España' },
+      es: { code: 'ES', name: 'España' },
       uk: { code: 'GB', name: 'Reino Unido' },
+      gb: { code: 'GB', name: 'Reino Unido' },
       'reino unido': { code: 'GB', name: 'Reino Unido' },
       usa: { code: 'US', name: 'Estados Unidos' },
+      us: { code: 'US', name: 'Estados Unidos' },
       'estados unidos': { code: 'US', name: 'Estados Unidos' },
       mexico: { code: 'MX', name: 'México' },
+      mx: { code: 'MX', name: 'México' },
       chile: { code: 'CL', name: 'Chile' },
       argentina: { code: 'AR', name: 'Argentina' },
+      ar: { code: 'AR', name: 'Argentina' },
       colombia: { code: 'CO', name: 'Colombia' },
       bolivia: { code: 'BO', name: 'Bolivia' },
       peru: { code: 'PE', name: 'Perú' },
       portugal: { code: 'PT', name: 'Portugal' },
+      // "PT | ..." / "DE | ..." (pipe-delimited) is the actual convention one already-configured feed (EPG_dobleM)
+      // uses for Portugal and Germany — the id/display-name prefix strip above already anticipated PT/DE/FR/IT/RU
+      // (and ES/UK/US/AR/MX) but this map, matched only on full country names, never completed the set.
+      pt: { code: 'PT', name: 'Portugal' },
       brasil: { code: 'BR', name: 'Brasil' },
+      alemania: { code: 'DE', name: 'Alemania' },
+      germany: { code: 'DE', name: 'Alemania' },
+      de: { code: 'DE', name: 'Alemania' },
+      francia: { code: 'FR', name: 'Francia' },
+      france: { code: 'FR', name: 'Francia' },
+      fr: { code: 'FR', name: 'Francia' },
+      italia: { code: 'IT', name: 'Italia' },
+      italy: { code: 'IT', name: 'Italia' },
+      it: { code: 'IT', name: 'Italia' },
+      rusia: { code: 'RU', name: 'Rusia' },
+      russia: { code: 'RU', name: 'Rusia' },
+      ru: { code: 'RU', name: 'Rusia' },
     };
 
     for (const candidate of candidates) {

@@ -1,0 +1,143 @@
+:host { display: grid; gap: 20px; color: var(--sv2-text); }
+
+.mc-grid,
+.mc-skel { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.mc-skel div { height: 96px; border-radius: 14px; background: var(--sv2-surface-2); animation: mc-pulse 1.4s ease-in-out infinite; }
+@keyframes mc-pulse { 50% { opacity: 0.5; } }
+
+.mc-card {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--sv2-border);
+  border-radius: 14px;
+  background: var(--sv2-surface-1);
+
+  p { display: flex; align-items: baseline; gap: 8px; margin: 0; font-size: var(--sv2-fs-sm); line-height: 1.35; }
+}
+
+.mc-next { color: var(--sv2-text-muted); span { color: var(--sv2-text-faint); font-size: var(--sv2-fs-xs); } }
+
+.mc-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  text-decoration: none;
+
+  strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--sv2-fs-sm); }
+  &:hover strong { text-decoration: underline; }
+}
+
+// Channel logos are often white: always on a dark tile.
+.mc-logo {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #12151a;
+  color: #f1f3f6;
+  font-weight: 800;
+  overflow: hidden;
+
+  img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+  &--sm { width: 32px; height: 32px; border-radius: 8px; font-size: var(--sv2-fs-xs); }
+}
+
+.mc-pill { flex: none; padding: 1px 8px; border-radius: 999px; background: var(--sv2-live); color: #11160a; font-size: 0.6875rem; font-weight: 800; }
+
+.mc-link { justify-self: start; padding: 0; border: 0; background: none; color: var(--sv2-text-muted); font-size: var(--sv2-fs-xs); text-decoration: underline; cursor: pointer; &:hover { color: var(--sv2-text); } }
+.mc-muted { margin: 0; color: var(--sv2-text-muted); font-size: var(--sv2-fs-sm); }
+
+.mc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: 40px;
+  padding: 0 18px;
+  border: 1px solid var(--sv2-border-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sv2-text);
+  font-size: var(--sv2-fs-sm);
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+
+  &--pri { border-color: transparent; background: var(--section-accent); color: var(--section-accent-ink); }
+}
+
+.mc-empty {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: 18px;
+  border: 1px dashed var(--sv2-border-strong);
+  border-radius: 14px;
+  color: var(--sv2-text-muted);
+  font-size: var(--sv2-fs-sm);
+
+  strong { color: var(--sv2-text); }
+}
+
+// ── Picker ──
+.mc-picker { display: grid; gap: 12px; h2 { margin: 0; font-size: 1.125rem; } }
+.mc-tools { display: grid; gap: 10px; }
+
+.mc-search {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--sv2-border-strong);
+  border-radius: 999px;
+  background: var(--sv2-surface-1);
+  color: var(--sv2-text);
+  font: inherit;
+
+  &:focus-visible { outline: 2px solid var(--section-accent); outline-offset: 2px; }
+}
+
+.mc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  button {
+    min-height: 34px;
+    padding: 0 14px;
+    border: 1px solid var(--sv2-border);
+    border-radius: 999px;
+    background: var(--sv2-surface-1);
+    color: var(--sv2-text-muted);
+    font-size: var(--sv2-fs-sm);
+    font-weight: 600;
+    cursor: pointer;
+
+    &.on { border-color: transparent; background: var(--section-accent); color: var(--section-accent-ink); }
+  }
+}
+
+.mc-pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+
+.mc-pick-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 8px 12px;
+  border: 1px solid var(--sv2-border);
+  border-radius: 12px;
+  background: var(--sv2-surface-1);
+  color: var(--sv2-text);
+  text-align: left;
+  cursor: pointer;
+
+  &:hover { border-color: var(--sv2-border-strong); }
+  &.on { border-color: var(--section-accent); background: color-mix(in srgb, var(--section-accent) 12%, var(--sv2-surface-1)); }
+}
+
+.mc-pick-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--sv2-fs-sm); font-weight: 600; }
+.mc-pick-mark { color: var(--section-accent-text); font-weight: 800; }

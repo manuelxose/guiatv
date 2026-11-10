@@ -1,0 +1,244 @@
+@if (safeLdHtml) {<div [innerHTML]="safeLdHtml"></div>}
+<app-panel-shell sideLabel="Programación TV" [contextLabel]="item ? 'Ficha de ' + item.title : 'Ficha'" [(contextOpen)]="contextOpen">
+  <app-panel-nav panelSide title="Programación TV" [links]="sideLinks" [groups]="sideGroups"></app-panel-nav>
+
+  <!-- Right panel (as in the mockup): where to watch it, the facts, sharing and the assistant. No copy of the hero card. -->
+  <section panelContext class="fx">
+    @if (item; as content) {
+    @if (schedule.broadcasts.items.length) {
+    <div class="fx__block">
+      <h3>{{ content.contentType === 'program' ? 'Cuándo verlo' : 'Dónde verlo en TV' }}</h3>
+      <ul class="fx__plats">
+        @for (b of schedule.broadcasts.items.slice(0, 4); track b.airingId) {
+        <li>
+          <a [routerLink]="b.channel.path">
+            <span class="ch-logo">@if (b.channel.icon) {<img [src]="b.channel.icon" alt="" width="36" height="36" loading="lazy" />} @else {<span>{{ b.channel.name.charAt(0) }}</span>}</span>
+            <span><strong>{{ b.channel.name }}</strong><small>{{ formatTime(b.start) }}</small></span>
+          </a>
+        </li>
+        }
+      </ul>
+    </div>
+    }
+
+    <div class="fx__block">
+      <h3>Ficha</h3>
+      <dl class="fx__kv">
+        @for (row of facts; track row[0]) {<div><dt>{{ row[0] }}</dt><dd>{{ row[1] }}</dd></div>}
+      </dl>
+    </div>
+
+    <div class="fx__block">
+      <app-share-buttons variant="branded" [url]="shareUrl" [title]="content.title"></app-share-buttons>
+    </div>
+    }
+
+    <div class="fx__assistant">
+      <strong>Pregunta al asistente</strong>
+      <div class="fx__asks">
+        @for (ask of assistantAsks; track ask) {<button type="button" (click)="openAssistant()">{{ ask }}</button>}
+      </div>
+    </div>
+  </section>
+
+  <div class="fd">
+    <nav class="fd__subnav chips" aria-label="Programación TV">
+      @for (l of sideLinks; track l.path) {<a [routerLink]="l.path">{{ l.label }}</a>}
+    </nav>
+
+    @if (loading) {
+    <div class="fd__skeleton" aria-busy="true" aria-label="Cargando ficha">
+      <div class="sk sk--hero"></div>
+      <div class="sk sk--line"></div>
+      <div class="sk sk--line sk--short"></div>
+    </div>
+    } @else if (item; as content) {
+    <nav class="fd__bc" aria-label="Migas de pan">
+      @for (crumb of breadcrumbItems; track crumb.url; let last = $last) {
+        @if (last) {<span aria-current="page">{{ crumb.name }}</span>} @else {<a [routerLink]="crumb.url">{{ crumb.name }}</a><span aria-hidden="true">›</span>}
+      }
+    </nav>
+
+    <!-- Hero: backdrop (when there is one), poster, title, facts and the main actions. -->
+    <header class="fd__hero" [class.fd__hero--art]="content.backdrop || content.image">
+      @if (content.backdrop || content.image) {
+      <img class="fd__backdrop" [src]="backdropUrl(content.backdrop || content.image || '')" alt="" decoding="async" />
+      }
+      <div class="fd__hero-body">
+        @if (content.image) {
+        <img class="fd__poster" [class.fd__poster--wide]="content.contentType === 'program'" [src]="posterUrl(content.image)" [alt]="content.title" width="160" height="240" loading="eager" fetchpriority="high" decoding="async" />
+        }
+        <div class="fd__head">
+          <div class="fd__pills">
+            <span class="pill">{{ contentTypeLabel(content.contentType) }}</span>
+            @if (content.liveNow) {<span class="pill pill--live">En directo</span>}
+          </div>
+          <h1>{{ content.title }}</h1>
+          @if (originalTitle(content); as original) {<p class="fd__orig"><span class="sr-only">Título original: </span><i>{{ original }}</i></p>}
+          <p class="fd__meta">
+            @if (content.releaseYear) {<span>{{ content.releaseYear }}</span>}
+            @if (content.contentType !== 'series' && content.durationMinutes) {<span>{{ content.durationMinutes }} min</span>}
+            @if (content.contentType !== 'program' && content.channel?.name) {<span>{{ content.channel?.name }}</span>}
+            @if (content.rating) {<span class="fd__rating">★ {{ content.rating | number: '1.0-1' }}/10</span>}
+          </p>
+          @if (content.contentType === 'program' && programmeTiming(content); as timing) {
+          <p class="fd__timing" aria-live="polite"><strong>{{ programmeSlot(content) }}</strong> · {{ timing.text }} <small>· Horario peninsular (Madrid)</small></p>
+          @if (timing.state === 'live' && content.start && content.end) {<span class="fd__bar" aria-hidden="true"><i [style.width.%]="progress(content)"></i></span>}
+          }
+          @if (content.genres?.length) {
+          <ul class="fd__genres" aria-label="Géneros">@for (genre of content.genres; track genre) {<li>{{ genre }}</li>}</ul>
+          }
+          <div class="fd__actions">
+            @if (content.contentType === 'program') {
+              @if (content.channel?.id) {<a class="btn btn--pri" [routerLink]="channelCanonicalPath(content.channel, content.channel!.id)">Ver programación de {{ content.channel?.name || 'este canal' }}</a>}
+            } @else if (nextBroadcast; as b) {
+              <a class="btn btn--pri" [routerLink]="b.channel.path">{{ broadcastLabel(b) }}</a>
+            } @else if (hasWhereToWatch(content)) {
+              <a class="btn btn--pri" [attr.href]="currentPath + '#donde-ver'">Dónde {{ content.contentType === 'movie' ? 'verla' : 'verla online' }}</a>
+            }
+            <app-interaction-buttons [compact]="true" [itemId]="content.catalogId" [title]="content.title" [type]="content.contentType" [tmdbId]="content.tmdbId" [genres]="content.genres" [image]="content.image || content.backdrop" [platform]="content.primaryPlatforms?.[0]" [preloadInteraction]="true"></app-interaction-buttons>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="fd__links">
+      <!-- M10: API-verified relationships only (same TMDB work and kind); absent fields render nothing. -->
+      @if (content.source === 'program' && content.workPath) {
+      <a [routerLink]="content.workPath" data-testid="work-link">Ficha completa de {{ content.workPath.startsWith('/series/') ? 'la serie' : 'la película' }}</a>
+      }
+      @if (content.source === 'tmdb' && content.programmePath) {
+      <a [routerLink]="content.programmePath" data-testid="programme-link">Horarios de {{ content.title }} en televisión</a>
+      }
+      <!-- M10-B: an airing links its programme's page only when the API says that page is indexed under its own URL. -->
+      @if (content.source === 'program' && content.programmePath && content.programmePath !== currentPath) {
+      <a [routerLink]="content.programmePath" data-testid="programme-page-link">Todos los horarios de {{ content.title }}</a>
+      }
+    </div>
+
+    <section class="fd__prose" aria-labelledby="fd-synopsis">
+      <h2 id="fd-synopsis" class="fd__h2">{{ content.contentType === 'program' ? 'De qué va ' + content.title : content.contentType === 'series' ? 'De qué trata ' + content.title : 'Sinopsis de ' + content.title }}</h2>
+      <p>{{ content.synopsis || 'Sinopsis no disponible.' }}</p>
+    </section>
+
+    <nav class="fd__jump chips chips--sm" aria-label="En esta ficha">
+      <a [attr.href]="broadcastHref">Emisiones</a>
+      @if (hasWhereToWatch(content)) {<a [attr.href]="currentPath + '#donde-ver'">Dónde ver</a>}
+      @if (schedule.channel.length) {<a [attr.href]="currentPath + '#en-el-canal'">{{ content.channel?.name ? 'Después en ' + content.channel?.name : 'En el canal' }}</a>}
+      @if (content.cast?.length) {<a [attr.href]="currentPath + '#reparto'">Reparto</a>}
+      @if (relatedTiles.length) {<a [attr.href]="currentPath + '#similares'">Similares</a>}
+      @if (faq.length) {<a [attr.href]="currentPath + '#preguntas'">Preguntas</a>}
+    </nav>
+
+    <div id="emisiones" class="fd__anchor">
+      <app-entity-broadcast-list [broadcasts]="schedule.broadcasts" [now]="now" [entityTitle]="content.title"></app-entity-broadcast-list>
+    </div>
+
+    @if (hasWhereToWatch(content)) {
+    <section id="donde-ver" class="fd__anchor" aria-labelledby="fd-where">
+      <h2 id="fd-where" class="fd__h2">Dónde ver {{ content.title }}</h2>
+      <app-where-to-watch
+        [providersData]="content.whereToWatch"
+        [primaryPlatforms]="content.primaryPlatforms"
+        [tmdbId]="content.tmdbId"
+        [contentType]="providerContentType(content)"
+        placement="catalog-detail"
+        [catalogId]="content.catalogId"
+        [providerHint]="content.channel?.name"
+        [page]="content.detailPath"
+      ></app-where-to-watch>
+    </section>
+    }
+
+    @if (content.socialSummary?.friendsWhoWatched || content.userInteraction?.status || content.userInteraction?.rating) {
+    <p class="fd__personal">
+      @if (content.socialSummary?.friendsWhoWatched) {<span>Tus amigos: {{ content.socialSummary?.friendsWhoWatched }} lo han visto</span>}
+      @if (content.userInteraction?.status) {<span>Tu estado: {{ humanStatus(content.userInteraction?.status || '') }}</span>}
+      @if (content.userInteraction?.rating) {<span>Tu nota: {{ content.userInteraction?.rating }}/10</span>}
+    </p>
+    }
+
+    @if (content.cast?.length) {
+    <section id="reparto" class="fd__anchor" aria-labelledby="fd-cast">
+      <h2 id="fd-cast" class="fd__h2">Reparto de {{ content.title }}</h2>
+      @if (content.director) {<p class="fd__note">Dirección: <strong>{{ content.director }}</strong></p>}
+      <ul class="fd__cast">
+        @for (member of content.cast; track member.name) {
+        <li>
+          @if (member.profile) {<img [src]="castImageUrl(member.profile)" [alt]="member.name" width="72" height="72" loading="lazy" decoding="async" />} @else {<span class="fd__initials" aria-hidden="true">{{ castInitialsFor(member.name) }}</span>}
+          <strong>{{ member.name }}</strong>
+          <small>{{ member.character || 'Reparto' }}</small>
+        </li>
+        }
+      </ul>
+    </section>
+    }
+
+    @if (schedule.channel.length) {
+    <section id="en-el-canal" class="fd__anchor" aria-labelledby="channel-programmes-heading">
+      <div class="fd__sec-head">
+        <h2 id="channel-programmes-heading" class="fd__h2">Qué más echan en {{ content.channel?.name || 'este canal' }}</h2>
+        @if (content.channel?.id) {<a [routerLink]="channelCanonicalPath(content.channel, content.channel!.id)">Programación completa ›</a>}
+      </div>
+      <div class="fd__grid">
+        @for (airing of schedule.channel; track airing.catalogId) {
+        <a class="air" [routerLink]="airing.workPath || airing.detailPath || channelCanonicalPath({ normalizedName: airing.channelNormalizedName }, airing.channelId)">
+          <span class="air__thumb">
+            @if (airing.image) {<img [src]="airingThumbUrl(airing.image)" alt="" loading="lazy" decoding="async" />}
+            @else if (airing.channelIcon) {<img class="air__icon" [src]="airing.channelIcon" alt="" loading="lazy" />}
+            @if (airing.liveNow) {<span class="pill pill--live">En directo</span>}
+          </span>
+          <strong>{{ airing.title || airing.channelName }}</strong>
+          <small>{{ airing.channelName }} · {{ formatTime(airing.start) }}</small>
+        </a>
+        }
+      </div>
+    </section>
+    }
+
+    @if (relatedTiles.length) {
+    <section id="similares" class="fd__anchor" aria-labelledby="fd-related">
+      <h2 id="fd-related" class="fd__h2">{{ content.contentType === 'program' ? 'Programas parecidos' : 'Si te gusta ' + content.title }}</h2>
+      <div class="fd__grid">
+        @for (rel of relatedTiles; track rel.catalogId) {<app-panel-tile [item]="rel" [variant]="rel.source === 'tmdb' ? 'poster' : 'tv'"></app-panel-tile>}
+      </div>
+    </section>
+    }
+
+    <section class="fd__about" aria-labelledby="fd-about">
+      <h2 id="fd-about" class="fd__h2">Sobre {{ content.title }}</h2>
+      <p>{{ aboutText(content) }}</p>
+      <p>
+        Consulta también la <a [routerLink]="appPaths.guide">parrilla de TV</a>@if (hub; as h) {, la sección de <a [routerLink]="h.url">{{ h.name.toLowerCase() }}</a>} y <a [routerLink]="appPaths.explore">qué ver hoy</a>.
+      </p>
+    </section>
+
+    @if (faq.length) {
+    <section id="preguntas" class="fd__anchor fd__faq" aria-labelledby="fd-faq">
+      <h2 id="fd-faq" class="fd__h2">Preguntas frecuentes sobre {{ content.title }}</h2>
+      @for (q of faq; track q.question) {
+      <details>
+        <summary>{{ q.question }}</summary>
+        <p>{{ q.answer }}</p>
+      </details>
+      }
+    </section>
+    }
+
+    @if (content.enrichment?.attribution; as attribution) {
+    <footer class="fd__attr">
+      <p>{{ attribution.notice }} <a href="https://www.themoviedb.org" rel="noopener noreferrer">themoviedb.org</a></p>
+      <p>Datos actualizados el <time [attr.datetime]="attribution.updatedAt">{{ updatedOn(attribution.updatedAt) }}</time>.</p>
+    </footer>
+    }
+    } @else {
+    <app-unified-async-state
+      kind="empty"
+      title="No hemos podido cargar esta ficha"
+      message="Puede que el contenido ya no esté disponible o que la URL antigua no tenga una correspondencia válida."
+      actionLabel="Volver a explorar"
+      (action)="goExplore()"
+    ></app-unified-async-state>
+    }
+  </div>
+</app-panel-shell>

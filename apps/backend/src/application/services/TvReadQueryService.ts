@@ -64,6 +64,11 @@ export interface TvReadScheduleParams {
   channelId?: string;
   q?: string;
   itemsPerChannel?: number;
+  /** 'grid': the light per-item projection a channel × time grid needs (gridTvReadItem). */
+  fields?: 'grid';
+  /** ISO country code (e.g. 'GB'). Omitted or 'es'/'all': no country match — today's Spanish channels predate
+   * countryCode (see XMLParser.extractCountry) and would otherwise vanish from the default, unfiltered view. */
+  country?: string;
 }
 
 export interface TvReadProgramSitemapRow {
@@ -240,6 +245,7 @@ export function buildTvReadSchedulePipeline(params: {
   channelId?: string;
   q?: string;
   itemsPerChannel?: number;
+  country?: string;
 }): any[] {
   const match: Record<string, any> = {
     date: params.date,
@@ -255,6 +261,10 @@ export function buildTvReadSchedulePipeline(params: {
   }
   if (params.group && normalizeTvToken(params.group, ' ') !== 'all') {
     andClauses.push(buildTvReadChannelGroupClause(params.group));
+  }
+  const normalizedCountry = normalizeTvToken(params.country, ' ');
+  if (normalizedCountry && normalizedCountry !== 'all' && normalizedCountry !== 'es') {
+    andClauses.push({ 'channel.countryCode': String(params.country).trim().toUpperCase() });
   }
   if (params.channelId) {
     const raw = String(params.channelId).trim();
@@ -488,6 +498,51 @@ export function compactTvReadItem(item: TvReadItemDTO): TvReadItemDTO {
     sourceProvenance: { schedule: [], metadata: [], assets: [] },
     timingContext: item.timingContext,
     relevance: item.relevance,
+    detailPath: item.detailPath,
+  };
+}
+
+/**
+ * Grid projection (`/tv/read/schedule?fields=grid`): only what a channel × time grid draws, filters and links to
+ * (~5× lighter than the compact card). Synopsis, image sets and provenance stay on the item and channel endpoints.
+ */
+export function gridTvReadItem(item: TvReadItemDTO): TvReadItemDTO {
+  const image = item.assets?.poster || item.assets?.backdrop || item.assets?.primary;
+  const { channel, program } = item;
+  return {
+    id: item.id,
+    channel: {
+      id: channel.id,
+      name: channel.name,
+      normalizedName: channel.normalizedName,
+      aliases: [],
+      sourceIds: [],
+      type: channel.type,
+      group: channel.group,
+      subgroups: [],
+      sortOrder: channel.sortOrder,
+      icon: channel.icon,
+      region: channel.region,
+      country: channel.country,
+      countryCode: channel.countryCode,
+    },
+    program: {
+      brandKey: program.brandKey,
+      title: program.title,
+      normalizedTitle: program.normalizedTitle,
+      titleAliases: [],
+      editorialCategory: program.editorialCategory,
+      genre: program.genre,
+      sportFacet: program.sportFacet,
+      workPath: program.workPath,
+      programmePath: program.programmePath,
+    },
+    airing: item.airing,
+    assets: { poster: image, fallbackChain: [] },
+    availability: item.availability,
+    sourceProvenance: { schedule: [], metadata: [], assets: [] },
+    timingContext: { liveNow: item.airing.liveNow },
+    relevance: { score: 0, reason: '' },
     detailPath: item.detailPath,
   };
 }
@@ -730,8 +785,13 @@ export class TvReadQueryService {
     );
   }
 
-  getSchedule(params: TvReadScheduleParams): Promise<TvReadScheduleResponseDTO> {
-    return this.singleFlight(`schedule:${JSON.stringify(params)}`, () => timeStep('tvread.schedule', () => this.loadSchedule(params), BACKGROUND_STEP));
+  async getSchedule(params: TvReadScheduleParams): Promise<TvReadScheduleResponseDTO> {
+    const { fields, ...query } = params;
+    // One cache entry per query; the grid projection is applied on the way out.
+    const schedule = await this.singleFlight(`schedule:${JSON.stringify(query)}`, () => timeStep('tvread.schedule', () => this.loadSchedule(query), BACKGROUND_STEP));
+    return fields === 'grid'
+      ? { ...schedule, channels: schedule.channels.map((entry) => ({ ...entry, items: entry.items.map(gridTvReadItem) })) }
+      : schedule;
   }
 
   private async loadQuery(params: TvReadQueryParams): Promise<TvReadResponseDTO> {
@@ -1033,7 +1093,8 @@ export class TvReadQueryService {
       : params.category;
     const itemsPerChannel = resolveTvReadItemsPerChannel(params.itemsPerChannel);
     const q = String(params.q || '').trim() || undefined;
-    const cacheKey = `tv:schedule:${date}:${group || 'all'}:${category || 'all'}:${params.channelId || 'all'}:${q || ''}:${itemsPerChannel}`;
+    const country = normalizeTvToken(params.country, ' ');
+    const cacheKey = `tv:schedule:${date}:${group || 'all'}:${category || 'all'}:${params.channelId || 'all'}:${q || ''}:${itemsPerChannel}:${country || 'es'}`;
     const cached = await this.cacheRepository.get<TvReadScheduleResponseDTO>(cacheKey);
     if (cached) return { ...cached, meta: { ...cached.meta, cached: true } };
 
@@ -1045,6 +1106,7 @@ export class TvReadQueryService {
         channelId: params.channelId,
         q,
         itemsPerChannel,
+        country: params.country,
       }))
       .exec()) as TvReadScheduleRow[];
     const reference = new Date();

@@ -1,265 +1,182 @@
-<app-unified-portal-shell
-  tone="editorial"
-  [breadcrumbItems]="[]"
-  [showHero]="false"
->
-  <app-portal-context-nav kind="blog" [breadcrumbItems]="breadcrumbItems"></app-portal-context-nav>
-  <div *ngIf="safeLdHtml" [innerHTML]="safeLdHtml"></div>
-  <div class="editorial-post-page pb-20 pt-2">
-    <section *ngIf="loading" aria-busy="true" aria-label="Cargando artículo" class="space-y-6">
-      <app-unified-skeleton-block [count]="1" [columns]="1" cardHeight="20rem"></app-unified-skeleton-block>
-      <app-unified-skeleton-block [count]="1" [columns]="1" cardHeight="32rem"></app-unified-skeleton-block>
-    </section>
+@if (safeLdHtml) {<div [innerHTML]="safeLdHtml"></div>}
 
-    <app-unified-async-state
-      *ngIf="!loading && error"
-      kind="error"
-      title="El artículo no está disponible ahora mismo"
-      [message]="error"
-      actionLabel="Reintentar"
-      (action)="retry()"
-    ></app-unified-async-state>
+<app-panel-shell sideLabel="Guías" contextLabel="En este artículo" [(contextOpen)]="contextOpen">
+  <app-panel-nav panelSide title="Guías" [links]="sideLinks" [groups]="sideGroups"></app-panel-nav>
 
-    <app-unified-async-state
-      *ngIf="!loading && notFound"
-      kind="empty"
-      title="Artículo no encontrado"
-      message="La página que buscas no existe o ha cambiado de dirección."
-    ></app-unified-async-state>
+  <!-- Right panel: contents of the article, the services it mentions, sharing and the assistant. -->
+  <section panelContext class="cx" aria-labelledby="ax-title">
+    <h2 id="ax-title" class="cx__label">En este artículo</h2>
+    @if (state) {
+    @if (toc.length) {
+    <nav class="cx__card" aria-label="Contenido del artículo">
+      <ol class="gx__toc">
+        @for (item of toc; track item.id) {<li [class.gx__toc-sub]="item.level === 3"><a [routerLink]="[]" [fragment]="item.id">{{ item.label }}</a></li>}
+      </ol>
+    </nav>
+    }
+    @if (relatedPlatforms.length) {
+    <div class="cx__block">
+      <h3>Mencionado en el artículo</h3>
+      <ul class="cx__list">
+        @for (p of relatedPlatforms; track p.name) {
+        <li><a [routerLink]="appPaths.platforms" [queryParams]="{ platform: p.name }"><span><strong>{{ p.name }}</strong><small>Catálogo, precio y novedades</small></span></a></li>
+        }
+      </ul>
+    </div>
+    }
+    <div class="cx__block">
+      <app-share-buttons [url]="currentUrl" [title]="state.post.title"></app-share-buttons>
+    </div>
+    @if (hasRouteRelation('comparison')) {
+    <a class="cx__more" [routerLink]="appPaths.streamingComparison">Comparar plataformas ›</a>
+    }
+    }
+    <div class="cx__assistant">
+      <strong>Pregunta al asistente</strong>
+      <div class="cx__asks">
+        <button type="button" (click)="openAssistant()">Resume este artículo</button>
+        <button type="button" (click)="openAssistant()">Tengo una duda sobre esto</button>
+      </div>
+    </div>
+  </section>
 
-    <ng-container *ngIf="!loading && state">
-      <article class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div class="min-w-0 space-y-10">
-          <section
-            class="relative overflow-hidden rounded-[2rem] border border-[var(--portal-border)] bg-[var(--portal-surface)] p-6 shadow-[var(--shadow-lg)] md:p-10"
-          >
-            <div class="absolute inset-0 bg-[linear-gradient(135deg,color-mix(in_oklch,var(--portal-text)_4%,transparent),transparent_35%,transparent_65%,color-mix(in_oklch,var(--accent-editorial)_8%,transparent))]"></div>
-            <div class="relative space-y-6">
-              <div class="flex flex-wrap gap-2">
-                <span
-                  class="rounded-full border border-[var(--accent-editorial)] bg-[var(--accent-editorial-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--accent-editorial)]"
-                >
-                  {{ state.post.contentType === 'ranking' ? 'Ranking' : state.post.contentType === 'trend' ? 'Tendencia' : 'Guía' }}
-                </span>
-                <span
-                  *ngFor="let category of state.post.categories"
-                  class="rounded-full border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--portal-text)]"
-                >
-                  {{ category.name }}
-                </span>
-              </div>
+  <div class="qv">
+    <nav class="qv__subnav chips" aria-label="Guías">
+      @for (l of sideLinks; track l.label) {<a [routerLink]="l.path">{{ l.label }}</a>}
+    </nav>
 
-              <div class="space-y-4">
-                <h1 class="max-w-4xl text-4xl font-black tracking-tight text-[var(--portal-text)] md:text-6xl">
-                  {{ state.post.title }}
-                </h1>
-                <p class="max-w-3xl text-base leading-7 text-[var(--portal-text-soft)] md:text-lg">
-                  {{ state.post.excerptText }}
-                </p>
-              </div>
+    @if (loading) {
+    <div class="qv__grid" aria-busy="true" aria-label="Cargando artículo">@for (i of [1, 2]; track i) {<div class="qv__skeleton qv__skeleton--tv"></div>}</div>
+    } @else if (error) {
+    <app-unified-async-state kind="error" title="El artículo no está disponible ahora mismo" [message]="error" actionLabel="Reintentar" (action)="retry()"></app-unified-async-state>
+    } @else if (notFound) {
+    <app-unified-async-state kind="empty" title="Artículo no encontrado" message="La página que buscas no existe o ha cambiado de dirección."></app-unified-async-state>
+    <a class="cx__more" [routerLink]="appPaths.blog">Ver todas las guías ›</a>
+    } @else if (state) {
+    <article class="art">
+      <!-- Reading progress through the page (the shell's <main> is the scroller). -->
+      <div class="art__progress" aria-hidden="true"><i [style.width.%]="progress()"></i></div>
 
-              <div class="flex flex-wrap items-center gap-4 text-sm text-[var(--portal-text-soft)]">
-                <span *ngIf="state.post.author">Por {{ state.post.author.name }}</span>
-                <span *ngIf="state.post.reviewedBy">• Revisado por {{ state.post.reviewedBy }}</span>
-                <span *ngIf="state.post.author">•</span>
-                <span>{{ state.post.publishedAt | date : 'longDate' }}</span>
-                <span *ngIf="showUpdatedDate">•</span>
-                <span *ngIf="showUpdatedDate">Actualizado {{ state.post.modifiedAt | date : 'longDate' }}</span>
-                <span>•</span>
-                <span>{{ state.post.readingMinutes }} min de lectura</span>
-                <span *ngIf="state.post.isRanking">• Ranking editorial</span>
-              </div>
-            </div>
-          </section>
-
-          <!-- The shared fallback cover is the same on every post: only show a post's own image. -->
-          <figure *ngIf="state.post.coverImage !== '/assets/images/blog-og-image.webp'" class="overflow-hidden rounded-[1.75rem] border border-[var(--portal-border)] bg-[var(--portal-surface)]">
-            <img
-              [src]="state.post.coverImage"
-              [alt]="state.post.coverAlt || state.post.title"
-              class="h-auto w-full object-cover"
-              loading="eager"
-            />
-          </figure>
-
-          <nav
-            *ngIf="state.post.tocItems.length"
-            class="article-toc article-toc--inline"
-            aria-label="Contenido del artículo"
-          >
-            <h2>En este artículo</h2>
-            <a
-              *ngFor="let item of state.post.tocItems"
-              [href]="'#' + item.id"
-              [class.article-toc__subitem]="item.level === 3"
-            >
-              {{ item.label }}
-            </a>
-          </nav>
-
-          <div
-            class="editorial-post__content post-content rounded-[1.75rem] border border-[var(--portal-border)] bg-[var(--portal-surface)] p-6 md:p-8"
-            [innerHTML]="state.post.contentHtml"
-          ></div>
-
-          <app-blog-affiliate-block
-            [post]="state.post"
-            placement="blog-inline"
-            heading="Dónde conseguirlo"
-            [maxResults]="3"
-          ></app-blog-affiliate-block>
-
-          <app-faq-section
-            *ngIf="state.post.faqItems.length"
-            [heading]="'Preguntas frecuentes sobre ' + state.post.title"
-            [items]="state.post.faqItems"
-          ></app-faq-section>
-
-          <app-catalog-rail
-            *ngIf="platformRailItems.length"
-            eyebrow="Plataformas relacionadas"
-            title="Titulos ligados a este articulo"
-            subtitle="Catalogo vivo filtrado desde las plataformas relacionadas con esta pieza."
-            linkLabel="Ver plataformas"
-            [linkPath]="appPaths.platforms"
-            [linkQueryParams]="platformCatalogQueryParams"
-            [items]="platformRailItems"
-          ></app-catalog-rail>
-
-          <app-catalog-rail
-            *ngIf="exploreRailItems.length"
-            eyebrow="Descubrimiento"
-            title="Que ver hoy si sigues esta lectura"
-            subtitle="Seleccion viva para continuar el recorrido desde la recomendacion editorial."
-            linkLabel="Abrir Que ver hoy"
-            [linkPath]="appPaths.explore"
-            [items]="exploreRailItems"
-          ></app-catalog-rail>
-
-          <app-catalog-rail
-            *ngIf="guideRailItems.length"
-            eyebrow="Guia TV"
-            title="Ahora mismo en emision"
-            subtitle="Programas y emisiones vivas para pasar del articulo a la guia sin cambiar de flujo."
-            linkLabel="Ver guia TV"
-            [linkPath]="appPaths.guide"
-            [items]="guideRailItems"
-          ></app-catalog-rail>
-
-          <section *ngIf="trendingItems.length" class="space-y-5 rounded-[1.75rem] border border-[var(--portal-border)] bg-[var(--portal-surface)] p-6">
-            <div class="flex items-end justify-between gap-4">
-              <div>
-                <p class="text-[11px] uppercase tracking-[0.35em] text-[var(--portal-text-muted)]">Tendencias</p>
-                <h2 class="mt-2 text-2xl font-semibold text-[var(--portal-text)]">Lo que mas se mueve ahora</h2>
-              </div>
-              <a
-                [routerLink]="appPaths.stats"
-                class="min-h-[40px] rounded-full border border-[var(--portal-border-strong)] px-4 py-2 text-sm font-semibold text-[var(--portal-text)] transition-colors hover:border-[var(--portal-border-strong)] hover:text-[var(--portal-text)]"
-              >
-                Ver tendencias
-              </a>
-            </div>
-            <div class="grid gap-3 md:grid-cols-2">
-              <a
-                *ngFor="let item of trendingItems"
-                [routerLink]="item.path"
-                class="rounded-[1.25rem] border border-[var(--portal-border)] bg-[var(--portal-surface-strong)] p-4 transition-colors hover:border-[var(--portal-border-strong)]"
-              >
-                <div class="flex items-center justify-between gap-3">
-                  <h3 class="text-sm font-semibold text-[var(--portal-text)]">{{ item.title }}</h3>
-                  <span class="text-xs text-[var(--accent-editorial)]">{{ item.score }}%</span>
-                </div>
-                <p class="mt-2 text-xs text-[var(--portal-text-muted)]">
-                  {{ item.platform || 'TV / streaming' }}<span *ngIf="item.category"> · {{ item.category }}</span>
-                </p>
-              </a>
-            </div>
-          </section>
-
-          <section *ngIf="state.relatedPosts.length" class="space-y-5">
-            <div>
-              <p class="text-[11px] uppercase tracking-[0.35em] text-[var(--portal-text-muted)]">Sigue leyendo</p>
-              <h2 class="mt-2 text-2xl font-semibold text-[var(--portal-text)]">Artículos relacionados</h2>
-            </div>
-            <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <app-editorial-post-card
-                *ngFor="let post of state.relatedPosts"
-                [post]="post"
-              ></app-editorial-post-card>
-            </div>
-          </section>
-
-          <app-blog-affiliate-block
-            [post]="state.post"
-            placement="blog-footer"
-            heading="Ofertas relacionadas"
-            [maxResults]="4"
-          ></app-blog-affiliate-block>
+      <header class="art__head">
+        <nav class="qv__bc" aria-label="Migas de pan">
+          <a [routerLink]="appPaths.home">Inicio</a><span aria-hidden="true">›</span><a [routerLink]="appPaths.blog">Guías</a>
+          @if (state.post.primaryCategory; as cat) {<span aria-hidden="true">›</span><a [routerLink]="cat.canonicalPath">{{ cat.name }}</a>}
+        </nav>
+        <p class="art__kicker">
+          <span class="art__type">{{ state.post.contentType === 'ranking' ? 'Ranking' : state.post.contentType === 'trend' ? 'Tendencia' : 'Guía' }}</span>
+          @for (c of state.post.categories; track c.slug) {<a [routerLink]="c.canonicalPath">{{ c.name }}</a>}
+          <span>{{ state.post.readingMinutes }} min de lectura</span>
+        </p>
+        <h1>{{ state.post.title }}</h1>
+        @if (state.post.excerptText) {<p class="art__lede">{{ state.post.excerptText }}</p>}
+        <div class="art__byline">
+          <span class="art__avatar" aria-hidden="true">{{ authorInitials }}</span>
+          <span class="art__who">
+            <strong>{{ state.post.author?.name || 'Equipo editorial de Guía TV' }}</strong>
+            <small>
+              {{ state.post.publishedAt | date: 'd MMMM y' }}
+              @if (showUpdatedDate) { · actualizado {{ state.post.modifiedAt | date: 'd MMMM y' }}}
+              @if (state.post.reviewedBy) { · revisado por {{ state.post.reviewedBy }}}
+            </small>
+          </span>
         </div>
+      </header>
 
-        <aside class="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <nav
-            *ngIf="state.post.tocItems.length"
-            class="article-toc article-toc--aside"
-            aria-label="Contenido del artículo"
-          >
-            <h2>En este artículo</h2>
-            <a
-              *ngFor="let item of state.post.tocItems"
-              [href]="'#' + item.id"
-              [class.article-toc__subitem]="item.level === 3"
-            >
-              {{ item.label }}
-            </a>
-          </nav>
+      <!-- The shared fallback cover is the same on every post: only show a post's own image. -->
+      @if (state.post.coverImage && state.post.coverImage !== '/assets/images/blog-og-image.webp') {
+      <figure class="art__cover"><img [src]="state.post.coverImage" [alt]="state.post.coverAlt || state.post.title" loading="eager" fetchpriority="high" /></figure>
+      }
 
-          <div class="rounded-[1.75rem] border border-[var(--portal-border)] bg-[var(--portal-surface)] p-5">
-            <p class="text-[11px] uppercase tracking-[0.28em] text-[var(--portal-text-muted)]">Compartir</p>
-            <div class="mt-4">
-              <app-share-buttons
-                [url]="currentUrl"
-                [title]="state.post.title"
-              ></app-share-buttons>
-            </div>
-          </div>
+      @if (toc.length > 1) {
+      <nav class="art__toc" aria-labelledby="art-toc-h">
+        <h2 id="art-toc-h">En este artículo</h2>
+        <ol>
+          @for (item of toc; track item.id) {<li [class.sub]="item.level === 3"><a [routerLink]="[]" [fragment]="item.id">{{ item.label }}</a></li>}
+        </ol>
+      </nav>
+      }
 
-          <a
-            [routerLink]="appPaths.platforms"
-            [queryParams]="platformCatalogQueryParams"
-            class="block rounded-[1.75rem] border border-[var(--portal-border)] bg-[var(--portal-surface)] p-5 transition-colors hover:border-[var(--portal-border-strong)]"
-          >
-            <p class="text-[11px] uppercase tracking-[0.28em] text-[var(--portal-text-muted)]">Plataformas</p>
-            <h2 class="mt-3 text-xl font-semibold text-[var(--portal-text)]">Cruza la lectura con el catálogo real</h2>
-            <p class="mt-2 text-sm leading-6 text-[var(--portal-text-soft)]">
-              Salta de un artículo editorial a las plataformas donde ya puedes ver ese contenido.
-            </p>
-          </a>
+      <div class="post-content art__body" [innerHTML]="bodyHtml"></div>
 
-          <a
-            *ngIf="hasRouteRelation('comparison')"
-            [routerLink]="appPaths.streamingComparison"
-            class="block rounded-[1.75rem] border border-[var(--portal-border)] bg-[var(--portal-surface)] p-5 transition-colors hover:border-[var(--portal-border-strong)]"
-          >
-            <p class="text-[11px] uppercase tracking-[0.28em] text-[var(--portal-text-muted)]">Comparador</p>
-            <h2 class="mt-3 text-xl font-semibold text-[var(--portal-text)]">Decide mejor entre servicios</h2>
-            <p class="mt-2 text-sm leading-6 text-[var(--portal-text-soft)]">
-              Usa el comparador de plataformas sin abandonar el flujo editorial de la app.
-            </p>
-          </a>
+      <footer class="art__end">
+        <div class="art__author">
+          <span class="art__avatar art__avatar--lg" aria-hidden="true">{{ authorInitials }}</span>
+          <span>
+            <strong>{{ state.post.author?.name || 'Equipo editorial de Guía TV' }}</strong>
+            <small>Guías con fuentes oficiales y datos reales de programación y catálogo.@if (state.post.reviewedBy) { Revisado por {{ state.post.reviewedBy }}.} <a routerLink="/politica-editorial">Política editorial</a></small>
+          </span>
+        </div>
+        <div class="art__share">
+          <app-share-buttons [url]="currentUrl" [title]="state.post.title"></app-share-buttons>
+        </div>
+        @if (state.post.categories.length) {
+        <div class="chips chips--wrap">
+          @for (c of state.post.categories; track c.slug) {<a [routerLink]="c.canonicalPath">Más de {{ c.name }}</a>}
+        </div>
+        }
+      </footer>
+    </article>
 
-          <a
-            *ngIf="hasRouteRelation('stats')"
-            [routerLink]="appPaths.stats"
-            class="block rounded-[1.75rem] border border-[var(--portal-border)] bg-[var(--portal-surface)] p-5 transition-colors hover:border-[var(--portal-border-strong)]"
-          >
-            <p class="text-[11px] uppercase tracking-[0.28em] text-[var(--portal-text-muted)]">Tendencias</p>
-            <h2 class="mt-3 text-xl font-semibold text-[var(--portal-text)]">Valida esta lectura con datos vivos</h2>
-            <p class="mt-2 text-sm leading-6 text-[var(--portal-text-soft)]">
-              Cruza el articulo con la capa de señales y contenidos en tendencia de la app.
-            </p>
-          </a>
-        </aside>
-      </article>
-    </ng-container>
+    <app-blog-affiliate-block [post]="state.post" placement="blog-inline" heading="Dónde conseguirlo" [maxResults]="3"></app-blog-affiliate-block>
+
+    @if (state.post.faqItems.length) {
+    <app-faq-section [heading]="'Preguntas frecuentes sobre ' + state.post.title" [items]="state.post.faqItems"></app-faq-section>
+    }
+
+    @if (platformRailItems.length) {
+    <section aria-labelledby="a-platforms">
+      <div class="qv__sec-head"><h2 id="a-platforms" class="qv__h2">Títulos de las plataformas del artículo</h2>@if (relatedPlatforms[0]; as p) {<a [routerLink]="appPaths.platforms" [queryParams]="{ platform: p.name }">Catálogo de {{ p.name }} ›</a>}</div>
+      <div class="qv__grid qv__grid--poster">
+        @for (item of platformRailItems; track item.catalogId) {<app-panel-tile [item]="item" variant="poster"></app-panel-tile>}
+      </div>
+    </section>
+    }
+
+    @if (exploreRailItems.length) {
+    <section aria-labelledby="a-explore">
+      <div class="qv__sec-head"><h2 id="a-explore" class="qv__h2">Qué ver hoy si te interesa este tema</h2><a [routerLink]="appPaths.explore">Qué ver hoy ›</a></div>
+      <div class="qv__grid qv__grid--poster">
+        @for (item of exploreRailItems; track item.catalogId) {<app-panel-tile [item]="item" variant="poster"></app-panel-tile>}
+      </div>
+    </section>
+    }
+
+    @if (guideRailItems.length) {
+    <section aria-labelledby="a-tv">
+      <div class="qv__sec-head"><h2 id="a-tv" class="qv__h2">Esta noche en la TV en abierto</h2><a [routerLink]="appPaths.explore" [queryParams]="{ cuando: 'noche', donde: 'abierto' }">Toda la noche ›</a></div>
+      <div class="qv__grid">
+        @for (item of guideRailItems; track $index) {<app-panel-tile [item]="item"></app-panel-tile>}
+      </div>
+    </section>
+    }
+
+    @if (trendingItems.length) {
+    <section aria-labelledby="a-trends">
+      <div class="qv__sec-head"><h2 id="a-trends" class="qv__h2">Lo más popular ahora</h2><a [routerLink]="appPaths.stats">Tendencias ›</a></div>
+      <ol class="g-num">
+        @for (item of trendingItems; track item.path; let i = $index) {
+        <li><a [routerLink]="item.path"><span class="g-num__n">{{ i + 1 }}</span><span><strong>{{ item.title }}</strong><small>{{ item.platform || 'TV y streaming' }}@if (item.category) { · {{ item.category }}}</small></span></a></li>
+        }
+      </ol>
+    </section>
+    }
+
+    @if (morePosts.length) {
+    <section aria-labelledby="a-related">
+      <div class="qv__sec-head"><h2 id="a-related" class="qv__h2">Sigue leyendo</h2><a [routerLink]="appPaths.blog">Todas las guías ›</a></div>
+      <div class="qv__posts">
+        @for (post of morePosts; track post.slug) {
+        <a class="post" [routerLink]="post.canonicalPath">
+          <span class="post__img">@if (post.coverImage) {<img [src]="post.coverImage" [alt]="post.coverAlt || ''" loading="lazy" decoding="async" />}</span>
+          <span class="post__cat">{{ post.primaryCategory?.name || 'Guía' }} · {{ post.readingMinutes }} min</span>
+          <strong>{{ post.title }}</strong>
+        </a>
+        }
+      </div>
+    </section>
+    }
+
+    <app-blog-affiliate-block [post]="state.post" placement="blog-footer" heading="Ofertas relacionadas" [maxResults]="4"></app-blog-affiliate-block>
+    }
   </div>
-</app-unified-portal-shell>
+</app-panel-shell>

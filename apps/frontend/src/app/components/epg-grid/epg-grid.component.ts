@@ -1,36 +1,39 @@
-import { CommonModule } from '@angular/common';
 import { isPlatformBrowser } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
-  Inject,
-  Input,
   PLATFORM_ID,
-  ViewChild,
+  afterRenderEffect,
   computed,
+  inject,
+  input,
+  output,
   signal,
+  untracked,
+  viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { RouterModule } from '@angular/router';
-import { ScrollingModule } from '@angular/cdk/scrolling';
+import { RouterLink } from '@angular/router';
 import { interval } from 'rxjs';
 import { TvReadItemDTO } from '../../api/models';
 import { normalizeToCard, UnifiedCardData } from '../../utils/tv-normalizers';
 import { formatMadridHM, madridMinutesSinceMidnight, minutesBetween } from '../../utils/madrid-time';
 
-/** Pixels per minute of broadcast time — controls the horizontal density of the timeline. */
-const PX_PER_MINUTE = 2.6;
-/** Minimum on-screen width for a program block, so very short slots stay clickable/readable. */
-const MIN_CELL_WIDTH_PX = 46;
-/** Safety cap on the rendered window so a bad data point can't blow up the DOM width. */
+/** Safety cap on the rendered window so a bad data point can't blow up the grid width. */
 const MAX_WINDOW_MINUTES = 30 * 60;
+/** How far from "now" an item may sit and still help anchor the window (see computeWindow). */
+const WINDOW_LOOKBACK_MS = 24 * 3_600_000;
+const WINDOW_LOOKAHEAD_MS = 96 * 3_600_000;
 
 interface EpgGridCell {
   item: TvReadItemDTO;
   card: UnifiedCardData;
-  leftPx: number;
-  widthPx: number;
+  /** Minutes from the window start, and length in minutes: CSS turns them into px (--ppm). */
+  start: number;
+  span: number;
+  startMs: number;
+  endMs: number;
   timeLabel: string;
   ariaLabel: string;
 }
@@ -39,190 +42,134 @@ interface EpgGridRow {
   channelId: string;
   channelName: string;
   channelIcon: string;
+  channelPath: string;
   cells: EpgGridCell[];
 }
 
 interface EpgGridTick {
-  leftPx: number;
+  at: number;
   label: string;
 }
 
 /**
- * True channel×time grid for the EPG (Direction 3 "Hybrid Signal" — grid is
- * the ≥768px (tablet+, MASTER.md's breakpoint scale) default view on
- * `programacion-tv/en-directo`; the mobile channel-list view takes over
- * below that). Channels are
- * rows, a horizontal time axis runs left→right, program blocks are
- * positioned/sized from their real `airing.start`/`airing.end`.
+ * Channel × time grid (docs/design/unified-shell.html "Parrilla EPG").
  *
- * Purely presentational: consumes the same `TvReadItemDTO[]` the rail view
- * already fetches via `TvDataFacade.getAllPrograms()` (`readView('all')`) —
- * no separate API call. SSR-safe: the row/cell layout is computed from plain
- * data with `Date`/`Intl` math, no `isBrowser` gate on rendering. The only
- * browser-only behavior is the periodic refresh of the "now" line and
- * roving-focus DOM `.focus()` calls, both cosmetic/interaction concerns, not
- * data gates.
+ * Built to stay cheap with a full day of every channel:
+ * - one scroll box; the time header and the channel column are CSS sticky (no scroll syncing);
+ * - positions are minutes in CSS custom properties, so density (--ppm) is a media query, not JS;
+ * - rows use content-visibility, so off-screen rows cost no layout or paint, yet every
+ *   programme stays in the server HTML as a real link (virtual scrolling would drop them);
+ * - programme cells are plain anchors (no RouterLink per cell): a click selects the programme
+ *   (`select`), a modified/middle click opens its page natively.
  */
 @Component({
   selector: 'app-epg-grid',
   standalone: true,
-  imports: [CommonModule, RouterModule, ScrollingModule],
+  imports: [RouterLink],
   templateUrl: './epg-grid.component.html',
   styleUrl: './epg-grid.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EpgGridComponent {
-  @ViewChild('gridBody', { read: ElementRef }) private readonly gridBody?: ElementRef<HTMLElement>;
+  readonly items = input.required<TvReadItemDTO[]>();
+  /** What the page is about: 'now' opens on the current time, 'next' marks what follows, 'night' opens on prime time. */
+  readonly view = input<'now' | 'next' | 'night'>('now');
+  /** Programmes of other categories are dimmed, not hidden, so the grid keeps its shape. */
+  readonly category = input('all');
+  readonly selectedId = input<string | null>(null);
+  readonly select = output<TvReadItemDTO>();
 
-  // The CDK viewport (`.epg-grid__body`) is now the real horizontal scroll
-  // container (see epg-grid.component.scss) so `.epg-grid__channel-cell`'s
-  // `position: sticky` resolves against it correctly. The header row sits
-  // outside that viewport, so it's kept in sync manually via this offset.
-  readonly headerOffsetPx = signal(0);
+  private readonly scroller = viewChild<ElementRef<HTMLElement>>('scroller');
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
-  onBodyScroll(): void {
-    const el = this.gridBody?.nativeElement;
-    if (el) {
-      this.headerOffsetPx.set(el.scrollLeft);
-    }
-  }
+  readonly now = signal(Date.now());
+  /** Roving tabindex: only one cell is in the tab order, arrows move between cells. */
+  readonly focused = signal<[number, number]>([0, 0]);
 
-  private readonly itemsSignal = signal<TvReadItemDTO[]>([]);
-  @Input({ required: true })
-  set items(value: TvReadItemDTO[] | null | undefined) {
-    this.itemsSignal.set(value || []);
-  }
-  get items(): TvReadItemDTO[] {
-    return this.itemsSignal();
-  }
-
-  private readonly nowSignal = signal(new Date());
-  private readonly focusedRow = signal(0);
-  private readonly focusedCol = signal(0);
-
-  private readonly window = computed(() => computeWindow(this.itemsSignal()));
-
-  readonly rows = computed<EpgGridRow[]>(() => buildRows(this.itemsSignal(), this.window()));
-  readonly ticks = computed<EpgGridTick[]>(() => buildTicks(this.window()));
-  readonly timelineWidthPx = computed(() => {
-    const win = this.window();
-    return Math.max(minutesBetween(win.start, win.end) * PX_PER_MINUTE, MIN_CELL_WIDTH_PX);
+  private readonly window = computed(() => computeWindow(this.items()));
+  readonly rows = computed(() => buildRows(this.items(), this.window()));
+  readonly ticks = computed(() => buildTicks(this.window()));
+  readonly span = computed(() => minutesBetween(this.window().start, this.window().end));
+  readonly nowAt = computed<number | null>(() => {
+    const { start, end } = this.window();
+    const now = this.now();
+    return now < start.getTime() || now > end.getTime() ? null : (now - start.getTime()) / 60_000;
   });
-  readonly nowLeftPx = computed<number | null>(() => {
-    const win = this.window();
-    const now = this.nowSignal();
-    if (now.getTime() < win.start.getTime() || now.getTime() > win.end.getTime()) {
-      return null;
-    }
-    return minutesBetween(win.start, now) * PX_PER_MINUTE;
+  readonly nowLabel = computed(() => formatMadridHM(new Date(this.now())));
+  /** In the 'next' view, the programme after the one on air in each channel. */
+  readonly nextIds = computed(() => {
+    if (this.view() !== 'next') return new Set<string>();
+    const now = this.now();
+    return new Set(this.rows().flatMap((row) => row.cells.find((cell) => cell.startMs > now)?.item.id ?? []));
   });
 
-  constructor(@Inject(PLATFORM_ID) private readonly platformId: object) {
-    if (isPlatformBrowser(this.platformId)) {
+  constructor() {
+    if (this.isBrowser) {
       interval(30_000)
         .pipe(takeUntilDestroyed())
-        .subscribe(() => this.nowSignal.set(new Date()));
+        .subscribe(() => this.now.set(Date.now()));
     }
+    // On first render and on every view change (the grid stays mounted), not when the clock ticks.
+    afterRenderEffect(() => {
+      const view = this.view();
+      untracked(() => this.scrollToView(view));
+    });
   }
 
-  isFocused(rowIndex: number, colIndex: number): boolean {
-    return this.focusedRow() === rowIndex && this.focusedCol() === colIndex;
+  /** Opens where the view is about: prime time for 'night' (or another day), otherwise the current time. */
+  scrollToView(view: string): void {
+    const el = this.scroller()?.nativeElement;
+    if (!el) return;
+    const ppm = parseFloat(getComputedStyle(el).getPropertyValue('--ppm')) || 4;
+    // The last 21:00: a broadcast day's window can start on the previous evening.
+    const primeTime = this.ticks().filter((tick) => tick.label === '21:00').pop()?.at;
+    const at = (view === 'night' ? primeTime : this.nowAt()) ?? primeTime ?? 0;
+    el.scrollLeft = Math.max(0, at - 30) * ppm;
   }
 
-  setFocus(rowIndex: number, colIndex: number): void {
-    this.focusedRow.set(rowIndex);
-    this.focusedCol.set(colIndex);
+  onCellClick(event: MouseEvent, item: TvReadItemDTO): void {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    this.select.emit(item);
   }
 
   onCellKeydown(event: KeyboardEvent, rowIndex: number, colIndex: number): void {
+    const rows = this.rows();
+    let target: [number, number] | null = null;
     switch (event.key) {
       case 'ArrowRight':
-        event.preventDefault();
-        this.moveHorizontal(rowIndex, colIndex, 1);
+        if (colIndex + 1 < rows[rowIndex].cells.length) target = [rowIndex, colIndex + 1];
         break;
       case 'ArrowLeft':
-        event.preventDefault();
-        this.moveHorizontal(rowIndex, colIndex, -1);
+        if (colIndex > 0) target = [rowIndex, colIndex - 1];
         break;
       case 'ArrowDown':
-        event.preventDefault();
-        this.moveVertical(rowIndex, colIndex, 1);
+      case 'ArrowUp': {
+        const next = rowIndex + (event.key === 'ArrowDown' ? 1 : -1);
+        if (rows[next]?.cells.length) target = [next, closestCell(rows[next].cells, rows[rowIndex].cells[colIndex].start)];
         break;
-      case 'ArrowUp':
-        event.preventDefault();
-        this.moveVertical(rowIndex, colIndex, -1);
-        break;
+      }
       case ' ':
-      case 'Spacebar':
-        // Anchors don't natively activate on Space (only Enter) — trigger
-        // the same navigation a click/Enter would, so the requirement
-        // "Enter/Space opens program detail" holds for both keys.
+        // Anchors activate on Enter only; Space selects too, like a grid cell.
         event.preventDefault();
         (event.currentTarget as HTMLElement).click();
-        break;
+        return;
       default:
-        break;
+        return;
     }
+    event.preventDefault();
+    if (!target) return;
+    this.focused.set(target);
+    this.scroller()?.nativeElement.querySelector<HTMLElement>(`[data-cell="${target[0]}-${target[1]}"]`)?.focus();
   }
+}
 
-  trackRow(_index: number, row: EpgGridRow): string {
-    return row.channelId;
-  }
-
-  trackCell(_index: number, cell: EpgGridCell): string {
-    return cell.item.id;
-  }
-
-  trackTick(_index: number, tick: EpgGridTick): string {
-    return tick.label;
-  }
-
-  private moveHorizontal(rowIndex: number, colIndex: number, direction: 1 | -1): void {
-    const row = this.rows()[rowIndex];
-    if (!row) {
-      return;
-    }
-    const nextCol = colIndex + direction;
-    if (nextCol < 0 || nextCol >= row.cells.length) {
-      return;
-    }
-    this.focusCell(rowIndex, nextCol);
-  }
-
-  private moveVertical(rowIndex: number, colIndex: number, direction: 1 | -1): void {
-    const rows = this.rows();
-    const nextRow = rowIndex + direction;
-    if (nextRow < 0 || nextRow >= rows.length) {
-      return;
-    }
-    const targetCells = rows[nextRow].cells;
-    if (!targetCells.length) {
-      return;
-    }
-    const referenceLeft = rows[rowIndex]?.cells[colIndex]?.leftPx ?? 0;
-    let bestIndex = 0;
-    let bestDelta = Infinity;
-    targetCells.forEach((cell, index) => {
-      const delta = Math.abs(cell.leftPx - referenceLeft);
-      if (delta < bestDelta) {
-        bestDelta = delta;
-        bestIndex = index;
-      }
-    });
-    this.focusCell(nextRow, bestIndex);
-  }
-
-  private focusCell(rowIndex: number, colIndex: number): void {
-    this.setFocus(rowIndex, colIndex);
-    if (!isPlatformBrowser(this.platformId)) {
-      return;
-    }
-    queueMicrotask(() => {
-      const root = this.gridBody?.nativeElement;
-      const el = root?.querySelector<HTMLElement>(`[data-cell="${rowIndex}-${colIndex}"]`);
-      el?.focus();
-    });
-  }
+function closestCell(cells: EpgGridCell[], at: number): number {
+  let best = 0;
+  cells.forEach((cell, index) => {
+    if (Math.abs(cell.start - at) < Math.abs(cells[best].start - at)) best = index;
+  });
+  return best;
 }
 
 interface TimeWindow {
@@ -230,132 +177,90 @@ interface TimeWindow {
   end: Date;
 }
 
-/** Floors an instant to the start of its Europe/Madrid hour (e.g. 22:47 → 22:00), using only the exported madrid-time helpers. */
+/** Floors an instant to the start of its Europe/Madrid hour (e.g. 22:47 → 22:00). */
 function floorToMadridHour(date: Date): Date {
   const minutes = madridMinutesSinceMidnight(date);
-  const deltaMinutes = minutes - Math.floor(minutes / 60) * 60;
-  const floored = new Date(date.getTime() - deltaMinutes * 60_000);
-  // madridMinutesSinceMidnight resolves whole seconds only (Intl.DateTimeFormat
-  // parts carry no ms field), so deltaMinutes zeroes minutes/seconds but leaves
-  // the original milliseconds untouched. Zero them explicitly.
+  const floored = new Date(date.getTime() - (minutes % 60) * 60_000);
+  // madridMinutesSinceMidnight resolves whole seconds only; zero the milliseconds too.
   floored.setMilliseconds(0);
   return floored;
 }
 
-function ceilToMadridHour(date: Date): Date {
-  const floored = floorToMadridHour(date);
-  return floored.getTime() === date.getTime() ? floored : new Date(floored.getTime() + 60 * 60_000);
-}
-
 function computeWindow(items: TvReadItemDTO[]): TimeWindow {
-  const now = new Date();
-  if (!items.length) {
-    return { start: floorToMadridHour(now), end: new Date(floorToMadridHour(now).getTime() + 6 * 60 * 60_000) };
-  }
-
-  let minStart = Number.POSITIVE_INFINITY;
-  let maxEnd = Number.NEGATIVE_INFINITY;
-  items.forEach((item) => {
-    const start = new Date(item.airing.start).getTime();
-    const end = new Date(item.airing.end).getTime();
-    if (!Number.isNaN(start)) {
+  // One channel out of sync with the rest (stale or far-future airings) must not drag the whole grid's
+  // window away from where everyone else's programmes actually are — only items plausibly near "now"
+  // (covers every view: now/next/night for today, tomorrow and the day after) anchor the window; every
+  // item still renders, since cells outside the resulting window are clamped at render time as before.
+  const now = Date.now();
+  let minStart = Infinity;
+  let maxEnd = -Infinity;
+  for (const item of items) {
+    const start = Date.parse(item.airing.start);
+    const end = Date.parse(item.airing.end);
+    if (Number.isFinite(start) && start >= now - WINDOW_LOOKBACK_MS && start <= now + WINDOW_LOOKAHEAD_MS) {
       minStart = Math.min(minStart, start);
     }
-    if (!Number.isNaN(end)) {
+    if (Number.isFinite(end) && end >= now - WINDOW_LOOKBACK_MS && end <= now + WINDOW_LOOKAHEAD_MS) {
       maxEnd = Math.max(maxEnd, end);
     }
-  });
-
+  }
   if (!Number.isFinite(minStart) || !Number.isFinite(maxEnd) || maxEnd <= minStart) {
-    return { start: floorToMadridHour(now), end: new Date(floorToMadridHour(now).getTime() + 6 * 60 * 60_000) };
+    const start = floorToMadridHour(new Date());
+    return { start, end: new Date(start.getTime() + 6 * 3_600_000) };
   }
-
   const start = floorToMadridHour(new Date(minStart));
-  let end = ceilToMadridHour(new Date(maxEnd));
-  const spanMinutes = minutesBetween(start, end);
-  if (spanMinutes > MAX_WINDOW_MINUTES) {
-    end = new Date(start.getTime() + MAX_WINDOW_MINUTES * 60_000);
-  }
-  return { start, end };
+  const ceil = floorToMadridHour(new Date(maxEnd));
+  const end = ceil.getTime() === maxEnd ? ceil : new Date(ceil.getTime() + 3_600_000);
+  return { start, end: new Date(Math.min(end.getTime(), start.getTime() + MAX_WINDOW_MINUTES * 60_000)) };
 }
 
-function buildTicks(window: TimeWindow): EpgGridTick[] {
+function buildTicks({ start, end }: TimeWindow): EpgGridTick[] {
   const ticks: EpgGridTick[] = [];
-  const totalMinutes = minutesBetween(window.start, window.end);
-  for (let offset = 0; offset <= totalMinutes; offset += 60) {
-    const tickDate = new Date(window.start.getTime() + offset * 60_000);
-    ticks.push({ leftPx: offset * PX_PER_MINUTE, label: formatMadridHM(tickDate) });
+  for (let at = 0; at < minutesBetween(start, end); at += 30) {
+    ticks.push({ at, label: formatMadridHM(new Date(start.getTime() + at * 60_000)) });
   }
   return ticks;
 }
 
 function buildRows(items: TvReadItemDTO[], window: TimeWindow): EpgGridRow[] {
-  const rowsById = new Map<string, EpgGridRow>();
-  const sorted = [...items].sort((left, right) => {
-    const orderLeft = Number(left.channel.sortOrder ?? 999);
-    const orderRight = Number(right.channel.sortOrder ?? 999);
-    if (orderLeft !== orderRight) {
-      return orderLeft - orderRight;
-    }
-    return left.channel.name.localeCompare(right.channel.name, 'es');
-  });
+  const winStart = window.start.getTime();
+  const winEnd = window.end.getTime();
+  const rows = new Map<string, EpgGridRow & { order: number }>();
 
-  sorted.forEach((item) => {
-    const start = new Date(item.airing.start);
-    const end = new Date(item.airing.end);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
-      return;
-    }
-    const channelId = item.channel.id;
-    const row = rowsById.get(channelId) || {
-      channelId,
-      channelName: item.channel.name,
-      channelIcon: item.assets.channelLogo?.url || item.channel.icon || '',
-      cells: [],
-    };
-
-    const clampedStart = start.getTime() < window.start.getTime() ? window.start : start;
-    const clampedEnd = end.getTime() > window.end.getTime() ? window.end : end;
-    if (clampedEnd.getTime() <= clampedStart.getTime()) {
-      return;
-    }
+  for (const item of items) {
+    const startMs = Date.parse(item.airing.start);
+    const endMs = Date.parse(item.airing.end);
+    const from = Math.max(startMs, winStart);
+    const to = Math.min(endMs, winEnd);
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || to <= from) continue;
 
     const card = normalizeToCard(item);
-    const leftPx = minutesBetween(window.start, clampedStart) * PX_PER_MINUTE;
-    const widthPx = Math.max(minutesBetween(clampedStart, clampedEnd) * PX_PER_MINUTE, MIN_CELL_WIDTH_PX);
-    const startLabel = formatMadridHM(start);
-    const endLabel = formatMadridHM(end);
-
+    let row = rows.get(item.channel.id);
+    if (!row) {
+      row = {
+        channelId: item.channel.id,
+        channelName: item.channel.name,
+        channelIcon: item.assets.channelLogo?.url || item.channel.icon || '',
+        channelPath: card.channelPath,
+        order: Number(item.channel.sortOrder ?? 999),
+        cells: [],
+      };
+      rows.set(item.channel.id, row);
+    }
+    const startLabel = formatMadridHM(new Date(startMs));
     row.cells.push({
       item,
       card,
-      leftPx,
-      widthPx,
+      start: (from - winStart) / 60_000,
+      span: (to - from) / 60_000,
+      startMs,
+      endMs,
       timeLabel: startLabel,
-      ariaLabel: `${item.channel.name}: ${item.program.title}, ${startLabel} a ${endLabel}${item.airing.liveNow ? ', en directo' : ''}`,
+      ariaLabel: `${item.channel.name}: ${item.program.title}, ${startLabel} a ${formatMadridHM(new Date(endMs))}`,
     });
+  }
 
-    rowsById.set(channelId, row);
-  });
-
-  rowsById.forEach((row) => {
-    row.cells.sort((left, right) => left.leftPx - right.leftPx);
-    // MIN_CELL_WIDTH_PX can push a very short slot's rendered width past the
-    // next program's start — clamp so adjacent cells never overlap.
-    row.cells.forEach((cell, index) => {
-      const next = row.cells[index + 1];
-      if (next) {
-        // Clamp strictly to the real gap, with zero floor — any positive
-        // floor (even a small one) can still re-exceed a gap that's
-        // smaller than it, which is the exact bug this clamp exists to
-        // prevent. A near-zero-gap row only happens on duplicate/corrupt
-        // timestamps (rows are already filtered to end > start), so an
-        // effectively invisible cell there is preferable to overlapping
-        // its neighbor.
-        cell.widthPx = Math.min(cell.widthPx, Math.max(next.leftPx - cell.leftPx, 0));
-      }
-    });
-  });
-
-  return Array.from(rowsById.values());
+  const sorted = [...rows.values()].sort((a, b) => a.order - b.order || a.channelName.localeCompare(b.channelName, 'es'));
+  sorted.forEach((row) => row.cells.sort((a, b) => a.start - b.start));
+  return sorted;
 }

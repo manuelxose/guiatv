@@ -1,193 +1,80 @@
-<header
-  class="unified-top-nav"
-  [class.unified-top-nav--compact]="isShrunk"
-  [class.unified-top-nav--search-open]="mobileSearchOpen()"
->
-  <div class="unified-top-nav__frame">
-    <div class="unified-top-nav__bar">
-      <div class="unified-top-nav__leading">
-        @if (showLeftRail()) {
-        <button
-          type="button"
-          class="unified-top-nav__chrome-button"
-          (click)="leftRailToggle.emit()"
-          aria-label="Abrir navegación lateral"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-            <path
-              [attr.d]="iconPaths.menu"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="1.8"
-            ></path>
-          </svg>
-        </button>
-        }
+<header class="utn" [class.utn--fixed]="fixed()">
+  <ng-content select="[utnLead]"></ng-content>
 
-        <a [routerLink]="homePath" class="unified-top-nav__brand" aria-label="Guía TV — Inicio">
-          <span class="unified-top-nav__brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 32 32" fill="none">
-              <rect width="32" height="32" rx="10" fill="url(#brandGradientPortal)"></rect>
-              <rect x="5" y="8" width="22" height="13" rx="3" fill="#090d16"></rect>
-              <path d="M14 12v6.5c0 .5.55.8.96.53l5.4-3.25a.62.62 0 0 0 0-1.06l-5.4-3.25A.62.62 0 0 0 14 12Z" fill="white"></path>
-              <defs>
-                <linearGradient id="brandGradientPortal" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-                  <stop stop-color="#ef4444"></stop>
-                  <stop offset="0.55" stop-color="#f97316"></stop>
-                  <stop offset="1" stop-color="#f59e0b"></stop>
-                </linearGradient>
-              </defs>
-            </svg>
-          </span>
+  @if (showLeftRail()) {
+  <button type="button" class="utn__ib" (click)="leftRailToggle.emit()" aria-label="Abrir navegación lateral">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path [attr.d]="iconPaths.menu" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path></svg>
+  </button>
+  }
 
-          <span class="unified-top-nav__brand-copy">
-            <strong>
-              <span class="unified-top-nav__brand-full">GUÍA TV</span>
-              <span class="unified-top-nav__brand-short">GUÍA TV</span>
-            </strong>
-            <small>TV en directo, streaming, deportes y discovery editorial</small>
-          </span>
-        </a>
-      </div>
+  <a [routerLink]="homePath" class="utn__brand" [attr.aria-label]="'Guía TV' + (brandSuffix() ? ' ' + brandSuffix() : '') + ', inicio'">
+    <span class="utn__mark" aria-hidden="true">
+      <svg viewBox="0 0 32 32" fill="none">
+        <rect class="logo-bg" width="32" height="32" rx="10"></rect>
+        <rect class="logo-screen" x="5" y="8" width="22" height="13" rx="3"></rect>
+        <path d="M14 12v6.5c0 .5.55.8.96.53l5.4-3.25a.62.62 0 0 0 0-1.06l-5.4-3.25A.62.62 0 0 0 14 12Z" class="logo-play"></path>
+      </svg>
+    </span>
+    <span class="utn__word">GuíaTV @if (brandSuffix()) {<b>{{ brandSuffix() }}</b>}</span>
+  </a>
 
-      <nav class="unified-top-nav__tabs" aria-label="Secciones principales">
-        @for (tab of tabs; track tab.id) {
-          <a
-            [routerLink]="tab.path"
-            class="unified-top-nav__tab"
-            [class.unified-top-nav__tab--active]="activeTab() === tab.id"
-            [attr.aria-current]="activeTab() === tab.id ? 'page' : null"
-          >
-            <span class="unified-top-nav__tab-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path [attr.d]="tab.iconPath" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path></svg>
-            </span>
-            <span class="unified-top-nav__tab-copy"><strong>{{ tab.label }}</strong></span>
-          </a>
-        }
-
-      </nav>
-
-      @if (!viewport.isMobile() || mobileSearchOpen()) {
-      <div
-        class="unified-top-nav__search"
-        [class.unified-top-nav__search--open]="mobileSearchOpen()"
-      >
-        <button
-          type="button"
-          class="unified-top-nav__search-backdrop"
-          (click)="closeMobileSearch()"
-          aria-label="Cerrar búsqueda"
-          tabindex="-1"
-        ></button>
-
-        <div
-          id="portal-search-panel"
-          class="unified-top-nav__search-panel"
-          [attr.role]="mobileSearchOpen() ? 'dialog' : null"
-          [attr.aria-modal]="mobileSearchOpen() ? 'true' : null"
-          [attr.aria-label]="mobileSearchOpen() ? 'Buscar en Guía TV' : null"
-          [cdkTrapFocus]="mobileSearchOpen()"
-        >
-          <div class="unified-top-nav__search-field">
-            <app-unified-search
-              [query]="searchQuery()"
-              [expanded]="true"
-              (searchChange)="searchQuery.set($event)"
-              (searchSubmit)="onSearchSubmit($event)"
-              (suggestionOpen)="closeMobileSearch()"
-            ></app-unified-search>
-          </div>
-          <button
-            type="button"
-            class="unified-top-nav__search-cancel"
-            (click)="closeMobileSearch()"
-          >
-            Cancelar
-          </button>
-        </div>
-      </div>
+  <div class="utn__sections" (focusout)="sectionsFocusOut($event)" (keydown.escape)="sectionsOpen.set(false)">
+    <button type="button" class="utn__more" [attr.aria-expanded]="sectionsOpen()" aria-controls="utn-sections" aria-label="Secciones de Guía TV" (click)="sectionsOpen.set(!sectionsOpen())">
+      <span class="utn__more-lbl">Secciones</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+    </button>
+    <nav id="utn-sections" aria-label="Secciones de Guía TV" [class.open]="sectionsOpen()">
+      @for (tab of tabs; track tab.id) {
+      <a [routerLink]="tab.path" [class.on]="activeTab() === tab.id" [attr.aria-current]="activeTab() === tab.id ? 'page' : null" (click)="sectionsOpen.set(false)">{{ tab.label }}</a>
       }
+      <button type="button" class="utn__theme-row" (click)="theme.toggle()">{{ themeLabel }}</button>
+    </nav>
+  </div>
 
-      <div class="unified-top-nav__actions">
-        @if (viewport.isMobile()) {
-        <button
-          #mobileSearchTrigger
-          type="button"
-          class="unified-top-nav__chrome-button unified-top-nav__search-trigger"
-          (click)="openMobileSearch()"
-          aria-label="Buscar"
-          aria-haspopup="dialog"
-          [attr.aria-controls]="mobileSearchOpen() ? 'portal-search-panel' : null"
-          [attr.aria-expanded]="mobileSearchOpen()"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-            <circle cx="11" cy="11" r="6.5" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></circle>
-            <path d="M16 16l4.5 4.5" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
-          </svg>
-        </button>
-        }
+  <div class="utn__search">
+    <ng-content select="[utnSearch]">
+      <app-unified-search
+        [query]="searchQuery()"
+        [expanded]="true"
+        (searchChange)="searchQuery.set($event)"
+        (searchSubmit)="onSearchSubmit($event)"
+      ></app-unified-search>
+    </ng-content>
+  </div>
 
-        <button
-          type="button"
-          class="unified-top-nav__chrome-button unified-top-nav__theme"
-          (click)="cycleTheme()"
-          [attr.aria-label]="themeLabel"
-          [attr.title]="themeLabel"
-        >
-          @switch (theme.resolved) {
-            @case ('light') {
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
-              </svg>
-            }
-            @default {
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-                <circle cx="12" cy="12" r="4.2" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></circle>
-                <path d="M12 2.5v2M12 19.5v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2.5 12h2M19.5 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
-              </svg>
-            }
-          }
-        </button>
+  <div class="utn__actions">
+    @if (showAssistant()) {
+    <button type="button" class="utn__assistant" (click)="openAssistant()" aria-label="Abrir el asistente de recomendaciones">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 3 13.8 8.2 19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" stroke-width="1.8" stroke-linejoin="round"></path></svg>
+      <span>Asistente</span>
+    </button>
+    }
+    <ng-content select="[utnActions]"></ng-content>
 
-        @if (isAuthenticated()) {
-        <app-notification-bell></app-notification-bell>
-        }
+    <button type="button" class="utn__ib utn__theme" (click)="theme.toggle()" [attr.aria-label]="themeLabel" [attr.title]="themeLabel">
+      @if (theme.resolved === 'light') {
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79Z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path></svg>
+      } @else {
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="4.2" stroke-width="1.8"></circle><path d="M12 2.5v2M12 19.5v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2.5 12h2M19.5 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke-linecap="round" stroke-width="1.8"></path></svg>
+      }
+    </button>
 
-        <a
-          [routerLink]="isAuthenticated() ? profilePath : loginPath"
-          class="unified-top-nav__account"
-          [attr.aria-label]="isAuthenticated() ? 'Abrir mi cuenta' : 'Acceder a mi cuenta'"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-            <path
-              [attr.d]="iconPaths.account"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="1.8"
-            ></path>
-          </svg>
-          <span>{{ isAuthenticated() ? profileName() : 'Acceder' }}</span>
-        </a>
+    @if (isAuthenticated()) {
+    <app-notification-bell></app-notification-bell>
+    } @else {
+    <a class="utn__ib" [routerLink]="loginPath" aria-label="Notificaciones: inicia sesión para recibir avisos" title="Notificaciones">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path></svg>
+    </a>
+    }
 
-        @if (showRightRail()) {
-        <button
-          type="button"
-          class="unified-top-nav__chrome-button"
-          (click)="rightRailToggle.emit()"
-          [attr.aria-label]="rightRailLabel()"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
-            <path
-              [attr.d]="iconPaths.panel"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="1.8"
-            ></path>
-          </svg>
-        </button>
-        }
-      </div>
+    <a class="utn__ib" [routerLink]="isAuthenticated() ? profilePath : loginPath" [attr.aria-label]="isAuthenticated() ? 'Mi cuenta: ' + profileName() : 'Acceder a mi cuenta'" [attr.title]="isAuthenticated() ? profileName() : 'Acceder'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path [attr.d]="iconPaths.account" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path></svg>
+    </a>
 
-    </div>
+    @if (showRightRail()) {
+    <button type="button" class="utn__ib" (click)="rightRailToggle.emit()" [attr.aria-label]="rightRailLabel()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path [attr.d]="iconPaths.panel" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path></svg>
+    </button>
+    }
   </div>
 </header>

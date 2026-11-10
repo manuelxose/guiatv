@@ -1,0 +1,190 @@
+<div [innerHTML]="structuredData()"></div>
+
+@let f = filters();
+<app-panel-shell sideLabel="Programación TV" contextLabel="Programa seleccionado" [(contextOpen)]="contextOpen">
+  <app-panel-nav panelSide title="Programación TV" [links]="sideLinks" [groups]="sideGroups()"></app-panel-nav>
+
+  <!-- Right panel: the selected programme. Server-rendered with the live one, so its links are crawlable. -->
+  <section panelContext class="tvc" aria-labelledby="tvc-title">
+    @if (selectedCard(); as s) {
+    <h2 id="tvc-title" class="tvc__label">Programa seleccionado</h2>
+    <div class="tvc__hero">
+      <div class="tvc__row">
+        <span class="tvc__pill" [class.tvc__pill--live]="s.live">{{ s.live ? 'En directo' : hhmm(s.item.airing.start) }}</span>
+        @if (s.card.channelPath) {<a class="tvc__channel" [routerLink]="s.card.channelPath">{{ s.item.channel.name }}</a>}
+      </div>
+      <div class="tvc__thumb">@if (s.card.image) {<img [src]="s.card.image" alt="" loading="lazy" decoding="async" />}</div>
+      <h3>{{ s.item.program.title }}</h3>
+      <p class="tvc__meta">
+        {{ hhmm(s.item.airing.start) }}–{{ hhmm(s.item.airing.end) }}@if (s.card.category) { · {{ s.card.category }}}@if (s.live) { · quedan {{ s.left }} min}
+      </p>
+      @if (s.live && s.card.progressPercent) {<span class="tvc__bar" aria-hidden="true"><i [style.width.%]="s.card.progressPercent"></i></span>}
+      <a class="tvc__btn" [routerLink]="s.card.detailPath">Ver ficha</a>
+    </div>
+
+    @if (upNext().length) {
+    <h3 class="tvc__h">A continuación en {{ s.item.channel.name }}</h3>
+    <ul class="tvc__list">
+      @for (n of upNext(); track n.id) {
+      <li><a [routerLink]="n.detailPath"><time>{{ hhmm(n.startTime) }}</time><span>{{ n.title }}</span></a></li>
+      }
+    </ul>
+    }
+
+    @if (s.where.length) {
+    <h3 class="tvc__h">Dónde verlo</h3>
+    <ul class="tvc__list tvc__list--plain">
+      @for (w of s.where; track w) {<li>{{ w }}</li>}
+    </ul>
+    }
+    } @else {
+    <h2 id="tvc-title" class="tvc__label">Programa seleccionado</h2>
+    <p class="tvc__empty">{{ status() === 'loading' ? 'Cargando programación…' : 'Elige un programa para ver su detalle.' }}</p>
+    }
+
+    <div class="tvc__assistant">
+      <strong>¿No sabes qué ver?</strong>
+      <div class="tvc__asks">
+        @for (ask of assistantAsks; track ask) {<button type="button" (click)="openAssistant()">{{ ask }}</button>}
+      </div>
+    </div>
+  </section>
+
+  <!-- Centre -->
+  <div class="tv">
+    <!-- Phones have no left panel: the TV menu becomes a row of links (mockup .subnav). -->
+    <nav class="tv__subnav tv__chips" aria-label="Programación TV">
+      @for (l of sideLinks; track l.path) {<a [routerLink]="l.path" [class.on]="l.path === appPaths.guide" [attr.aria-current]="l.path === appPaths.guide ? 'page' : null">{{ l.label }}</a>}
+    </nav>
+    <header class="tv__intro">
+      <nav class="tv__bc" aria-label="Migas de pan">
+        <a [routerLink]="appPaths.home">Inicio</a><span aria-hidden="true">›</span><a [routerLink]="appPaths.guide">Programación TV</a><span aria-hidden="true">›</span><span aria-current="page">{{ crumb() }}</span>
+      </nav>
+      <h1>{{ h1() }}</h1>
+      <p class="tv__date">{{ dayLabel() }}</p>
+      <p>{{ intro() }}</p>
+    </header>
+
+    <nav class="tv__filters" aria-label="Filtros de la parrilla">
+      @if (f.countries.length > 1) {
+      <div class="tv__chips tv__chips--seg" aria-label="País">
+        @for (c of f.countries; track c.id) {<a [routerLink]="appPaths.guide" [queryParams]="c.params" [class.on]="c.on" [attr.aria-current]="c.on ? 'page' : null">{{ c.label }}</a>}
+      </div>
+      }
+      <div class="tv__chips tv__chips--seg">
+        @for (c of f.views; track c.id) {<a [routerLink]="appPaths.guide" [queryParams]="c.params" [class.on]="c.on" [attr.aria-current]="c.on ? 'page' : null">{{ c.label }}</a>}
+      </div>
+      <!-- Display option (how this view reads), not a time slot — its own, separate control. -->
+      <div class="tv__chips tv__chips--seg" aria-label="Modo de visualización">
+        @for (c of f.formats; track c.id) {<a [routerLink]="appPaths.guide" [queryParams]="c.params" [class.on]="c.on" [attr.aria-current]="c.on ? 'true' : null">{{ c.label }}</a>}
+      </div>
+      @if (view() === 'night' || view() === 'now') {
+      <div class="tv__chips">
+        @for (c of f.dates; track c.id) {<a [routerLink]="appPaths.guide" [queryParams]="c.params" [class.on]="c.on" [attr.aria-current]="c.on ? 'true' : null">{{ c.label }}</a>}
+      </div>
+      }
+      <div class="tv__chips">
+        @for (c of f.categories; track c.id) {<a [routerLink]="appPaths.guide" [queryParams]="c.params" [class.on]="c.on" [attr.aria-current]="c.on ? 'true' : null">{{ c.label }}</a>}
+      </div>
+
+      <!-- The channel facets live in the left panel on desktop; below it (or with the panel collapsed) they are here. -->
+      <details class="tv__more">
+        <summary>Filtros de canales@if (moreCount()) { ({{ moreCount() }})}</summary>
+        <div class="tv__more-body">
+          @if (f.groups.length) {
+          <span class="tv__more-h">Grupo de canal</span>
+          <div class="tv__chips tv__chips--wrap">
+            @for (c of f.groups; track c.id) {<a [routerLink]="appPaths.guide" [queryParams]="c.params" [class.on]="c.on" [attr.aria-current]="c.on ? 'true' : null">{{ c.label }}</a>}
+          </div>
+          }
+          @if (f.regions.length) {
+          <span class="tv__more-h">Región</span>
+          <div class="tv__chips tv__chips--wrap">
+            @for (c of f.regions; track c.id) {<a [routerLink]="appPaths.guide" [queryParams]="c.params" [class.on]="c.on" [attr.aria-current]="c.on ? 'true' : null">{{ c.label }}</a>}
+          </div>
+          }
+          @if (f.types.length) {
+          <span class="tv__more-h">Tipo de canal</span>
+          <div class="tv__chips tv__chips--wrap">
+            @for (c of f.types; track c.id) {<a [routerLink]="appPaths.guide" [queryParams]="c.params" [class.on]="c.on" [attr.aria-current]="c.on ? 'true' : null">{{ c.label }}</a>}
+          </div>
+          }
+          <span class="tv__more-h">Disponibilidad</span>
+          <div class="tv__chips tv__chips--wrap">
+            @for (c of f.flags; track c.id) {<a [routerLink]="appPaths.guide" [queryParams]="c.params" [class.on]="c.on" [attr.aria-pressed]="c.on">{{ c.label }}</a>}
+          </div>
+        </div>
+      </details>
+
+      @if (active().length) {
+      <div class="tv__active">
+        @for (a of active(); track a.label) {<a [routerLink]="appPaths.guide" [queryParams]="a.params" [attr.aria-label]="'Quitar filtro ' + a.label">{{ a.label }} <span aria-hidden="true">×</span></a>}
+        <a class="tv__clear" [routerLink]="appPaths.guide" [queryParams]="clearParams()">Limpiar filtros</a>
+      </div>
+      }
+    </nav>
+
+    @switch (status()) {
+      @case ('loading') {
+      <app-unified-skeleton-block [count]="8" [columns]="4" cardHeight="10rem"></app-unified-skeleton-block>
+      }
+      @case ('error') {
+      <app-unified-async-state kind="error" title="No pudimos cargar la programación" message="La guía no ha respondido. Vuelve a intentarlo: tus filtros se mantienen." actionLabel="Reintentar" (action)="retry()"></app-unified-async-state>
+      }
+      @default {
+        @if (format() === 'cards' && !search()) {
+          @if (cardItems().length) {
+          <div class="tv__grid">
+            @for (item of cardItems(); track item.id) {<app-panel-tile [item]="item"></app-panel-tile>}
+          </div>
+          } @else {
+          <div class="tv__empty">
+            <strong>No hay programas con estos filtros</strong>
+            <a [routerLink]="appPaths.guide" [queryParams]="{ format: null }">Ver la parrilla</a>
+          </div>
+          }
+        } @else if (!items().length) {
+        <div class="tv__empty">
+          <strong>No hay programas con estos filtros</strong>
+          <a [routerLink]="appPaths.guide" [queryParams]="clearParams()">Ver todos los canales</a>
+        </div>
+        } @else if (!search()) {
+        <app-epg-grid [items]="items()" [view]="view()" [category]="category()" [selectedId]="selected()?.id ?? null" (select)="select($event)"></app-epg-grid>
+        } @else {
+        <div class="tv__grid">
+          @for (item of items(); track item.id) {<app-panel-tile [item]="item"></app-panel-tile>}
+        </div>
+        }
+      }
+    }
+
+    @if (channels().length) {
+    <section class="tv__sec" aria-labelledby="tv-channels">
+      <div class="tv__sec-h"><h2 id="tv-channels">Programación por canal</h2><a [routerLink]="appPaths.channels">Todos los canales ›</a></div>
+      <div class="tv__chips tv__chips--wrap">
+        @for (c of channels(); track c.path) {<a [routerLink]="c.path">{{ c.name }}</a>}
+      </div>
+    </section>
+    }
+
+    <section class="tv__sec tv__prose" aria-labelledby="tv-about">
+      <h2 id="tv-about">Sobre esta parrilla</h2>
+      @if (country() === 'es') {
+      <p>
+        Horarios actualizados de los canales de TDT, autonómicos y de pago, con lo que echan
+        <a [routerLink]="appPaths.guide">ahora</a>, <a [routerLink]="appPaths.guide" [queryParams]="{ liveView: 'night' }">esta noche</a>
+        y la <a [routerLink]="appPaths.guide" [queryParams]="{ date: 'tomorrow' }">programación de mañana</a>.
+        Consulta también las <a [routerLink]="appPaths.movies">películas</a> y <a [routerLink]="appPaths.series">series</a> de hoy en TV
+        o el <a [routerLink]="appPaths.sports">fútbol en televisión</a>.
+      </p>
+      } @else {
+      <p>
+        Horarios de los canales de {{ countryLabel() }} disponibles en esta guía, con lo que echan
+        <a [routerLink]="appPaths.guide" [queryParams]="{ country: country() }">ahora</a> y
+        <a [routerLink]="appPaths.guide" [queryParams]="{ country: country(), liveView: 'night' }">esta noche</a>.
+        Vuelve a la <a [routerLink]="appPaths.guide">programación de España</a> cuando quieras.
+      </p>
+      }
+    </section>
+  </div>
+</app-panel-shell>

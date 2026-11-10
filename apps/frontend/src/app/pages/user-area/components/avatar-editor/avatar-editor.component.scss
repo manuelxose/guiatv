@@ -1,0 +1,89 @@
+:host { display: inline-grid; justify-items: center; gap: 8px; }
+
+.ae { position: relative; width: var(--ae-size); height: var(--ae-size); }
+
+.ae__img {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--section-accent);
+  color: var(--section-accent-ink);
+  font-size: calc(var(--ae-size) * 0.32);
+  font-weight: 800;
+  overflow: hidden;
+
+  img { width: 100%; height: 100%; object-fit: cover; }
+  &--preview { outline: 3px solid var(--section-accent); outline-offset: 3px; }
+}
+
+.ae__busy {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+
+  &::after { content: ''; position: absolute; inset: 32%; border: 3px solid #fff; border-right-color: transparent; border-radius: 50%; animation: ae-spin 0.8s linear infinite; }
+}
+
+@keyframes ae-spin { to { transform: rotate(360deg); } }
+
+// Camera badge on the photo's lower right edge.
+.ae__cam {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: grid;
+  place-items: center;
+  width: max(28px, calc(var(--ae-size) * 0.36));
+  height: max(28px, calc(var(--ae-size) * 0.36));
+  padding: 0;
+  border: 2px solid var(--sv2-surface-1);
+  border-radius: 50%;
+  background: var(--sv2-text);
+  color: var(--sv2-surface-1);
+  cursor: pointer;
+  transition: transform var(--sv2-dur) var(--sv2-ease);
+
+  svg { width: 55%; height: 55%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+  &:hover { transform: scale(1.06); }
+  &:focus-visible { outline: 2px solid var(--section-accent); outline-offset: 2px; }
+  &:disabled { opacity: 0.5; cursor: progress; }
+}
+
+.ae__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  z-index: 20;
+  display: grid;
+  min-width: 160px;
+  padding: 4px;
+  border: 1px solid var(--sv2-border-strong);
+  border-radius: 12px;
+  background: var(--sv2-surface-1);
+  box-shadow: var(--sv2-shadow);
+  transform: translateX(-50%);
+
+  button { padding: 9px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--sv2-text); font: inherit; font-size: var(--sv2-fs-sm); text-align: left; white-space: nowrap; cursor: pointer; }
+  button:hover { background: var(--sv2-surface-2); }
+  .danger { color: var(--sv2-live); }
+}
+
+.ae__confirm { display: flex; gap: 6px; }
+
+.ae__save, .ae__cancel {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: var(--sv2-fs-xs);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ae__save { border: 0; background: var(--section-accent); color: var(--section-accent-ink); }
+.ae__cancel { border: 1px solid var(--sv2-border-strong); background: transparent; color: var(--sv2-text); }
+
+.ae__status { min-height: 1rem; margin: 0; color: var(--section-accent-text); font-size: var(--sv2-fs-xs); font-weight: 700; text-align: center; &.err { color: var(--sv2-live); } }

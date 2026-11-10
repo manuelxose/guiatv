@@ -19,60 +19,47 @@ type ExpandState = 'compact' | 'partial' | 'full';
   standalone: true,
   imports: [CommonModule, ChatContextBadgeComponent, ChatRecommendationCardComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styles: [`
+    :host { display: block; min-width: 0; }
+    .rl { display: grid; gap: 8px; min-width: 0; }
+    .rl__head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+    .rl__summary { color: var(--sv2-text-muted); font-size: var(--sv2-fs-xs); }
+    .rl__group { margin: 6px 0 0; color: var(--sv2-text-faint); font-size: 0.6875rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .rl__group:first-of-type { margin-top: 0; }
+    .rl__more { display: flex; justify-content: center; }
+    .rl__more button { width: 100%; min-height: 38px; border: 1px dashed var(--sv2-border-strong); border-radius: 12px; background: transparent; color: var(--sv2-text); font: inherit; font-size: var(--sv2-fs-sm); font-weight: 700; cursor: pointer; }
+    .rl__more button:hover { border-color: var(--section-accent); border-style: solid; }
+    .rl__more button.less { width: auto; border: 0; color: var(--sv2-text-muted); }
+    .rl__more button:focus-visible { outline: 2px solid var(--section-accent); outline-offset: 2px; }
+  `],
   template: `
-    <section class="mt-3" aria-label="Recomendaciones">
-      <!-- Header: badge + summary + controls -->
-      <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div class="flex flex-wrap items-center gap-2">
-          <app-chat-context-badge [queryContext]="queryContext" />
-          <span *ngIf="dynamicSummary" class="text-[11px] font-medium text-[var(--portal-text-muted)]">
-            {{ dynamicSummary }}
-          </span>
-        </div>
+    <section class="rl" aria-label="Recomendaciones">
+      <div class="rl__head">
+        <app-chat-context-badge [queryContext]="queryContext" />
+        @if (dynamicSummary) {<span class="rl__summary">{{ dynamicSummary }}</span>}
       </div>
 
-      <div class="space-y-3">
-        <ng-container *ngFor="let group of groups; trackBy: trackByGroup">
-          <p
-            *ngIf="groups.length > 1"
-            class="mb-2 mt-3 text-[10px] font-bold uppercase tracking-widest text-[var(--portal-text-muted)] first:mt-0"
-          >
-            {{ group.label }}
-          </p>
-          <div class="space-y-2.5">
-            <app-chat-recommendation-card
-              *ngFor="let rec of group.items; trackBy: trackByRec"
-              [recommendation]="rec"
-              (openDetail)="openDetail.emit($event)"
-              (save)="save.emit($event)"
-              (followUp)="followUp.emit($event)"
-              (ignore)="ignore.emit($event)"
-              (ratePositive)="ratePositive.emit($event)"
-              (rateNegative)="rateNegative.emit($event)"
-              (remind)="remind.emit($event)"
-            />
-          </div>
-        </ng-container>
-      </div>
+      @for (group of groups; track group.label) {
+        @if (groups.length > 1) {<p class="rl__group">{{ group.label }}</p>}
+        @for (rec of group.items; track trackByRec($index, rec)) {
+        <app-chat-recommendation-card
+          [recommendation]="rec"
+          (openDetail)="openDetail.emit($event)"
+          (save)="save.emit($event)"
+          (followUp)="followUp.emit($event)"
+          (ignore)="ignore.emit($event)"
+          (ratePositive)="ratePositive.emit($event)"
+          (rateNegative)="rateNegative.emit($event)"
+          (remind)="remind.emit($event)"
+        />
+        }
+      }
 
-      <div *ngIf="hasMoreBeyondLoaded || expandState !== 'compact'" class="mt-3 flex justify-center">
-        <button
-          *ngIf="hasMoreBeyondLoaded"
-          type="button"
-          (click)="showMore()"
-          class="min-h-11 w-full rounded-xl border border-[var(--assistant-chip-border)] bg-[var(--assistant-chip-bg)] px-4 text-sm font-bold text-[var(--assistant-chip-text)] transition-colors hover:bg-[var(--assistant-chip-hover-bg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--guide-accent)]"
-        >
-          Ver {{ remainingCount }} resultados más
-        </button>
-        <button
-          *ngIf="!hasMoreBeyondLoaded && expandState !== 'compact'"
-          type="button"
-          (click)="expandState = 'compact'"
-          class="min-h-11 rounded-xl px-5 text-sm font-semibold text-[var(--portal-text-muted)] hover:bg-[var(--portal-surface-strong)] hover:text-[var(--portal-text)]"
-        >
-          Mostrar menos
-        </button>
-      </div>
+      @if (hasMoreBeyondLoaded) {
+      <div class="rl__more"><button type="button" (click)="showMore()">Ver {{ remainingCount }} {{ remainingCount === 1 ? 'opción' : 'opciones' }} más</button></div>
+      } @else if (expandState !== 'compact') {
+      <div class="rl__more"><button type="button" class="less" (click)="expandState = 'compact'">Mostrar menos</button></div>
+      }
     </section>
   `,
 })

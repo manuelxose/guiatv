@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { successResponse } from '../../shared/types/ApiResponse';
 import { NotFoundError, ValidationError } from '../../shared/errors';
 import { AuthenticatedRequest } from '../middlewares/authGuard';
+import type { IStorageRepository } from '../../domain/repositories/IStorageRepository';
+import { AvatarRejected, storeAvatar } from '../../infrastructure/storage/AvatarStore';
 import { UserModel } from '../../infrastructure/database/models/User.model';
 import { UserProfileModel } from '../../infrastructure/database/models/UserProfile.model';
 import { UserListModel } from '../../infrastructure/database/models/UserList.model';
@@ -44,6 +46,40 @@ const DEFAULT_NOTIFICATIONS = {
 };
 
 export class UserController {
+  /** Storage for profile photos; absent in tests that do not upload. */
+  constructor(private readonly storage?: IStorageRepository) {}
+
+  /** Profile photo upload: raw PNG/JPEG/WebP body (see user.routes), stored as a 256 px WebP. */
+  async uploadAvatar(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const userId = this.getUserId(req);
+      if (!this.storage) throw new ValidationError('La subida de imágenes no está disponible', []);
+      if (!Buffer.isBuffer(req.body) || !req.body.length) {
+        throw new ValidationError('Sube una imagen PNG, JPEG o WebP', [{ field: 'avatar', message: 'Missing image body', value: null }]);
+      }
+      let url: string;
+      try {
+        url = await storeAvatar(this.storage, userId, req.body);
+      } catch (error) {
+        if (error instanceof AvatarRejected) throw new ValidationError(error.message, [{ field: 'avatar', message: error.message, value: null }]);
+        throw error;
+      }
+
+      const userDoc = await UserModel.findById(userId).exec();
+      if (!userDoc) throw new NotFoundError('User not found');
+      const profile = await this.ensureProfile(userId, userDoc);
+      profile.avatar = url;
+      await profile.save();
+      (userDoc as any).picture = url;
+      await userDoc.save();
+
+      const stats = await this.getStats(userId);
+      res.json(successResponse({ profile: this.mapProfile(userDoc.toObject(), profile.toObject(), stats) }));
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const userId = this.getUserId(req);
@@ -84,7 +120,14 @@ export class UserController {
       if (username !== undefined) updates.username = String(username).trim();
       if (bio !== undefined) updates.bio = String(bio).trim();
       if (location !== undefined) updates.location = String(location).trim();
-      if (avatar !== undefined) updates.avatar = String(avatar).trim();
+      if (avatar !== undefined) {
+        const value = String(avatar).trim();
+        // Only no photo, an uploaded one or an https image: never javascript:, data: or another site's path.
+        if (value && !/^https:\/\/\S+$/.test(value) && !/^\/storage\/avatars\/[\w-]+\.webp$/.test(value)) {
+          throw new ValidationError('Invalid avatar', [{ field: 'avatar', message: 'Use the upload endpoint or an https URL', value }]);
+        }
+        updates.avatar = value;
+      }
       if (favoriteGenres !== undefined) {
         updates.favoriteGenres = this.sanitizeStringArray(favoriteGenres);
       }
@@ -114,7 +157,8 @@ export class UserController {
       profile.username = updates.username ?? profile.username;
       profile.bio = updates.bio ?? profile.bio;
       profile.location = updates.location ?? profile.location;
-      if (updates.avatar) {
+      // An empty string removes the photo (the UI then shows the initials).
+      if (updates.avatar !== undefined) {
         profile.avatar = updates.avatar;
       }
       if (updates.favoriteGenres) {
@@ -140,7 +184,7 @@ export class UserController {
       if (updates.name) {
         userDoc.name = updates.name;
       }
-      if (updates.avatar) {
+      if (updates.avatar !== undefined) {
         (userDoc as any).picture = updates.avatar;
       }
       await userDoc.save();

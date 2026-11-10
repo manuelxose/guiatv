@@ -2,12 +2,12 @@ import { Type } from '@angular/core';
 import { Routes } from '@angular/router';
 import { FootballData } from './data/football-data';
 import { HttpFootballData } from './data/http-football-data';
-import { BrowserFollowStorage, FollowStorage } from './data/follow-storage';
+import { AccountFollowStorage, FollowStorage } from './data/follow-storage';
 import { SportsStore } from './state/sports-store';
 import { Sv2Viewport } from './state/viewport';
 
-// Full-screen football app: does not inherit the consumer portal shell. Indexing is decided per page (seo.ts).
-const SHELL = { layout: 'minimal-shell' } as const;
+// Same layout as every section (app bottom bar and assistant); the frame is app-panel-shell. Indexing is decided per page (seo.ts).
+const SHELL = { layout: 'portal-page' } as const;
 const TITLE = (name: string) => `${name} · Fútbol - Guía TV`;
 
 /** Lazy route tree mounted at SPORTS_V2_BASE (/deportes/futbol) by app.routes.ts. Tests pass the demo adapter. */
@@ -15,7 +15,7 @@ export const sportsV2Routes = (data: Type<FootballData> = HttpFootballData): Rou
   {
     path: '',
     loadComponent: () => import('./shell/app-shell').then((m) => m.Sv2AppShellComponent),
-    providers: [{ provide: FootballData, useClass: data }, { provide: FollowStorage, useClass: BrowserFollowStorage }, Sv2Viewport, SportsStore],
+    providers: [{ provide: FootballData, useClass: data }, { provide: FollowStorage, useClass: AccountFollowStorage }, Sv2Viewport, SportsStore],
     data: SHELL,
     children: [
       { path: '', pathMatch: 'full', loadComponent: () => import('./pages/home-page').then((m) => m.Sv2HomePageComponent), title: 'Fútbol hoy: partidos, resultados y dónde verlos - Guía TV' },

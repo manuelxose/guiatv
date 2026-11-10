@@ -4,11 +4,17 @@ import { ActivatedRoute, Data, Router, RouterModule } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { combineLatest, Observable, of, Subject } from 'rxjs';
 import { catchError, map, startWith, switchMap, takeUntil } from 'rxjs/operators';
-import { CatalogRailComponent } from '../../components/catalog-rail/catalog-rail.component';
 import { InteractionButtonsComponent } from '../../components/interaction-buttons/interaction-buttons.component';
 import { WhereToWatchComponent } from '../../components/where-to-watch/where-to-watch.component';
 import { EntityBroadcastListComponent } from '../../components/entity-broadcast-list/entity-broadcast-list.component';
-import { BreadcrumbComponent, BreadcrumbItem } from '../../components/breadcrumb/breadcrumb.component';
+import { BreadcrumbItem } from '../../components/breadcrumb/breadcrumb.component';
+import { FaqItem } from '../../components/faq-section/faq-section.component';
+import { PanelNavComponent, PanelNavGroup } from '../../components/panel-nav/panel-nav.component';
+import { PanelShellComponent } from '../../components/panel-shell/panel-shell.component';
+import { PanelTileComponent } from '../../components/panel-tile/panel-tile.component';
+import { TV_SECTION_LINKS } from '../../config/tv-section-nav';
+import { ChatService } from '../../services/chat.service';
+import { normalizeToCard } from '../../utils/tv-normalizers';
 import { ShareButtonsComponent } from '../../components/share-buttons/share-buttons.component';
 import {
   CatalogContentType,
@@ -21,11 +27,10 @@ import { MetaService } from '../../services/meta.service';
 import { buildProgramCatalogId, buildTmdbCatalogId } from '../../utils/catalog';
 import { catalogRobotsPolicy } from '../../utils/catalog-indexability';
 import { fillLegacyGaps, scheduleView, ScheduleView } from '../../utils/legacy-enrichment';
-import { broadcastPublication, broadcastTiming, GUIDE_TIME_ZONE } from '../entity-detail/entity-detail.model';
-import { generateTVSeriesSchema, generateMovieSchema, generateBreadcrumbSchema, serializeJsonLd } from '../../utils/utils';
-import { UnifiedSkeletonBlockComponent } from '../../components/unified-skeleton-block/unified-skeleton-block.component';
+import { broadcastDisplay, broadcastPublication, broadcastTiming, EntityBroadcast, GUIDE_TIME_ZONE, madridDaysBetween } from '../entity-detail/entity-detail.model';
+import { generateTVSeriesSchema, generateMovieSchema, generateBreadcrumbSchema, generateFAQSchema, serializeJsonLd } from '../../utils/utils';
 import { UnifiedAsyncStateComponent } from '../../components/unified-async-state/unified-async-state.component';
-import { channelCanonicalPath } from '../../config/route-map';
+import { APP_PATHS, channelCanonicalPath } from '../../config/route-map';
 
 type LegacyCatalogMode = 'program' | 'movie' | 'series';
 
@@ -35,361 +40,17 @@ type LegacyCatalogMode = 'program' | 'movie' | 'series';
   imports: [
     CommonModule,
     RouterModule,
-    CatalogRailComponent,
     InteractionButtonsComponent,
     WhereToWatchComponent,
     EntityBroadcastListComponent,
-    BreadcrumbComponent,
     ShareButtonsComponent,
-    UnifiedSkeletonBlockComponent,
     UnifiedAsyncStateComponent,
+    PanelShellComponent,
+    PanelNavComponent,
+    PanelTileComponent,
   ],
-  // Custom elements default to `display: inline`, and the shell routes pages
-  // into a CSS grid track whose default `min-width: auto` sizes to the
-  // widest unbreakable content run instead of the viewport — ballooning the
-  // page to desktop width and clipping it under any `overflow-hidden`
-  // ancestor on narrow screens. Block + min-width:0 lets it shrink to track.
-  styles: [
-    `
-      :host {
-        display: block;
-        min-width: 0;
-      }
-      a:focus-visible, button:focus-visible {
-        outline: 2px solid var(--portal-text);
-        outline-offset: 4px;
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .scroll-smooth { scroll-behavior: auto; }
-      }
-    `,
-  ],
-  template: `
-    <div class="min-h-screen bg-[var(--portal-bg)] text-[var(--portal-text)]">
-      <div *ngIf="safeLdHtml" [innerHTML]="safeLdHtml"></div>
-      <div *ngIf="loading" class="mx-auto min-h-[60vh] max-w-7xl px-4 py-10 sm:px-6 lg:px-8" aria-busy="true" aria-label="Cargando ficha">
-        <app-unified-skeleton-block [count]="6" [columns]="3" cardHeight="13rem"></app-unified-skeleton-block>
-      </div>
-
-      <ng-container *ngIf="!loading && item as content; else emptyState">
-        <!-- Cinematic banner: image-backed, hero-* tokens only (constant-dark by design). Breadcrumb lives inside it (canal-completo pattern) instead of a separate strip above. -->
-        <section class="relative overflow-hidden bg-[var(--hero-bg)]">
-          <div class="absolute inset-0">
-            <img
-              *ngIf="content.backdrop || content.image"
-              [src]="backdropUrl(content.backdrop || content.image || '')"
-              decoding="async"
-              [alt]="''"
-              class="h-full w-full object-cover opacity-55"
-            />
-            <!-- No backdrop/poster at all (common for plain EPG programs without TMDB enrichment) — a flat hero-bg reads as broken, so fall back to the same accent-tinted radial wash canal-completo uses for channels with no artwork. -->
-            <div
-              *ngIf="!(content.backdrop || content.image)"
-              class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,color-mix(in_oklch,var(--accent-live)_14%,transparent),transparent_38%),radial-gradient(circle_at_top_right,color-mix(in_oklch,var(--accent-discover)_10%,transparent),transparent_32%)]"
-            ></div>
-            <div class="absolute inset-0 bg-[linear-gradient(90deg,color-mix(in_oklch,var(--hero-bg)_98%,transparent)_0%,color-mix(in_oklch,var(--hero-bg)_78%,transparent)_55%,color-mix(in_oklch,var(--hero-bg)_45%,transparent)_100%)]"></div>
-            <div class="absolute inset-0 bg-[linear-gradient(180deg,color-mix(in_oklch,var(--hero-bg)_10%,transparent),var(--hero-bg)_100%)]"></div>
-          </div>
-
-          <div class="relative mx-auto max-w-7xl px-4 pt-5 sm:px-6 lg:px-8 lg:pt-8">
-            <app-breadcrumb [items]="breadcrumbItems" [embedded]="true" [onHero]="true" [emitSchema]="false"></app-breadcrumb>
-          </div>
-
-          <div class="relative mx-auto flex min-h-[20rem] max-w-7xl flex-col gap-6 px-4 pb-10 pt-6 sm:px-6 md:flex-row md:items-end lg:px-8 lg:pt-8">
-            <!-- Poster / artwork -->
-            <div
-              *ngIf="content.image"
-              class="hidden w-36 flex-shrink-0 sm:block overflow-hidden rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)] sm:w-44 md:mx-0 md:w-48 lg:w-56"
-            >
-              <img
-                [src]="posterUrl(content.image)"
-                [alt]="content.title"
-                width="380"
-                height="570"
-                class="aspect-[2/3] w-full object-cover"
-                loading="eager"
-                fetchpriority="high"
-                decoding="async"
-              />
-            </div>
-
-            <div class="min-w-0 flex-1 space-y-4">
-              <div class="flex flex-wrap gap-2">
-                <span class="rounded-[var(--radius-pill)] border border-[var(--hero-border)] bg-[var(--hero-bg-soft)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--hero-text-muted)] backdrop-blur-sm">
-                  {{ contentTypeLabel(content.contentType) }}
-                </span>
-                <span
-                  *ngIf="content.contentType !== 'program' && content.liveNow"
-                  class="rounded-[var(--radius-pill)] border border-transparent bg-[var(--accent-live-strong)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em] text-white"
-                >
-                  En directo
-                </span>
-              </div>
-
-              <h1 class="max-w-4xl text-3xl font-black tracking-tight text-[var(--hero-text)] md:text-5xl">
-                {{ content.title }}
-              </h1>
-
-              <p *ngIf="originalTitle(content) as original" class="text-base text-[var(--hero-text-muted)]">
-                <span class="sr-only">Título original: </span><i>{{ original }}</i>
-              </p>
-
-              <div class="tnum flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[var(--hero-text-muted)]">
-                <span *ngIf="content.releaseYear">{{ content.releaseYear }}</span>
-                <span *ngIf="content.contentType !== 'series' && content.durationMinutes">{{ content.durationMinutes }} min</span>
-                <span *ngIf="content.channel?.name">{{ content.channel?.name }}</span>
-                <span *ngIf="content.start">{{ formatTime(content.start) }}</span>
-                <span *ngIf="content.rating" class="inline-flex items-center gap-1 text-[var(--status-warning)]">
-                  <svg class="h-3.5 w-3.5 fill-current" viewBox="0 0 20 20" aria-hidden="true">
-                    <path d="M9.05 2.93c.3-.92 1.6-.92 1.9 0l1.07 3.29a1 1 0 0 0 .95.69h3.46c.97 0 1.37 1.24.59 1.81l-2.8 2.03a1 1 0 0 0-.37 1.12l1.07 3.29c.3.92-.75 1.69-1.54 1.12l-2.8-2.04a1 1 0 0 0-1.17 0l-2.8 2.04c-.78.57-1.84-.2-1.54-1.12l1.07-3.29a1 1 0 0 0-.36-1.12L2.98 8.72c-.78-.57-.38-1.81.59-1.81h3.46a1 1 0 0 0 .95-.69l1.07-3.29Z"></path>
-                  </svg>
-                  {{ content.rating | number:'1.0-1' }}/10
-                </span>
-              </div>
-
-              <p *ngIf="content.contentType === 'program' && programmeTiming(content) as timing" class="text-sm font-semibold text-[var(--hero-text-muted)]" aria-live="polite">
-                {{ timing.text }} · Horario peninsular (Madrid).
-                <span *ngIf="content.end">Fin: {{ formatTime(content.end!) }}</span>
-              </p>
-              <a *ngIf="content.contentType === 'program' && content.channel?.id" [routerLink]="channelCanonicalPath(content.channel, content.channel!.id)" class="inline-block text-sm font-semibold text-[var(--hero-text)] underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
-                Ver programación de {{ content.channel?.name || 'este canal' }}
-              </a>
-              <!-- M10: API-verified relationships only (same TMDB work and kind); absent fields render nothing. -->
-              <a *ngIf="content.source === 'program' && content.workPath" [routerLink]="content.workPath" data-testid="work-link" class="inline-block text-sm font-semibold text-[var(--hero-text)] underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
-                Ficha completa de {{ content.workPath.startsWith('/series/') ? 'la serie' : 'la película' }}
-              </a>
-              <a *ngIf="content.source === 'tmdb' && content.programmePath" [routerLink]="content.programmePath" data-testid="programme-link" class="inline-block text-sm font-semibold text-[var(--hero-text)] underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
-                Horarios de {{ content.title }} en televisión
-              </a>
-              <!-- M10-B: an airing links its programme's page only when the API says that page is indexed under its own URL. -->
-              <a *ngIf="content.source === 'program' && content.programmePath && content.programmePath !== currentPath" [routerLink]="content.programmePath" data-testid="programme-page-link" class="inline-block text-sm font-semibold text-[var(--hero-text)] underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
-                Todos los horarios de {{ content.title }}
-              </a>
-
-              <p class="max-w-3xl text-base leading-7 text-[var(--hero-text-muted)]">
-                {{ content.synopsis || 'Sinopsis no disponible.' }}
-              </p>
-
-              <a [attr.href]="broadcastHref" class="inline-flex min-h-11 items-center rounded-[var(--radius-pill)] bg-[var(--hero-text)] px-5 py-2.5 text-sm font-bold text-[var(--hero-bg)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
-                {{ schedule.broadcasts.items.length ? 'Ver emisiones en TV' : 'Consultar emisiones en TV' }}
-              </a>
-
-              <div *ngIf="content.genres?.length" class="flex flex-wrap gap-2">
-                <span
-                  *ngFor="let genre of content.genres"
-                  class="rounded-[var(--radius-pill)] border border-[var(--hero-border)] bg-[var(--hero-bg-soft)] px-3 py-1 text-xs font-semibold text-[var(--hero-text-muted)] backdrop-blur-sm"
-                >
-                  {{ genre }}
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!--
-          Body rhythm follows canal-completo.component.html: generous
-          eyebrow+h2 sections separated by whitespace (mb-10/lg:mb-14),
-          no hairline dividers between them — reads as one editorial page
-          instead of a stacked settings form.
-        -->
-        <section class="mx-auto max-w-7xl px-4 pb-16 pt-8 sm:px-6 lg:px-8 lg:pt-10">
-          <div class="mb-10 flex flex-wrap items-center gap-3 lg:mb-14">
-            <app-interaction-buttons
-              [itemId]="content.catalogId"
-              [title]="content.title"
-              [type]="content.contentType"
-              [tmdbId]="content.tmdbId"
-              [genres]="content.genres"
-              [image]="content.image || content.backdrop"
-              [platform]="content.primaryPlatforms?.[0]"
-              [preloadInteraction]="true"
-            ></app-interaction-buttons>
-            <app-share-buttons variant="branded" [url]="shareUrl" [title]="content.title"></app-share-buttons>
-          </div>
-
-          <div
-            *ngIf="content.whereToWatch || content.primaryPlatforms?.length || content.tmdbId"
-            class="mb-10 lg:mb-14"
-          >
-            <p class="eyebrow text-[var(--portal-text-muted)]">Disponibilidad</p>
-            <h2 class="mt-1 text-xl font-bold tracking-tight text-[var(--portal-text)]">Dónde ver</h2>
-            <div class="mt-4">
-              <app-where-to-watch
-                [providersData]="content.whereToWatch"
-                [primaryPlatforms]="content.primaryPlatforms"
-                [tmdbId]="content.tmdbId"
-                [contentType]="providerContentType(content)"
-                placement="catalog-detail"
-                [catalogId]="content.catalogId"
-                [providerHint]="content.channel?.name"
-                [page]="content.detailPath"
-              ></app-where-to-watch>
-            </div>
-          </div>
-
-          <div
-            *ngIf="content.director || content.socialSummary?.friendsWhoWatched || content.userInteraction?.status || content.userInteraction?.rating"
-            class="mb-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-[var(--portal-text-soft)] lg:mb-14"
-          >
-            <span *ngIf="content.director"><span class="text-[var(--portal-text-muted)]">Dirección:</span> {{ content.director }}</span>
-            <span *ngIf="content.socialSummary?.friendsWhoWatched">
-              <span class="text-[var(--portal-text-muted)]">Tus amigos:</span>
-              {{ content.socialSummary?.friendsWhoWatched }} lo han visto
-            </span>
-            <span *ngIf="content.userInteraction?.status">
-              <span class="text-[var(--portal-text-muted)]">Tu estado:</span>
-              {{ humanStatus(content.userInteraction?.status || '') }}
-            </span>
-            <span *ngIf="content.userInteraction?.rating" class="tnum">
-              <span class="text-[var(--portal-text-muted)]">Tu nota:</span>
-              {{ content.userInteraction?.rating }}/10
-            </span>
-          </div>
-
-          <div id="emisiones" class="mb-10 scroll-mt-6 lg:mb-14">
-            <app-entity-broadcast-list [broadcasts]="schedule.broadcasts" [now]="now" [entityTitle]="content.title"></app-entity-broadcast-list>
-          </div>
-
-          <section *ngIf="schedule.channel.length" class="mb-10 lg:mb-14" aria-labelledby="channel-programmes-heading">
-            <p class="eyebrow text-[var(--portal-text-muted)]">Más programación</p>
-            <h2 id="channel-programmes-heading" class="mt-1 text-xl font-bold tracking-tight text-[var(--portal-text)]">También en este canal</h2>
-            <p class="mt-1 text-sm text-[var(--portal-text-muted)]">Otros programas del canal, independientes de esta ficha.</p>
-            <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              <ng-container *ngFor="let airing of schedule.channel">
-                <ng-container *ngTemplateOutlet="airingCard; context: { $implicit: airing }"></ng-container>
-              </ng-container>
-            </div>
-          </section>
-
-          <!-- Other programmes on the source channel have their own navigation cards. -->
-          <ng-template #airingCard let-airing>
-            <a
-              [routerLink]="airing.workPath || airing.detailPath || channelCanonicalPath({ normalizedName: airing.channelNormalizedName }, airing.channelId)"
-              class="tnum flex gap-3 rounded-[var(--radius-md)] border border-[var(--portal-border)] bg-[var(--portal-surface)] p-3 transition-colors hover:border-[var(--portal-border-strong)]"
-            >
-              <span class="h-16 w-12 flex-shrink-0 overflow-hidden rounded-[var(--radius-sm)] bg-[var(--portal-surface-strong)]">
-                <ng-container *ngTemplateOutlet="airingThumb; context: { $implicit: airing }"></ng-container>
-              </span>
-              <span class="min-w-0 flex-1">
-                <p class="truncate text-sm font-semibold text-[var(--portal-text)]">{{ airing.title || airing.channelName }}</p>
-                <p class="mt-1 text-xs text-[var(--portal-text-muted)]">
-                  {{ airing.channelName }} · {{ formatTime(airing.start) }} - {{ formatTime(airing.end) }}
-                </p>
-                <span class="mt-2 inline-block text-xs font-semibold text-[var(--portal-text)] underline underline-offset-4">
-                  {{ airing.workPath ? 'Ver ficha →' : airing.detailPath ? 'Ver qué se emite →' : 'Ver programación del canal →' }}
-                </span>
-              </span>
-            </a>
-          </ng-template>
-
-          <!-- Program poster/still when the EPG source has one; the channel logo
-               (already always available) as a legible fallback instead of a blank box. -->
-          <ng-template #airingThumb let-airing>
-            <img
-              *ngIf="airing.image; else airingChannelIcon"
-              [src]="airingThumbUrl(airing.image)"
-              [alt]="''"
-              loading="lazy"
-              decoding="async"
-              class="h-full w-full object-cover"
-            />
-            <ng-template #airingChannelIcon>
-              <img
-                *ngIf="airing.channelIcon"
-                [src]="airing.channelIcon"
-                [alt]="''"
-                loading="lazy"
-                class="h-full w-full object-contain p-2"
-              />
-            </ng-template>
-          </ng-template>
-
-          <!-- Cast: compact rail, photo when available, text-only fallback otherwise. -->
-          <div *ngIf="content.cast?.length" class="group/rail relative mb-2">
-            <p class="eyebrow text-[var(--portal-text-muted)]">Equipo</p>
-            <h2 class="mt-1 text-xl font-bold tracking-tight text-[var(--portal-text)]">Reparto</h2>
-
-            <!-- Click arrows for desktop — dragging a rail with a mouse is fiddly; touch swipe already covers mobile, so these stay md+ only. -->
-            <button
-              *ngIf="content.cast!.length > 4"
-              type="button"
-              aria-label="Desplazar reparto hacia la izquierda"
-              class="absolute left-0 top-1/2 z-10 hidden -translate-x-1/2 translate-y-2 items-center justify-center rounded-full border border-[var(--portal-border)] bg-[var(--portal-surface-strong)] p-2 text-[var(--portal-text)] opacity-0 shadow-[var(--shadow-sm)] transition-opacity group-hover/rail:opacity-100 focus-visible:opacity-100 md:flex"
-              (click)="scrollCastBy(-1)"
-            >
-              <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true">
-                <path d="m12.5 4.5-5 5.5 5 5.5" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
-              </svg>
-            </button>
-            <button
-              *ngIf="content.cast!.length > 4"
-              type="button"
-              aria-label="Desplazar reparto hacia la derecha"
-              class="absolute right-0 top-1/2 z-10 hidden translate-x-1/2 translate-y-2 items-center justify-center rounded-full border border-[var(--portal-border)] bg-[var(--portal-surface-strong)] p-2 text-[var(--portal-text)] opacity-0 shadow-[var(--shadow-sm)] transition-opacity group-hover/rail:opacity-100 focus-visible:opacity-100 md:flex"
-              (click)="scrollCastBy(1)"
-            >
-              <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true">
-                <path d="m7.5 4.5 5 5.5-5 5.5" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
-              </svg>
-            </button>
-
-            <div #castScrollEl tabindex="0" role="region" aria-label="Reparto: lista desplazable" class="scrollbar-hide mt-4 flex gap-4 overflow-x-auto scroll-smooth pb-2">
-              <div
-                *ngFor="let member of content.cast"
-                class="w-24 flex-shrink-0 text-center sm:w-28"
-              >
-                <img
-                  *ngIf="member.profile; else castInitials"
-                  [src]="castImageUrl(member.profile)"
-                  [alt]="member.name"
-                  width="112"
-                  height="112"
-                  loading="lazy"
-                  decoding="async"
-                  class="mx-auto h-20 w-20 rounded-full object-cover sm:h-24 sm:w-24"
-                />
-                <ng-template #castInitials>
-                  <div
-                    aria-hidden="true"
-                    class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[var(--portal-surface-strong)] text-lg font-bold text-[var(--portal-text-soft)] sm:h-24 sm:w-24"
-                  >
-                    {{ castInitialsFor(member.name) }}
-                  </div>
-                </ng-template>
-                <p class="mt-2 line-clamp-1 text-xs font-semibold text-[var(--portal-text)]">{{ member.name }}</p>
-                <p class="line-clamp-1 text-[11px] text-[var(--portal-text-muted)]">{{ member.character || 'Reparto' }}</p>
-              </div>
-            </div>
-          </div>
-          <footer *ngIf="content.enrichment?.attribution as attribution" class="mt-10 border-t border-[var(--portal-border)] pt-6 text-xs leading-5 text-[var(--portal-text-muted)]">
-            <p>{{ attribution.notice }} <a href="https://www.themoviedb.org" rel="noopener noreferrer" class="underline underline-offset-4">themoviedb.org</a></p>
-            <p>Datos actualizados el <time [attr.datetime]="attribution.updatedAt">{{ updatedOn(attribution.updatedAt) }}</time>.</p>
-          </footer>
-        </section>
-
-        <!-- Related content: horizontal rail, same card pattern as catalog listings. -->
-        <section *ngIf="relatedItems.length" class="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
-          <app-catalog-rail
-            eyebrow="Relacionados"
-            title="Sigue explorando"
-            [items]="relatedItems"
-          ></app-catalog-rail>
-        </section>
-      </ng-container>
-
-      <ng-template #emptyState>
-        <div *ngIf="!loading" class="mx-auto min-h-[60vh] max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <app-unified-async-state
-            kind="empty"
-            title="No hemos podido cargar esta ficha"
-            message="Puede que el contenido ya no esté disponible o que la URL antigua no tenga una correspondencia válida."
-            actionLabel="Volver a explorar"
-            (action)="goExplore()"
-          ></app-unified-async-state>
-        </div>
-      </ng-template>
-    </div>
-  `,
+  templateUrl: './catalog-detail.component.html',
+  styleUrl: './catalog-detail.component.scss',
 })
 export class CatalogDetailComponent implements OnInit, OnDestroy {
   protected readonly channelCanonicalPath = channelCanonicalPath;
@@ -415,7 +76,151 @@ export class CatalogDetailComponent implements OnInit, OnDestroy {
   private readonly server = isPlatformServer(inject(PLATFORM_ID));
   private readonly injector = inject(Injector);
 
+  private readonly chat = inject(ChatService);
+  readonly appPaths = APP_PATHS;
+  readonly sideLinks = TV_SECTION_LINKS;
+  public sideGroups: PanelNavGroup[] = [];
+  public faq: FaqItem[] = [];
+  public contextOpen = false;
+
   @ViewChild('castScrollEl') private readonly castScrollEl?: ElementRef<HTMLElement>;
+
+  get assistantAsks(): string[] {
+    const t = this.item?.title || 'esto';
+    return [`¿Cuándo echan ${t}?`, `Algo parecido a ${t}`, '¿Qué veo esta noche?'];
+  }
+
+  openAssistant(): void {
+    this.chat.requestToggleAssistant();
+  }
+
+  /** Breadcrumb hub of this page (same as the JSON-LD BreadcrumbList). */
+  get hub(): BreadcrumbItem | undefined {
+    return this.breadcrumbItems[1];
+  }
+
+  /** The soonest broadcast still to end, for the hero's primary button. */
+  get nextBroadcast() {
+    return this.schedule.broadcasts.items.find((b) => broadcastTiming(b, this.now).state !== 'ended') || null;
+  }
+
+  broadcastLabel(b: EntityBroadcast): string {
+    if (broadcastTiming(b, this.now).state === 'live') return `Ver ahora en ${b.channel.name}`;
+    return `Ver ${broadcastDisplay(b, this.now).day.toLowerCase()} ${b.localTime} en ${b.channel.name}`;
+  }
+
+  /** Has somewhere to watch it online (the "Dónde ver" section renders). */
+  hasWhereToWatch(c: CatalogItem): boolean {
+    return !!(c.whereToWatch || c.primaryPlatforms?.length || c.tmdbId);
+  }
+
+  /** A programme airing's slot: "Hoy 10:35–14:55" (Madrid). */
+  programmeSlot(c: CatalogItem): string {
+    if (!c.start || !c.end) return '';
+    const hm = new Intl.DateTimeFormat('es-ES', { timeZone: GUIDE_TIME_ZONE, hour: '2-digit', minute: '2-digit' });
+    const start = new Date(c.start);
+    const days = madridDaysBetween(this.now, start);
+    const day = days === 0 ? 'Hoy' : days === 1 ? 'Mañana' : days === -1 ? 'Ayer'
+      : new Intl.DateTimeFormat('es-ES', { timeZone: GUIDE_TIME_ZONE, weekday: 'short', day: 'numeric', month: 'short' }).format(start);
+    return `${day} ${hm.format(start)}–${hm.format(new Date(c.end))}`;
+  }
+
+  /** How far a live airing has gone, 0–100. */
+  progress(c: CatalogItem): number {
+    const start = Date.parse(c.start || '');
+    const end = Date.parse(c.end || '');
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 0;
+    return Math.max(0, Math.min(100, Math.round(((this.now.getTime() - start) / (end - start)) * 100)));
+  }
+
+  /** "Sobre…" copy, worded for the kind of page (a programme has no cast or streaming offer to mention). */
+  aboutText(c: CatalogItem): string {
+    const genre = c.genres?.length ? ` de ${c.genres.slice(0, 2).join(' y ').toLowerCase()}` : '';
+    if (c.contentType === 'program') {
+      const channel = c.channel?.name ? ` de ${c.channel.name}` : '';
+      return `${c.title} es un programa${genre}${channel}. Aquí tienes su horario, sus próximas emisiones y lo que echan después${c.channel?.name ? ` en ${c.channel.name}` : ''}.`;
+    }
+    const noun = c.contentType === 'movie' ? 'una película' : 'una serie';
+    const year = c.releaseYear ? ` estrenada en ${c.releaseYear}` : '';
+    const parts = ['sus próximas emisiones en TV con día y hora'];
+    if (this.hasWhereToWatch(c)) parts.push(c.contentType === 'movie' ? 'dónde verla online' : 'dónde verla en streaming');
+    if (c.cast?.length) parts.push('el reparto');
+    const last = parts.pop();
+    return `${c.title} es ${noun}${genre}${year}. En esta ficha tienes ${parts.length ? `${parts.join(', ')} y ${last}` : last}.`;
+  }
+
+  /** Related works that have a page to link (M10-C: an unresolved title links nothing, so it is not drawn). */
+  get relatedTiles(): CatalogItem[] {
+    return this.relatedItems.filter((i) => !!normalizeToCard(i).detailPath);
+  }
+
+  /** "Ficha" key/value facts for the right panel: only what the payload states. */
+  get facts(): Array<[string, string]> {
+    const c = this.item;
+    if (!c) return [];
+    const rows: Array<[string, string]> = [['Tipo', this.contentTypeLabel(c.contentType)]];
+    if (c.genres?.length) rows.push(['Género', c.genres.slice(0, 3).join(', ')]);
+    if (c.releaseYear) rows.push(['Año', String(c.releaseYear)]);
+    if (c.contentType !== 'series' && c.durationMinutes) rows.push(['Duración', `${c.durationMinutes} min`]);
+    if (c.channel?.name) rows.push(['Canal', c.channel.name]);
+    if (c.contentType === 'program' && this.programmeSlot(c)) rows.push(['Horario', this.programmeSlot(c)]);
+    if (c.director) rows.push(['Dirección', c.director]);
+    if (c.rating) rows.push(['Valoración', `★ ${c.rating.toFixed(1).replace('.', ',')}/10`]);
+    return rows;
+  }
+
+  /** Left menu groups: the channels it airs on (verified broadcasts first) and the TV hubs. */
+  private buildSideGroups(item: CatalogItem): void {
+    const channels = new Map<string, { name: string; icon?: string }>();
+    this.schedule.broadcasts.items.forEach((b) => channels.set(b.channel.path, { name: b.channel.name, icon: b.channel.icon }));
+    if (item.channel?.id) channels.set(channelCanonicalPath(item.channel, item.channel.id), { name: item.channel.name, icon: item.channel.icon });
+    this.sideGroups = [
+      ...(channels.size
+        ? [{ title: 'Se emite en', links: Array.from(channels.entries()).slice(0, 8).map(([path, channel]) => ({ label: channel.name, path, logoUrl: channel.icon })) }]
+        : []),
+      {
+        title: 'Explorar',
+        links: [
+          { label: 'Qué ver hoy', path: APP_PATHS.explore },
+          { label: 'Guía de canales', path: APP_PATHS.channels },
+        ],
+      },
+    ];
+  }
+
+  /** Questions people search for this title, answered from the payload (nothing invented). */
+  private buildFaq(item: CatalogItem): void {
+    const t = item.title;
+    const items: FaqItem[] = [];
+    const upcoming = this.schedule.broadcasts.items.filter((b) => broadcastTiming(b, this.now).state !== 'ended').slice(0, 3);
+    items.push({
+      question: `¿Cuándo echan ${t} en la tele?`,
+      answer: upcoming.length
+        ? `Próximas emisiones de ${t}: ${upcoming.map((b) => `${broadcastTiming(b, this.now).state === 'live' ? 'ahora' : this.formatTime(b.start)} en ${b.channel.name}`).join('; ')} (horario peninsular).`
+        : `Ahora mismo no hay emisiones de ${t} en la programación disponible. Consulta la parrilla para ver qué se emite hoy.`,
+    });
+    const channels = Array.from(new Set([...upcoming.map((b) => b.channel.name), ...(item.channel?.name ? [item.channel.name] : [])]));
+    if (channels.length) {
+      items.push({ question: `¿En qué canal echan ${t}?`, answer: `${t} se emite en ${channels.join(', ')}.` });
+    }
+    if (item.contentType === 'program' && item.start && item.end && this.programmeSlot(item)) {
+      items.push({
+        question: `¿A qué hora empieza y termina ${t}?`,
+        answer: `${t}: ${this.programmeSlot(item).replace(/^Hoy/, 'hoy').replace(/^Mañana/, 'mañana')}${item.channel?.name ? ` en ${item.channel.name}` : ''} (horario peninsular).`,
+      });
+    }
+    if (item.synopsis) {
+      const s = item.synopsis.replace(/\s+/g, ' ').trim();
+      items.push({ question: `¿De qué trata ${t}?`, answer: s.length > 320 ? `${s.slice(0, 317).replace(/\s+\S*$/, '')}…` : s });
+    }
+    if (item.primaryPlatforms?.length) {
+      items.push({ question: `¿Dónde ver ${t} online?`, answer: `${t} está disponible en ${item.primaryPlatforms.slice(0, 4).join(', ')}. En esta ficha tienes todas las opciones para verla.` });
+    }
+    if (item.cast?.length) {
+      items.push({ question: `¿Quién sale en ${t}?`, answer: `En el reparto de ${t} están ${item.cast.slice(0, 5).map((m) => m.name).join(', ')}.` });
+    }
+    this.faq = items;
+  }
 
   scrollCastBy(direction: 1 | -1): void {
     const el = this.castScrollEl?.nativeElement;
@@ -485,6 +290,8 @@ export class CatalogDetailComponent implements OnInit, OnDestroy {
         if (item && shown) {
           this.applyMeta(item);
           this.buildBreadcrumbs(item);
+          this.buildSideGroups(shown);
+          this.buildFaq(shown);
           this.buildStructuredData(shown);
           this.shareUrl = `https://guiaprogramaciontv.com${this.canonicalPath()}`;
           // The critical response intentionally left providers/social/user
@@ -822,6 +629,8 @@ export class CatalogDetailComponent implements OnInit, OnDestroy {
         ...(publication.length ? { publication } : {}),
       });
     }
+
+    if (this.faq.length) schemas.push(generateFAQSchema(this.faq));
 
     try {
       this.safeLdHtml = this.sanitizer.bypassSecurityTrustHtml(

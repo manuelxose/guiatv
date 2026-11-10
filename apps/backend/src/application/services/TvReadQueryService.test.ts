@@ -15,6 +15,7 @@ import {
   resolveTvReadItemsPerChannel,
   scopeChannelSummariesToPage,
   selectPrimeTimeTvItems,
+  gridTvReadItem,
 } from './TvReadQueryService';
 import { TvReadItemDTO } from '../dto/TvReadDTO';
 
@@ -52,6 +53,18 @@ test('channel schedule pipeline bounds each channel instead of truncating the gl
       items: { $slice: ['$items', 32] },
     },
   });
+});
+
+test('channel schedule pipeline matches channel.countryCode for a non-Spain country, and adds no clause for the default', () => {
+  const gb = buildTvReadSchedulePipeline({ date: '20260326', country: 'gb' });
+  assert.deepEqual((gb[0] as any).$match.$and, [{ 'channel.countryCode': 'GB' }]);
+
+  // Today's Spanish channels predate countryCode (see XMLParser.extractCountry): a hard 'ES' match here
+  // would hide the entire default view, so 'es' (and 'all'/omitted) must add no country clause at all.
+  for (const country of [undefined, 'all', 'es', 'ES']) {
+    const pipeline = buildTvReadSchedulePipeline({ date: '20260326', country });
+    assert.equal((pipeline[0] as any).$match.$and, undefined, `country=${country} must not add a match clause`);
+  }
 });
 
 test('channel schedule supports complete high-frequency linear channels', () => {
@@ -591,4 +604,32 @@ test('getItem: a missing airing is a 404 NotFoundError; a database failure is no
     assert.notEqual(error.statusCode, 404, 'a database failure must never become a 404');
     return true;
   });
+});
+
+test('gridTvReadItem keeps what the grid draws and links to, and drops synopsis, image sets and provenance', () => {
+  const poster = { kind: 'poster', role: 'primary', source: 'tmdb_poster', url: 'https://img/p.jpg' } as const;
+  const item = {
+    id: 'a1',
+    channel: { id: 'la_1', name: 'LA 1', normalizedName: 'la_1', aliases: ['x'], sourceIds: ['y'], type: 'TDT', group: 'tdt', subgroups: ['tdt'], sortOrder: 0, icon: '/i.webp', provenance: { classification: 'registry', sourceIds: ['z'] } },
+    program: { brandKey: 'dune', title: 'Dune', normalizedTitle: 'dune', titleAliases: ['dune'], editorialCategory: 'Cine', workPath: '/peliculas/dune', description: 'Una sinopsis larga que la parrilla no dibuja.' },
+    airing: { id: 'a1', date: '20261109', start: '2026-11-09T21:40:00.000Z', end: '2026-11-10T00:00:00.000Z', durationMinutes: 140, liveNow: true, partOfDay: 'noche', timeSlotKey: '22:00' },
+    assets: { poster, backdrop: { ...poster, kind: 'backdrop' }, fallbackChain: [poster, poster] },
+    availability: { live: true, catchup: true, streaming: false },
+    sourceProvenance: { schedule: ['primary'], metadata: ['tmdb'], assets: ['tmdb'] },
+    timingContext: { liveNow: true, window: 'now' },
+    relevance: { score: 9, reason: 'prime' },
+    detailPath: '/peliculas/dune',
+  } as unknown as TvReadItemDTO;
+
+  const grid = gridTvReadItem(item);
+
+  assert.equal(grid.program.title, 'Dune');
+  assert.equal(grid.program.workPath, '/peliculas/dune');
+  assert.equal(grid.program.description, undefined);
+  assert.equal(grid.channel.icon, '/i.webp');
+  assert.equal(grid.channel.provenance, undefined);
+  assert.deepEqual(grid.assets, { poster, fallbackChain: [] });
+  assert.deepEqual(grid.availability, item.availability);
+  assert.equal(grid.airing, item.airing);
+  assert.ok(JSON.stringify(grid).length < JSON.stringify(item).length * 0.75);
 });

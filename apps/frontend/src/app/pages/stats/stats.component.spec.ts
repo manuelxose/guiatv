@@ -2,7 +2,9 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { CatalogService } from '../../services/catalog.service';
+import { ChatService } from '../../services/chat.service';
 import { MetaService } from '../../services/meta.service';
+import { TvDataFacade } from '../../state/tv-data.facade';
 import { StatsComponent } from './stats.component';
 
 // Phase 1 TS-05: /tendencias server-rendered "Cargando…" (OnPush view never re-rendered) while its meta said index.
@@ -18,6 +20,8 @@ describe('StatsComponent (/tendencias)', () => {
         provideRouter([]),
         { provide: MetaService, useValue: { setMetaTags } },
         { provide: CatalogService, useValue: { queryState: () => result } },
+        { provide: TvDataFacade, useValue: { discoverContent: () => of({ items: [] }), getTonightPrograms: () => of([]) } },
+        { provide: ChatService, useValue: { requestToggleAssistant: () => undefined } },
       ],
     });
     const fixture = TestBed.createComponent(StatsComponent);

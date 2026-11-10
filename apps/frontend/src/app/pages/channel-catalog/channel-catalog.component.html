@@ -1,81 +1,105 @@
-<main class="channel-catalog">
-  <header class="channel-catalog__header">
-    <div>
-      <h1>Canales de televisión</h1>
-      <p>Encuentra cada señal, comprueba qué emite ahora y abre su programación completa.</p>
+<app-panel-shell sideLabel="Programación TV" contextLabel="A continuación" [(contextOpen)]="contextOpen">
+  <app-panel-nav panelSide title="Programación TV" [links]="sideLinks" [groups]="sideGroups()"></app-panel-nav>
+
+  <!-- Right panel: what starts next on every channel (server-rendered, crawlable links). -->
+  <section panelContext class="cx" aria-labelledby="cx-title">
+    <div class="cx__head">
+      <h2 id="cx-title">A continuación</h2>
+      <a [routerLink]="appPaths.guide">Parrilla ›</a>
     </div>
-    <a routerLink="/programacion-tv/en-directo" class="channel-catalog__guide-link">
-      Abrir la guía en directo
-    </a>
-  </header>
-
-  <section class="channel-catalog__controls" aria-label="Buscar y filtrar canales">
-    <label class="channel-catalog__search">
-      <span>Buscar canal u operador</span>
-      <input
-        type="search"
-        [ngModel]="query()"
-        (ngModelChange)="query.set($event)"
-        placeholder="Ej. AXN, Movistar+, AMC"
-        autocomplete="off"
-      />
-    </label>
-
-    <div class="channel-catalog__filter-row" aria-label="Filtrar por grupo">
-      <button
-        *ngFor="let group of groups"
-        type="button"
-        [class.is-active]="selectedGroup() === group.id"
-        [attr.aria-pressed]="selectedGroup() === group.id"
-        (click)="selectGroup(group.id)"
-      >
-        {{ group.label }}
-      </button>
-    </div>
-
-    <div class="channel-catalog__access" aria-label="Filtrar por acceso">
-      <button type="button" [class.is-active]="selectedAccess() === 'all'" (click)="selectAccess('all')">Cualquier acceso</button>
-      <button type="button" [class.is-active]="selectedAccess() === 'free'" (click)="selectAccess('free')">En abierto</button>
-      <button type="button" [class.is-active]="selectedAccess() === 'pay'" (click)="selectAccess('pay')">De pago</button>
-      <span *ngIf="status() === 'ready'" role="status">{{ resultLabel() }}</span>
+    <ul class="cx__list">
+      @for (t of upNext(); track t.id) {
+      <li>
+        <a [routerLink]="t.next!.detailPath">
+          <time>{{ hhmm(t.next!.startTime) }}</time>
+          <span><strong>{{ t.next!.title }}</strong><small>{{ t.name }}@if (t.next!.category) { · {{ t.next!.category }}}</small></span>
+        </a>
+      </li>
+      } @empty {
+      <li class="cx__empty">{{ status() === 'loading' ? 'Cargando canales…' : 'Sin datos de lo que viene.' }}</li>
+      }
+    </ul>
+    <div class="cx__assistant">
+      <strong>¿No sabes qué ver?</strong>
+      <div class="cx__asks">
+        @for (ask of assistantAsks; track ask) {<button type="button" (click)="openAssistant()">{{ ask }}</button>}
+      </div>
     </div>
   </section>
 
-  <section *ngIf="status() === 'loading'" class="channel-catalog__grid" aria-label="Cargando canales" aria-busy="true">
-    <article *ngFor="let item of [1,2,3,4,5,6,7,8]" class="channel-card channel-card--loading">
-      <span class="channel-card__logo-skeleton"></span>
-      <span class="channel-card__line channel-card__line--strong"></span>
-      <span class="channel-card__line"></span>
-      <span class="channel-card__line channel-card__line--short"></span>
-    </article>
-  </section>
+  <div class="cc">
+    <!-- Phones have no left panel: the TV menu becomes a row of links. -->
+    <nav class="cc__subnav cc__chips" aria-label="Programación TV">
+      @for (l of sideLinks; track l.path) {<a [routerLink]="l.path" [class.on]="l.path === appPaths.channels" [attr.aria-current]="l.path === appPaths.channels ? 'page' : null">{{ l.label }}</a>}
+    </nav>
 
-  <app-unified-async-state
-    *ngIf="status() === 'error'"
-    kind="error"
-    title="No pudimos cargar los canales"
-    message="La guía no ha respondido. Puedes intentarlo de nuevo sin perder tus filtros."
-    actionLabel="Reintentar"
-    (action)="retry()"
-  ></app-unified-async-state>
+    <header class="cc__intro">
+      <nav class="cc__bc" aria-label="Migas de pan">
+        <a [routerLink]="appPaths.home">Inicio</a><span aria-hidden="true">›</span><a [routerLink]="appPaths.guide">Programación TV</a><span aria-hidden="true">›</span><span aria-current="page">Guía de canales</span>
+      </nav>
+      <h1>Guía de canales de TV</h1>
+      <p>Todos los canales de televisión en España con lo que emiten ahora y a continuación. Abre cualquiera para ver su programación completa de hoy.</p>
+    </header>
 
-  <section
-    *ngIf="status() === 'ready' && channels().length"
-    class="channel-catalog__grid"
-    aria-label="Directorio de canales"
-  >
-    <app-channel-card
-      *ngFor="let entry of channels(); trackBy: trackByChannel"
-      [entry]="entry"
-    ></app-channel-card>
-  </section>
+    <nav class="cc__filters" aria-label="Filtrar canales">
+      <div class="cc__chips">
+        @for (g of groups; track g.id) {<a [routerLink]="appPaths.channels" [queryParams]="paramsFor({ grupo: g.id })" [class.on]="selectedGroup() === g.id" [attr.aria-current]="selectedGroup() === g.id ? 'true' : null">{{ g.label }}</a>}
+      </div>
+      <div class="cc__row">
+        <div class="cc__chips cc__chips--seg">
+          @for (a of accessOptions; track a.id) {<a [routerLink]="appPaths.channels" [queryParams]="paramsFor({ acceso: a.id })" [class.on]="selectedAccess() === a.id" [attr.aria-current]="selectedAccess() === a.id ? 'true' : null">{{ a.label }}</a>}
+        </div>
+      </div>
+    </nav>
 
-  <app-unified-async-state
-    *ngIf="status() === 'ready' && !channels().length"
-    kind="empty"
-    title="No encontramos canales con estos filtros"
-    message="Prueba otro nombre o recupera el directorio completo."
-    actionLabel="Limpiar filtros"
-    (action)="clearFilters()"
-  ></app-unified-async-state>
-</main>
+    @switch (status()) {
+      @case ('loading') {
+      <div class="cc__grid" aria-busy="true" aria-label="Cargando canales">
+        @for (i of [1, 2, 3, 4, 5, 6, 7, 8]; track i) {<div class="cc__card cc__card--skeleton"></div>}
+      </div>
+      }
+      @case ('error') {
+      <app-unified-async-state kind="error" title="No pudimos cargar los canales" message="La guía no ha respondido. Puedes intentarlo de nuevo sin perder tus filtros." actionLabel="Reintentar" (action)="retry()"></app-unified-async-state>
+      }
+      @default {
+      <p class="cc__count" role="status">{{ resultLabel() }}</p>
+      @if (tiles().length) {
+      <div class="cc__grid">
+        @for (t of tiles(); track t.id) {
+        <a class="cc__card" [routerLink]="t.path">
+          <span class="cc__card-head">
+            <span class="cc__logo">@if (t.icon) {<img [src]="t.icon" alt="" width="40" height="40" loading="lazy" decoding="async" />} @else {<span>{{ t.name.charAt(0) }}</span>}</span>
+            <span class="cc__name"><strong>{{ t.name }}</strong>@if (t.meta) {<small>{{ t.meta }}</small>}</span>
+          </span>
+          @if (t.now) {
+          <span class="cc__now"><span class="cc__live">Ahora</span>{{ t.now.title }}</span>
+          <small class="cc__time">{{ hhmm(t.now.startTime) }}–{{ hhmm(t.now.endTime) }}@if (t.now.category) { · {{ t.now.category }}}</small>
+          @if (t.now.progressPercent) {<span class="cc__bar" aria-hidden="true"><i [style.width.%]="t.now.progressPercent"></i></span>}
+          } @else {
+          <small class="cc__time">Ver la programación de hoy</small>
+          }
+          @if (t.next) {<small class="cc__next">Después: {{ t.next.title }} · {{ hhmm(t.next.startTime) }}</small>}
+        </a>
+        }
+      </div>
+      } @else {
+      <div class="cc__empty">
+        <strong>No encontramos canales con estos filtros</strong>
+        <a [routerLink]="appPaths.channels">Ver todos los canales</a>
+      </div>
+      }
+      }
+    }
+
+    <section class="cc__prose" aria-labelledby="cc-about">
+      <h2 id="cc-about">Sobre la guía de canales</h2>
+      <p>
+        Encuentra la programación de cada canal de <a [routerLink]="appPaths.channels" [queryParams]="{ grupo: 'tdt' }">TDT</a>,
+        de los <a [routerLink]="appPaths.channels" [queryParams]="{ grupo: 'autonomico' }">canales autonómicos</a>, de
+        <a [routerLink]="appPaths.channels" [queryParams]="{ grupo: 'movistar' }">Movistar+</a> y de los
+        <a [routerLink]="appPaths.channels" [queryParams]="{ grupo: 'deporte' }">canales de deportes</a>. Para verlos todos a la vez, abre la
+        <a [routerLink]="appPaths.guide">parrilla de TV</a>.
+      </p>
+    </section>
+  </div>
+</app-panel-shell>

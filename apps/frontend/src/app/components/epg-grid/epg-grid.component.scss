@@ -1,263 +1,270 @@
-// EPG channel×time grid — Direction 3 "Hybrid Signal" (docs/visual-directions.md),
-// reusing Direction 1 "Broadcast Grid"'s dense row treatment for the grid
-// component itself. Row height is kept within the 2.75–3.25rem spec so
-// ~15 channels fit a 1440px viewport without excessive vertical scroll.
-
+// Mockup "Parrilla EPG" (docs/design/unified-shell.html). --sv2-* come from app-panel-shell,
+// --section-accent* from the section. Positions are minutes (--s, --w, --span) × px per minute (--ppm).
 :host {
   display: block;
-  // px, not rem: cdk-virtual-scroll-viewport's itemSize="48" (epg-grid.
-  // component.html) is always resolved in px by CDK's virtualization math —
-  // keeping this in rem only coincided at the default 16px root font-size
-  // and desynced at any other zoom/user font-size setting.
-  --epg-row-h: 48px;
-  --epg-channel-col-w: 10.5rem;
+  min-width: 0;
 }
 
-.epg-grid {
-  border: 1px solid var(--portal-border);
-  border-radius: var(--radius-md);
-  background: var(--portal-card);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
+.epg {
+  --chw: 148px;
+  --ppm: 4px;
+  --row-h: 64px;
+  --head-h: 34px;
+  position: relative;
+  overflow: auto;
+  max-height: min(72vh, 760px);
+  border: 1px solid var(--sv2-border);
+  border-radius: var(--sv2-r-md, 12px);
+  background: var(--sv2-surface-1);
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
 }
 
-.epg-grid--empty {
-  padding: 2rem;
+.epg__canvas {
+  position: relative;
+  width: calc(var(--chw) + var(--span) * var(--ppm));
 }
 
-.epg-grid__empty-message {
-  margin: 0;
-  color: var(--portal-text-muted);
-  font-size: var(--text-sm);
+.epg__head,
+.epg__row {
+  display: grid;
+  grid-template-columns: var(--chw) minmax(0, 1fr);
 }
 
-.epg-grid__scroll {
-  // No longer the scroll container: `.epg-grid__body` below (the CDK
-  // viewport) now owns horizontal AND vertical scroll, because
-  // `position: sticky` on `.epg-grid__channel-cell` resolves against its
-  // nearest *scrolling* ancestor — which was silently this element's child
-  // viewport (CDK's `.cdk-virtual-scrollable { overflow: auto }`) once the
-  // viewport itself had any width to overflow, never this wrapper, so the
-  // channel column never actually stuck. Making the viewport the real
-  // scroll container fixes that at the source.
-  overflow: visible;
-  max-height: 46rem;
-}
-
-.epg-grid__header {
-  display: flex;
+.epg__head {
   position: sticky;
   top: 0;
-  z-index: var(--z-sticky);
-  overflow: hidden; // clips the manually-translated timeline (see below);
-                    // previously provided by .epg-grid__scroll's overflow.
-  background: var(--portal-surface-strong);
-  border-bottom: 1px solid var(--portal-border);
+  z-index: 4;
+  height: var(--head-h);
+  background: var(--sv2-surface-1);
+  border-bottom: 1px solid var(--sv2-border);
 }
 
-.epg-grid__header-channel {
-  flex: 0 0 var(--epg-channel-col-w);
+.epg__corner,
+.epg__ch {
   position: sticky;
   left: 0;
-  z-index: calc(var(--z-sticky) + 2);
-  display: flex;
-  align-items: center;
-  padding: 0 0.85rem;
-  min-height: 2.5rem;
-  background: var(--portal-surface-strong);
-  color: var(--portal-text-muted);
-  font-size: var(--text-2xs);
+  z-index: 3;
+  background: var(--sv2-surface-1);
+  border-right: 1px solid var(--sv2-border);
+}
+
+.epg__corner {
+  padding: 10px 12px;
+  color: var(--sv2-text-faint);
+  font-size: 0.6875rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  border-right: 1px solid var(--portal-border);
 }
 
-.epg-grid__header-timeline {
+.epg__times {
   position: relative;
-  min-height: 2.5rem;
-  flex: 0 0 auto;
+
+  span,
+  b {
+    position: absolute;
+    top: 0;
+    left: calc(var(--s) * var(--ppm));
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding-left: 6px;
+    white-space: nowrap;
+    font-size: 0.6875rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  span {
+    border-left: 1px solid var(--sv2-border);
+    color: var(--sv2-text-muted);
+  }
 }
 
-.epg-grid__tick {
-  position: absolute;
-  top: 0;
-  bottom: 0;
+.epg__now-tag {
+  z-index: 1;
+  height: auto !important;
+  top: 8px !important;
+  padding: 1px 5px !important;
+  border-radius: 4px;
+  transform: translateX(-50%);
+  background: var(--sv2-live, #e5484d);
+  color: #fff;
+  font-weight: 800;
+}
+
+// Off-screen rows skip layout and paint; the sticky channel cell still works inside them.
+.epg__row {
+  height: var(--row-h);
+  border-bottom: 1px solid var(--sv2-border);
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--row-h);
+
+  &:last-of-type {
+    border-bottom: 0;
+  }
+}
+
+.epg__ch a {
   display: flex;
   align-items: center;
-  padding-left: 0.4rem;
-  border-left: 1px solid var(--portal-border);
-  color: var(--portal-text-muted);
-  font-size: var(--text-2xs);
+  gap: 8px;
+  height: 100%;
+  padding: 0 10px;
+  color: var(--sv2-text);
+  font-size: var(--sv2-fs-sm, 0.8125rem);
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  text-decoration: none;
+
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  img {
+    width: 28px;
+    height: 28px;
+    flex: none;
+    border-radius: 7px;
+    object-fit: contain;
+    // Channel logos are drawn for dark backgrounds (many are white), in both themes.
+    background: #12151a;
+  }
+
+  &:hover span {
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--sv2-focus);
+    outline-offset: -2px;
+  }
 }
 
-.epg-grid__body {
-  display: block;
-  height: min(43rem, calc(100vh - 15rem));
-  min-height: 18rem;
-  // Bounded to the container instead of `width: max-content`, so its own
-  // (wider) row content overflows *this* element — making it the real
-  // horizontal scroll container, which is what `.epg-grid__channel-cell`'s
-  // `position: sticky; left: 0` needs to resolve against.
-  width: 100%;
-}
-
-.epg-grid__row {
-  display: flex;
-  height: var(--epg-row-h);
-  border-bottom: 1px solid var(--portal-divider);
-}
-
-.epg-grid__row:last-child {
-  border-bottom: none;
-}
-
-.epg-grid__channel-cell {
-  flex: 0 0 var(--epg-channel-col-w);
-  position: sticky;
-  left: 0;
-  z-index: var(--z-sticky);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0 0.85rem;
-  background: var(--portal-card);
-  border-right: 1px solid var(--portal-border);
-}
-
-.epg-grid__channel-cell img {
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 0.4rem;
-  object-fit: contain;
-  background: var(--portal-surface);
-  flex: none;
-}
-
-.epg-grid__channel-name {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--portal-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.epg-grid__channel-name:focus-visible {
-  outline: 2px solid var(--portal-text);
-  outline-offset: 2px;
-}
-
-.epg-grid__track {
+.epg__track {
   position: relative;
-  flex: 0 0 auto;
 }
 
-.epg-grid__now-line {
+.epg__prog {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--accent-live);
-  z-index: var(--z-sticky);
-  pointer-events: none;
-}
-
-.epg-grid__now-line--header {
-  top: auto;
-  bottom: 0;
-  height: 6px;
-  border-radius: var(--radius-pill);
-}
-
-.epg-grid__cell {
-  position: absolute;
-  top: 0.3rem;
-  bottom: 0.3rem;
+  top: 6px;
+  bottom: 6px;
+  left: calc(var(--s) * var(--ppm));
+  width: calc(var(--w) * var(--ppm) - 4px);
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 0.1rem;
-  padding: 0.3rem 0.55rem;
-  border-radius: 0.55rem;
-  border: 1px solid var(--portal-border);
-  border-left: 2px solid var(--portal-border-strong);
-  background: var(--portal-surface);
-  color: var(--portal-text);
+  gap: 1px;
+  padding: 6px 9px;
+  // clip (not hidden): hidden would make the cell a scroll container and break the sticky titles below.
+  overflow: clip;
+  border-radius: 8px;
+  border: 1px solid var(--sv2-border);
+  background: var(--sv2-surface-2);
+  color: var(--sv2-text);
   text-decoration: none;
-  overflow: hidden;
-  transition: background-color 150ms ease-out, border-color 150ms ease-out;
+  transition: border-color var(--sv2-dur, 160ms) ease, opacity var(--sv2-dur, 160ms) ease;
+
+  // A programme that started before the visible window keeps its title readable
+  // next to the channel column while the grid scrolls sideways.
+  b,
+  small {
+    position: sticky;
+    left: calc(var(--chw) + 8px);
+    // Only as wide as the text, so it has room to slide inside the cell.
+    align-self: flex-start;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  b {
+    font-size: 0.78rem;
+  }
+
+  small {
+    color: var(--sv2-text-muted);
+    font-size: 0.6875rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  &:hover {
+    border-color: var(--section-accent-text);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--sv2-focus);
+    outline-offset: -2px;
+  }
+
+  &.past {
+    opacity: 0.6;
+  }
+
+  &.live {
+    opacity: 1;
+    background: color-mix(in srgb, var(--section-accent) 18%, var(--sv2-surface-2));
+    border-color: color-mix(in srgb, var(--section-accent) 55%, transparent);
+  }
+
+  &.next {
+    box-shadow: inset 3px 0 0 var(--section-accent-text);
+    border-color: var(--section-accent-text);
+  }
+
+  &.dim {
+    opacity: 0.3;
+  }
+
+  &.sel {
+    outline: 2px solid var(--section-accent-text);
+    outline-offset: -2px;
+  }
 }
 
-.epg-grid__cell:hover {
-  background: var(--portal-surface-strong);
-}
-
-.epg-grid__cell:focus-visible {
-  outline: 2px solid var(--accent-discover);
-  outline-offset: 2px;
-}
-
-.epg-grid__cell-time {
-  font-size: var(--text-2xs);
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: var(--portal-text-muted);
-}
-
-.epg-grid__cell-title {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.epg-grid__cell-live-dot {
+.epg__now {
   position: absolute;
-  top: 0.4rem;
-  right: 0.4rem;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent-live);
-  animation: epg-grid-pulse 1.6s ease-in-out infinite;
+  top: var(--head-h);
+  bottom: 0;
+  left: calc(var(--chw) + var(--s) * var(--ppm));
+  z-index: 2;
+  width: 2px;
+  background: var(--sv2-live, #e5484d);
+  pointer-events: none;
 }
 
-.epg-grid__cell--accent-discover {
-  // 'discover' is resolveVertical()'s fallback for nearly every plain EPG
-  // program (tv-normalizers.ts), so --accent-discover (Spotify green) here
-  // would paint almost every cell in the grid, reading as unstyled/broken
-  // rather than intentional. Keep the neutral base border instead — real
-  // accent colors stay reserved for live/sports/streaming below.
-  border-left-color: var(--portal-border-strong);
+.epg-empty {
+  margin: 0;
+  padding: 24px;
+  border: 1px solid var(--sv2-border);
+  border-radius: var(--sv2-r-md, 12px);
+  color: var(--sv2-text-muted);
+  text-align: center;
 }
 
-.epg-grid__cell--accent-streaming {
-  border-left-color: var(--accent-streaming);
-}
+// Phones: narrower channel column, denser timeline, edge to edge.
+@media (max-width: 767px) {
+  .epg {
+    --chw: 96px;
+    --ppm: 3.4px;
+    --row-h: 60px;
+    max-height: 70vh;
+  }
 
-.epg-grid__cell--accent-sports {
-  border-left-color: var(--accent-sports);
-}
+  .epg__ch a {
+    padding: 0 6px;
+    font-size: 0.75rem;
 
-.epg-grid__cell--accent-live,
-.epg-grid__cell--live {
-  border-left-color: var(--accent-live);
-  background: var(--accent-live-soft);
-}
-
-@keyframes epg-grid-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
+    img {
+      display: none;
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .epg-grid__cell-live-dot {
-    animation: none;
+  .epg__prog {
+    transition: none;
   }
 }

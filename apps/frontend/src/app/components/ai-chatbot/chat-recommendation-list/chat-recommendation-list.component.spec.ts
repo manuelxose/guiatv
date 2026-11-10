@@ -23,7 +23,7 @@ describe('ChatRecommendationListComponent', () => {
 
   it('shows five platform results in a readable list before progressive expansion', () => {
     expect(fixture.debugElement.queryAll(By.css('app-chat-recommendation-card')).length).toBe(5);
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Ver 3 resultados más');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Ver 3 opciones más');
     expect(fixture.debugElement.query(By.css('[aria-label="Vista carrusel"]'))).toBeNull();
   });
 

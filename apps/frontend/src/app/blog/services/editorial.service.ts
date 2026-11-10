@@ -69,6 +69,11 @@ export class EditorialService {
     return this.posts$;
   }
 
+  /** Every category that has posts (the hub state keeps only the first 8): the Guías menu. */
+  public getCategories(): Observable<EditorialCategory[]> {
+    return this.getPosts().pipe(map((posts) => this.extractCategories(posts)));
+  }
+
   public getHubState(): Observable<EditorialHubState> {
     return this.getPosts().pipe(
       map((posts) => {

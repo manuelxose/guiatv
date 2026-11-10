@@ -137,7 +137,7 @@
   --accent-streaming-soft: color-mix(in oklch, var(--accent-streaming) 8%, var(--portal-card));
   --accent-sports: var(--spotify-warning);
   --accent-sports-soft: color-mix(in oklch, var(--accent-sports) 8%, var(--portal-card));
-  --accent-editorial: #3a3a3a;
+  --accent-editorial: #6b3fd4;
   --accent-editorial-soft: color-mix(in oklch, var(--accent-editorial) 6%, var(--portal-card));
 
   // Match-status semantics (live/postponed) for the football vertical.
@@ -201,7 +201,7 @@
   --portal-left-rail-collapsed-w: 5.75rem;
   --portal-right-rail-w: 20rem;
   --portal-content-max: 110rem;
-  --unified-top-nav-h: 8.75rem;
+  --unified-top-nav-h: 4rem;
   --portal-pill-shelf-h: 4.75rem;
   --shell-sticky-offset: calc(var(--unified-top-nav-h) + var(--portal-pill-shelf-h));
 
@@ -238,32 +238,75 @@
   --z-toast: 80;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION ACCENT — each top-level section has its own colour. The header sets
+// html[data-section] from the route: fill = backgrounds, ink = text on the fill,
+// text = the accent used as text on the page background (AA in both themes).
+// ─────────────────────────────────────────────────────────────────────────────
+:root,
+:root[data-section='home'],
+:root[data-section='discover'] {
+  --section-accent: #1ed760;
+  --section-accent-ink: #121212;
+  --section-accent-text: #0f7a33;
+}
+:root[data-section='live'] {
+  --section-accent: #f3727f;
+  --section-accent-ink: #121212;
+  --section-accent-text: #a8323d;
+}
+:root[data-section='streaming'] {
+  --section-accent: #539df5;
+  --section-accent-ink: #121212;
+  --section-accent-text: #1a5fa8;
+}
+:root[data-section='sports'] {
+  --section-accent: #c6f25a;
+  --section-accent-ink: #121212;
+  --section-accent-text: #4d7c0f;
+}
+:root[data-section='editorial'] {
+  // Violet: grey read as "disabled" next to the other section colours. ink 6.4:1 on the fill, text 7:1 on white.
+  --section-accent: #a685ff;
+  --section-accent-ink: #121212;
+  --section-accent-text: #6b3fd4;
+}
+html[data-theme='dark'],
+html[data-theme='dark'][data-section='home'],
+html[data-theme='dark'][data-section='discover'] {
+  --section-accent-text: #4ade80;
+}
+html[data-theme='dark'][data-section='live'] {
+  --section-accent-text: #ff9aa4;
+}
+html[data-theme='dark'][data-section='streaming'] {
+  --section-accent-text: #7cc0ff;
+}
+html[data-theme='dark'][data-section='sports'] {
+  --section-accent-text: #c6f25a;
+}
+html[data-theme='dark'][data-section='editorial'] {
+  --section-accent: #a685ff;
+  --section-accent-ink: #121212;
+  --section-accent-text: #c4adff;
+}
+
 @media (min-width: 768px) {
   :root {
-    --unified-top-nav-h: 8.25rem;
     --portal-pill-shelf-h: 4.2rem;
   }
 }
 
-/* Mobile-first: the header is a single compact row; the permanent search
-   field is replaced by an overlay so content starts immediately below. */
+/* The global header (unified-top-nav) is a single 4rem row at every width. */
 @media (max-width: 767px) {
   :root {
-    --unified-top-nav-h: 3.5rem;
     --portal-pill-shelf-h: 3.4rem;
   }
 }
 
 @media (min-width: 1100px) {
   :root {
-    --unified-top-nav-h: 8.25rem;
     --portal-pill-shelf-h: 4rem;
-  }
-}
-
-@media (min-width: 1280px) {
-  :root {
-    --unified-top-nav-h: 4.75rem;
   }
 }
 
@@ -336,7 +379,7 @@ html[data-theme='dark'] {
   --accent-streaming-soft: color-mix(in oklch, var(--accent-streaming) 10%, var(--portal-card));
   --accent-sports: var(--spotify-warning);
   --accent-sports-soft: color-mix(in oklch, var(--accent-sports) 10%, var(--portal-card));
-  --accent-editorial: var(--spotify-silver);
+  --accent-editorial: #c4adff;
   --accent-editorial-soft: color-mix(in oklch, var(--accent-editorial) 8%, var(--portal-card));
 
   --football-win: #3fcf8e;
@@ -387,7 +430,7 @@ html[data-theme='dark'] {
     --accent-discover: #1ed760;
     --accent-streaming: #539df5;
     --accent-sports: #ffa42b;
-    --accent-editorial: #b3b3b3;
+    --accent-editorial: #c4adff;
     --guide-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
     --shadow-sm: none;
     --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);

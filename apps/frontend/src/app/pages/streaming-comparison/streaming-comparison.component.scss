@@ -363,6 +363,24 @@
   display: block;
 }
 
+.selected-table thead .th-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.selected-table thead .th-brand img {
+  width: 1.4rem;
+  height: 1.4rem;
+  flex: none;
+  object-fit: contain;
+  border-radius: 0.35rem;
+}
+
 .selected-table thead span {
   margin-top: 0.2rem;
   color: var(--portal-text-muted);
@@ -493,5 +511,21 @@
 @media (prefers-reduced-motion: reduce) {
   .comparison * {
     scroll-behavior: auto;
+  }
+}
+
+// Right-panel row for a provider without a catalogue filter (no link).
+.cmp__row {
+  display: grid;
+  padding: 9px 2px;
+  border-bottom: 1px solid var(--sv2-border);
+
+  strong {
+    font-size: var(--sv2-fs-sm);
+  }
+
+  small {
+    color: var(--sv2-text-muted);
+    font-size: var(--sv2-fs-xs);
   }
 }

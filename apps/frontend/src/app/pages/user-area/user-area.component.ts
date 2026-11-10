@@ -1,495 +1,160 @@
-import { CommonModule } from '@angular/common';
-import { Component, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { Subject, combineLatest, forkJoin, map, take, takeUntil } from 'rxjs';
-import {
-  CommunityList,
-  UserActivity,
-  UserFriend,
-  UserList,
-  UserListItem,
-  UserNotifications,
-  UserPrivacy,
-  UserProfile,
-  UserRecommendation
-} from '../../interfaces/user.interface';
-import { MenuStateService } from '../../services/menu-state.service';
-import { UserService } from '../../services/user.service';
-import { UserListsComponent } from './components/user-lists/user-lists.component';
-import { UserSettingsComponent } from './components/user-settings/user-settings.component';
-import { UserSocialFeedComponent } from './components/user-social-feed/user-social-feed.component';
-import { UserSearchComponent } from './components/user-search/user-search.component';
-import { CreateListModalComponent } from './components/create-list-modal/create-list-modal.component';
-import { ListDetailsComponent } from './components/list-details/list-details.component';
-import { EditProfileModalComponent } from './components/edit-profile-modal/edit-profile-modal.component';
-import { AddToListModalComponent } from './components/add-to-list-modal/add-to-list-modal.component';
-import { UserFavoritesComponent } from './components/user-favorites/user-favorites.component';
-import { UserInteractionHistoryComponent } from './components/user-interaction-history/user-interaction-history.component';
-import { PersonalizationPreferencesComponent } from './components/personalization-preferences/personalization-preferences.component';
-import { AssistantPreferencesComponent } from './components/assistant-preferences/assistant-preferences.component';
-import { CommunityListCardComponent } from './components/community-list-card/community-list-card.component';
-import { CompletionMeterComponent } from '../../components/completion-meter/completion-meter.component';
-import { CatalogRailComponent } from '../../components/catalog-rail/catalog-rail.component';
-import { AuthActionService } from '../../services/auth-action.service';
+import { AsyncPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { Component, computed, effect, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { map } from 'rxjs';
+import { PanelNavComponent } from '../../components/panel-nav/panel-nav.component';
+import { PanelShellComponent } from '../../components/panel-shell/panel-shell.component';
+import { PanelTileComponent } from '../../components/panel-tile/panel-tile.component';
+import { PERFIL_LINKS, PerfilTab } from '../../config/perfil-nav';
+import { APP_PATHS } from '../../config/route-map';
+import { UserListItem, UserNotification } from '../../interfaces/user.interface';
+import { CatalogItem, CatalogService } from '../../services/catalog.service';
 import { ChatService } from '../../services/chat.service';
 import { ChatbotService } from '../../services/chatbot.service';
-import { CatalogItem, CatalogService } from '../../services/catalog.service';
-import { computePersonalizationCompletion, PersonalizationCompletion } from '../../utils/personalization-completion';
+import { MetaService } from '../../services/meta.service';
+import { UserService } from '../../services/user.service';
+import { computePersonalizationCompletion } from '../../utils/personalization-completion';
+import { avatarSrc } from '../../utils/avatar-src';
+import { AvatarEditorComponent } from './components/avatar-editor/avatar-editor.component';
+import { MyAccountComponent } from './components/my-account/my-account.component';
+import { MyAssistantComponent } from './components/my-assistant/my-assistant.component';
+import { MyFootballComponent } from './components/my-football/my-football.component';
+import { MyChannelsComponent } from './components/my-channels/my-channels.component';
+import { MyLibraryComponent } from './components/my-library/my-library.component';
+import { MyNoticesComponent } from './components/my-notices/my-notices.component';
+import { MyTastesComponent } from './components/my-tastes/my-tastes.component';
 
-type TabType =
-  | 'overview' | 'tv' | 'streaming' | 'sports' | 'library' | 'community' | 'assistant' | 'notifications' | 'account'
-  | 'feed' | 'friends' | 'lists' | 'favorites' | 'history' | 'settings'
-  | 'admin';
+/** Old `?tab=` values (bookmarks, links from other pages, the chatbot) and the tab each now lives in. */
+const LEGACY_TABS: Record<string, PerfilTab> = {
+  tv: 'canales',
+  sports: 'futbol', football: 'futbol',
+  library: 'lista', lists: 'lista', favorites: 'lista', history: 'lista',
+  assistant: 'asistente', chat: 'asistente', recommendations: 'asistente',
+  streaming: 'gustos',
+  notifications: 'avisos',
+  settings: 'cuenta', account: 'cuenta',
+};
+const TABS: readonly PerfilTab[] = ['overview', 'canales', 'futbol', 'lista', 'asistente', 'gustos', 'avisos', 'cuenta'];
+
+const HINTS: Record<PerfilTab, string> = {
+  overview: 'Qué echan en tus canales, lo que tienes pendiente y qué ver esta noche.',
+  canales: 'Elige tus canales y mira qué echan ahora y después en cada uno.',
+  futbol: 'Los partidos de tus equipos y dónde verlos, y lo que sigues.',
+  lista: 'Lo que has guardado para ver, lo que ya has visto y tus listas.',
+  asistente: 'Todo lo que el asistente sabe de ti y usa para recomendarte, y tus conversaciones.',
+  gustos: 'Tus plataformas y lo que te gusta: con esto afinamos Para ti y el asistente.',
+  avisos: 'Recordatorios de programas, notificaciones y qué quieres recibir.',
+  cuenta: 'Tus datos, contraseña, privacidad y dispositivos.',
+};
 
 @Component({
   selector: 'app-user-area',
   standalone: true,
   imports: [
-    CommonModule,
-    RouterModule,
-    UserListsComponent,
-    UserSocialFeedComponent,
-    UserSearchComponent,
-    UserSettingsComponent,
-    CreateListModalComponent,
-    ListDetailsComponent,
-    EditProfileModalComponent,
-    AddToListModalComponent,
-    UserFavoritesComponent,
-    UserInteractionHistoryComponent,
-    PersonalizationPreferencesComponent,
-    AssistantPreferencesComponent,
-    CompletionMeterComponent,
-    CatalogRailComponent,
-    CommunityListCardComponent,
+    AsyncPipe,
+    DatePipe,
+    DecimalPipe,
+    RouterLink,
+    PanelShellComponent,
+    PanelNavComponent,
+    PanelTileComponent,
+    MyChannelsComponent,
+    MyFootballComponent,
+    MyLibraryComponent,
+    MyAssistantComponent,
+    MyTastesComponent,
+    MyNoticesComponent,
+    MyAccountComponent,
+    AvatarEditorComponent,
   ],
   templateUrl: './user-area.component.html',
-  styleUrls: ['./user-area.component.scss'],
+  styleUrls: ['./perfil-ui.scss', './user-area.component.scss'],
 })
-export class UserAreaComponent implements OnInit, OnDestroy {
-  /**
-   * The one source of truth for both the mobile tab grid and the desktop
-   * sidebar nav (see `visibleTabs` below) — previously the desktop sidebar
-   * had its own hardcoded 4-shortcut list that covered only 4 of these 9
-   * destinations. 'streaming' and 'notifications' used to be separate rows
-   * here even though both rendered the exact same <app-user-settings> as
-   * 'account' — collapsed into one 'account' entry; `mapLegacyTab` still
-   * resolves old `?tab=streaming`/`?tab=notifications` links to it.
-   */
-  public readonly sectionTabs: { key: TabType; label: string }[] = [
-    { key: 'overview', label: 'Resumen' },
-    { key: 'tv', label: 'Mi TV' },
-    { key: 'sports', label: 'Deportes' },
-    { key: 'library', label: 'Biblioteca' },
-    { key: 'community', label: 'Comunidad' },
-    { key: 'assistant', label: 'Asistente' },
-    { key: 'account', label: 'Cuenta' },
-  ];
+export class UserAreaComponent {
+  private readonly user = inject(UserService);
+  private readonly chat = inject(ChatService);
+  private readonly chatbot = inject(ChatbotService);
+  private readonly catalog = inject(CatalogService);
 
-  public profile$ = this.userService.getProfile();
-  public recommendations$ = this.userService.getRecommendations();
-  public activities$ = this.userService.getActivities();
-  public friends$ = this.userService.getFriends();
-  public lists$ = this.userService.getLists();
-  public favorites$ = this.userService.getFavorites();
-  public interactionHistory$ = this.userService.getInteractionHistory();
-  public isAuthenticated$ = this.userService.isAuthenticated$;
-  public loading$ = this.userService.loading$;
-  public error$ = this.userService.error$;
-  public isAdmin$ = this.profile$.pipe(map((profile) => profile?.role === 'admin'));
+  readonly perfilLinks = PERFIL_LINKS;
+  readonly appPaths = APP_PATHS;
+  readonly contextOpen = signal(false);
+  readonly assistantAsks = ['¿Qué hay esta noche en mis canales?', 'Recomiéndame algo de lo que tengo pendiente', 'Avísame cuando empiece el partido'];
 
-  public readonly unreadChatCount$ = this.chatService.getConversations().pipe(
-    map((conversations) =>
-      conversations.reduce((total, conversation) => total + Number(conversation.unreadCount || 0), 0)
-    )
+  readonly isAuthenticated$ = this.user.isAuthenticated$;
+  readonly error$ = this.user.error$;
+  readonly profile = toSignal(this.user.getProfile(), { requireSync: true });
+  readonly isAdmin = computed(() => this.profile().role === 'admin');
+  readonly photo = computed(() => avatarSrc(this.profile().avatar));
+  readonly watchlist = toSignal(this.user.getWatchlist(), { initialValue: [] as UserListItem[] });
+  readonly seenCount = toSignal(this.user.getInteractionHistory().pipe(map((items) => items.filter((i) => i.status === 'seen').length)), { initialValue: 0 });
+  private readonly notifications = toSignal(this.user.getNotifications(), { initialValue: [] as UserNotification[] });
+  private readonly memory = toSignal(this.chatbot.memory$, { initialValue: null });
+
+  /** Next programme reminder the assistant set (stored as a notification). */
+  readonly nextReminder = computed(() =>
+    this.notifications()
+      .filter((n) => n.payload?.['source'] === 'ai_reminder' && Date.parse(String(n.payload?.['startTime'] ?? '')) > Date.now())
+      .sort((a, b) => Date.parse(String(a.payload?.['startTime'])) - Date.parse(String(b.payload?.['startTime'])))[0]
   );
+  readonly completion = computed(() => computePersonalizationCompletion(this.profile(), this.memory()));
 
-  /**
-   * Onboarding-completion meter for Overview — same computation the
-   * Asistente tab uses for its own counter (utils/personalization-completion.ts),
-   * so the two never disagree. Memory is fetched once when Overview loads
-   * (see loadSectionData) since it otherwise only populates as a side effect
-   * of opening the chatbot or the Asistente tab.
-   */
-  public readonly personalizationCompletion$ = combineLatest([
-    this.profile$,
-    this.chatbotService.memory$,
-  ]).pipe(map(([profile, memory]) => computePersonalizationCompletion(profile, memory) as PersonalizationCompletion));
+  readonly activeTab = toSignal(
+    combineTab(inject(ActivatedRoute)),
+    { initialValue: 'overview' as PerfilTab }
+  );
+  readonly activeLabel = computed(() => this.perfilLinks.find((l) => l.tab === this.activeTab())?.label || 'Mi perfil');
+  readonly activeHint = computed(() => HINTS[this.activeTab()]);
 
-  /**
-   * Real "for you" recommendations for the Overview rail, reusing the same
-   * /discovery/for-you endpoint and CatalogRailComponent that the standalone
-   * /para-ti page already uses — see loadSectionData. Left empty (rail
-   * hidden) rather than showing placeholder items when there is nothing to
-   * recommend yet.
-   */
-  public forYouItems: CatalogItem[] = [];
-  private forYouLoaded = false;
+  /** "Para ti" titles for Hoy (the /discovery/for-you endpoint /para-ti uses); empty shows the Gustos call to action. */
+  readonly forYou = signal<CatalogItem[]>([]);
 
-  /**
-   * Real public/shared lists for the Community tab, from an endpoint
-   * (UserService.fetchCommunityLists -> GET /v2/lists/public) that already
-   * existed but was never called from Mi GuíaTV — CommunityListCardComponent
-   * was built for this and sat unused. No fabricated placeholder items;
-   * hidden entirely when empty (see loadCommunityLists).
-   */
-  public communityLists: CommunityList[] = [];
-  private communityListsLoaded = false;
-
-  public activeTab: TabType = 'overview';
-  public isMobileView = false;
-  public isCreateListModalOpen = false;
-  public isEditProfileModalOpen = false;
-  public isAddToListModalOpen = false;
-  private readonly destroy$ = new Subject<void>();
-
-  public selectedList: UserList | null = null;
-  public selectedListItems: UserListItem[] = [];
-  @ViewChild(EditProfileModalComponent) editProfileModal?: EditProfileModalComponent;
-
-  constructor(
-    private userService: UserService,
-    private menuState: MenuStateService,
-    private authActionService: AuthActionService,
-    private chatService: ChatService,
-    private chatbotService: ChatbotService,
-    private catalogService: CatalogService,
-    private route: ActivatedRoute,
-    private router: Router
-  ) {}
-
-  /** Re-fetch all user-area data after a failed load. */
-  public retryLoad(): void {
-    this.userService.loadUserAreaData().subscribe();
-  }
-
-  ngOnInit(): void {
-    this.updateViewportState();
-    this.menuState.setActive(this.router.url.startsWith('/comunidad') ? 'comunidad' : 'perfil');
-    this.isAdmin$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((isAdmin) => {
-        if (!isAdmin && this.activeTab === 'admin') {
-          this.activeTab = 'feed';
-        }
-      });
-
-    combineLatest([this.route.data, this.route.queryParamMap])
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(([data, params]) => {
-        const queryTab = String(params.get('tab') || '').trim().toLowerCase();
-        // Support legacy tab query params
-        const mapped = this.mapLegacyTab(queryTab);
-        if (this.isTabType(mapped)) {
-          this.activeTab = mapped;
-          this.loadSectionData(mapped);
-          return;
-        }
-
-        const defaultTab = String(data?.['defaultTab'] || '').trim().toLowerCase();
-        const mappedDefault = this.mapLegacyTab(defaultTab);
-        if (this.isTabType(mappedDefault)) {
-          this.activeTab = mappedDefault;
-          this.loadSectionData(mappedDefault);
-          return;
-        }
-      });
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
-  setActiveTab(tab: TabType): void {
-    this.activeTab = tab;
-    this.loadSectionData(tab);
-    void this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { tab: tab === 'overview' ? null : tab },
-      queryParamsHandling: 'merge',
+  constructor() {
+    // Private page: never indexed. Re-set on every tab: query-only navigations reset the document title.
+    const meta = inject(MetaService);
+    effect(() => {
+      const label = this.activeTab() === 'overview' ? 'Mi perfil' : `${this.activeLabel()} · Mi perfil`;
+      meta.setMetaTags({ title: `${label} | Guía TV`, description: 'Tus canales, tu lista, tu asistente y tus preferencias en Guía TV.', canonicalUrl: APP_PATHS.profile, robots: 'noindex, nofollow' });
+    });
+    this.user.fetchWatchlist().subscribe();
+    this.user.fetchInteractionHistory().subscribe();
+    this.user.fetchNotifications().subscribe();
+    this.chatbot.fetchAssistantMemory().subscribe();
+    this.catalog.getForYou(6).subscribe({
+      next: (recs) => this.forYou.set((recs || []).map((r) => r?.item).filter((i): i is CatalogItem => Boolean(i?.catalogId && i?.title))),
+      error: () => this.forYou.set([]),
     });
   }
 
-  get visibleTabs(): { key: TabType; label: string }[] {
-    return this.sectionTabs;
+  firstName(): string {
+    return this.profile().name.split(' ')[0] || this.profile().username;
   }
 
-  onUpdateStatus(event: { title: string; mood: string; visibility: 'public' | 'friends' | 'private' }): void {
-    this.userService.updateWatchingNow({
-      title: event.title,
-      mood: event.mood,
-      visibility: event.visibility || 'friends',
-    }).subscribe();
+  initials(): string {
+    return this.profile().name.split(/\s+/).slice(0, 2).map((p) => p.charAt(0).toUpperCase()).join('') || 'GT';
   }
 
-  onCreateCommunityList(event: {
-    title: string;
-    description: string;
-    visibility: 'public' | 'friends' | 'private';
-  }): void {
-    this.userService.createList(event).subscribe();
+  /** Only catalogue ids (`tmdb:…`, `program:…`) have a page. */
+  link(contentId?: string): string | null {
+    return contentId && contentId.includes(':') ? `/contenido/${contentId}` : null;
   }
 
-  onRecommendContent(event: {
-    title: string;
-    note: string;
-    visibility: 'public' | 'friends' | 'private';
-  }): void {
-    this.userService
-      .addRecommendation({
-        title: event.title,
-        note: event.note,
-        visibility: event.visibility,
-        type: 'program',
-      })
-      .subscribe();
+  openAssistant(): void {
+    this.chat.requestToggleAssistant();
   }
 
-  onOpenFriendChat(friendId: string): void {
-    this.chatService.createConversation(friendId).subscribe(() => {
-      this.chatService.requestOpenChat(friendId);
-    });
+  retry(): void {
+    this.user.loadUserAreaData().subscribe();
   }
+}
 
-  onUpdateHistory(item: {
-    contentId: string;
-    contentTitle: string;
-    contentType: 'movie' | 'series' | 'program';
-    rating?: number;
-    status: 'seen' | 'watching' | 'pending' | 'dropped';
-    platform?: string;
-    genres?: string[];
-    tmdbId?: number;
-  }): void {
-    this.userService.addContentInteraction(item).subscribe();
-  }
-
-  onToggleFollow(friendId: string): void {
-    this.authActionService.toggleFollow(friendId).subscribe();
-  }
-
-  onLikeActivity(activityId: string): void {
-    this.userService.toggleActivityLike(activityId).subscribe();
-  }
-
-  onCommentActivity(event: { activityId: string; text: string }): void {
-    this.userService.addActivityComment(event.activityId, event.text).subscribe();
-  }
-
-  onSaveSettings(event: {
-    privacy: UserPrivacy;
-    notifications: UserNotifications;
-    favoriteGenres: string[];
-    preferredPlatforms: string[];
-    discoveryDefaults: NonNullable<UserProfile['discoveryDefaults']>;
-  }): void {
-    forkJoin([
-      this.userService.updatePrivacy(event.privacy),
-      this.userService.updateNotifications(event.notifications),
-      this.userService.saveGenrePreferences(event.favoriteGenres, event.preferredPlatforms),
-      this.userService.saveDiscoveryDefaults(event.discoveryDefaults),
-    ]).subscribe();
-  }
-
-  onTvPreferencesChange(preferences: UserProfile['tvPreferences']): void {
-    this.userService.updateTvPreferences(preferences).subscribe();
-  }
-
-  openCreateListModal(): void {
-    this.isCreateListModalOpen = true;
-  }
-
-  closeCreateListModal(): void {
-    this.isCreateListModalOpen = false;
-  }
-
-  onCreateList(event: { title: string; description: string; visibility: 'public' | 'friends' | 'private' }): void {
-    this.userService.createList(event).subscribe();
-  }
-
-  onSelectList(list: UserList): void {
-    this.selectedList = list;
-    this.refreshSelectedListItems();
-  }
-
-  onCloseListDetails(): void {
-    this.selectedList = null;
-    this.selectedListItems = [];
-  }
-
-  openEditProfileModal(): void {
-    this.isEditProfileModalOpen = true;
-  }
-
-  closeEditProfileModal(): void {
-    this.isEditProfileModalOpen = false;
-  }
-
-  onSaveProfile(profileData: Partial<UserProfile>): void {
-    this.userService.updateProfile(profileData).subscribe(() => {
-      this.closeEditProfileModal();
-    });
-  }
-
-  onChangePassword(event: { currentPassword: string; newPassword: string }): void {
-    this.userService.changePassword(event.currentPassword, event.newPassword).subscribe((success) => {
-      this.editProfileModal?.onPasswordChangeResult(
-        success,
-        success ? 'Contraseña actualizada correctamente.' : 'No se pudo cambiar la contraseña. Verifica tu contraseña actual.'
-      );
-    });
-  }
-
-  onRemoveListItem(itemId: string): void {
-    if (this.selectedList) {
-      this.userService.removeListItem(this.selectedList.id, itemId).subscribe(() => {
-        this.refreshSelectedListItems();
-      });
-    }
-  }
-
-  openAddToListModal(): void {
-    this.isAddToListModalOpen = true;
-  }
-
-  closeAddToListModal(): void {
-    this.isAddToListModalOpen = false;
-  }
-
-  onAddListItem(item: { title: string; type: 'movie' | 'series'; state: 'pending' | 'watching' | 'finished' }): void {
-    if (this.selectedList) {
-      this.userService.addListItem(this.selectedList.id, item).subscribe(() => {
-        this.refreshSelectedListItems();
-      });
-    }
-  }
-
-  onRemoveFavorite(id: string): void {
-    this.userService.removeFavorite(id).subscribe();
-  }
-
-  onLogout(): void {
-    this.userService.logout();
-  }
-
-  getProfileInitials(name: string | null | undefined): string {
-    const safeName = String(name || '').trim();
-    if (!safeName) return 'GT';
-    return safeName
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((part) => part.charAt(0).toUpperCase())
-      .join('');
-  }
-
-  private refreshSelectedListItems(): void {
-    if (!this.selectedList) return;
-    this.userService.fetchListItems(this.selectedList.id).pipe(take(1)).subscribe((items) => {
-      this.selectedListItems = items;
-    });
-  }
-
-  @HostListener('window:resize')
-  onResize(): void {
-    this.updateViewportState();
-  }
-
-  private updateViewportState(): void {
-    const width = typeof window !== 'undefined' ? window.innerWidth : 1280;
-    this.isMobileView = width < 768;
-  }
-
-  private loadSectionData(tab: TabType): void {
-    if (tab === 'overview' || tab === 'library') {
-      this.userService.fetchLists().subscribe();
-      this.userService.fetchFavorites().subscribe();
-      this.userService.fetchInteractionHistory().subscribe();
-    }
-    if (tab === 'overview') {
-      // Assistant memory otherwise only loads as a side effect of opening
-      // the chatbot or the Asistente tab; Overview's completion meter needs
-      // it too. This is a single small document lookup, cheap enough to
-      // refetch on every Overview visit without its own cache.
-      this.chatbotService.fetchAssistantMemory().subscribe();
-      this.loadForYouRail();
-      // Overview's "Comunidad" quick-link card shows a real friend count —
-      // without this, friends$ stays empty until the user actually opens
-      // the Community tab, which would show a misleading "0 amigos".
-      this.userService.fetchFriends().subscribe();
-    }
-
-    if (tab === 'community' || tab === 'feed' || tab === 'friends') {
-      this.userService.fetchFriends().subscribe();
-      this.userService.fetchActivities('all').subscribe();
-      this.userService.fetchRecommendations('friends').subscribe();
-    }
-    if (tab === 'community' || tab === 'feed') {
-      this.loadCommunityLists();
-    }
-    if (tab === 'notifications') this.userService.fetchNotifications().subscribe();
-  }
-
-  /**
-   * Backs the Overview "Esta noche para ti" rail with the same
-   * /discovery/for-you data and CatalogRailComponent the standalone /para-ti
-   * page already uses (see CatalogService.getForYou and ForYouComponent) —
-   * no separate recommendation logic, no fabricated items. The raw response
-   * nests the real catalog fields under `.item`; only entries with a usable
-   * catalogId/title are kept, and the rail stays hidden entirely if that
-   * comes back empty (no login yet, no genres/platforms set, etc.).
-   */
-  private loadForYouRail(): void {
-    if (this.forYouLoaded) return;
-    this.forYouLoaded = true;
-    this.catalogService.getForYou(6).subscribe({
-      next: (recommendations) => {
-        this.forYouItems = (recommendations || [])
-          .map((recommendation) => recommendation?.item)
-          .filter((item): item is CatalogItem => Boolean(item?.catalogId && item?.title));
-      },
-      error: () => {
-        this.forYouItems = [];
-      },
-    });
-  }
-
-  private loadCommunityLists(): void {
-    if (this.communityListsLoaded) return;
-    this.communityListsLoaded = true;
-    this.userService.fetchCommunityLists(6).subscribe({
-      next: (lists) => {
-        this.communityLists = lists || [];
-      },
-      error: () => {
-        this.communityLists = [];
-      },
-    });
-  }
-
-  private mapLegacyTab(value: string): string {
-    if (value === 'social' || value === 'feed' || value === 'community') return 'community';
-    if (value === 'overview') return 'overview';
-    if (value === 'chat' || value === 'recommendations') return 'assistant';
-    // 'streaming'/'notifications' used to be their own nav entries; both
-    // rendered the identical <app-user-settings> as 'settings'/'account'.
-    // Old bookmarks/links with those query values still land on the single
-    // surviving 'account' tab instead of a dead/blank state.
-    if (value === 'settings' || value === 'streaming' || value === 'notifications') return 'account';
-    if (value === 'lists' || value === 'favorites' || value === 'history') return 'library';
-    return value;
-  }
-
-  private isTabType(value: string): value is TabType {
-    return (
-      value === 'overview' || value === 'tv' || value === 'streaming' || value === 'sports' || value === 'library' || value === 'community' || value === 'assistant' || value === 'notifications' || value === 'account' ||
-      value === 'feed' ||
-      value === 'friends' ||
-      value === 'lists' ||
-      value === 'favorites' ||
-      value === 'history' ||
-      value === 'settings' ||
-      value === 'admin'
-    );
-  }
+function combineTab(route: ActivatedRoute) {
+  return route.queryParamMap.pipe(
+    map((params) => {
+      const raw = String(params.get('tab') || '').trim().toLowerCase();
+      const tab = (LEGACY_TABS[raw] ?? raw) as PerfilTab;
+      return TABS.includes(tab) ? tab : 'overview';
+    })
+  );
 }

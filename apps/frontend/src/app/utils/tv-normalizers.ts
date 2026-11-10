@@ -16,6 +16,8 @@ export interface UnifiedCardData {
   subtitle: string;
   description: string;
   image: string;
+  /** Rectangular (16:9) art when the API has one: TMDB backdrop for linked works, empty otherwise. */
+  imageWide: string;
   channelName: string;
   channelId: string;
   channelPath: string;
@@ -76,6 +78,7 @@ export function normalizeToCard(item: TvReadItemDTO | CatalogItem): UnifiedCardD
       subtitle: buildTvSubtitle(item),
       description: String(item.program.description || '').trim(),
       image: resolveTvImage(item),
+      imageWide: String(item.assets.backdrop?.url || '').trim(),
       channelName: String(item.channel.name || '').trim(),
       channelId: String(item.channel.id || '').trim(),
       channelPath: item.channel.id ? channelCanonicalPath(item.channel, item.channel.id) : '',
@@ -106,6 +109,7 @@ export function normalizeToCard(item: TvReadItemDTO | CatalogItem): UnifiedCardD
     subtitle: buildCatalogSubtitle(item),
     description: String(item.synopsis || '').trim(),
     image: String(item.backdrop || item.image || '').trim(),
+    imageWide: String(item.backdrop || '').trim(),
     channelName: String(item.channel?.name || '').trim(),
     channelId: String(item.channel?.id || '').trim(),
     channelPath: item.channel?.id ? channelCanonicalPath(item.channel, item.channel.id) : '',

@@ -1,77 +1,57 @@
-<div
-  class="epg-grid"
-  [attr.role]="rows().length ? 'grid' : null"
-  aria-label="Parrilla de canales y horarios"
-  [class.epg-grid--empty]="!rows().length"
->
-  <ng-container *ngIf="rows().length; else empty">
-    <div class="epg-grid__scroll">
-      <div class="epg-grid__header" role="row">
-        <div class="epg-grid__header-channel" role="columnheader">Canal</div>
-        <div
-          class="epg-grid__header-timeline"
-          [style.width.px]="timelineWidthPx()"
-          [style.transform]="'translateX(-' + headerOffsetPx() + 'px)'"
-        >
-          <span
-            *ngFor="let tick of ticks(); trackBy: trackTick"
-            class="epg-grid__tick"
-            [style.left.px]="tick.leftPx"
-          >{{ tick.label }}</span>
-          <span
-            class="epg-grid__now-line epg-grid__now-line--header"
-            *ngIf="nowLeftPx() !== null"
-            [style.left.px]="nowLeftPx()"
-            aria-hidden="true"
-          ></span>
-        </div>
+@let rowList = rows();
+@if (rowList.length) {
+@let t = now();
+@let dim = category();
+@let sel = selectedId();
+@let focus = focused();
+@let nexts = nextIds();
+<div class="epg" #scroller role="grid" aria-label="Parrilla de canales y horarios" [attr.aria-rowcount]="rowList.length + 1">
+  <div class="epg__canvas" [style.--span]="span()">
+    <div class="epg__head" role="row">
+      <div class="epg__corner" role="columnheader">Canal</div>
+      <div class="epg__times" role="columnheader" aria-label="Horario">
+        @for (tick of ticks(); track tick.at) {<span [style.--s]="tick.at">{{ tick.label }}</span>}
+        @if (nowAt() !== null) {<b class="epg__now-tag" [style.--s]="nowAt()" aria-hidden="true">{{ nowLabel() }}</b>}
       </div>
-
-      <cdk-virtual-scroll-viewport class="epg-grid__body" role="rowgroup" #gridBody itemSize="48" minBufferPx="240" maxBufferPx="480" (scroll)="onBodyScroll()">
-        <div class="epg-grid__row" role="row" *cdkVirtualFor="let row of rows(); let ri = index; trackBy: trackRow">
-          <div class="epg-grid__channel-cell" role="rowheader">
-            <!-- impeccable-disable-next-line broken-image: Angular only renders the dynamic icon when row.channelIcon exists. -->
-            <img *ngIf="row.channelIcon" [src]="row.channelIcon" alt="" width="48" height="48" loading="lazy" />
-            <a class="epg-grid__channel-name" [routerLink]="row.cells[0].card.channelPath" [attr.aria-label]="'Ver programación de ' + row.channelName">{{ row.channelName }}</a>
-          </div>
-
-          <div class="epg-grid__track" role="presentation" [style.width.px]="timelineWidthPx()">
-            <span
-              class="epg-grid__now-line"
-              *ngIf="nowLeftPx() !== null"
-              [style.left.px]="nowLeftPx()"
-              aria-hidden="true"
-            ></span>
-
-            <a
-              *ngFor="let cell of row.cells; let ci = index; trackBy: trackCell"
-              class="epg-grid__cell"
-              [class.epg-grid__cell--live]="cell.item.airing.liveNow"
-              [class.epg-grid__cell--accent-live]="cell.card.vertical === 'live'"
-              [class.epg-grid__cell--accent-discover]="cell.card.vertical === 'discover'"
-              [class.epg-grid__cell--accent-streaming]="cell.card.vertical === 'streaming'"
-              [class.epg-grid__cell--accent-sports]="cell.card.vertical === 'sports'"
-              role="gridcell"
-              [attr.data-cell]="ri + '-' + ci"
-              [routerLink]="cell.card.detailPath"
-              [tabindex]="isFocused(ri, ci) ? 0 : -1"
-              [attr.aria-label]="cell.ariaLabel"
-              [style.left.px]="cell.leftPx"
-              [style.width.px]="cell.widthPx"
-              (focus)="setFocus(ri, ci)"
-              (keydown)="onCellKeydown($event, ri, ci)"
-            >
-              <span class="epg-grid__cell-time">{{ cell.timeLabel }}</span>
-              <span class="epg-grid__cell-title">{{ cell.item.program.title }}</span>
-              <span class="epg-grid__cell-live-dot" *ngIf="cell.item.airing.liveNow" aria-hidden="true"></span>
-            </a>
-          </div>
-        </div>
-      </cdk-virtual-scroll-viewport>
     </div>
-  </ng-container>
 
-  <ng-template #empty>
-    <p class="epg-grid__empty-message">No hay programación disponible para la parrilla en este momento.</p>
-  </ng-template>
+    @for (row of rowList; track row.channelId; let ri = $index) {
+    <div class="epg__row" role="row">
+      <div class="epg__ch" role="rowheader">
+        <a [routerLink]="row.channelPath" [attr.aria-label]="'Programación de ' + row.channelName">
+          @if (row.channelIcon) {<img [src]="row.channelIcon" alt="" width="28" height="28" loading="lazy" decoding="async" />}
+          <span>{{ row.channelName }}</span>
+        </a>
+      </div>
+      <div class="epg__track">
+        @for (cell of row.cells; track cell.item.id; let ci = $index) {
+        <a
+          class="epg__prog"
+          role="gridcell"
+          [attr.href]="cell.card.detailPath"
+          [attr.data-cell]="ri + '-' + ci"
+          [attr.aria-label]="cell.ariaLabel"
+          [attr.aria-selected]="cell.item.id === sel"
+          [tabindex]="focus[0] === ri && focus[1] === ci ? 0 : -1"
+          [class.live]="cell.startMs <= t && t < cell.endMs"
+          [class.past]="cell.endMs <= t"
+          [class.next]="nexts.has(cell.item.id)"
+          [class.dim]="dim !== 'all' && cell.card.category !== dim"
+          [class.sel]="cell.item.id === sel"
+          [style.--s]="cell.start"
+          [style.--w]="cell.span"
+          (click)="onCellClick($event, cell.item)"
+          (focus)="focused.set([ri, ci])"
+          (keydown)="onCellKeydown($event, ri, ci)"
+        ><b>{{ cell.item.program.title }}</b><small>{{ cell.timeLabel }}@if (cell.card.category) { · {{ cell.card.category }}}</small></a>
+        }
+      </div>
+    </div>
+    }
+
+    @if (nowAt() !== null) {<span class="epg__now" [style.--s]="nowAt()" aria-hidden="true"></span>}
+  </div>
 </div>
+} @else {
+<p class="epg-empty">No hay programación disponible para la parrilla en este momento.</p>
+}

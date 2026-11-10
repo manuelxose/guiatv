@@ -1,219 +1,269 @@
-<div *ngIf="safeLdHtml" [innerHTML]="safeLdHtml"></div>
+<div [innerHTML]="structuredData()"></div>
 
-<app-unified-portal-shell
-  tone="home"
-  [breadcrumbItems]="breadcrumbItems"
-  [showHero]="true"
-  heroVariant="stage"
->
-  <div class="home-page__hero-live" shell-hero-media *ngIf="heroItems().length">
-    <app-home-hero [items]="heroItems()"></app-home-hero>
-  </div>
-  <div
-    *ngIf="!heroItems().length"
-    shell-hero-media
-    class="home-page__hero-placeholder"
-    aria-hidden="true"
-  ></div>
+<app-panel-shell sideLabel="Inicio" contextLabel="Ahora en TV" [(contextOpen)]="contextOpen">
+  <app-panel-nav panelSide title="Inicio" [links]="sideLinks" [groups]="sideGroups()"></app-panel-nav>
 
-  <header class="home-page__intro">
-    <h1>Programación de TV hoy en España</h1>
-    <p>
-      Qué hay ahora y qué ponen esta noche en La 1, Antena 3, Telecinco, laSexta y el resto de canales,
-      con películas, series, fútbol y dónde verlos en televisión o streaming.
-    </p>
-  </header>
+  <!-- Right panel: what every channel airs now, tonight, and today's football. Server-rendered, so its links are crawlable too. -->
+  <section panelContext class="home-ctx" aria-labelledby="home-ctx-title">
+    <div class="home-ctx__head">
+      <h2 id="home-ctx-title">Ahora en TV</h2>
+      <a [routerLink]="appPaths.guide" [queryParams]="{ liveView: 'now' }">Parrilla completa ›</a>
+    </div>
 
-  <section *ngIf="loading()" class="home-page__loading">
-    <app-unified-skeleton-block [count]="6" [columns]="3" cardHeight="15rem"></app-unified-skeleton-block>
+    <div class="home-ctx__tabs" role="tablist" aria-label="Qué ver">
+      <button type="button" role="tab" id="home-tab-now" aria-controls="home-tabpanel" [attr.aria-selected]="contextTab() === 'now'" (click)="contextTab.set('now')">Ahora</button>
+      <button type="button" role="tab" id="home-tab-tonight" aria-controls="home-tabpanel" [attr.aria-selected]="contextTab() === 'tonight'" (click)="contextTab.set('tonight')">Esta noche</button>
+      <button type="button" role="tab" id="home-tab-football" aria-controls="home-tabpanel" [attr.aria-selected]="contextTab() === 'football'" (click)="contextTab.set('football')">Fútbol</button>
+    </div>
+
+    <div id="home-tabpanel" role="tabpanel" [attr.aria-labelledby]="'home-tab-' + contextTab()">
+      @switch (contextTab()) {
+        @case ('football') {
+          <ul class="home-ctx__list">
+            @for (match of todaysMatches(); track match.id) {
+            <li>
+              <a class="home-ctx__match" [routerLink]="matchPath(match)">
+                <time class="home-ctx__time">{{ hhmm(match.kickoffAt) }}</time>
+                <span class="home-ctx__body">
+                  <strong>{{ match.homeTeam.shortName || match.homeTeam.name }} – {{ match.awayTeam.shortName || match.awayTeam.name }}</strong>
+                  <small>{{ match.competition.shortName || match.competition.name }}@if (match.broadcasts.length) { · {{ match.broadcasts[0].channelName }} }</small>
+                </span>
+              </a>
+            </li>
+            } @empty {
+            <li class="home-ctx__empty">Hoy no hay partidos destacados. <a [routerLink]="appPaths.sports">Ver calendario</a></li>
+            }
+          </ul>
+        }
+        @case ('tonight') {
+          <ul class="home-ctx__list">
+            @for (item of tonightCards(); track $index) {
+            <li>
+              <a class="home-ctx__match" [routerLink]="item.detailPath">
+                <time class="home-ctx__time">{{ hhmm(item.startTime) }}</time>
+                <span class="home-ctx__body">
+                  <strong>{{ item.title }}</strong>
+                  <small>{{ item.channelName }}@if (item.category) { · {{ item.category }} }</small>
+                </span>
+              </a>
+            </li>
+            } @empty {
+            <li class="home-ctx__empty">Aún no hay programación de esta noche. <a [routerLink]="appPaths.guide" [queryParams]="{ liveView: 'night' }">Ver parrilla</a></li>
+            }
+          </ul>
+        }
+        @default {
+          <ul class="home-ctx__list">
+            @for (row of channelRows(); track row.path) {
+            @let item = row.now;
+            <li class="home-ctx__channel">
+              <a class="home-ctx__logo" [routerLink]="row.path" [attr.aria-label]="'Programación de ' + row.name">
+                @if (row.icon) {<img [src]="row.icon" alt="" width="36" height="36" loading="lazy" />} @else {<span>{{ row.name.charAt(0) }}</span>}
+              </a>
+              <div class="home-ctx__body">
+                <a class="home-ctx__name" [routerLink]="row.path">{{ row.name }}</a>
+                @if (item) {
+                <a class="home-ctx__title" [routerLink]="item.detailPath">{{ item.title }}</a>
+                <small>{{ hhmm(item.startTime) }}–{{ hhmm(item.endTime) }}@if (item.category) { · {{ item.category }} }</small>
+                @if (item.progressPercent) {
+                <span class="home-ctx__bar" aria-hidden="true"><i [style.width.%]="item.progressPercent"></i></span>
+                }
+                @if (row.next) {
+                <small class="home-ctx__next">Después: <a [routerLink]="row.next.detailPath">{{ row.next.title }}</a> · {{ hhmm(row.next.startTime) }}</small>
+                }
+                } @else {
+                <small>Sin datos de programación</small>
+                }
+              </div>
+            </li>
+            } @empty {
+            <li class="home-ctx__empty">{{ loading() ? 'Cargando canales…' : 'No hay datos de programación ahora mismo.' }}</li>
+            }
+          </ul>
+        }
+      }
+    </div>
+
+    <!-- The assistant lives in the same panel: it opens over this column with the page's context. -->
+    <div class="home-ctx__assistant">
+      <strong>¿No sabes qué ver?</strong>
+      <div class="home-ctx__asks">
+        @for (ask of assistantAsks; track ask) {
+        <button type="button" (click)="openAssistant()">{{ ask }}</button>
+        }
+      </div>
+    </div>
   </section>
 
-  <app-unified-async-state
-    *ngIf="error()"
-    kind="error"
-    title="Portada no disponible"
-    [message]="error() || 'No se pudo cargar la portada.'"
-  ></app-unified-async-state>
+  <!-- Centre: ordered by search demand (now → tonight → films → football → channels → streaming → guides). -->
+  <div class="home">
+    <header class="home__intro">
+      <h1>Programación de TV hoy en España</h1>
+      <p class="home__date">Hoy, {{ today }}</p>
+      <p>
+        Qué echan ahora y qué ponen esta noche en La 1, Antena 3, Telecinco, laSexta y el resto de canales, con películas,
+        series y fútbol, y dónde verlos en televisión o en streaming.
+      </p>
+      <nav class="home__chips" aria-label="Accesos rápidos">
+        <a [routerLink]="appPaths.guide" [queryParams]="{ liveView: 'now' }">Qué echan ahora</a>
+        <a [routerLink]="appPaths.guide" [queryParams]="{ liveView: 'night' }">Esta noche</a>
+        <a [routerLink]="appPaths.movies">Películas en TV</a>
+        <a [routerLink]="appPaths.series">Series en TV</a>
+        <a [routerLink]="appPaths.sports">Fútbol hoy</a>
+        <a [routerLink]="appPaths.channels">Todos los canales</a>
+      </nav>
 
-  <ng-container *ngIf="!loading() && !error()">
-    <section *ngIf="liveNow().length" class="home-page__module">
-      <app-unified-section-header
-        eyebrow="Ahora en TV"
-        title="Lo que está en emisión ahora mismo"
-        linkLabel="Abrir TV Directo"
-        [linkPath]="appPaths.guide"
-      ></app-unified-section-header>
-
-      <div class="home-page__rail">
-        <app-unified-program-card
-          *ngFor="let item of liveNow()"
-          [item]="item"
-          variant="compact"
-          [showActions]="false"
-        ></app-unified-program-card>
+      <!-- The assistant is the centre of the app: right under the title, as a question box. -->
+      <div class="home__ask">
+        <button type="button" class="home__ask-box" (click)="openAssistant()">
+          <span class="home__ask-icon" aria-hidden="true">✦</span>
+          <span class="home__ask-text"><strong>¿Qué te apetece ver hoy?</strong><small>Pregúntale al asistente: te dice qué echan y dónde verlo</small></span>
+          <span class="home__ask-go">Preguntar</span>
+        </button>
+        <div class="home__ask-examples">
+          @for (ask of assistantAsks; track ask) {<button type="button" (click)="openAssistant()">{{ ask }}</button>}
+        </div>
       </div>
-    </section>
+    </header>
 
-    <section *ngIf="featuredChannels().length" class="home-page__module">
-      <app-unified-section-header
-        eyebrow="Canales"
-        title="Señales en abierto y de pago"
-        linkLabel="Ver todos los canales"
-        [linkPath]="appPaths.channels"
-      ></app-unified-section-header>
+    @if (loading()) {
+    <app-unified-skeleton-block [count]="8" [columns]="4" cardHeight="12rem"></app-unified-skeleton-block>
+    }
 
-      <div class="home-page__channel-grid">
-        <app-channel-card
-          *ngFor="let entry of featuredChannels()"
-          [entry]="entry"
-          [headingLevel]="3"
-        ></app-channel-card>
-      </div>
-    </section>
+    @if (error()) {
+    <app-unified-async-state kind="error" title="Portada no disponible" [message]="error() || 'No se pudo cargar la portada.'"></app-unified-async-state>
+    }
 
-    <section *ngIf="featuredPlatforms().length" class="home-page__module">
-      <app-unified-section-header
-        eyebrow="Plataformas"
-        title="Tus 13 servicios, siempre a mano"
-        linkLabel="Ver todos los catálogos"
-        [linkPath]="appPaths.platforms"
-      ></app-unified-section-header>
+    @if (!loading() && !error()) {
+      @if (liveNow().length) {
+      <section class="home__module" aria-labelledby="home-now">
+        <div class="home__sec-h"><h2 id="home-now">Qué echan ahora en la tele</h2><a [routerLink]="appPaths.guide" [queryParams]="{ liveView: 'now' }">TV en directo ›</a></div>
+        <div class="home__grid">
+          @for (item of liveNow().slice(0, 8); track $index) {<app-panel-tile [item]="item"></app-panel-tile>}
+        </div>
+      </section>
+      }
 
-      <div class="home-page__platform-grid">
-        <a
-          *ngFor="let platform of featuredPlatforms(); trackBy: trackByPlatform"
-          [routerLink]="appPaths.platforms"
-          [queryParams]="{ platform: platform.name }"
-          class="home-page__platform-card"
-        >
-          <app-platform-badge
-            [label]="platform.name"
-            [color]="platform.color"
-            [logoUrl]="platform.logoUrl || ''"
-          ></app-platform-badge>
-          <span>Ver catálogo</span>
+      @if (tonight().length) {
+      <section class="home__module" aria-labelledby="home-tonight">
+        <div class="home__sec-h"><h2 id="home-tonight">Qué ponen esta noche en televisión</h2><a [routerLink]="appPaths.guide" [queryParams]="{ liveView: 'night' }">Parrilla de esta noche ›</a></div>
+        <div class="home__grid">
+          @for (item of tonight().slice(0, 8); track $index) {<app-panel-tile [item]="item"></app-panel-tile>}
+        </div>
+      </section>
+      }
+
+      @if (tvMovies().length) {
+      <section class="home__module" aria-labelledby="home-films">
+        <div class="home__sec-h"><h2 id="home-films">Películas hoy en TV</h2><a [routerLink]="appPaths.movies">Todas las películas en TV ›</a></div>
+        <div class="home__grid">
+          @for (item of tvMovies(); track $index) {<app-panel-tile [item]="item"></app-panel-tile>}
+        </div>
+      </section>
+      }
+
+      <section class="home__module" aria-labelledby="home-football">
+        <div class="home__sec-h"><h2 id="home-football">Partidos de hoy y dónde verlos</h2><a [routerLink]="appPaths.sports">Todos los partidos ›</a></div>
+        @if (todaysMatches().length) {
+        <div class="home__grid home__grid--wide">
+          @for (match of todaysMatches(); track match.id) {
+          <a class="home__match" [routerLink]="matchPath(match)">
+            <span class="home__match-comp">{{ match.competition.shortName || match.competition.name }} · {{ hhmm(match.kickoffAt) }}</span>
+            <span class="home__match-team">@if (match.homeTeam.crest) {<img [src]="match.homeTeam.crest" alt="" width="20" height="20" loading="lazy" />}<span>{{ match.homeTeam.name }}</span>@if (match.score.home !== null) {<b>{{ match.score.home }}</b>}</span>
+            <span class="home__match-team">@if (match.awayTeam.crest) {<img [src]="match.awayTeam.crest" alt="" width="20" height="20" loading="lazy" />}<span>{{ match.awayTeam.name }}</span>@if (match.score.away !== null) {<b>{{ match.score.away }}</b>}</span>
+            <span class="home__match-tv">{{ match.broadcasts.length ? 'Dónde verlo: ' + match.broadcasts[0].channelName : 'Canal por confirmar' }}</span>
+          </a>
+          }
+        </div>
+        } @else {
+        <a class="home__cta" [routerLink]="appPaths.sports">
+          <strong>Fútbol hoy</strong>
+          <span>Partidos en directo, horarios, competiciones y el canal que emite cada partido.</span>
         </a>
-      </div>
-    </section>
+        }
+      </section>
 
-    <section *ngIf="tonight().length" class="home-page__module">
-      <app-unified-section-header
-        eyebrow="Esta noche"
-        title="Prime time, cine, series y deporte del tramo fuerte"
-        linkLabel="Ver guía nocturna"
-        [linkPath]="appPaths.guide"
-        [linkQueryParams]="{ liveView: 'night' }"
-      ></app-unified-section-header>
+      @if (channelRows().length) {
+      <section class="home__module" aria-labelledby="home-channels">
+        <div class="home__sec-h"><h2 id="home-channels">Programación de los canales de TV</h2><a [routerLink]="appPaths.channels">Todos los canales ›</a></div>
+        <div class="home__grid">
+          @for (row of channelRows(); track row.path) {
+          <a class="home__channel" [routerLink]="row.path">
+            <span class="home__channel-head">
+              <span class="home__channel-logo">@if (row.icon) {<img [src]="row.icon" alt="" width="32" height="32" loading="lazy" />} @else {<span>{{ row.name.charAt(0) }}</span>}</span>
+              <strong>{{ row.name }}</strong>
+            </span>
+            @if (row.now) {
+            <span class="home__channel-now">{{ row.now.title }}</span>
+            <small>{{ hhmm(row.now.startTime) }}–{{ hhmm(row.now.endTime) }}@if (row.next) { · luego {{ row.next.title }} }</small>
+            @if (row.now.progressPercent) {<span class="home__bar" aria-hidden="true"><i [style.width.%]="row.now.progressPercent"></i></span>}
+            } @else {
+            <small>Ver la programación de hoy</small>
+            }
+          </a>
+          }
+        </div>
+      </section>
+      }
 
-      <div class="home-page__rail">
-        <app-unified-program-card
-          *ngFor="let item of tonight()"
-          [item]="item"
-          variant="compact"
-          [showActions]="false"
-        ></app-unified-program-card>
-      </div>
-    </section>
 
-    <section *ngIf="movieHighlights().length" class="home-page__module">
-      <app-unified-section-header
-        eyebrow="Películas"
-        title="Cine para ver hoy"
-        linkLabel="Explorar películas"
-        [linkPath]="appPaths.explore"
-        [linkQueryParams]="{ types: 'movie' }"
-      ></app-unified-section-header>
+      @if (movieHighlights().length) {
+      <section class="home__module" aria-labelledby="home-movies">
+        <div class="home__sec-h"><h2 id="home-movies">Películas para ver en plataformas</h2><a [routerLink]="appPaths.explore" [queryParams]="{ types: 'movie' }">Explorar películas ›</a></div>
+        <div class="home__grid">
+          @for (item of movieHighlights(); track $index; let i = $index) {<app-panel-tile [item]="item" variant="poster" [affiliate]="i < 4"></app-panel-tile>}
+        </div>
+      </section>
+      }
 
-      <div class="home-page__grid">
-        <app-unified-program-card
-          *ngFor="let item of movieHighlights(); let i = index"
-          [item]="item"
-          variant="streaming"
-          [enableAffiliateCta]="i < 4"
-          affiliatePlacement="home"
-        ></app-unified-program-card>
-      </div>
-    </section>
+      @if (seriesHighlights().length) {
+      <section class="home__module" aria-labelledby="home-series">
+        <div class="home__sec-h"><h2 id="home-series">Series para ver en plataformas</h2><a [routerLink]="appPaths.explore" [queryParams]="{ types: 'series' }">Explorar series ›</a></div>
+        <div class="home__grid">
+          @for (item of seriesHighlights(); track $index; let i = $index) {<app-panel-tile [item]="item" variant="poster" [affiliate]="i < 4"></app-panel-tile>}
+        </div>
+      </section>
+      }
 
-    <section *ngIf="seriesHighlights().length" class="home-page__module">
-      <app-unified-section-header
-        eyebrow="Series"
-        title="Series para continuar o descubrir"
-        linkLabel="Explorar series"
-        [linkPath]="appPaths.explore"
-        [linkQueryParams]="{ types: 'series' }"
-      ></app-unified-section-header>
+      @if (featuredPlatforms().length) {
+      <section class="home__module" aria-labelledby="home-platforms">
+        <div class="home__sec-h"><h2 id="home-platforms">Plataformas de streaming en España</h2><a [routerLink]="appPaths.platforms">Comparar plataformas ›</a></div>
+        <div class="home__grid">
+          @for (platform of featuredPlatforms(); track trackByPlatform($index, platform)) {
+          <a class="home__platform" [routerLink]="appPaths.platforms" [queryParams]="{ platform: platform.name }">
+            <app-platform-badge [label]="platform.name" [color]="platform.color" [logoUrl]="platform.logoUrl || ''"></app-platform-badge>
+            <span>Ver catálogo ›</span>
+          </a>
+          }
+        </div>
+      </section>
+      }
 
-      <div class="home-page__grid">
-        <app-unified-program-card
-          *ngFor="let item of seriesHighlights(); let i = index"
-          [item]="item"
-          variant="streaming"
-          [enableAffiliateCta]="i < 4"
-          affiliatePlacement="home"
-        ></app-unified-program-card>
-      </div>
-    </section>
+      @if (guidePosts().length) {
+      <section class="home__module" aria-labelledby="home-guides">
+        <div class="home__sec-h"><h2 id="home-guides">Guías para elegir qué y dónde ver</h2><a [routerLink]="appPaths.blog">Todas las guías ›</a></div>
+        <div class="home__grid home__grid--wide">
+          @for (post of guidePosts(); track post.id) {
+          <a class="home__guide" [routerLink]="post.canonicalPath">
+            <span class="home__guide-thumb">@if (post.coverImage) {<img [src]="post.coverImage" [alt]="post.coverAlt || ''" loading="lazy" decoding="async" />}<span>{{ post.primaryCategory?.name || 'Guía' }}</span></span>
+            <h3>{{ post.title }}</h3>
+            <small>{{ post.readingMinutes }} min de lectura</small>
+          </a>
+          }
+        </div>
+      </section>
+      }
 
-    <section class="home-page__module">
-      <app-unified-section-header
-        eyebrow="Fútbol"
-        title="Partidos de hoy, en directo, y dónde verlos"
-        linkLabel="Ver todos los partidos"
-        [linkPath]="appPaths.sports"
-      ></app-unified-section-header>
+      @if (trendingItems().length) {
+      <section class="home__module" aria-labelledby="home-trending">
+        <div class="home__sec-h"><h2 id="home-trending">Lo más visto del catálogo ahora</h2><a [routerLink]="appPaths.stats">Ver tendencias ›</a></div>
+        <div class="home__grid">
+          @for (item of trendingItems(); track $index) {<app-panel-tile [item]="item" variant="poster"></app-panel-tile>}
+        </div>
+      </section>
+      }
 
-      <div class="home-page__grid home-page__grid--sports">
-        <app-football-match-card
-          *ngFor="let match of footballHighlights()"
-          [match]="match"
-          variant="compact"
-        ></app-football-match-card>
-        <a *ngIf="!footballHighlights().length" class="home-page__football-cta" [routerLink]="appPaths.sports">
-          <span class="home-page__football-cta-title">Fútbol hoy</span>
-          <span class="home-page__football-cta-sub">
-            Partidos en directo, horarios, competiciones y dónde ver cada partido.
-          </span>
-          <span class="home-page__football-cta-action">Entrar →</span>
-        </a>
-      </div>
-    </section>
-
-    <app-unified-editorial-module
-      *ngIf="editorialGuides().length"
-      eyebrow="Desde editorial"
-      title="Guías y contexto conectados con la exploración"
-      linkLabel="Abrir editorial"
-      [linkPath]="appPaths.blog"
-      [posts]="editorialGuides()"
-      [columns]="3"
-    ></app-unified-editorial-module>
-
-    <app-unified-editorial-module
-      *ngIf="rankingHighlights().length"
-      eyebrow="Top rankings"
-      title="Selecciones editoriales para decidir rápido"
-      linkLabel="Ver rankings"
-      [linkPath]="appPaths.top10"
-      [posts]="rankingHighlights()"
-      [columns]="4"
-    ></app-unified-editorial-module>
-
-    <section *ngIf="trendingItems().length" class="home-page__module">
-      <app-unified-section-header
-        eyebrow="Tendencias"
-        title="Lo más movido del catálogo ahora"
-        linkLabel="Ver tendencias"
-        [linkPath]="appPaths.stats"
-      ></app-unified-section-header>
-
-      <div class="home-page__grid">
-        <app-unified-program-card
-          *ngFor="let item of trendingItems()"
-          [item]="item"
-          variant="discover"
-        ></app-unified-program-card>
-      </div>
-    </section>
-  </ng-container>
-</app-unified-portal-shell>
+      <app-faq-section heading="Preguntas frecuentes sobre la programación de TV" [items]="faq()"></app-faq-section>
+    }
+  </div>
+</app-panel-shell>

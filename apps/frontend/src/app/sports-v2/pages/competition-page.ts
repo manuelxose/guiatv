@@ -1,3 +1,4 @@
+import { FOOTBALL_NEWS_PATH } from '../shell/nav-items';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, untracked } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -134,7 +135,7 @@ export class Sv2CompetitionPageComponent {
   private readonly router = inject(Router);
   protected readonly tabs = TABS;
   protected readonly listLink = sv2Link('competiciones');
-  protected readonly newsLink = sv2Link('noticias');
+  protected readonly newsLink = [FOOTBALL_NEWS_PATH];
   protected readonly kind = (k: keyof typeof KIND) => KIND[k];
 
   // Signals, not snapshots: /competiciones/a → /competiciones/b reuses this component instance.
