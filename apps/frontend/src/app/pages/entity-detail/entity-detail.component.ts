@@ -216,6 +216,9 @@ export class EntityDetailComponent implements OnInit {
         this.destroyRef.onDestroy(() => clearInterval(id));
       }, { injector: this.injector });
     }
+    // While the browser hydrates, the server-rendered head is already right: blanking it until the client's own
+    // request settles left a window with noindex and no canonical. Reset it only on later in-app navigations.
+    let hydrating = !this.server;
     this.route.paramMap.pipe(
       switchMap(() => {
         this.entity = undefined;
@@ -223,7 +226,8 @@ export class EntityDetailComponent implements OnInit {
         this.loading = true;
         this.unavailable = false;
         this.structuredData = null;
-        this.setMeta('Ficha - Guía TV', null);
+        if (!hydrating) this.setMeta('Ficha - Guía TV', null);
+        hydrating = false;
         return this.http.get<{ success: boolean; data: PublicEntity }>(`${environment.API_BASE_URL}/entities/resolve`, {
           params: { path: this.router.url.split(/[?#]/)[0], redirect: 'false' },
         }).pipe(catchError((error: HttpErrorResponse) => {

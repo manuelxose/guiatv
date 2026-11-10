@@ -209,10 +209,7 @@ export class CatalogDetailComponent implements OnInit, OnDestroy {
         answer: `${t}: ${this.programmeSlot(item).replace(/^Hoy/, 'hoy').replace(/^Mañana/, 'mañana')}${item.channel?.name ? ` en ${item.channel.name}` : ''} (horario peninsular).`,
       });
     }
-    if (item.synopsis) {
-      const s = item.synopsis.replace(/\s+/g, ' ').trim();
-      items.push({ question: `¿De qué trata ${t}?`, answer: s.length > 320 ? `${s.slice(0, 317).replace(/\s+\S*$/, '')}…` : s });
-    }
+    // No "¿De qué trata?" item: its answer would repeat the synopsis section of the same page word for word.
     if (item.primaryPlatforms?.length) {
       items.push({ question: `¿Dónde ver ${t} online?`, answer: `${t} está disponible en ${item.primaryPlatforms.slice(0, 4).join(', ')}. En esta ficha tienes todas las opciones para verla.` });
     }
