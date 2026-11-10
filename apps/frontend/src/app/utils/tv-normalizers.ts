@@ -40,6 +40,36 @@ export function isTvReadItem(item: TvReadItemDTO | CatalogItem | null | undefine
 }
 
 /**
+ * One channel airs one programme at a time, but the EPG feeds carry the same channel minutes apart (the primary
+ * feed's `Trivial Pursuit` 20:40-21:25 next to another feed's copy, 20:45-21:30). The read model keeps a single
+ * timeline per channel; this keeps a payload that still has both from drawing the same slot twice: per channel,
+ * the airing that starts first wins and anything that starts before it ends is dropped.
+ */
+export function dropOverlappingAirings<T extends Pick<TvReadItemDTO, 'airing'> & { channel: { id: string } }>(items: T[]): T[] {
+  const byChannel = new Map<string, T[]>();
+  for (const item of items) {
+    const key = String(item.channel?.id || '');
+    (byChannel.get(key) ?? byChannel.set(key, []).get(key)!).push(item);
+  }
+  const kept = new Set<T>();
+  byChannel.forEach((channelItems) => {
+    let end = -Infinity;
+    for (const item of [...channelItems].sort((left, right) => Date.parse(left.airing.start) - Date.parse(right.airing.start))) {
+      const start = Date.parse(item.airing.start);
+      const itemEnd = Date.parse(item.airing.end);
+      if (!Number.isFinite(start) || !Number.isFinite(itemEnd)) {
+        kept.add(item);
+        continue;
+      }
+      if (start < end) continue;
+      end = Math.max(end, itemEnd);
+      kept.add(item);
+    }
+  });
+  return items.filter((item) => kept.has(item));
+}
+
+/**
  * Derives the card's wayfinding vertical from signals already present on the
  * normalized card data — no separate/parallel data shape. `live` (on-air now)
  * takes priority over `sports` (a live sports airing reads as "live", not

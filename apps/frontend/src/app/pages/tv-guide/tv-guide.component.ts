@@ -18,7 +18,7 @@ import { MetaService } from '../../services/meta.service';
 import { TvDataFacade } from '../../state/tv-data.facade';
 import { UnifiedLiveFlag } from '../../state/unified-guide.state';
 import { madridMinutesSinceMidnight } from '../../utils/madrid-time';
-import { normalizeToCard } from '../../utils/tv-normalizers';
+import { dropOverlappingAirings, normalizeToCard } from '../../utils/tv-normalizers';
 import { generateItemListSchema, serializeJsonLd } from '../../utils/utils';
 
 const BASE_URL = 'https://guiaprogramaciontv.com';
@@ -218,12 +218,16 @@ export class TvGuideComponent {
     { initialValue: { status: 'loading', items: [] } as LoadResult }
   );
   readonly status = computed(() => this.result().status);
+  // A channel airs one programme at a time; the feeds send the same channel minutes apart, so drop the overlaps
+  // here once and every view (grid, cards, tonight, the SEO list) sees the same single timeline.
   readonly items = computed(() =>
-    this.facade.applyLiveFilters(this.result().items, {
-      region: this.region(),
-      channelType: this.channelType(),
-      flags: this.flags(),
-    })
+    dropOverlappingAirings(
+      this.facade.applyLiveFilters(this.result().items, {
+        region: this.region(),
+        channelType: this.channelType(),
+        flags: this.flags(),
+      })
+    )
   );
   // What's airing right now (regardless of the active view/format) — the right panel's and the SEO list's
   // default is "what's on now", and it's also what the cards format shows for the "now" view (below).

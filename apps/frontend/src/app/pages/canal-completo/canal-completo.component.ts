@@ -24,7 +24,7 @@ import { AffiliateDisclosureComponent } from 'src/app/components/affiliate-discl
 import { AffiliateImpressionDirective } from 'src/app/directives/affiliate-impression.directive';
 import { AffiliateContext, AffiliateResolvedOffer } from 'src/app/interfaces/affiliate.interface';
 import { CatalogContentType } from 'src/app/utils/catalog';
-import { normalizeToCard, UnifiedCardData } from 'src/app/utils/tv-normalizers';
+import { dropOverlappingAirings, normalizeToCard, UnifiedCardData } from 'src/app/utils/tv-normalizers';
 import { PanelTileComponent } from 'src/app/components/panel-tile/panel-tile.component';
 import { normalizePublicImageUrl } from 'src/app/utils/media-url';
 import { generateBreadcrumbSchema, generateItemListSchema, serializeJsonLd, slugify } from 'src/app/utils/utils';
@@ -358,7 +358,7 @@ export class CanalCompletoComponent implements OnInit, OnDestroy {
       this.resolveImageUrl(surface.channel.icon) ||
       this.buildLocalChannelIcon(surface.channel.id || surface.channel.normalizedName || this.query);
 
-    const normalizedPrograms = (surface.scheduleItems || [])
+    const normalizedPrograms = dropOverlappingAirings(surface.scheduleItems || [])
       .map((program: TvReadItemDTO) => this.normalizeProgram(program))
       .filter(Boolean) as ChannelProgram[];
     normalizedPrograms.sort((left, right) => Date.parse(left.start) - Date.parse(right.start));
@@ -372,7 +372,7 @@ export class CanalCompletoComponent implements OnInit, OnDestroy {
     const nextById = new Map<string, ChannelProgram>();
     [...(apiNext ? [apiNext] : []), ...this.buildNextPrograms(normalizedPrograms)].forEach((p) => nextById.set(p.id, p));
     this.nextPrograms = this.buildNextPrograms(Array.from(nextById.values()));
-    this.tonightPrograms = (surface.tonightItems || [])
+    this.tonightPrograms = dropOverlappingAirings(surface.tonightItems || [])
       .map((program) => this.normalizeProgram(program))
       .filter((program): program is ChannelProgram => Boolean(program))
       .sort((left, right) => Date.parse(left.start) - Date.parse(right.start));

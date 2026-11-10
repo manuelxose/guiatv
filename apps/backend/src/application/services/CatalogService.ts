@@ -621,6 +621,16 @@ export class CatalogService {
       return this.getProgramDetail(foundTomorrow.id, userId);
     }
 
+    // The guide's third day: its airings link this page too, so a programme that only airs then must resolve.
+    const foundAfterTomorrow = await this.findTvReadItemBySlug(
+      searchText,
+      slug,
+      DateUtils.getAfterTomorrowYYYYMMDD()
+    );
+    if (foundAfterTomorrow) {
+      return this.getProgramDetail(foundAfterTomorrow.id, userId);
+    }
+
     await this.cacheSlugNotFound(negativeCacheKey);
     throw new NotFoundError('Catalog item', slug);
   }
@@ -629,12 +639,13 @@ export class CatalogService {
    * Whether `/programas/:slug` resolves today or tomorrow: exactly the lookup `resolveBySlugInternal` runs for a
    * programme, so the sitemap can list only URLs that answer 200.
    */
-  /** Title of the airing `/programas/:slug` would load (today, then tomorrow); undefined when it 404s. */
+  /** Title of the airing `/programas/:slug` would load (today, tomorrow, then the day after); undefined when it 404s. */
   private async programSlugTitle(slug: string): Promise<string | undefined> {
     const searchText = slug.replace(/-/g, ' ');
     const found =
       (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getTodayYYYYMMDD())) ??
-      (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getTomorrowYYYYMMDD()));
+      (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getTomorrowYYYYMMDD())) ??
+      (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getAfterTomorrowYYYYMMDD()));
     return found?.program.title;
   }
 
@@ -672,7 +683,8 @@ export class CatalogService {
     if (!searchText) return null;
     const found =
       (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getTodayYYYYMMDD())) ??
-      (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getTomorrowYYYYMMDD()));
+      (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getTomorrowYYYYMMDD())) ??
+      (await this.findTvReadItemBySlug(searchText, slug, DateUtils.getAfterTomorrowYYYYMMDD()));
     // The page then loads the item by id (getProgramDetail -> getItem), which answers 404 for an item that is not
     // consumer-visible. The lookup does not apply that rule, so apply it here (same row, no extra query).
     if (!found || !isConsumerVisibleTvReadItem(found as TvReadItemDTO)) return null;
@@ -996,6 +1008,10 @@ export class CatalogService {
     return {
       ...item,
       programmePath,
+      // SEO: an airing whose programme has its own indexable page is a noindex duplicate of it, so the airing URL
+      // answers a 301 instead (ssr-server `redirectLegacyCatalog` follows `detailPath`). Every other airing keeps
+      // its own route: a TMDB work or an episode/thin page has no better destination.
+      detailPath: programmePath || item.detailPath,
       synopsis: tmdbDetail?.overview || item.synopsis,
       image: item.image || this.tmdbService.getImageUrl(tmdbDetail?.poster_path || null),
       backdrop:

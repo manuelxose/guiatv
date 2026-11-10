@@ -28,7 +28,9 @@ import {
 import { ProgramDeduplicator } from './ProgramDeduplicator';
 import { guardExistingMediaIds, runCatalogueLinkShadow } from './CatalogueLinkShadow';
 import { assignVerifiedWorkPaths } from './VerifiedWorkLinks';
-import { getPrimaryEpgSourceUrl, isTdtChannelsSourceUrl } from '@/shared/config/epgSources';
+import { getConfiguredEpgSourceUrls, getPrimaryEpgSourceUrl, isTdtChannelsSourceUrl } from '@/shared/config/epgSources';
+import { programmeDisposition } from './ProgrammeSeoPolicy';
+import { slugifyTitle } from '@/domain/services/detailPath';
 
 export interface ResolvedProgramEntry {
   program: any;
@@ -54,6 +56,59 @@ export function scopeResolvedProgramsToCoreSources<T extends Pick<ResolvedProgra
   return entries.filter(
     (entry) => isCoreSource(entry.program?.sourceFeed) || coreChannelIds.has(entry.resolvedChannelId)
   );
+}
+
+interface TimelineAiring {
+  channel?: { id?: string };
+  airing?: { start?: string; end?: string };
+  sourceProvenance?: { schedule?: string[] };
+}
+
+/**
+ * A channel airs one programme at a time, but the feeds carry the same channel with schedules that drift a few
+ * minutes apart: the primary feed's `Trivial Pursuit` (20:40-21:25) sits next to tdtchannels' copy of it
+ * (`Trivial Pursuit T1 E26`, 20:45-21:30). Keyed by start time the two never merge, so the read model held both
+ * and every surface drew the channel's day interleaved and overlapping. Each channel keeps one timeline instead:
+ * the airings of the highest-priority feed first, then the other feeds only where they fill a gap.
+ */
+export function consolidateChannelTimelines<T extends TimelineAiring>(
+  airings: T[],
+  sourcePriority: readonly string[]
+): T[] {
+  const byChannel = new Map<string, T[]>();
+  for (const airing of airings) {
+    const key = String(airing?.channel?.id || '');
+    (byChannel.get(key) ?? byChannel.set(key, []).get(key)!).push(airing);
+  }
+
+  const kept = new Set<T>();
+  byChannel.forEach((channelAirings) => {
+    const rank = (airing: T) => {
+      const indexes = (airing?.sourceProvenance?.schedule ?? [])
+        .map((source) => sourcePriority.indexOf(source))
+        .filter((index) => index >= 0);
+      return indexes.length ? Math.min(...indexes) : sourcePriority.length;
+    };
+    // ponytail: O(n²) inside a channel (~90 airings a day); swap for an interval tree only if a feed ever ships thousands.
+    const timeline: Array<[number, number]> = [];
+    for (const airing of [...channelAirings].sort((left, right) => rank(left) - rank(right) || startOf(left) - startOf(right))) {
+      const start = startOf(airing);
+      const end = Date.parse(String(airing?.airing?.end || ''));
+      // Garbage timestamps are not the grid's to reason about: keep them, they overlap nothing.
+      if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+        kept.add(airing);
+        continue;
+      }
+      if (timeline.some(([keptStart, keptEnd]) => start < keptEnd && end > keptStart)) continue;
+      timeline.push([start, end]);
+      kept.add(airing);
+    }
+  });
+  return airings.filter((airing) => kept.has(airing));
+}
+
+function startOf(airing: TimelineAiring): number {
+  return Date.parse(String(airing?.airing?.start || ''));
 }
 
 interface ProgramTitleResolution {
@@ -97,6 +152,36 @@ export function attachVerifiedWorkBackdrops(airings: any[]): void {
     if (provenance && Array.isArray(provenance.assets) && !provenance.assets.includes('tmdb_backdrop')) {
       provenance.assets = [...provenance.assets, 'tmdb_backdrop'];
     }
+  }
+}
+
+/**
+ * A programme with no TMDB identity has no work page, so the guide had nothing better to link than the airing's own
+ * `/contenido/program:<id>` URL: a noindex page that renders the same thing as `/programas/<slug>`. That page is
+ * indexable for a `standalone` title (ProgrammeSeoPolicy: no identity, not an episode, a synopsis that carries it),
+ * so the airing links it instead — provided the slug names exactly one title that day, since an "Aída"/"AIDA"
+ * collision loads another row.
+ */
+export function attachStandaloneProgrammePaths(airings: any[]): void {
+  const titlesBySlug = new Map<string, Set<string>>();
+  for (const airing of airings) {
+    const title = String(airing?.program?.title || '').trim();
+    const slug = slugifyTitle(title);
+    if (!title || slug === 'sin-titulo') continue;
+    (titlesBySlug.get(slug) ?? titlesBySlug.set(slug, new Set()).get(slug)!).add(title);
+  }
+  for (const airing of airings) {
+    const program = airing?.program;
+    const title = String(program?.title || '').trim();
+    const slug = slugifyTitle(title);
+    if (!title || program.programmePath || titlesBySlug.get(slug)?.size !== 1) continue;
+    const disposition = programmeDisposition(slug, {
+      title,
+      workPath: program.workPath,
+      tmdbId: program.tmdbId,
+      synopsis: cleanEpgDescription(program.description),
+    });
+    if (disposition === 'standalone') program.programmePath = `/programas/${slug}`;
   }
 }
 
@@ -436,11 +521,16 @@ export class TvReadModelBuilder {
       }
 
     });
-    const airings = Array.from(airingsById.values());
+    const airings = consolidateChannelTimelines(
+      Array.from(airingsById.values()),
+      getConfiguredEpgSourceUrls()
+    );
     // M03-L2: drop a carried mediaId whose catalogue row is missing, foreign or of the other kind (built airing only).
     await guardExistingMediaIds(airings.map((airing) => airing.program));
     // M10: link the work page only on full identity proof; otherwise cards keep the airing route.
     await assignVerifiedWorkPaths(airings.map((airing) => airing.program));
+    // No work page: a standalone programme's own `/programas/:slug` page is the readable link instead of the airing id.
+    attachStandaloneProgrammePaths(airings);
     // The linked work's TMDB backdrop, when it has one, is the rectangular art the 16:9 cards use.
     this.attachWorkBackdrops(airings);
     // M03-L1: no-op unless EPG_CATALOGUE_LINK_MODE=shadow; reads the built programme fields (resolved category), never mutates.

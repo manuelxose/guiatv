@@ -1,6 +1,6 @@
 import { CatalogItem } from '../services/catalog.service';
 import { TvReadItemDTO } from '../api/models';
-import { computeProgress, isTvReadItem, normalizeCategory, normalizeToCard } from './tv-normalizers';
+import { computeProgress, dropOverlappingAirings, isTvReadItem, normalizeCategory, normalizeToCard } from './tv-normalizers';
 
 describe('tv-normalizers', () => {
   it('formats card subtitles in Madrid across the daylight-saving boundary', () => {
@@ -19,6 +19,23 @@ describe('tv-normalizers', () => {
         primaryPlatforms: [],
       } as CatalogItem)
     ).toBeFalse();
+  });
+
+  it('keeps one airing per slot when two feeds send the same channel minutes apart', () => {
+    const airing = (id: string, channelId: string, start: string, end: string) =>
+      ({ id, channel: { id: channelId }, airing: { start, end } }) as unknown as TvReadItemDTO;
+    const kept = dropOverlappingAirings([
+      // The same broadcast from two feeds (20:40-21:25 and 20:45-21:30) and a third feed's programme inside that
+      // slot; the channel airs one programme at a time, so only the first to start survives.
+      airing('primary', 'la_2', '2026-11-10T20:40:00.000Z', '2026-11-10T21:25:00.000Z'),
+      airing('tdt', 'la_2', '2026-11-10T20:45:00.000Z', '2026-11-10T21:30:00.000Z'),
+      airing('other-feed', 'la_2', '2026-11-10T20:55:00.000Z', '2026-11-10T21:25:00.000Z'),
+      airing('next', 'la_2', '2026-11-10T21:25:00.000Z', '2026-11-10T22:00:00.000Z'),
+      // Another channel is its own timeline, down to the same slot.
+      airing('la-1', 'la_1', '2026-11-10T20:45:00.000Z', '2026-11-10T21:30:00.000Z'),
+    ]);
+
+    expect(kept.map((item) => item.id)).toEqual(['primary', 'next', 'la-1']);
   });
 
   it('normalizes TV items into unified card data with live badges and progress', () => {

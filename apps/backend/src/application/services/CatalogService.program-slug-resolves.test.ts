@@ -30,7 +30,7 @@ test('an alias that matches no airing, or an empty slug, does not resolve', asyn
   const s = service(async () => { lookups++; return null; });
   assert.equal(await s.programSlugResolves('no-existe'), false);
   assert.equal(await s.programSlugResolves('  '), false);
-  assert.equal(lookups, 2, 'the empty slug never reaches the database');
+  assert.equal(lookups, 3, 'today, tomorrow and the day after; the empty slug never reaches the database');
 });
 
 test('a hit the detail read would reject (suppressed or generic) does not resolve', async () => {

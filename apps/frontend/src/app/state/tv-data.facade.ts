@@ -132,9 +132,11 @@ export class TvDataFacade {
       category: normalizeCategory(filters.category),
       channelId: filters.channel || undefined,
       q: String(filters.q || '').trim() || undefined,
-      // A full linear-TV day rarely exceeds 32 programmes per channel. Keep
-      // this bounded so the guide does not download and parse tens of MB.
-      itemsPerChannel: 32,
+      // The API slices each channel from the start of the broadcast day (the previous evening), so a cap of 32
+      // cut channels with short programmes (kids and documentary channels run 80-150 a day) off in the early
+      // morning: their rows in the parrilla were empty from then on. The cap is the server's maximum instead —
+      // a whole TDT day is 934 KB (+37 %), still bounded by `fields=grid`.
+      itemsPerChannel: 192,
       // Light per-item projection (no synopsis, image sets or provenance): ~5× smaller, also in the SSR transfer state.
       fields: 'grid',
       country: filters.country,
