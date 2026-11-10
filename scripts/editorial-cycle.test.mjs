@@ -525,3 +525,22 @@ test('M15 publish: an untouched earlier draft is replaced under its version; a c
     rmSync(dir, { recursive: true });
   }
 });
+
+test('M15 a pending draft the gates send to a person waits in the review inbox: no approval, no new run', async () => {
+  const dir = fresh();
+  writeFileSync(join(dir, 'topic-queue.json'), JSON.stringify({ version: 1, lastDiscoveryAt: new Date().toISOString(), topics: [queued('revision-humana')] }));
+  const human = pendingDraft('revision-humana');
+  human.detail.policyBlockers = [{ severity: 'human', code: 'near-duplicate', message: 'parecido a otra guía' }];
+  drafts = { 'revision-humana': human };
+  const before = seen.length;
+  try {
+    const r = await cycle(dir);
+    const [t] = JSON.parse(readFileSync(join(dir, 'topic-queue.json'), 'utf8')).topics;
+    assert.equal(t.state, 'held', `${t.reason} ${r.output}`);
+    assert.match(t.reason, /revisión humana.*near-duplicate/);
+    assert.ok(!seen.slice(before).some((s) => /approve-by-policy|^POST \/v1\/messages/.test(s)));
+  } finally {
+    drafts = {};
+    rmSync(dir, { recursive: true });
+  }
+});

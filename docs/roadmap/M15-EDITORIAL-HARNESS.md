@@ -46,4 +46,12 @@ URL pública + sitemap, supervisado y controlable desde Admin → Editorial.
   persona intocable, sustitución bajo versión). Llamadas a modelos: 0.
   Comando: `node --test scripts/editorial-cycle.test.mjs`; backend: build + `node --require ./test-setup.cjs --test <dist editorial/blog>` con
   `TEST_MONGO_URI=mongodb://127.0.0.1:27119/?directConnection=true`.
-- Pendiente: UI (planificador real, estado de solicitudes), PR + despliegue, cron `*/15`, primer artículo.
+- 22:10 UI: planificador real + diagnóstico, bloqueos listados, enlace público, confirmación al publicar/despublicar.
+  Karma editorial 53/53 (+3). PR #207.
+- 22:30 E2E local (`scripts/ops/editorial-e2e-local.mjs`, API real + Mongo + runner real + pasarela simulada): 15/15.
+  **Error encontrado por el E2E**: el CMS guarda toda procedencia como `state: 'draft'`, así que el reintento no podía
+  basarse en `approved-by-policy`. Ahora decide con `policyBlockers` del servidor (bloqueo duro → regenerar y sustituir;
+  solo juicios → revisión humana; ninguno → reintentar aprobación). Ciclo M15 6/6.
+- Tema del primer artículo: publicidad de apuestas en TV (RD 958/2020). Semillas validadas con `checkSeeds`:
+  BOE-A-2020-13495 y nota CNMC 2020-05-26 (2 editores). BOE-A-2024-10949 descartada (no supera el filtro de tema).
+- Pendiente: CI + merge (despliegue automático), cron `*/15`, solicitud manual y publicación real.

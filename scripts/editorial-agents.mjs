@@ -528,7 +528,14 @@ async function resumePendingDraft(api, slug) {
   if (found.status === 'publish') return { ok: false, skip: true, message: `${slug} ya está publicado: no se genera de nuevo` };
   const detail = await postDetail(api, found.id);
   if (!untouchedPipelineDraft(found, detail)) return { ok: false, skip: true, review: true, message: `${slug} tiene un borrador en manos de una persona (revisado, editado o rechazado): se decide en Admin → Editorial` };
-  if (detail.provenance?.state !== 'approved-by-policy') return { ok: false, skip: true, review: true, message: `${slug} espera revisión humana en Admin → Editorial (${(detail.policyBlockers ?? []).map((f) => f.code).join(', ') || detail.provenance?.state})` };
+  // The CMS stores every saved provenance as `draft`, so the server's CURRENT gates decide (the same ones approval runs):
+  // a hard block means the old text no longer holds (a new run may replace it); judgements alone wait for a person.
+  const blockers = detail.policyBlockers ?? [];
+  if (blockers.some((f) => f.severity === 'block')) {
+    console.log(`   el borrador pendiente de ${slug} ya no pasa los controles (${blockers.map((f) => f.code).join(', ')}): se genera de nuevo`);
+    return null;
+  }
+  if (blockers.length) return { ok: false, skip: true, review: true, message: `${slug} espera revisión humana en Admin → Editorial: ${blockers.map((f) => f.code).join(', ')}` };
   const res = await approveByPolicy(api, found.id);
   if (res.ok) return { ok: true, url: `${site}/guias/${slug}` };
   // An approval that landed although its answer was lost: the post is public now.
