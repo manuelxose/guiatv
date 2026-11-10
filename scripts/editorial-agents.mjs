@@ -344,6 +344,8 @@ function manualTopic(topic, settings = {}) {
   return {
     ...topic,
     categories: [topic.category],
+    // The Admin only accepts local paths (/guias/…); fetchSource needs an absolute URL, so they resolve against the site.
+    internalSources: (topic.internalSources ?? []).map((s) => ({ ...s, url: new URL(s.url, site).href })),
     length: settings.lengths?.[topic.length] ?? { short: { min: 600, max: 900 }, medium: { min: 900, max: 1400 }, long: { min: 1400, max: 2000 } }[topic.length],
   };
 }

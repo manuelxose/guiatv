@@ -54,4 +54,23 @@ URL pública + sitemap, supervisado y controlable desde Admin → Editorial.
   solo juicios → revisión humana; ninguno → reintentar aprobación). Ciclo M15 6/6.
 - Tema del primer artículo: publicidad de apuestas en TV (RD 958/2020). Semillas validadas con `checkSeeds`:
   BOE-A-2020-13495 y nota CNMC 2020-05-26 (2 editores). BOE-A-2024-10949 descartada (no supera el filtro de tema).
-- Pendiente: CI + merge (despliegue automático), cron `*/15`, solicitud manual y publicación real.
+- 22:07 #207 y #208 desplegados (`8e4a5778`, release `20261110220644`). Solicitud `d3cbeabf…` creada y ejecutor
+  arrancado en modo manual (`scripts/ops/editorial-first-article.sh`). Verificado en producción:
+  - F2: la solicitud huérfana de CNMC (`660b84f7…`, `running` desde el 06-11) se recuperó sola y se procesó.
+  - F4: los ficheros de ejecución se escriben en `/var/lib/guiatv/editorial-runner/state/m11d/runs`.
+  - Manual con la generación en pausa: ya se procesan ambas solicitudes.
+  - **Ambas acabaron `blocked` en 0 s, con 0 llamadas y 0 descargas: `Cannot read properties of undefined (reading 'map')`.**
+- 22:12 **Causa raíz real de que no se genere nada**: la tabla de rutas guardada en producción (06-11) tiene 5 roles;
+  el pipeline tiene 6 (`planner`, M14-R). `validRoutes` lo eliminaba al guardar desde el Admin → `chooseRoutes`
+  falla en `table.planner.map`. El E2E no lo vio porque usaba rutas por defecto; ahora guarda una tabla de 5 roles.
+  Arreglo: PR #210 (`getSettings` completa roles, `validRoutes` conserva `planner`). Backend 195/195, E2E 16/16.
+  Llamadas a modelos en producción hasta ahora: 0 (coste 0).
+- 22:30 #210 desplegado (`558ff239`). `retry` de `d3cbeabf…` + arranque manual. Esta vez el pipeline generó de verdad:
+  2 revisiones, 0,623 USD, 5 editores, 3 afirmaciones usadas. Bloqueos editoriales en curso de revisión
+  (`uncited-factual-statement` en dos encabezados con cifras, `no-distinct-value`, longitud 738/900), pero el trabajo
+  **murió por código** en la 2.ª investigación: `Cannot read properties of undefined (reading 'filter')`.
+- 22:45 **Tercera causa**: la respuesta de DeepSeek a la re-investigación llegó sin `sources` y el pipeline confiaba en el
+  esquema. Arreglo: campos ausentes en respuestas del modelo = listas vacías (`sources`, `claims`, `quotes`, `conflicts`,
+  `issues`). Al revisarlo, un veredicto del crítico ausente o desconocido acababa en `pass` (`indexOf` −1): ahora bloquea.
+  Además, las `internalSources` relativas de las solicitudes manuales se resuelven contra el sitio. Backend 196/196, ciclo 25/25.
+  Coste acumulado en producción: 0,623 USD.

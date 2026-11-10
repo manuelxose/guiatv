@@ -38,6 +38,22 @@ test('pipeline: a researched, verified and independently reviewed draft is appro
   assert.deepEqual(evaluateEvidence({ content: run.draft!.content, author: { name: run.draft!.authorName }, excerpt: run.draft!.excerpt, seo: { metaTitle: run.draft!.metaTitle, metaDescription: run.draft!.metaDescription } }, run.provenance!, NOW), []);
 });
 
+test('M15 model answers missing schema fields: a re-research without sources goes on, a critic without a verdict blocks', async () => {
+  // Production 2026-11-10 (DeepSeek): the second research answer had no `sources` and the job died on `.filter`.
+  const gap = { verdict: 'block', issues: [{ severity: 'high', claimId: 'c9', message: 'falta evidencia de c9' }] };
+  const m = scripted({ research: [research, { researchQuestions: [], claims: [] }], evidence: [{ conflicts: [] }, {}], editorial: [draft(), draft()], critic: [gap, pass] });
+  const run = await runEditorialJob(topic, deps(m.model), { ...DEFAULT_EDITORIAL_LIMITS, maxResearchCalls: 2, maxReviewLoops: 1 });
+  assert.doesNotMatch(run.reason ?? '', /Cannot read properties/, run.reason);
+  assert.equal(run.state, 'approved-by-policy', `${run.state} ${run.reason}`);
+  assert.equal(m.calls.filter((c) => c.role === 'research').length, 2, 'the targeted re-research ran');
+
+  // A critic answer with no recognisable verdict was scored 'pass' by severity: it must never pass.
+  const silent = scripted({ research: [research], evidence: [{ conflicts: [] }], editorial: [draft()], critic: [{ issues: [] }] });
+  const held = await runEditorialJob(topic, deps(silent.model), { ...DEFAULT_EDITORIAL_LIMITS, maxReviewLoops: 0 });
+  assert.notEqual(held.state, 'approved-by-policy');
+  assert.equal(held.revisions?.[0]?.verdict, 'block');
+});
+
 test('pipeline: seed pages are fetched for the research agent and kept as sources with their own publisher', async () => {
   const seeded = { ...topic, seedUrls: ['https://www.rtve.es/play/la-2/'] };
   const cited = { ...research, sources: research.sources.filter((s) => s.id !== 'r1'), claims: research.claims.map((c) => (c.id === 'c4' ? { ...c, quotes: [{ sourceId: 's1', quote: c.quotes[0].quote }] } : c)) };
