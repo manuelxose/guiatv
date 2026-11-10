@@ -325,6 +325,8 @@ Veredicto: block solo si el tema o la evidencia no permiten un artículo útil y
  */
 export function criticVerdict(answer: { verdict: CriticReview['verdict']; issues: CriticReview['issues'] }): CriticReview['verdict'] {
   const order = ['pass', 'revise', 'block'] as const;
+  // Fail closed: a missing or unknown verdict is not a pass (indexOf -1 used to lose to 'pass' by severity).
+  if (!order.includes(answer.verdict)) return 'block';
   const bySeverity = answer.issues.some((i) => i.severity === 'high' || i.severity === 'medium') ? 'revise' : 'pass';
   return order[Math.max(order.indexOf(answer.verdict), order.indexOf(bySeverity))];
 }
@@ -592,7 +594,8 @@ Si un dato no aparece literal en una fuente consultada, no lo incluyas. Ids de a
     const sources = [
       ...topic.internalSources.map((s) => ({ id: s.id, url: s.url, publisher: 'GuíaTV' })),
       ...seeds.filter((s) => snapshots.has(s.id)),
-      ...research.sources.filter((s) => /^https?:\/\//.test(s.url) && !fixedIds.has(s.id) && !seedPages.has(s.url.split('#')[0])),
+      // Model answers are untrusted shape: a provider may omit a field the schema asks for (M15, DeepSeek in production).
+      ...(research.sources ?? []).filter((s) => /^https?:\/\//.test(s.url) && !fixedIds.has(s.id) && !seedPages.has(s.url.split('#')[0])),
     ];
     for (const s of sources) await fetchOnce(s.id, s.url);
     // M11-E2: a page that cannot be read is not evidence; kept in the bundle it blocked every draft (source-not-retrieved).
@@ -610,12 +613,12 @@ Si un dato no aparece literal en una fuente consultada, no lo incluyas. Ids de a
         `Fecha: ${now().toISOString().slice(0, 10)}\nAfirmaciones verificadas con sus citas:\n${claimDigest(supported)}\n\nDevuelve los grupos de ids que se contradicen, con una nota breve. Lista vacía si no hay.`,
         CONFLICT_SCHEMA);
       const known = new Set(supported.map((c) => c.id));
-      return verifyBundle({ ...checked, conflicts: [...checked.conflicts, ...review.conflicts.filter((c) => c.claimIds.some((id) => known.has(id)))] }, snapshots);
+      return verifyBundle({ ...checked, conflicts: [...checked.conflicts, ...(review.conflicts ?? []).filter((c) => c.claimIds.some((id) => known.has(id)))] }, snapshots);
     });
     let bundle = await assess({
       topic: topic.topic, intent: topic.intent, researchQuestions: research.researchQuestions, createdAt: now().toISOString(), conflicts: [],
       sources: retrieved(sources),
-      claims: research.claims.map((c) => ({ id: c.id, text: c.text, volatility: c.volatility, quotes: c.quotes })),
+      claims: research.claims.map((c) => ({ id: c.id, text: c.text, volatility: c.volatility, quotes: c.quotes ?? [] })),
     });
     run.state = 'researched';
     let usable = bundle.claims.filter((c) => c.status === 'supported');
@@ -643,7 +646,7 @@ Si un dato no aparece literal en una fuente consultada, no lo incluyas. Ids de a
 Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas literales. No repitas una afirmación descartada sin corregir el motivo.`);
       const idMap = new Map<string, string>();
       const added: Array<{ id: string; url: string; publisher: string }> = [];
-      for (const s of more.sources.filter((x) => /^https?:\/\//.test(x.url))) {
+      for (const s of (more.sources ?? []).filter((x) => /^https?:\/\//.test(x.url))) {
         const same = bundle.sources.find((b) => b.url.split('#')[0] === s.url.split('#')[0]);
         if (same) idMap.set(s.id, same.id);
         else if (!fixedIds.has(s.id)) { idMap.set(s.id, `${tag}-${s.id}`); added.push({ ...s, id: `${tag}-${s.id}` }); }
@@ -652,7 +655,7 @@ Devuelve solo afirmaciones nuevas o corregidas que cubran esos huecos, con citas
       bundle = await assess({
         ...bundle,
         sources: [...bundle.sources, ...retrieved(added)],
-        claims: [...bundle.claims, ...more.claims.map((c) => ({ id: `${tag}-${c.id}`, text: c.text, volatility: c.volatility, quotes: c.quotes.map((q) => ({ sourceId: idMap.get(q.sourceId) ?? q.sourceId, quote: q.quote })) }))],
+        claims: [...bundle.claims, ...(more.claims ?? []).map((c) => ({ id: `${tag}-${c.id}`, text: c.text, volatility: c.volatility, quotes: (c.quotes ?? []).map((q) => ({ sourceId: idMap.get(q.sourceId) ?? q.sourceId, quote: q.quote })) }))],
       });
       usable = bundle.claims.filter((c) => c.status === 'supported');
     };
@@ -779,6 +782,8 @@ ${run.blockedCandidates?.length ? `\nUn candidato anterior de este artículo se 
 Resumen: ${draft.excerpt}\nmetaTitle: ${draft.metaTitle}\nmetaDescription: ${draft.metaDescription}\n(El resumen y los metadatos se publican con el texto: revísalos con el mismo criterio.)
 Valor diferencial que declara el redactor: «${draft.distinctValue?.readerBenefit ?? '(ninguno)'}» (afirmaciones: ${draft.distinctValue?.claimIds?.join(', ') || 'ninguna'}). Compruébalo contra el texto y esas afirmaciones: si es genérico, si el texto no lo cumple, si solo resume o parafrasea una fuente, si los datos propios o los enlaces de GuíaTV no tienen relación con la intención, o si un horario se presenta como permanente, señala un problema high.\n\nBorrador:\n${draft.markdown}`,
         CRITIC_SCHEMA));
+      // A verdict without its issue list keeps the verdict (a 'block' still blocks) and reviews no invented issue.
+      answer.issues = Array.isArray(answer.issues) ? answer.issues : [];
       const critic: CriticReview = { model: chosen.critic.route.model, verdict: criticVerdict(answer), modelVerdict: answer.verdict, issues: answer.issues, bundleHash, draftHash, reviewedAt: now().toISOString() };
       const verdict = critic;
 
