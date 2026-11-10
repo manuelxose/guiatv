@@ -90,12 +90,30 @@ export interface IBlogPostDocument {
   publishedAt?: Date;
   /** M11-B provenance of AI-written posts (EditorialProvenance): evidence, critic review, cost, freshness. */
   editorial?: EditorialProvenance;
+  /** JSON-LD supplied by the article's source (Article + FAQPage), rendered in the page head instead of the computed schema. */
+  structuredData?: { jsonLd?: unknown; faqJsonLd?: unknown };
+  /** Language of an imported article (BCP-47-ish code from the source); absent on native posts, which are Spanish. */
+  language?: string;
+  /** Provenance of a syndicated article: who supplied it, its id there, and the hash that makes a re-sync a no-op. */
+  external?: IExternalArticleSource;
   /** Unpublished edits to a live article; never used for public rendering. */
   pendingEdit?: { title: string; excerpt: string; content: string; metaTitle: string; metaDescription: string; savedAt: Date };
   /** Earlier versions, newest last (capped): what a rollback restores. */
   revisions?: IBlogPostRevision[];
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+export interface IExternalArticleSource {
+  provider: 'babylovegrowth' | 'auctorio';
+  articleId: string;
+  languageCode?: string;
+  /** The live URL on this site, once the supplier detects it; empty at theirs until then. */
+  publishedUrl?: string;
+  contentMarkdown?: string;
+  /** SHA-256 of the mapped fields: an unchanged article is not rewritten (no churn in `updatedAt`/`modified`). */
+  sourceHash: string;
+  syncedAt: Date;
 }
 
 export interface IBlogPostRevision {
@@ -195,6 +213,9 @@ const BlogPostSchema = new Schema<IBlogPostDocument>(
     },
     publishedAt: { type: Date, index: true },
     editorial: { type: Schema.Types.Mixed },
+    structuredData: { type: Schema.Types.Mixed, default: undefined },
+    language: { type: String, trim: true, index: true },
+    external: { type: Schema.Types.Mixed, default: undefined },
     pendingEdit: { type: Schema.Types.Mixed, default: undefined },
     revisions: { type: [Schema.Types.Mixed], default: undefined },
   },

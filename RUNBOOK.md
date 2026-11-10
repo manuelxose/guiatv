@@ -105,6 +105,25 @@ Monitor de Search Console (solo lectura, guías `/guias/<slug>`): URL Inspection
 - `GSC_MONITOR_ENABLED=true` en `api.env` lo ejecuta tras el precompute (por defecto apagado). Usa las mismas `GSC_SITE_URL` y `GOOGLE_APPLICATION_CREDENTIALS`.
 - Ejecución manual (ignora el flag): `cd /var/www/guiatv/current && npm run seo:gsc-monitor -w apps/backend`. Sale con 0 solo si el estado es `ok`; credenciales ausentes, 403 o cuota (429) quedan registrados como estado de la ejecución.
 
+## Artículos (sincronización BabyLoveGrowth / Auctorio)
+Los artículos se leen de las APIs de los productores y se sirven desde Mongo (`blog_posts`), nunca desde la API en
+cada visita. El job `syncArticleFeeds` (cron cada hora, minuto 20; también en Admin → Background jobs) recorre las
+dos fuentes configuradas, pagina de 50 en 50 y hace upsert por `slug`:
+
+```bash
+cd /var/www/guiatv
+npm run job:sync-blog        # ejecución manual de las dos fuentes
+```
+
+Variables en `/etc/guiatv/api.env` (cada clave es independiente; sin clave esa fuente se omite):
+- `BABYLOVEGROWTH_API_KEY`
+- `AUCTORIO_FEED_API_KEY`, `AUCTORIO_FEED_BASE_URL=https://auctorio.com/api/integrations`, `AUCTORIO_FEED_SITE=guiatv-editorial`
+
+Los artículos entran publicados (`reviewState: approved`, `reviewedBy: policy:<producer>`, `origin: automated-import`).
+Guardas: un slug que ya pertenece a una guía propia o a otro productor no se sobrescribe, y un artículo con
+`reviewState: rejected` no se vuelve a publicar en la siguiente pasada. Un artículo sin cambios no se reescribe
+(hash del contenido). Para parar una fuente: quitar su variable y reiniciar `guiatv-api`.
+
 ## Operación diaria
 ```bash
 systemctl status mongod valkey-server guiatv-api guiatv-ssr --no-pager

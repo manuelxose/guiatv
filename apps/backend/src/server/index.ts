@@ -73,6 +73,14 @@ async function startServer() {
         track: (type, by, task) => operations.enqueue(type, by, task),
         // minMs: the per-minute refresh is only stored when it is slow; the first run (set at boot) always is.
         refreshFootballHome: () => timeStep('background.football_home_refresh', () => container.get<any>('footballQueryService').getHome(), { minMs: 50 }),
+        // A scheduled article sync publishes outside any request: the guide pages and the blog sitemap must see it.
+        invalidateEditorialReads: async () => {
+          const { bumpEditorialEpoch } = await import('../shared/utils/editorialEpoch');
+          const { invalidateSitemapCache } = await import('../presentation/controllers/SitemapController');
+          bumpEditorialEpoch();
+          invalidateSitemapCache(['blog', 'index']);
+          await container.get<{ clear(pattern: string): Promise<void> }>('cacheRepository').clear('v2:editorial:*');
+        },
       }));
 
       // M05 football ingestion: create its indexes once, then start the adaptive loop.

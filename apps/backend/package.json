@@ -13,6 +13,7 @@
     "job:syncEPG": "node dist/jobs/cli/syncEPG.cli.js",
     "job:precompute": "node dist/jobs/cli/precomputeSchedules.cli.js",
     "job:clean": "node dist/jobs/cli/cleanOldPrograms.cli.js",
+    "job:sync-blog": "node dist/jobs/cli/syncArticleFeeds.cli.js",
     "job:archiveHistory": "node dist/jobs/cli/archiveBroadcastHistory.cli.js",
     "job:football:ingestion": "node dist/jobs/football/cli/runIngestion.cli.js",
     "job:football:backfill": "node dist/jobs/football/cli/backfillFootballDataIo.cli.js",

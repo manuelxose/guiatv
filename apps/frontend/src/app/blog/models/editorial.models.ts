@@ -74,6 +74,8 @@ export interface EditorialPost {
   rankingReason: 'type' | 'category' | 'keyword' | 'none';
   metaTitle: string | null;
   metaDescription: string | null;
+  /** JSON-LD supplied by the article's source (Article/FAQPage): rendered verbatim in the head instead. */
+  structuredData: Record<string, unknown>[];
   raw: any;
 }
 

@@ -805,6 +805,10 @@ export class BlogController {
       contentType: post.contentType || 'guide',
       featured: Boolean(post.featured),
       author: post.author || null,
+      // Source-supplied structured data (rendered in the head instead of the computed Article schema), and the
+      // language of a syndicated article; absent on native posts.
+      structuredData: post.structuredData || null,
+      language: post.language || null,
       // Shown as the byline's reviewer; only an approval made through the human review gate sets it.
       reviewedBy: post.reviewState === 'approved' && !String(post.reviewedBy || '').startsWith('policy:') ? post.reviewedBy || null : null,
       editorial: post.editorial

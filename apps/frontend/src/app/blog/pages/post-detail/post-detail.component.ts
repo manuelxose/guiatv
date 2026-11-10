@@ -348,22 +348,25 @@ export class PostDetailComponent implements OnInit, OnDestroy {
 
   private buildStructuredData(state: EditorialPostPageState): void {
     const baseUrl = 'https://guiaprogramaciontv.com';
-    const schemas = [
-      generateEditorialArticleSchema(
-        {
-          title: state.post.title,
-          excerptText: state.post.excerptText,
-          coverImage: state.post.coverImage,
-          publishedAt: state.post.publishedAt,
-          modifiedAt: state.post.modifiedAt,
-          canonicalPath: state.post.canonicalPath,
-          contentType: state.post.contentType,
-          targetQuery: state.post.targetQuery,
-          author: state.post.author,
-        },
-        baseUrl
-      ),
-    ];
+    const provided = structuredDataForHead(state.post.structuredData, state.post.faqItems.length > 0);
+    const schemas: object[] = provided.length
+      ? provided
+      : [
+          generateEditorialArticleSchema(
+            {
+              title: state.post.title,
+              excerptText: state.post.excerptText,
+              coverImage: state.post.coverImage,
+              publishedAt: state.post.publishedAt,
+              modifiedAt: state.post.modifiedAt,
+              canonicalPath: state.post.canonicalPath,
+              contentType: state.post.contentType,
+              targetQuery: state.post.targetQuery,
+              author: state.post.author,
+            },
+            baseUrl
+          ),
+        ];
     this.safeLdHtml = this.sanitizer.bypassSecurityTrustHtml(
       schemas
         .map((schema) => `<script type="application/ld+json">${serializeJsonLd(schema)}</script>`)
@@ -373,6 +376,20 @@ export class PostDetailComponent implements OnInit, OnDestroy {
 }
 
 const ENTITIES: Record<string, string> = { '&amp;': '&', '&quot;': '"', '&#39;': "'", '&#039;': "'", '&lt;': '<', '&gt;': '>', '&nbsp;': ' ' };
+
+/**
+ * The JSON-LD the page head carries. An article that arrived with its own schema keeps it: the source knows its
+ * headline, dates and author. Its FAQPage is dropped when the same questions render through the FAQ block, which
+ * emits that schema itself, so the head never answers with two FAQPages.
+ */
+export function structuredDataForHead(
+  structuredData: Record<string, unknown>[],
+  faqBlockRenders: boolean
+): Record<string, unknown>[] {
+  return structuredData.filter(
+    (schema) => !(faqBlockRenders && String(schema['@type']).toLowerCase() === 'faqpage')
+  );
+}
 
 /**
  * Gives every H2/H3 of the article an id (kept when it already has one) and returns the contents list

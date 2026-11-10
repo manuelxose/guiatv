@@ -18,6 +18,7 @@
     "job:syncEPG": "npm run job:syncEPG -w apps/backend",
     "job:precompute": "npm run job:precompute -w apps/backend",
     "job:clean": "npm run job:clean -w apps/backend",
+    "job:sync-blog": "npm run job:sync-blog -w apps/backend",
     "migrate:social-data": "npm run migrate:social-data -w apps/backend",
     "seo:submit-sitemap": "npm run seo:submit-sitemap -w apps/backend",
     "db:bootstrap": "npm run create-indexes -w apps/backend && npm run job:syncEPG -w apps/backend && npm run job:precompute -w apps/backend",

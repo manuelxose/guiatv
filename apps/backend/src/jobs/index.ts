@@ -62,6 +62,8 @@ export async function runScheduledJob(name: string): Promise<boolean> {
  */
 export function initializeJobs(options: {
   refreshFootballHome?: () => Promise<unknown>;
+  /** Clears the public editorial caches of the running process (and of Redis, when configured). */
+  invalidateEditorialReads?: () => Promise<void>;
   track?: (type: string, triggeredBy: string, task: () => Promise<unknown>) => Promise<unknown>;
 } = {}): void {
   const tracked = (name: string, run: () => Promise<unknown>) => (triggeredBy: string) => (options.track ? options.track(name, triggeredBy, run) : run());
@@ -125,6 +127,28 @@ export function initializeJobs(options: {
     }
   );
   console.log('  - cleanOldPrograms: cada dia a las 3:00 AM (0 3 * * *)');
+
+  // Producers publish on their own schedule: check hourly rather than on page views (their APIs are rate limited).
+  // Runs in-process (it is HTTP + Mongo I/O) so a publish drops this process's editorial caches immediately.
+  const runArticleFeeds = async () => {
+    const { syncArticleFeedsJob } = await import('./syncArticleFeeds');
+    return syncArticleFeedsJob({ invalidateEditorialReads: options.invalidateEditorialReads });
+  };
+  const cronArticleFeeds = register('syncArticleFeeds', 'Sincronización de artículos (BabyLoveGrowth / Auctorio)', '20 * * * *', runArticleFeeds);
+  cron.schedule(
+    '20 * * * *',
+    async () => {
+      try {
+        await cronArticleFeeds();
+      } catch (error) {
+        console.error('Error ejecutando syncArticleFeedsJob:', error);
+      }
+    },
+    {
+      timezone: 'Europe/Madrid',
+    }
+  );
+  console.log('  - syncArticleFeeds: cada hora en el minuto 20 (20 * * * *)');
 
   if (options.refreshFootballHome) {
     register('footballHomeReadModel', 'Modelo de portada de fútbol', '* * * * *', async () => options.refreshFootballHome?.(), false);

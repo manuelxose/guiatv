@@ -1,4 +1,4 @@
-import { withHeadingIds } from './post-detail.component';
+import { structuredDataForHead, withHeadingIds } from './post-detail.component';
 
 describe('withHeadingIds (article contents list)', () => {
   it('gives each H2/H3 a readable id and lists them in order with their level', () => {
@@ -20,5 +20,18 @@ describe('withHeadingIds (article contents list)', () => {
 
   it('ignores empty headings', () => {
     expect(withHeadingIds('<h2> </h2>').toc).toEqual([]);
+  });
+});
+
+describe('structuredDataForHead (jsonLd supplied by an imported article)', () => {
+  const article = { '@type': 'Article', headline: 'Título' };
+  const faq = { '@type': 'FAQPage', mainEntity: [] };
+
+  it('keeps the source schema as it arrived', () => {
+    expect(structuredDataForHead([article, faq], false)).toEqual([article, faq]);
+  });
+
+  it('drops the source FAQPage when the FAQ block already emits one', () => {
+    expect(structuredDataForHead([article, faq], true)).toEqual([article]);
   });
 });

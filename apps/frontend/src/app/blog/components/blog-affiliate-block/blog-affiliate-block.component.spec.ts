@@ -41,6 +41,7 @@ function post(overrides: Partial<EditorialPost> = {}): EditorialPost {
     rankingReason: 'none',
     metaTitle: null,
     metaDescription: null,
+    structuredData: [],
     raw: {},
     ...overrides,
   };

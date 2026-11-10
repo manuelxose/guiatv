@@ -349,8 +349,17 @@ export class EditorialService {
       rankingReason,
       metaTitle: this.ensureString(rawPost?.seo?.metaTitle) || null,
       metaDescription: this.ensureString(rawPost?.seo?.metaDescription) || null,
+      structuredData: this.normalizeStructuredData(rawPost?.structuredData),
       raw: rawPost,
     };
+  }
+
+  /** The source's Article and FAQ schemas, whichever shape they arrive in (object, array, absent). */
+  private normalizeStructuredData(value: unknown): Record<string, unknown>[] {
+    const source = (value ?? {}) as { jsonLd?: unknown; faqJsonLd?: unknown };
+    return [source.jsonLd, source.faqJsonLd]
+      .flatMap((entry) => (Array.isArray(entry) ? entry : entry ? [entry] : []))
+      .filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === 'object');
   }
 
   private normalizeCoverImage(value: unknown): string {
