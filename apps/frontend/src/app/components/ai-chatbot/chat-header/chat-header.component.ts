@@ -36,7 +36,7 @@ import { Component, ElementRef, EventEmitter, HostListener, Input, Output, ViewC
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.2" /><circle cx="12" cy="12" r="1.2" /><circle cx="19" cy="12" r="1.2" /></svg>
           </button>
           @if (moreOpen) {
-          <div #moreMenu class="ch__menu" role="menu" aria-label="Opciones del asistente" (keydown.escape)="closeMenuFromEvent($event)">
+          <div #moreMenu class="ch__menu" role="menu" tabindex="-1" aria-label="Opciones del asistente" (keydown.escape)="closeMenuFromEvent($event)">
             @if (isAuthenticated) {
             <button type="button" role="menuitem" (click)="choose('aiProfile')"><strong>Mi perfil IA</strong><small>Lo que sabe de ti y cómo te recomienda</small></button>
             <button type="button" role="menuitem" (click)="choose('profile')"><strong>Preguntas rápidas</strong><small>Completa tus gustos en un minuto</small>@if (profileIncomplete) {<em>Pendiente</em>}</button>

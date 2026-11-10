@@ -3,7 +3,7 @@ import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/route
 import { of } from 'rxjs';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
-import { CanalCompletoComponent } from './canal-completo.component';
+import { CanalCompletoComponent, genreSlug } from './canal-completo.component';
 import { TvDataService } from '../../state/tv-data.service';
 import { MetaService } from '../../services/meta.service';
 import { ApiConfigService } from '../../api/api-config.service';
@@ -200,8 +200,8 @@ describe('CanalCompletoComponent — channel-page affiliate CTA', () => {
     const component = TestBed.createComponent(CanalCompletoComponent).componentInstance;
     component.ngOnInit();
     expect(component.filteredTonightPrograms.map((program) => program.id)).toEqual(['evening']);
-    component.selectCategory('Deportes');
+    component.selectedGenre = genreSlug('Deportes');
     expect(component.filteredTonightPrograms).toEqual([]);
-    expect(component.programs).toEqual([]);
+    expect(component.filteredSchedule).toEqual([]);
   });
 });

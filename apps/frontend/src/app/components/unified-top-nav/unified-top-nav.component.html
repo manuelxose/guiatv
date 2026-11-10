@@ -18,7 +18,7 @@
     <span class="utn__word">GuíaTV @if (brandSuffix()) {<b>{{ brandSuffix() }}</b>}</span>
   </a>
 
-  <div class="utn__sections" (focusout)="sectionsFocusOut($event)" (keydown.escape)="sectionsOpen.set(false)">
+  <div class="utn__sections" tabindex="-1" (focusout)="sectionsFocusOut($event)" (keydown.escape)="sectionsOpen.set(false)">
     <button type="button" class="utn__more" [attr.aria-expanded]="sectionsOpen()" aria-controls="utn-sections" aria-label="Secciones de Guía TV" (click)="sectionsOpen.set(!sectionsOpen())">
       <span class="utn__more-lbl">Secciones</span>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M6 9l6 6 6-6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
