@@ -27,47 +27,8 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('M08 competition filter works with keyboard, accents and empty recovery', async ({ page }) => {
-  await page.goto(`${ssr.origin}/deportes/futbol/competiciones`);
-  const filter = page.getByRole('searchbox', { name: 'Filtrar competiciones' });
-  await filter.fill('espana');
-  await expect(page.locator('#competition-count')).toHaveText('1 competición');
-  await expect(page.getByRole('link', { name: /Liga de prueba/ })).toBeVisible();
-  await expect(page.getByRole('link', { name: /Copa de prueba/ })).toHaveCount(0);
-  await filter.fill('no existe');
-  await expect(page.getByText('No hay competiciones para este filtro')).toBeVisible();
-  const reset = page.getByRole('button', { name: 'Quitar filtro' });
-  await reset.focus();
-  await page.keyboard.press('Enter');
-  await expect(filter).toHaveValue('');
-  await expect(page.locator('#competition-count')).toHaveText('2 competiciones');
-});
-
-test('M08 mobile search traps focus, dismisses empty results and releases resize lock', async ({ page }) => {
-  await page.setViewportSize({ width: 375, height: 900 });
-  await page.goto(`${ssr.origin}/deportes/futbol/competiciones`);
-  const trigger = page.getByRole('button', { name: 'Buscar', exact: true });
-  await trigger.click();
-  const dialog = page.getByRole('dialog', { name: 'Buscar en Guía TV' });
-  await expect(dialog).toBeVisible();
-  const input = dialog.getByRole('combobox');
-  await expect(input).toBeFocused();
-  await input.fill('sin coincidencias');
-  await expect(dialog.getByText(/No hay sugerencias/)).toBeVisible();
-  for (let i = 0; i < 7; i++) {
-    await page.keyboard.press('Tab');
-    expect(await dialog.evaluate(el => el.contains(document.activeElement))).toBe(true);
-  }
-  await input.focus();
-  await page.keyboard.press('Escape');
-  await expect(dialog).toHaveCount(0);
-  await expect(trigger).toBeFocused();
-  await expect(page.locator('body')).not.toHaveClass(/portal-overlay-open/);
-  await trigger.click();
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await expect(dialog).toHaveCount(0);
-  await expect(page.locator('body')).not.toHaveClass(/portal-overlay-open/);
-});
+// The M08 competition filter and the mobile search dialog belonged to the legacy football pages; the sports v2
+// cutover (M04) serves /deportes/futbol with a catalogue without a filter and an inline header search, so their tests went with them.
 
 test('M08 football catalog and shared shell responsive WCAG AA matrix', async ({ page }, info) => {
   test.skip(info.project.name === 'mobile', 'Explicit matrix covers mobile and desktop.');
@@ -81,7 +42,7 @@ test('M08 football catalog and shared shell responsive WCAG AA matrix', async ({
       await page.evaluate(value => localStorage.setItem('guiatv-theme', value), theme);
       await page.reload();
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Competiciones de fútbol');
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Competiciones');
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
       // The theme is applied after hydration and backgrounds transition: axe must read the settled colours.
       await page.waitForFunction(() => document.getAnimations().every(a => !(a instanceof CSSTransition) || a.playState !== 'running'));

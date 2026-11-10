@@ -42,7 +42,7 @@ test('M05 separates broadcasts from channel suggestions, retains simultaneous ai
   await expect(schedule.locator('li')).toHaveCount(3);
   await expect(schedule).not.toContainText('Otra película del canal');
   const channel = page.locator('section[aria-labelledby="channel-programmes-heading"]');
-  await expect(channel).toContainText('También en este canal');
+  await expect(channel).toContainText('Qué más echan en');
   await expect(channel).toContainText('Otra película del canal');
   await expect(channel.getByRole('link', { name: /Episodio sin destino/ })).toHaveAttribute('href', '/canales/amc');
   await expect(page.locator('link[rel="canonical"]')).toHaveCount(1);
@@ -50,7 +50,7 @@ test('M05 separates broadcasts from channel suggestions, retains simultaneous ai
   const schema = await page.locator('script[type="application/ld+json"]').evaluateAll(els => els.flatMap(el => [JSON.parse(el.textContent || '[]')].flat()));
   expect(schema.filter(x => x['@type'] === 'Movie')).toHaveLength(1);
   expect(schema.some(x => x['@type'] === 'VideoObject' || x.aggregateRating)).toBe(false);
-  await page.getByRole('link', { name: 'Ver emisiones en TV', exact: true }).click();
+  await page.getByRole('navigation', { name: 'En esta ficha' }).getByRole('link', { name: 'Emisiones', exact: true }).click();
   expect(new URL(page.url()).pathname).toBe('/peliculas/m05-film');
   await expect(page.locator('#emisiones')).toBeInViewport();
   await channel.getByRole('link', { name: /Otra película del canal/ }).click();
@@ -67,7 +67,7 @@ test('M05 series omits whole-series runtime; incomplete data has honest empty st
   await expect(page.locator('h1')).toHaveText('Sin programación');
   await expect(page.getByText('Sinopsis no disponible.')).toBeVisible();
   await expect(page.locator('app-entity-broadcast-list')).toContainText('No hay emisiones programadas');
-  await expect(page.getByRole('heading', { name: 'También en este canal' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: /Qué más echan en/ })).toHaveCount(0);
 });
 
 test('M05 responsive layouts and WCAG AA across required widths and themes', async ({ page }, info) => {

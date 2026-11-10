@@ -80,15 +80,17 @@ test('the enriched legacy page keeps its SEO surface and gains the verified sche
   expect(after.canonical[0]).toBe('https://guiaprogramaciontv.com/peliculas/enriched');
 
   await expect(page.locator('h1')).toHaveCount(1);
+  // The synopsis appears once on the page; the hero facts are also restated in the right panel's "Ficha", so check the content column.
   await expect(page.getByText('Texto editorial propio de la ficha')).toBeVisible();
-  await expect(page.getByText('A Cure for Wellness')).toBeVisible();
+  const main = page.locator('main');
+  await expect(main.getByText('A Cure for Wellness')).toBeVisible();
   await expect(page.getByText('2 h 27 min')).toHaveCount(0); // hero shows the minutes the legacy layout always used
-  await expect(page.getByText('147 min')).toBeVisible();
-  await expect(page.getByText('Terror')).toBeVisible();
+  await expect(main.getByText('147 min')).toBeVisible();
+  await expect(main.getByRole('list', { name: 'Géneros' }).getByText('Terror', { exact: true })).toBeVisible();
   const cards = page.locator('app-entity-broadcast-list li');
   await expect(cards).toHaveCount(3);
   await expect(cards.first().getByRole('link', { name: 'AMC' })).toHaveAttribute('href', '/canales/amc');
-  await expect(page.getByText('TCM').first()).toBeVisible(); // the legacy airing the join did not confirm is kept
+  await expect(main.getByText('TCM').first()).toBeVisible(); // the legacy airing the join did not confirm is kept
   await expect(page.getByText('Datos e imágenes de TMDB.')).toBeVisible();
   const movies = await page.locator('script[type="application/ld+json"]').evaluateAll((els) => els.flatMap((e) => [JSON.parse(e.textContent || '[]')].flat()).filter((d) => d['@type'] === 'Movie'));
   expect(movies).toHaveLength(1);
@@ -101,7 +103,7 @@ test('empty and unreadable schedules', async ({ page }) => {
   await expect(page.getByText('No hay emisiones programadas en la programación disponible')).toBeVisible();
   await open(page, 'unreadable');
   await expect(page.locator('app-entity-broadcast-list li')).toHaveCount(2);
-  await expect(page.getByText('AMC').first()).toBeVisible();
+  await expect(page.locator('main').getByText('AMC').first()).toBeVisible(); // the side menu's channel link is hidden on mobile
 });
 
 test('accessibility: no axe violations on the enriched legacy page, in light and dark', async ({ page }) => {

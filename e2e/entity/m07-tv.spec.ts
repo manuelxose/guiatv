@@ -56,25 +56,26 @@ test('M07 channel SSR, canonical, chronological schedule and verified navigation
   expect(response.status()).toBe(200);
   expect(await response.text()).toContain('Programa M07');
   await page.goto(`${ssr.origin}/canales/amc`);
-  await expect(page.locator('h1')).toHaveText('AMC');
+  await expect(page.locator('h1')).toHaveText(/^Programación de AMC/);
   await expect(page.locator('link[rel="canonical"]')).toHaveCount(1);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://guiaprogramaciontv.com/canales/amc');
-  const rows = page.locator('.schedule-row');
+  const rows = page.locator('ol.tl > li');
   await expect(rows).toHaveCount(3);
   await expect(rows.nth(0)).toContainText(previous.program.title);
   await expect(rows.nth(1)).toContainText(current.program.title);
   await expect(rows.nth(2)).toContainText(next.program.title);
-  await expect(rows.nth(0)).toContainText('Finalizado');
-  await expect(rows.nth(1)).toContainText('En directo');
+  await expect(rows.nth(0).locator('.tl__row')).toHaveClass(/\bpast\b/);
+  await expect(rows.nth(1).locator('.tl__row')).toHaveClass(/\bnow\b/);
+  await expect(rows.nth(1)).toContainText('Ahora');
   const madridTime = new Intl.DateTimeFormat('es-ES', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit' }).format(new Date(current.airing.start));
   await expect(rows.nth(1)).toContainText(madridTime);
-  await expect(rows.nth(2)).toContainText('Próximamente');
-  const category = page.getByRole('button', { name: 'Cine', exact: true });
-  await category.focus();
-  await page.keyboard.press('Enter');
-  await expect(category).toHaveAttribute('aria-pressed', 'true');
+  await expect(rows.nth(2).locator('.tl__row')).not.toHaveClass(/\b(past|now)\b/);
+  // A genre with no airings shows the empty state, and its recovery link (by keyboard) brings the whole day back.
+  await page.goto(`${ssr.origin}/canales/amc?genero=cine`);
   await expect(rows).toHaveCount(0);
-  await page.getByRole('button', { name: 'Limpiar filtro', exact: true }).click();
+  const reset = page.getByRole('link', { name: 'Ver toda la programación', exact: true });
+  await reset.focus();
+  await page.keyboard.press('Enter');
   await expect(rows).toHaveCount(3);
   await expect(rows.nth(1).locator('a[href="/programas/m07-program"]').first()).toBeVisible();
   await expect(rows.nth(2).locator('a[href*="/programas/"]')).toHaveCount(0);
@@ -99,7 +100,7 @@ test('M07 programme keeps its broadcasts separate and retains programme SEO iden
 
 test('M07 empty and unavailable channels are distinct', async ({ page, request }) => {
   await page.goto(`${ssr.origin}/canales/m07-empty`);
-  await expect(page.locator('h1')).toHaveText('Canal sin emisiones');
+  await expect(page.locator('h1')).toHaveText(/^Programación de Canal sin emisiones/);
   await expect(page.locator('.schedule-row')).toHaveCount(0);
   await expect(page.getByText('Sin emisiones para esta selección')).toBeVisible();
   const missing = await request.get(`${ssr.origin}/canales/m07-missing`);

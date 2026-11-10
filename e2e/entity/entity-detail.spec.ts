@@ -44,7 +44,8 @@ test.beforeEach(async ({ page }) => {
 
 const open = async (page: Page, slug: string) => {
   const response = await page.goto(`${ssr.origin}/peliculas/${slug}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('h1, [role="alert"], h2').first().waitFor();
+  // Inside the content column: the shell's side menu has its own h2, hidden on mobile.
+  await page.locator('main').locator('h1, [role="alert"], h2').first().waitFor();
   return response!;
 };
 const shot = async (page: Page, name: string, projectName: string) => {
@@ -59,7 +60,8 @@ test('the film page: header, facts, broadcasts, credits and attribution, single 
   await expect(page.locator('h1')).toHaveCount(1);
   await expect(page.locator('h1')).toHaveText('La cura del bienestar');
   await expect(page.getByText('A Cure for Wellness')).toBeVisible();
-  await expect(page.getByText('2 h 27 min')).toBeVisible();
+  // The context panel restates the facts by design (as the catalog page's "Ficha" does); check the hero.
+  await expect(page.locator('main').getByText('2 h 27 min')).toBeVisible();
   await expect(page.getByRole('list', { name: 'Géneros' }).getByRole('listitem')).toHaveText(['Terror', 'Misterio']);
   await expect(page.getByRole('img', { name: 'Cartel de La cura del bienestar' })).toBeVisible();
   await expect(page.getByRole('heading', { level: 2, name: 'Próximas emisiones' })).toBeVisible();
