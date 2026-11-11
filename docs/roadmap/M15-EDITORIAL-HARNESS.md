@@ -98,3 +98,19 @@ URL pública + sitemap, supervisado y controlable desde Admin → Editorial.
 Decisión del propietario: (a) devolver redactor y crítico a Claude (requiere `ANTHROPIC_API_KEY` en `/etc/guiatv/api.env`,
 hoy ausente); (b) subir `EDITORIAL_MAX_REVISIONS` (máx. 10; añadirlo a `EDITORIAL_RUNNER_ENV_KEYS`); (c) otro tema con menos
 matices legales. Después: `retry` de `5ff774e7…` o nueva solicitud con `scripts/ops/editorial-first-article.sh`.
+
+## Cierre (2026-11-11)
+- Configurado en producción, con permiso explícito del propietario: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` y
+  `EDITORIAL_MAX_REVISIONS=10` (añadido también a `EDITORIAL_RUNNER_ENV_KEYS`). Las variables de la pasarela antigua
+  quedan comentadas (`#m15-disabled`); copia de seguridad en `api.env.bak-m15-20261111-010341`. Proveedores: los tres
+  `connected`.
+- Anthropic: clave válida pero **sin saldo** (`credit balance is too low`). Rutas cambiadas a OpenAI (`gpt-6.1-terra` /
+  `gpt-6-luna`) con DeepSeek de reserva.
+- OpenAI destapó dos fallos más: la investigación no llevaba el esquema en el prompt (#214) y los esquemas no eran
+  estrictos (#215).
+- Intento final (OpenAI, 10 revisiones): 11 versiones sin ningún bloqueo duro, 14 afirmaciones, 4 editores y 965 palabras;
+  el crítico `gpt-6.1-terra` respondió `revise` en las 11 (2–3 objeciones medias). **No se publicó, y es lo correcto.**
+- Rescatado a la bandeja de revisión con `save-draft`: borrador `6af3ce90f06c0d8231ba1bd6` (sin revisar, firmado, sin
+  bloqueos duros; único control pendiente `critic-rejected`). Verificado: no es público (API vacía, 404, fuera del
+  sitemap), no hay aprobaciones nuevas y hay 0 trabajos vivos. #217 hace este rescate automático.
+- Coste total en producción: unos 3,7 USD. El cron `*/15` sigue sin instalar (permiso denegado dos veces).
