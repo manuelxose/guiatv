@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { briefProblems, draftShapeProblems, EditorialModel, ModelCallFailed, runEditorialBatch, runEditorialJob } from './EditorialAgentPipeline';
 import { DEFAULT_EDITORIAL_LIMITS, evaluateEvidence } from './EditorialEvidence';
 import { deps, draft, GOOD, LONG, NOW, pass, research, scripted, topic } from './EditorialAgentPipeline.fixtures';
+import { strictSchema } from '../../infrastructure/external/OpenAIEditorialModel';
 
 test('pipeline records each reported model even if the call fails after spending', async () => {
   const m = scripted({ research: [research] });
@@ -242,6 +243,19 @@ test('M14-R brief y presupuesto: el planificador produce un brief validado, el r
   assert.match(writer.prompt, /Por qué verla en abierto: 500 palabras/);
   assert.match(writer.prompt, /Ángulo: guía con el horario/);
   assert.doesNotMatch(run.reason ?? '', /plan inválido|plan descarta/);
+
+  // M15: every schema this run sends must be accepted by OpenAI strict mode once converted (production refused the planner's).
+  const strictOk = (s: any, path: string): string[] => {
+    if (!s || typeof s !== 'object') return [];
+    if (s.items) return strictOk(s.items, `${path}[]`);
+    if (!s.properties) return [];
+    const keys = Object.keys(s.properties);
+    const bad = s.additionalProperties !== false || keys.some((k) => !s.required?.includes(k)) ? [path] : [];
+    return [...bad, ...keys.flatMap((k) => strictOk(s.properties[k], `${path}.${k}`))];
+  };
+  const roles = new Set(m.calls.map((c) => c.role));
+  for (const role of ['research', 'evidence', 'planner', 'editorial', 'critic']) assert.ok(roles.has(role as never), `${role} was called`);
+  for (const c of m.calls) assert.deepEqual(strictOk(strictSchema(c.schema as never), c.role), [], `${c.role} schema is strict-compatible`);
 
   // Un plan que descarta el tema rechaza sin gastar un ciclo de redacción.
   const notViable = scripted({ research: [research], evidence: [{ conflicts: [] }], planner: [{ ...plan, viable: false, reason: 'una sola entidad editora' }], editorial: [draft()], critic: [pass] });

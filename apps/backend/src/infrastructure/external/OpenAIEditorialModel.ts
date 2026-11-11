@@ -20,7 +20,7 @@ export class OpenAIEditorialModel implements EditorialModel {
     // M15: with web search the answer is prose plus JSON, so the schema must travel in the prompt (as for Anthropic and
     // DeepSeek); without it the research role answered in prose and every OpenAI research call failed.
     const input = research ? `${request.prompt}\n\nTermina con un único bloque \`\`\`json que cumpla este esquema:\n${JSON.stringify(request.schema)}` : request.prompt;
-    const strict = { format: { type: 'json_schema' as const, name: `editorial_${request.role}`, strict: true, schema: request.schema } };
+    const strict = { format: { type: 'json_schema' as const, name: `editorial_${request.role}`, strict: true, schema: strictSchema(request.schema) } };
     const response = await this.client.responses.create({
       model: request.model,
       instructions: request.system,
@@ -42,7 +42,7 @@ export class OpenAIEditorialModel implements EditorialModel {
     if (response.output.some((item) => item.type === 'message' && item.content.some((part) => part.type === 'refusal'))) throw fail('the model declined');
     const text = response.output_text;
     try {
-      return { json: research ? parsePromptJson(text, true) : JSON.parse(text), usage, searches };
+      return { json: research ? parsePromptJson(text, true) : dropNulls(JSON.parse(text)), usage, searches };
     } catch {
       if (!research) throw fail('no valid JSON in the answer');
     }
@@ -64,9 +64,33 @@ export class OpenAIEditorialModel implements EditorialModel {
     if (repair.model && !repair.model.startsWith(request.model)) throw fail(`answered by ${repair.model}, routed to ${request.model}`);
     if (repair.status !== 'completed') throw fail(`repair turn ${repair.status ?? 'without status'}`);
     try {
-      return { json: JSON.parse(repair.output_text), usage, searches };
+      return { json: dropNulls(JSON.parse(repair.output_text)), usage, searches };
     } catch {
       throw fail('no valid JSON in the answer');
     }
   }
+}
+
+type Schema = { type?: string | string[]; enum?: unknown[]; items?: Schema; properties?: Record<string, Schema>; required?: string[]; [key: string]: unknown };
+
+/**
+ * M15: OpenAI strict mode needs every property in `required` (production: the planner's `sections[].claims` was refused
+ * with a 400). An optional property becomes nullable instead, and `dropNulls` turns null back into "absent", so the
+ * pipeline's schemas and the other providers are unchanged.
+ */
+export function strictSchema(schema: Schema): Schema {
+  if (!schema || typeof schema !== 'object') return schema;
+  if (schema.type === 'array' && schema.items) return { ...schema, items: strictSchema(schema.items) };
+  if (schema.type !== 'object' || !schema.properties) return schema;
+  const required = new Set(schema.required ?? []);
+  const nullable = (s: Schema): Schema => ({ ...s, type: [String(s.type), 'null'], ...(s.enum ? { enum: [...s.enum, null] } : {}) });
+  const properties = Object.fromEntries(Object.entries(schema.properties).map(([key, value]) => [key, required.has(key) ? strictSchema(value) : nullable(strictSchema(value))]));
+  return { ...schema, additionalProperties: false, properties, required: Object.keys(properties) };
+}
+
+/** Removes the nulls strict mode puts in optional slots (a required property is never nullable, so nothing else is lost). */
+export function dropNulls(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(dropNulls);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== null).map(([k, v]) => [k, dropNulls(v)]));
 }

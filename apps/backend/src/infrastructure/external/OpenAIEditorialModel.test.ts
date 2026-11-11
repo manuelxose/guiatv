@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type OpenAI from 'openai';
-import { OpenAIEditorialModel } from './OpenAIEditorialModel';
+import { OpenAIEditorialModel, strictSchema } from './OpenAIEditorialModel';
 import { ModelCallFailed, type ModelCall } from '../../application/services/EditorialAgentPipeline';
 
 const reply = (over: Record<string, unknown> = {}) => ({
@@ -48,6 +48,21 @@ test('M15 openai research: the schema travels in the prompt, and a prose answer 
   const g = fake([reply({ output_text: 'Notas.\n```json\n{"claims":[1]}\n```\nFuentes consultadas.' })]);
   assert.deepEqual((await new OpenAIEditorialModel({ client: g.client }).call(call({ role: 'research', webSearches: 1 }))).json, { claims: [1] });
   assert.equal(g.sent.length, 1);
+});
+
+test('M15 openai strict mode: optional properties become nullable and their nulls come back as absent', async () => {
+  const schema = { type: 'object', additionalProperties: false, required: ['verdict', 'issues'], properties: {
+    verdict: { type: 'string', enum: ['pass', 'block'] },
+    issues: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['message'], properties: { claimId: { type: 'string' }, message: { type: 'string' } } } },
+  } };
+  const strict = strictSchema(schema as never) as any;
+  assert.deepEqual(strict.properties.issues.items.required, ['claimId', 'message']);
+  assert.deepEqual(strict.properties.issues.items.properties.claimId.type, ['string', 'null']);
+  assert.deepEqual(strict.properties.verdict, schema.properties.verdict, 'a required property stays as it was');
+  const f = fake([reply({ output_text: '{"verdict":"pass","issues":[{"claimId":null,"message":"m"}]}' })]);
+  const result = await new OpenAIEditorialModel({ client: f.client }).call(call({ schema }));
+  assert.deepEqual(result.json, { verdict: 'pass', issues: [{ message: 'm' }] });
+  assert.deepEqual(f.sent[0].text.format.schema, strict);
 });
 
 test('openai model: refusal, truncation, wrong model and bad JSON carry billed usage', async () => {
