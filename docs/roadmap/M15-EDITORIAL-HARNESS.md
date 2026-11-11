@@ -74,3 +74,27 @@ URL pública + sitemap, supervisado y controlable desde Admin → Editorial.
   `issues`). Al revisarlo, un veredicto del crítico ausente o desconocido acababa en `pass` (`indexOf` −1): ahora bloquea.
   Además, las `internalSources` relativas de las solicitudes manuales se resuelven contra el sitio. Backend 196/196, ciclo 25/25.
   Coste acumulado en producción: 0,623 USD.
+- 23:09 #211 desplegado. Intento 3: `research: no JSON block in the answer` (DeepSeek cerró la búsqueda en prosa), 0,156 USD.
+  **Cuarta causa**: el adaptador no reintentaba un formato inválido. #212: un turno de reparación cobrado y acotado.
+  (Mi fusión de #212 fue denegada por la política de permisos; la hizo el usuario.)
+- 23:59 #212 desplegado. Intento 4: el pipeline completo funcionó (5 revisiones, 6 editores, 11 afirmaciones verificadas,
+  1,159 USD) y terminó en un **bloqueo editorial legítimo**: crítico `revise` (repeticiones, relleno, 2 inferencias) +
+  `invalid-length` 899/900. Patrón: al quitar relleno baja de 900; al subir, vuelve el relleno. Cambio de estrategia (no un
+  reintento idéntico): nueva solicitud `5ff774e7…` con longitud `short` (600–900); controles intactos.
+  Coste acumulado: 1,94 USD. Limitación observada: un run `blocked` con un solo bloqueo duro no se guarda en el CMS,
+  así que una persona no puede rescatar un texto al que le falta 1 palabra.
+- 00:33 Intento 5 (`short`): 5 ciclos, crítico `revise` en todos, 0,754 USD. Último bloqueo duro: encabezado H2 con
+  «958/2020» sin cita (el control aplica a H2+; es cumplible). El crítico marcó `high` una frase FALSA del redactor
+  («sin régimen transitorio…», cuando el paquete recoge el transitorio hasta agosto de 2021): los controles funcionan.
+- **Diagnóstico de fondo (hecho comprobado):** las 4 guías publicadas por política (27–28 oct) tienen `backend: anthropic`
+  y crítico `claude-opus-5-5 → pass`. Desde M14-A (solo DeepSeek) ningún trabajo ha pasado el crítico: CNMC (5 ciclos),
+  intento 4 (5) e intento 5 (5), los 15 en `revise`. No es un fallo técnico: el redactor DeepSeek introduce defectos que
+  el crítico detecta. Seguir con el mismo proveedor y límites sería un reintento sin progreso → decisión del propietario.
+- Instalación del cron `*/15` en el servidor: **denegada por la política de permisos**; comandos en el informe final.
+- Estado final verificado: 3 solicitudes `failed` con motivo, 0 `running`, 0 trabajos vivos, 0 posts del slug (sin
+  huérfanos ni duplicados), ejecutor detenido. Coste total en producción: 2,69 USD (DeepSeek).
+
+## Siguiente paso
+Decisión del propietario: (a) devolver redactor y crítico a Claude (requiere `ANTHROPIC_API_KEY` en `/etc/guiatv/api.env`,
+hoy ausente); (b) subir `EDITORIAL_MAX_REVISIONS` (máx. 10; añadirlo a `EDITORIAL_RUNNER_ENV_KEYS`); (c) otro tema con menos
+matices legales. Después: `retry` de `5ff774e7…` o nueva solicitud con `scripts/ops/editorial-first-article.sh`.
