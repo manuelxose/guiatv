@@ -95,6 +95,9 @@ test('reviewer must be a person: machine identities and non-allowlisted names ar
   assert.throws(() => assertReviewerIsAccountable('Ana Gates', 'maria@guia.test'), /accountable person/);
   assert.doesNotThrow(() => assertReviewerIsAccountable('Maria@guia.test', 'maria@guia.test'));
   assert.throws(() => buildEditorialApproval(validPost, 'auctorio-quality-gate', new Date(), ''), /accountable person/);
+  // The authenticated Auctorio automation is recorded as itself and still meets every content requirement.
+  assert.equal(buildEditorialApproval(validPost, 'auctorio-quality-gate', new Date(), 'ana', true).reviewedBy, 'auctorio-quality-gate');
+  assert.throws(() => buildEditorialApproval({ ...validPost, content: '<p>corto</p>' }, 'auctorio-quality-gate', new Date(), '', true), /contenido/);
 });
 
 // M11-A: these five redirecting targets were live in the 10 published guides on 2026-10-26.
