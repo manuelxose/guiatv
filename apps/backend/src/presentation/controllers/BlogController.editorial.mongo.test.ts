@@ -14,9 +14,9 @@ import { deps, draft, LONG, pass, research, scripted, topic } from '../../applic
 
 const controller = new BlogController();
 type Outcome = { code?: number; body?: any; error?: any };
-const call = (handler: (req: any, res: any, next: any) => Promise<void>, req: { params?: object; body?: object; headers?: Record<string, string> } = {}) =>
+const call = (handler: (req: any, res: any, next: any) => Promise<void>, req: { params?: object; body?: object; headers?: Record<string, string>; locals?: object } = {}) =>
   new Promise<Outcome>((resolve) => {
-    const res = { code: 0, status(c: number) { this.code = c; return this; }, json(body: unknown) { resolve({ code: this.code, body }); } };
+    const res = { code: 0, locals: req.locals ?? {}, status(c: number) { this.code = c; return this; }, json(body: unknown) { resolve({ code: this.code, body }); } };
     void handler({ params: req.params ?? {}, body: req.body ?? {}, query: {}, header: (n: string) => req.headers?.[n.toLowerCase()] }, res, (error: unknown) => resolve({ error }));
   });
 
@@ -194,6 +194,45 @@ test('M11-B CMS: evidence gate, policy approval, versioning and rollback', { ski
     } finally {
       delete (controller as any).qualityFindings;
     }
+  } finally {
+    process.env = env;
+    await mongoose.connection.dropDatabase();
+    await mongoose.disconnect();
+  }
+});
+
+test('Auctorio automation publishes its own posts as itself, under the emergency stop and the policy gates', { skip: !process.env.TEST_MONGO_URI }, async () => {
+  await mongoose.connect(process.env.TEST_MONGO_URI!, { dbName: `guiatv_test_auctorio_${process.pid}` });
+  const env = { ...process.env };
+  process.env.EDITORIAL_PIPELINE_SIGNING_KEY = KEY;
+  const auctorio = { headers: { 'x-editorial-reviewer': 'auctorio-quality-gate' }, locals: { auctorioAutomation: true } };
+  try {
+    await BlogPostModel.init();
+    const words = Array.from({ length: 40 }, (_, i) => `La televisión en abierto reparte su parrilla entre cadenas y plataformas de streaming, bloque ${i}.`).join(' ');
+    const created = await call(controller.createPost, { body: {
+      title: 'Cómo se reparte la publicidad en la televisión', slug: 'reparto-publicidad-television', status: 'draft', origin: 'ai-assisted',
+      excerpt: 'Qué límites tiene la publicidad en televisión.', content: `<p>${words}</p><p>Fuente: <a href="https://www.boe.es/">BOE</a>.</p>`,
+      authorName: 'Redacción GuíaTV', authorId: 'redaccion', metaTitle: 'Publicidad en televisión', metaDescription: 'Límites de la publicidad en televisión en España.',
+    } });
+    assert.equal(created.code, 201, String(created.error));
+    const id = created.body.data.post.id as string;
+
+    // Without the guard's automation mark, the bot name is still refused as a person.
+    assert.match(String((await call(controller.approvePost, { params: { id }, headers: auctorio.headers })).error?.details?.[0]?.message), /accountable person/);
+
+    const settings = BlogPostModel.db.collection<{ _id: string }>('editorial_settings');
+    await settings.updateOne({ _id: 'policy' }, { $set: { paused: true, pausedReason: 'prueba' } }, { upsert: true });
+    assert.match(String((await call(controller.approvePost, { params: { id }, ...auctorio })).error), /emergency stop/);
+    await settings.updateOne({ _id: 'policy' }, { $set: { paused: false } });
+
+    const approved = await call(controller.approvePost, { params: { id }, ...auctorio });
+    assert.equal(approved.code, 200, JSON.stringify(approved.error?.details ?? String(approved.error)));
+    const stored = (await BlogPostModel.findById(id).lean())!;
+    assert.equal(stored.status, 'publish');
+    assert.equal(stored.reviewedBy, 'auctorio-quality-gate', 'recorded as the automation, not as a person');
+
+    // An in-house pipeline draft is never Auctorio's to publish.
+    assert.match(String((await call(controller.approvePost, { params: { id: await aiPost('el-padrino-interno') }, ...auctorio })).error), /in-house pipeline/);
   } finally {
     process.env = env;
     await mongoose.connection.dropDatabase();
