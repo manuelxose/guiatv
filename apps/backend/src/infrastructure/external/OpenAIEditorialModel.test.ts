@@ -31,6 +31,25 @@ test('openai model: web search and domain filters', async () => {
   assert.deepEqual(f.sent[0].tools, [{ type: 'web_search', filters: { allowed_domains: ['boe.es'] } }]);
 });
 
+test('M15 openai research: the schema travels in the prompt, and a prose answer gets one strict repair turn', async () => {
+  // Production 2026-11-11: "research: no valid JSON in the answer"; the research prompt never named the format.
+  const prose = reply({ output_text: 'Según el BOE, la franja es de 01:00 a 05:00.', output: [{ type: 'web_search_call' }, { type: 'web_search_call' }] });
+  const f = fake([prose, reply({ output_text: '{"claims":[]}' })]);
+  const result = await new OpenAIEditorialModel({ client: f.client }).call(call({ role: 'research', webSearches: 3, schema: { type: 'object', properties: { claims: { type: 'array' } } } }));
+  assert.match(f.sent[0].input, /bloque ```json que cumpla este esquema:\n\{"type":"object"/);
+  assert.equal(f.sent[0].text, undefined, 'the search turn keeps its tools without a strict format');
+  assert.deepEqual(result.json, { claims: [] });
+  assert.equal(f.sent.length, 2, 'exactly one repair turn');
+  assert.equal(f.sent[1].tools, undefined, 'the repair turn runs no new search');
+  assert.equal(f.sent[1].text.format.strict, true);
+  assert.equal(f.sent[1].input[1].role, 'assistant');
+  assert.deepEqual([result.usage.output_tokens, result.searches], [100, 2], 'both turns billed, searches kept');
+  // Prose around the fence is tolerated without any repair (same parser as the Anthropic/DeepSeek path).
+  const g = fake([reply({ output_text: 'Notas.\n```json\n{"claims":[1]}\n```\nFuentes consultadas.' })]);
+  assert.deepEqual((await new OpenAIEditorialModel({ client: g.client }).call(call({ role: 'research', webSearches: 1 }))).json, { claims: [1] });
+  assert.equal(g.sent.length, 1);
+});
+
 test('openai model: refusal, truncation, wrong model and bad JSON carry billed usage', async () => {
   for (const response of [
     reply({ output: [{ type: 'message', content: [{ type: 'refusal', refusal: 'no' }] }] }),
