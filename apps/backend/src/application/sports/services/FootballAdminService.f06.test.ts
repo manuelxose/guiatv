@@ -93,6 +93,9 @@ test(
       assert.equal(a.id, b.id, 'both calls must return the SAME operation');
       const count = await AdminOperationModel.countDocuments({ type: 'football.sync', idempotencyKey: key }).exec();
       assert.equal(count, 1, 'the unique index must collapse concurrent identical requests to one row');
+      // The winner fired a background executeSync; let it finish before disconnect() or
+      // the close interrupts its in-flight write (MongoClientClosedError, flaky in CI).
+      await waitForTerminal(a.id);
     } finally {
       setFootballIngestionServiceForTests(null);
       await mongoose.connection.dropDatabase();
