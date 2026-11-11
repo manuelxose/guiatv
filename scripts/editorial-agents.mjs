@@ -425,7 +425,10 @@ async function runTopics(topics, { report, autopublish, replay = null, corpus, p
         publication.ok ? undefined : { classification: 'publication', message: publication.message }, publication.ok ? publication.url : undefined).catch(() => null);
       persist({ ...run, publication });
     }
-    if (autopublish && run.state === 'verified') {
+    // A run that used up its revision cycles with NO hard block left (only the critic's judgement) is a person's call
+    // too: production 2026-11-11 lost such a text (all gates passed, 10 × critic 'revise'). Hard blocks still stay out.
+    const judgementOnly = run.state === 'blocked' && run.draft && !(run.findings ?? []).some((f) => f.severity === 'block');
+    if (autopublish && (run.state === 'verified' || judgementOnly)) {
       // M15: a text that passed every check but needs a person's decision goes to the CMS review inbox as a draft
       // with its reasons; nothing approves it automatically, and an editorial hold is no longer a lost run file.
       const review = await draftForRun(run, report, out).catch((error) => ({ ok: false, message: error instanceof Error ? error.message : String(error) }));
