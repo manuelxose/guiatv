@@ -10,7 +10,7 @@ function equalSecret(provided: string, expected: string): boolean {
 
 export const editorialReviewGuard = (
   req: Request,
-  _res: Response,
+  res: Response,
   next: NextFunction
 ): void => {
   const humanReviewKey = String(process.env.EDITORIAL_REVIEW_KEY || '').trim();
@@ -31,6 +31,8 @@ export const editorialReviewGuard = (
   if (!provided || (!isHumanReview && !isAutomationReview)) {
     throw new ForbiddenError('Invalid editorial review key');
   }
+  // Owner decision 2026-11-11: Auctorio publishes its own posts without a person (ADR 0001, amendment).
+  if (isAutomationReview && !isHumanReview) (res.locals ??= {}).auctorioAutomation = true;
   next();
 };
 

@@ -24,12 +24,18 @@ test('accepts the dedicated Autorio key only for its configured reviewer', () =>
   process.env.AUCTORIO_EDITORIAL_REVIEWER = 'auctorio-quality-gate';
 
   let called = false;
+  const res = { locals: {} as Record<string, unknown> };
   editorialReviewGuard(
     request({ 'x-editorial-review-key': 'auctorio-review-key', 'x-editorial-reviewer': 'auctorio-quality-gate' }),
-    {} as never,
+    res as never,
     () => { called = true; }
   );
   assert.equal(called, true);
+  assert.equal(res.locals.auctorioAutomation, true, 'approvePost publishes it as the automation');
+
+  const human = { locals: {} as Record<string, unknown> };
+  editorialReviewGuard(request({ 'x-editorial-review-key': 'human-review-key', 'x-editorial-reviewer': 'Ana' }), human as never, () => undefined);
+  assert.equal(human.locals.auctorioAutomation, undefined, 'a person keeps the named-reviewer gate');
 });
 
 test('rejects the Autorio key when the reviewer identity does not match', () => {

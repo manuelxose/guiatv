@@ -388,10 +388,17 @@ export class BlogController {
       const post = await BlogPostModel.findById(postId).exec();
       if (!post) throw new NotFoundError('Editorial post not found');
       if (post.pendingEdit) throw new ConflictError('Descarta primero el borrador de cambios pendiente');
+      const automation = res.locals?.auctorioAutomation === true;
+      if (automation) {
+        // Auctorio publishes only what Auctorio sent: an in-house pipeline draft keeps its own gates.
+        if (post.editorial) throw new ForbiddenError('The Auctorio identity cannot approve an in-house pipeline post');
+        const policy = await editorialPolicyState();
+        if (policy.paused) throw new ForbiddenError(`Automatic publishing is paused by the Admin emergency stop (${policy.pausedReason ?? 'no reason'})`);
+      }
 
       let approval;
       try {
-        approval = buildEditorialApproval(post.toObject(), reviewer);
+        approval = buildEditorialApproval(post.toObject(), reviewer, new Date(), undefined, automation);
       } catch (error) {
         throw new ValidationError('Editorial quality gate failed', [
           { field: 'review', message: error instanceof Error ? error.message : 'Approval rejected', value: postId },
@@ -403,7 +410,8 @@ export class BlogController {
         .concat(req.body?.acknowledge ?? [])
         .flatMap((code) => String(code).split(','))
         .map((code) => code.trim());
-      const failures = editorialGateFailures(findings, acknowledged);
+      // Automation: same rule as the policy path (every block, and every human judgement but unverified-claims).
+      const failures = automation ? policyGateFailures(findings) : editorialGateFailures(findings, acknowledged);
       if (failures.length) {
         throw new ValidationError(
           'Editorial quality gate failed',

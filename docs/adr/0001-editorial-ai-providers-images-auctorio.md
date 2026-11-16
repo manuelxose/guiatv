@@ -108,6 +108,12 @@ GuíaTV keeps sole authority over:
 
 Auctorio produces packages and never publishes to GuíaTV directly.
 
+**Amendment 2026-11-11 (owner decision).** Articles Auctorio sends over the API (`POST /v2/blog`, then `POST /v2/blog/:id/approve`
+with `AUCTORIO_EDITORIAL_REVIEW_KEY` and `x-editorial-reviewer: $AUCTORIO_EDITORIAL_REVIEWER`) publish without a person.
+GuíaTV still decides: the approval runs every content requirement and the policy-path findings rule (every `block`, every `human`
+judgement except `unverified-claims`), honours the Admin emergency stop, records the Auctorio identity as `reviewedBy` (never a
+person's name), and never applies to a post carrying in-house pipeline provenance. A person still approves with the human key.
+
 **Editorial job contract** (`guiatv.editorial-job/v1`), carried as JSON over a file or HTTP:
 
 ```ts
