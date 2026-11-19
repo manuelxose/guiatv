@@ -1,5 +1,6 @@
 import { Injectable, NgZone, PLATFORM_ID, inject } from '@angular/core';
 import { DOCUMENT, isPlatformBrowser } from '@angular/common';
+import { environment } from '../../../environments/environment';
 import { deleteGaCookies } from './analytics-identifiers';
 
 const MEASUREMENT_ID_PATTERN = /^G-[A-Z0-9]{4,16}$/;
@@ -11,17 +12,17 @@ type GtagWindow = Window & { dataLayer?: unknown[]; gtag?: Gtag } & Record<strin
  * Google Analytics 4 with Consent Mode v2 *basic*: no Google script, request or cookie exists before the visitor
  * grants the analytics purpose. On grant, the consent defaults (everything denied) and the update (analytics only;
  * advertising purposes stay denied because the site asks for no advertising consent) are queued before `config`, and
- * gtag.js is injected on an idle callback after the load event, so it never competes with the LCP or hydration.
+ * the Google script is injected on an idle callback after the load event.
  *
- * Page views are sent manually (`send_page_view: false`) from the same deduplicated page-view stream as the
- * first-party collector. The GA4 property must have Enhanced measurement > "Page changes based on browser history
- * events" switched off, otherwise GA4 would count SPA navigations twice (documented in the delivery notes).
+ * The GTM container sends its own initial page view. The collector sends later views, with history-based
+ * page views turned off in the GA4 property. With direct GA4, the collector sends every view.
  */
 @Injectable({ providedIn: 'root' })
 export class Ga4Service {
   private readonly document = inject(DOCUMENT);
   private readonly zone = inject(NgZone);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly containerId = environment.analytics.gtmContainerId;
   private measurementId: string | null = null;
   private configured = false;
   private scriptRequested = false;
@@ -65,7 +66,9 @@ export class Ga4Service {
     this.gtag('consent', 'update', { analytics_storage: 'granted' });
     this.gtag('js', new Date());
     this.gtag('set', { page_location: this.location(path), page_referrer: referrerHost ? `https://${referrerHost}/` : '' });
-    this.gtag('config', measurementId, { send_page_view: false, page_location: this.location(path), page_referrer: referrerHost ? `https://${referrerHost}/` : '' });
+    if (!this.containerId) {
+      this.gtag('config', measurementId, { send_page_view: false, page_location: this.location(path), page_referrer: referrerHost ? `https://${referrerHost}/` : '' });
+    }
     this.configured = true;
     this.injectScriptWhenIdle(measurementId);
   }
@@ -74,6 +77,7 @@ export class Ga4Service {
   pageView(path: string, title?: string): void {
     if (!this.configured || path === this.lastPagePath) return;
     this.lastPagePath = path;
+    if (this.containerId && !this.scriptInjected) return;
     this.gtag('set', { page_location: this.location(path), page_referrer: '', page_title: title });
     this.gtag('event', 'page_view', { page_location: this.location(path), page_path: path, page_title: title });
   }
@@ -95,7 +99,6 @@ export class Ga4Service {
     if (this.configured) this.gtag('consent', 'update', { analytics_storage: 'denied' });
     this.configured = false;
     this.lastPagePath = null;
-    if (!this.scriptInjected) this.scriptRequested = false; // a later grant may still inject it
     deleteGaCookies(this.document);
   }
 
@@ -114,10 +117,12 @@ export class Ga4Service {
         this.scriptRequested = false;
         return;
       }
-      this.scriptInjected = true;
       const script = this.document.createElement('script');
       script.async = true;
-      script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`;
+      script.src = this.containerId
+        ? `https://www.googletagmanager.com/gtm.js?id=${encodeURIComponent(this.containerId)}`
+        : `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`;
+      this.scriptInjected = true;
       this.document.head.appendChild(script);
     };
     this.zone.runOutsideAngular(() => {

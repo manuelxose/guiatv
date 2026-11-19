@@ -9,8 +9,8 @@ export const environment = {
     maxMessagesPerSession: 50,
   },
   analytics: {
-    // Fallback GA4 property; the server decides whether GA4 loads at all (ANALYTICS_GA4_ENABLED) and may override
-    // the id (ANALYTICS_GA4_MEASUREMENT_ID). Never loaded before the visitor grants analytics consent.
-    ga4MeasurementId: 'G-P6Z3BY2DVW',
+    // Keep the destination paired with the published container. The server controls activation.
+    gtmContainerId: 'GTM-KBRSTHLS',
+    ga4MeasurementId: 'G-2QLQW39ZGV',
   },
 };

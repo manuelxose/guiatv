@@ -117,7 +117,7 @@ export class AnalyticsCollector implements OnDestroy {
   }
 
   private applyGa4(): void {
-    if (this.consent.state !== 'granted' || this.configState !== 'ready' || !this.ga4Id) return;
+    if (this.unmeasured || this.consent.state !== 'granted' || this.configState !== 'ready' || !this.ga4Id) return;
     this.ga4.enable(this.ga4Id, this.lastPageViewPath || '/', this.landingReferrer);
     if (this.lastPageViewPath) this.ga4.pageView(this.lastPageViewPath, this.currentTitle());
   }
@@ -130,11 +130,13 @@ export class AnalyticsCollector implements OnDestroy {
     if (path === null) {
       // Leaving the measured site: close the current page, then measure nothing until a public route again.
       if (this.lastPageViewPath && this.pageStartedAt) this.enqueue({ type: 'page_exit', name: 'page_exit', path: this.lastPageViewPath, data: { durationSec: Math.max(0, Math.floor((Date.now() - this.pageStartedAt) / 1000)) } });
+      if (this.ga4.active) this.ga4.disable();
       this.unmeasured = true;
       this.lastPageViewPath = null;
       this.pageStartedAt = 0;
       return;
     }
+    const wasUnmeasured = this.unmeasured;
     this.unmeasured = false;
     if (path === this.lastPageViewPath) return;
     const now = Date.now();
@@ -147,7 +149,8 @@ export class AnalyticsCollector implements OnDestroy {
     this.firedScroll = new Set();
     this.enqueue({ type: 'page_view', name: 'page_view', path, referrer: first ? this.landingReferrer : undefined });
     // Before the config answer GA4 is not decided yet; `loadConfig` then sends the current page view once.
-    if (this.started && this.configState === 'ready' && this.consent.state === 'granted') this.ga4.pageView(path, this.currentTitle());
+    if (wasUnmeasured) this.applyGa4();
+    else if (this.started && this.configState === 'ready' && this.consent.state === 'granted') this.ga4.pageView(path, this.currentTitle());
   }
 
   trackEvent(type: string, data?: Record<string, unknown>, name?: string): void {
@@ -219,7 +222,8 @@ export class AnalyticsCollector implements OnDestroy {
       this.revoke();
       return;
     }
-    const measurementId = config.ga4?.measurementId || environment.analytics?.ga4MeasurementId;
+    const { gtmContainerId, ga4MeasurementId } = environment.analytics;
+    const measurementId = gtmContainerId ? ga4MeasurementId : config.ga4?.measurementId || ga4MeasurementId;
     this.ga4Id = config.ga4?.enabled && measurementId ? measurementId : null;
     this.applyGa4();
     this.scheduleFlush(0);
