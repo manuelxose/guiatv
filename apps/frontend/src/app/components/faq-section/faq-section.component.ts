@@ -13,18 +13,18 @@ export interface FaqItem {
   standalone: true,
   imports: [CommonModule],
   template: `
-    <section *ngIf="items.length" class="mt-10" itemscope itemtype="https://schema.org/FAQPage">
+    <section *ngIf="items.length" class="mt-10" [attr.itemscope]="structuredData ? '' : null" [attr.itemtype]="structuredData ? 'https://schema.org/FAQPage' : null">
       <h2 class="text-lg font-bold text-[var(--portal-text)] mb-4">{{ heading }}</h2>
       <div class="space-y-2">
         <details
           *ngFor="let item of items; let i = index"
           class="group border border-[var(--portal-border)] rounded-lg bg-[var(--portal-surface-soft)]"
-          itemscope itemprop="mainEntity" itemtype="https://schema.org/Question"
+          [attr.itemscope]="structuredData ? '' : null" [attr.itemprop]="structuredData ? 'mainEntity' : null" [attr.itemtype]="structuredData ? 'https://schema.org/Question' : null"
         >
           <summary
             class="flex items-center justify-between gap-4 cursor-pointer select-none px-4 py-3 text-sm font-medium text-[var(--portal-text-soft)] hover:text-[var(--portal-text)] transition-colors min-h-[44px]"
           >
-            <span itemprop="name">{{ item.question }}</span>
+            <span [attr.itemprop]="structuredData ? 'name' : null">{{ item.question }}</span>
             <svg
               class="w-4 h-4 shrink-0 text-[var(--portal-text-muted)] group-open:rotate-180 transition-transform"
               fill="none"
@@ -35,8 +35,8 @@ export interface FaqItem {
             </svg>
           </summary>
           <div class="px-4 pb-4 text-sm text-[var(--portal-text-muted)] leading-relaxed"
-               itemscope itemprop="acceptedAnswer" itemtype="https://schema.org/Answer">
-            <p itemprop="text">{{ item.answer }}</p>
+               [attr.itemscope]="structuredData ? '' : null" [attr.itemprop]="structuredData ? 'acceptedAnswer' : null" [attr.itemtype]="structuredData ? 'https://schema.org/Answer' : null">
+            <p [attr.itemprop]="structuredData ? 'text' : null">{{ item.answer }}</p>
           </div>
         </details>
       </div>
@@ -47,12 +47,13 @@ export interface FaqItem {
 export class FaqSectionComponent implements OnChanges {
   @Input() heading = 'Preguntas frecuentes';
   @Input() items: FaqItem[] = [];
+  @Input() structuredData = true;
   safeLdJson: SafeHtml = '';
 
   constructor(private readonly sanitizer: DomSanitizer) {}
 
   ngOnChanges(): void {
-    if (!this.items.length) {
+    if (!this.structuredData || !this.items.length) {
       this.safeLdJson = '';
       return;
     }

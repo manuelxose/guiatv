@@ -2,30 +2,33 @@ import { isPlatformBrowser } from '@angular/common';
 import { Inject, Injectable, PLATFORM_ID, TransferState, makeStateKey } from '@angular/core';
 import { catchError, combineLatest, map, Observable, of, tap, timeout } from 'rxjs';
 import { TvReadChannelSummaryDTO, TvReadItemDTO } from '../api/models';
-import { EditorialHubState, EditorialPost } from '../blog/models/editorial.models';
+import { EditorialPost } from '../blog/models/editorial.models';
 import { EditorialService } from '../blog/services/editorial.service';
 import { DiscoveryHomeResponse, DiscoveryService } from '../services/discovery.service';
 import { CatalogItem, CatalogPlatform } from '../services/catalog.service';
 import { TvDataFacade } from './tv-data.facade';
 import { FootballFacade } from '../features/football/football.facade';
 import { FootballMatchDTO } from '../features/football/football.models';
+import { normalizeToCard } from '../utils/tv-normalizers';
+
+type HomeGuide = Pick<EditorialPost, 'id' | 'title' | 'canonicalPath' | 'coverImage' | 'coverAlt' | 'readingMinutes'> & {
+  categoryName: string;
+};
 
 export interface PortalHomeState {
   liveNow: TvReadItemDTO[];
   tonight: TvReadItemDTO[];
-  streamingHighlights: DiscoveryHomeResponse['platformItems'];
-  editorialHub: EditorialHubState;
-  rankingHighlights: EditorialPost[];
+  tvMovies: TvReadItemDTO[];
+  guidePosts: HomeGuide[];
   featuredPlatforms: CatalogPlatform[];
   trendingItems: DiscoveryHomeResponse['trendingItems'];
-  freeItems: DiscoveryHomeResponse['freeItems'];
-  featuredChannels: TvReadChannelSummaryDTO[];
+  featuredChannels: Pick<TvReadChannelSummaryDTO, 'channel' | 'current' | 'next'>[];
   movieHighlights: CatalogItem[];
   seriesHighlights: CatalogItem[];
   footballHighlights: FootballMatchDTO[];
 }
 
-const PORTAL_HOME_STATE = makeStateKey<PortalHomeState>('portal-home-state-v3');
+const PORTAL_HOME_STATE = makeStateKey<PortalHomeState>('portal-home-state-v4');
 
 @Injectable({ providedIn: 'root' })
 export class PortalHomeFacade {
@@ -54,7 +57,8 @@ export class PortalHomeFacade {
     }
 
     return combineLatest({
-      discovery: this.discoveryService.getHome().pipe(
+      // The route snapshot already carries the catalogue selections needed during hydration.
+      discovery: this.discoveryService.getHome(undefined, false).pipe(
         catchError(() =>
           of({
             personalized: [],
@@ -92,11 +96,11 @@ export class PortalHomeFacade {
         map(([freeChannels, payChannels]) => [...freeChannels, ...payChannels]),
         catchError(() => of([] as TvReadChannelSummaryDTO[]))
       ),
-      movieHighlights: this.discoveryService.browse({ type: 'movie', page: 1, limit: 8 }).pipe(
+      movieHighlights: this.discoveryService.browse({ type: 'movie', page: 1, limit: 8 }, false).pipe(
         map((response) => response.items || []),
         catchError(() => of([] as CatalogItem[]))
       ),
-      seriesHighlights: this.discoveryService.browse({ type: 'series', page: 1, limit: 8 }).pipe(
+      seriesHighlights: this.discoveryService.browse({ type: 'series', page: 1, limit: 8 }, false).pipe(
         map((response) => response.items || []),
         catchError(() => of([] as CatalogItem[]))
       ),
@@ -111,28 +115,13 @@ export class PortalHomeFacade {
         // state while those retries run. Fail soft here without changing the
         // shared editorial service's resilience policy.
         timeout({ first: PortalHomeFacade.HOME_EDITORIAL_TIMEOUT_MS }),
-        catchError(() =>
-          of({
-            hero: null,
-            latestPosts: [],
-            guidePosts: [],
-            rankingPosts: [],
-            trendPosts: [],
-            categorySections: [],
-            categories: [],
-          })
-        )
+        map((hub) => hub.guidePosts),
+        catchError(() => of([] as EditorialPost[]))
       ),
       rankings: this.editorialService.getRankingsPageState().pipe(
         timeout({ first: PortalHomeFacade.HOME_EDITORIAL_TIMEOUT_MS }),
-        catchError(() =>
-          of({
-            featured: null,
-            posts: [],
-            categories: [],
-            sections: [],
-          })
-        )
+        map((rankings) => rankings.posts.slice(0, 6)),
+        catchError(() => of([] as EditorialPost[]))
       ),
     }).pipe(
       map(({
@@ -149,13 +138,11 @@ export class PortalHomeFacade {
       }) => ({
         liveNow,
         tonight,
-        streamingHighlights: discovery.platformItems || [],
-        editorialHub,
-        rankingHighlights: rankings.posts.slice(0, 6),
+        tvMovies: selectTvMovies(tonight, featuredChannels),
+        guidePosts: selectGuidePosts([...editorialHub, ...rankings]),
         featuredPlatforms: (discovery.platforms?.length ? discovery.platforms : platforms).slice(0, 8),
-        trendingItems: discovery.trendingItems || [],
-        freeItems: discovery.freeItems || [],
-        featuredChannels,
+        trendingItems: (discovery.trendingItems || []).slice(0, 8),
+        featuredChannels: featuredChannels.map(({ channel, current, next }) => ({ channel, current, next })),
         movieHighlights,
         seriesHighlights,
         footballHighlights,
@@ -165,6 +152,31 @@ export class PortalHomeFacade {
       })
     );
   }
+}
+
+function selectGuidePosts(posts: EditorialPost[]): HomeGuide[] {
+  const seen = new Set<string>();
+  return posts
+    .filter((post) => post.canonicalPath && !seen.has(post.id) && seen.add(post.id))
+    .slice(0, 6)
+    .map(({ id, title, canonicalPath, coverImage, coverAlt, readingMinutes, primaryCategory }) => ({
+      id, title, canonicalPath, coverImage, coverAlt, readingMinutes,
+      categoryName: primaryCategory?.name || 'Guía',
+    }));
+}
+
+function selectTvMovies(tonight: TvReadItemDTO[], channels: TvReadChannelSummaryDTO[]): TvReadItemDTO[] {
+  const seen = new Set<string>();
+  return [...tonight, ...channels.flatMap((channel) => channel.tonight || [])]
+    .filter((item) => normalizeToCard(item).contentType === 'movie')
+    .filter((item) => {
+      const key = `${item.channel.id}-${item.airing.start}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => a.airing.start.localeCompare(b.airing.start))
+    .slice(0, 8);
 }
 
 function selectFootballHighlights(home: {

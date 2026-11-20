@@ -22,9 +22,16 @@ describe(PanelNavComponent.name, () => {
   });
 
   it('should render the given logo when a menu link carries one', () => {
-    const el = render([{ title: 'Canales', links: [{ label: 'La 1', path: '/canales/la-1', logoUrl: '/storage/channel_icons/la_1.webp' }] }]);
+    const el = render([{ title: 'Canales', links: [
+      { label: 'La 1', path: '/canales/la-1', logoUrl: '/storage/channel_icons/la_1.webp' },
+      { label: 'Antena 3', path: '/canales/antena-3', logoUrl: '/storage/channel_icons/antena_3.webp' },
+    ] }]);
 
-    expect(el.querySelector('img')?.getAttribute('src')).toBe('/storage/channel_icons/la_1.webp');
+    const logos = Array.from(el.querySelectorAll('img'));
+    expect(logos.map((logo) => logo.getAttribute('src'))).toEqual([
+      '/storage/channel_icons/la_1.webp', '/storage/channel_icons/antena_3.webp',
+    ]);
+    expect(logos.map((logo) => logo.alt)).toEqual(['Logo de La 1', 'Logo de Antena 3']);
   });
 
   it('should resolve the platform brand mark when the link label names a platform', () => {

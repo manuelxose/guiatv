@@ -4,7 +4,6 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { RouterModule } from '@angular/router';
 import { catchError, of } from 'rxjs';
-import { TvReadItemDTO } from '../../api/models';
 import { FaqItem, FaqSectionComponent } from '../../components/faq-section/faq-section.component';
 import { PanelNavComponent, PanelNavGroup, PanelNavLink } from '../../components/panel-nav/panel-nav.component';
 import { PanelShellComponent } from '../../components/panel-shell/panel-shell.component';
@@ -80,33 +79,12 @@ export class HomeComponent {
   readonly tonight = computed(() => this.homeState()?.tonight || []);
   readonly featuredPlatforms = computed(() => this.homeState()?.featuredPlatforms || []);
   readonly featuredChannels = computed(() => this.homeState()?.featuredChannels || []);
-  readonly trendingItems = computed(() => this.homeState()?.trendingItems.slice(0, 8) || []);
+  readonly trendingItems = computed(() => this.homeState()?.trendingItems || []);
   readonly movieHighlights = computed(() => this.homeState()?.movieHighlights.slice(0, 8) || []);
   readonly seriesHighlights = computed(() => this.homeState()?.seriesHighlights.slice(0, 8) || []);
   readonly footballHighlights = computed(() => this.homeState()?.footballHighlights || []);
-  /** Guides and rankings in one block (deduplicated), the editorial entry points with most search demand. */
-  readonly guidePosts = computed(() => {
-    const state = this.homeState();
-    const seen = new Set<string>();
-    return [...(state?.editorialHub.guidePosts || []), ...(state?.rankingHighlights || [])]
-      .filter((post) => post.canonicalPath && !seen.has(post.id) && seen.add(post.id))
-      .slice(0, 6);
-  });
-
-  /** Films on linear TV today (global tonight feed + each featured channel's tonight), deduplicated, by start time. */
-  readonly tvMovies = computed<TvReadItemDTO[]>(() => {
-    const seen = new Set<string>();
-    return [...this.tonight(), ...this.featuredChannels().flatMap((c) => c.tonight || [])]
-      .filter((item) => normalizeToCard(item).contentType === 'movie')
-      .filter((item) => {
-        const key = `${item.channel.id}-${item.airing.start}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .sort((a, b) => a.airing.start.localeCompare(b.airing.start))
-      .slice(0, 8);
-  });
+  readonly guidePosts = computed(() => this.homeState()?.guidePosts || []);
+  readonly tvMovies = computed(() => this.homeState()?.tvMovies || []);
 
   /** "lunes, 9 de noviembre": the day the page is about (freshness for people and crawlers). */
   readonly today = dayFmt.format(new Date());
@@ -222,9 +200,9 @@ export class HomeComponent {
     private readonly chatService: ChatService
   ) {
     this.metaService.setMetaTags({
-      title: 'Programación TV hoy: qué echan ahora y esta noche en la tele | Guía TV',
+      title: 'Programación TV hoy: qué echan ahora y esta noche en España',
       description:
-        'Programación de TV de hoy en España: qué echan ahora y esta noche en La 1, Antena 3, Telecinco, laSexta y todos los canales, con películas, series y fútbol y dónde verlos.',
+        'Consulta qué echan ahora y esta noche en la TV en España. Horarios por canal, películas, series y partidos de fútbol, con información sobre dónde verlos.',
       canonicalUrl: '/',
       type: 'website',
     });

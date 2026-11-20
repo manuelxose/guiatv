@@ -79,8 +79,12 @@ export class PanelTileComponent {
   /** Rectangular art for the 16:9 (TV) card when the API supplies it; the poster otherwise. */
   readonly imageUrl = computed(() => {
     const c = this.card();
-    if (this.variant() !== 'tv') return c.image;
-    return (!this.wideFailed() && c.imageWide) || c.image;
+    const wide = this.variant() === 'tv' && !this.wideFailed() && c.imageWide;
+    const size = wide ? 'w780' : 'w500';
+    return (wide || c.image).replace(
+      /^https:\/\/image\.tmdb\.org\/t\/p\/original\//,
+      `https://image.tmdb.org/t/p/${size}/`
+    );
   });
 
   onImageError(): void {
