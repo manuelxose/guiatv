@@ -41,6 +41,17 @@ describe(PanelTileComponent.name, () => {
     expect(img.getAttribute('src')).toBe(BACKDROP);
   });
 
+  it('uses a card-sized TMDB original for backdrops and posters', () => {
+    const original = 'https://image.tmdb.org/t/p/original/';
+    const item = airing({
+      poster: { kind: 'poster', role: 'primary', source: 'epg_program_image', url: original + 'poster.jpg' },
+      backdrop: { kind: 'backdrop', role: 'fallback', source: 'tmdb_backdrop', url: original + 'backdrop.jpg' },
+    });
+
+    expect(render(item).getAttribute('src')).toBe('https://image.tmdb.org/t/p/w780/backdrop.jpg');
+    expect(render(item, 'poster').getAttribute('src')).toBe('https://image.tmdb.org/t/p/w500/poster.jpg');
+  });
+
   it('should keep the poster when the API has no rectangular backdrop', () => {
     const img = render(airing({ poster: { kind: 'poster', role: 'primary', source: 'epg_program_image', url: POSTER } }));
 

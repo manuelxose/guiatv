@@ -59,7 +59,7 @@ export class DiscoveryService {
     this.baseUrl = this.apiConfig.getBaseUrl();
   }
 
-  getHome(date?: string): Observable<DiscoveryHomeResponse> {
+  getHome(date?: string, transferCache = true): Observable<DiscoveryHomeResponse> {
     const params = date ? { date } : undefined;
     return this.request<DiscoveryHomeResponse>(
       `discovery:home:${date || 'today'}`,
@@ -67,7 +67,7 @@ export class DiscoveryService {
       this.emptyHome(),
       () =>
         this.http
-          .get<ApiResponse<DiscoveryHomeResponse>>(`${this.baseUrl}/discovery/home`, { params })
+          .get<ApiResponse<DiscoveryHomeResponse>>(`${this.baseUrl}/discovery/home`, { params, transferCache })
           .pipe(map((resp) => resp?.data || this.emptyHome()))
     );
   }
@@ -114,7 +114,7 @@ export class DiscoveryService {
     sort?: string;
     limit?: number;
     page?: number;
-  }): Observable<DiscoveryBrowseResponse> {
+  }, transferCache = true): Observable<DiscoveryBrowseResponse> {
     const params = compactParams({
       type: query.type,
       q: query.q,
@@ -134,7 +134,7 @@ export class DiscoveryService {
         this.http
           .get<ApiResponse<DiscoveryBrowseResponse>>(
             `${this.baseUrl}/discovery/browse`,
-            { params }
+            { params, transferCache }
           )
           .pipe(map((resp) => resp?.data || this.emptyBrowse(query.type)))
     );

@@ -50,7 +50,7 @@ export interface PanelNavGroup {
               @if (link.active === undefined) {
               <a [routerLink]="link.path" [queryParams]="link.queryParams" routerLinkActive="active" ariaCurrentWhenActive="page" [attr.title]="link.label" [attr.aria-label]="link.label">
                 @if (logo(link); as mark) {
-                <img class="logo" [src]="mark" [alt]="''" width="24" height="24" loading="lazy" aria-hidden="true" (error)="onLogoError(link)" />
+                <img class="logo" [src]="mark" [alt]="'Logo de ' + link.label" width="24" height="24" loading="lazy" aria-hidden="true" (error)="onLogoError(link)" />
                 } @else {
                 <span class="initial" aria-hidden="true">{{ link.label.charAt(0) }}</span>
                 }

@@ -9,7 +9,7 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/home/home.component').then((m) => m.HomeComponent),
     // Same as the meta title set by HomeComponent: the router's title would otherwise replace it.
-    title: 'Programación TV hoy: qué echan ahora y esta noche en la tele | Guía TV',
+    title: 'Programación TV hoy: qué echan ahora y esta noche en España',
     data: { layout: 'portal-page' },
   },
   {

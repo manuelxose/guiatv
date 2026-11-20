@@ -58,7 +58,7 @@
             @let item = row.now;
             <li class="home-ctx__channel">
               <a class="home-ctx__logo" [routerLink]="row.path" [attr.aria-label]="'Programación de ' + row.name">
-                @if (row.icon) {<img [src]="row.icon" alt="" width="36" height="36" loading="lazy" />} @else {<span>{{ row.name.charAt(0) }}</span>}
+                @if (row.icon) {<img [src]="row.icon" [alt]="'Logo de ' + row.name" width="36" height="36" loading="lazy" />} @else {<span>{{ row.name.charAt(0) }}</span>}
               </a>
               <div class="home-ctx__body">
                 <a class="home-ctx__name" [routerLink]="row.path">{{ row.name }}</a>
@@ -190,7 +190,7 @@
           @for (row of channelRows(); track row.path) {
           <a class="home__channel" [routerLink]="row.path">
             <span class="home__channel-head">
-              <span class="home__channel-logo">@if (row.icon) {<img [src]="row.icon" alt="" width="32" height="32" loading="lazy" />} @else {<span>{{ row.name.charAt(0) }}</span>}</span>
+              <span class="home__channel-logo">@if (row.icon) {<img [src]="row.icon" [alt]="'Logo de ' + row.name" aria-hidden="true" width="32" height="32" loading="lazy" />} @else {<span>{{ row.name.charAt(0) }}</span>}</span>
               <strong>{{ row.name }}</strong>
             </span>
             @if (row.now) {
@@ -245,7 +245,7 @@
         <div class="home__grid home__grid--wide">
           @for (post of guidePosts(); track post.id) {
           <a class="home__guide" [routerLink]="post.canonicalPath">
-            <span class="home__guide-thumb">@if (post.coverImage) {<img [src]="post.coverImage" [alt]="post.coverAlt || ''" loading="lazy" decoding="async" />}<span>{{ post.primaryCategory?.name || 'Guía' }}</span></span>
+            <span class="home__guide-thumb">@if (post.coverImage) {<img [src]="post.coverImage" [alt]="post.coverAlt || ''" loading="lazy" decoding="async" />}<span>{{ post.categoryName }}</span></span>
             <h3>{{ post.title }}</h3>
             <small>{{ post.readingMinutes }} min de lectura</small>
           </a>
@@ -263,7 +263,7 @@
       </section>
       }
 
-      <app-faq-section heading="Preguntas frecuentes sobre la programación de TV" [items]="faq()"></app-faq-section>
+      <app-faq-section heading="Preguntas frecuentes sobre la programación de TV" [items]="faq()" [structuredData]="false"></app-faq-section>
     }
   </div>
 </app-panel-shell>
